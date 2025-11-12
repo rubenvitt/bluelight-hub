@@ -1420,6 +1420,73 @@ Root level:
   package.json
 ```
 
+**Backend Location Patterns:**
+
+**Configuration Files:**
+```
+packages/backend/
+├── .env                          # Environment Variables (Root Level, .gitignored)
+├── .env.example                  # Template for .env
+└── src/
+    └── config/
+        ├── app.config.ts         # App Configuration (Port, CORS, etc.)
+        └── database.config.ts    # Database Configuration (Prisma)
+```
+
+**Shared Utilities:**
+```
+src/common/utils/
+├── date.util.ts                  # Date formatting helpers
+├── uuid.util.ts                  # UUID generation
+└── validation.util.ts            # Validation helpers
+```
+
+**Middleware:**
+```
+src/common/middleware/
+├── logging.middleware.ts         # Request/Response Logging
+├── cors.middleware.ts            # CORS Configuration
+└── helmet.middleware.ts          # Security Headers
+```
+
+**Guards:**
+```
+src/common/guards/
+├── jwt-auth.guard.ts             # JWT Authentication Guard
+├── roles.guard.ts                # RBAC Authorization Guard
+└── throttle.guard.ts             # Rate Limiting Guard
+```
+
+**Decorators:**
+```
+src/common/decorators/
+├── current-user.decorator.ts     # Extract User from Request
+├── roles.decorator.ts            # Define Required Roles
+└── api-paginated-response.decorator.ts  # OpenAPI Pagination
+```
+
+**Interceptors:**
+```
+src/common/interceptors/
+├── transform.interceptor.ts      # Response Transformation
+├── timeout.interceptor.ts        # Request Timeout Handling
+└── logging.interceptor.ts        # Logging Interceptor
+```
+
+**Filters:**
+```
+src/common/filters/
+├── http-exception.filter.ts      # Global Exception Filter
+└── prisma-exception.filter.ts    # Prisma Error Handler
+```
+
+**Pipes:**
+```
+src/common/pipes/
+├── validation.pipe.ts            # DTO Validation Pipe
+└── parse-uuid.pipe.ts            # UUID Parsing Pipe
+```
+
 ### Consistency Patterns
 
 **Date Display:**

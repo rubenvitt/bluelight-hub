@@ -1200,6 +1200,286 @@ export class GetActiveEinsaetzeHandler {
 
 ---
 
+## 🎨 Frontend Implementation Patterns
+
+### Frontend Communication Patterns (TanStack Query)
+
+**Base URL Configuration:**
+```typescript
+// src/lib/api-client.ts
+import { api } from '@bluelight-hub/shared/client';
+
+// Configure generated API client
+api.setBaseUrl(import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000');
+```
+
+**Query Hook Pattern:**
+```typescript
+// src/hooks/einsatz/useEinsaetze.ts
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@bluelight-hub/shared/client';
+import { QUERY_KEYS } from '@/constants/query-keys';
+
+export const useEinsaetze = () => {
+  return useQuery({
+    queryKey: QUERY_KEYS.einsatz.all,
+    queryFn: () => api.einsatz.findAll(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,   // 10 minutes
+  });
+};
+
+export const useActiveEinsaetze = () => {
+  return useQuery({
+    queryKey: QUERY_KEYS.einsatz.active,
+    queryFn: () => api.einsatz.findActive(),
+    staleTime: 30 * 1000, // 30 seconds (more frequent for active data)
+  });
+};
+
+export const useEinsatz = (id: string) => {
+  return useQuery({
+    queryKey: QUERY_KEYS.einsatz.detail(id),
+    queryFn: () => api.einsatz.findOne(id),
+    enabled: !!id, // Only run if id exists
+  });
+};
+```
+
+**Mutation Hook Pattern:**
+```typescript
+// src/hooks/einsatz/useCreateEinsatz.ts
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@bluelight-hub/shared/client';
+import { QUERY_KEYS } from '@/constants/query-keys';
+import { toast } from '@/components/ui/toast';
+
+export const useCreateEinsatz = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (dto: CreateEinsatzDto) => api.einsatz.create(dto),
+    onSuccess: (newEinsatz) => {
+      // Invalidate all einsatz queries
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.einsatz.all });
+
+      // Optimistically add to cache
+      queryClient.setQueryData(
+        QUERY_KEYS.einsatz.detail(newEinsatz.id),
+        newEinsatz
+      );
+
+      toast.success('Einsatz erfolgreich erstellt');
+    },
+    onError: (error) => {
+      toast.error(`Fehler: ${error.message}`);
+    },
+  });
+};
+```
+
+**Query Keys Convention:**
+```typescript
+// src/constants/query-keys.ts
+export const QUERY_KEYS = {
+  einsatz: {
+    all: ['einsatz'] as const,
+    active: ['einsatz', 'active'] as const,
+    detail: (id: string) => ['einsatz', 'detail', id] as const,
+  },
+  etb: {
+    all: ['etb'] as const,
+    byEinsatz: (einsatzId: string) => ['etb', 'einsatz', einsatzId] as const,
+  },
+  lagekarte: {
+    all: ['lagekarte'] as const,
+    byEinsatz: (einsatzId: string) => ['lagekarte', 'einsatz', einsatzId] as const,
+  },
+} as const;
+```
+
+### Frontend Naming Conventions
+
+**React Components:**
+- **Files:** PascalCase with `.tsx` extension
+  - `Button.tsx`, `EinsatzCard.tsx`, `NewEinsatzModal.tsx`
+- **Components:** PascalCase matching filename
+  - `export const Button = () => { ... }`
+
+**Hooks:**
+- **Files:** camelCase with `use` prefix, `.ts` extension
+  - `useEinsaetze.ts`, `useCreateEinsatz.ts`, `useAuth.ts`
+- **Hook functions:** camelCase with `use` prefix
+  - `export const useEinsaetze = () => { ... }`
+
+**Atomic Design Structure:**
+```
+src/components/
+  atoms/          # Basic building blocks (Button, Input, Icon)
+    Button.tsx
+    Input.tsx
+  molecules/      # Simple combinations (FormField, Card, Modal)
+    FormField.tsx
+    EinsatzCard.tsx
+  organisms/      # Complex components (Forms, Tables, Sidebars)
+    EinsatzForm.tsx
+    EinsatzTable.tsx
+  templates/      # Page layouts
+    DashboardLayout.tsx
+  pages/          # Route-level components (co-located with routes/)
+```
+
+**Routes (TanStack Router):**
+```
+src/routes/
+  __root.tsx              # Root layout
+  index.tsx               # / route
+  einsaetze/
+    index.tsx             # /einsaetze route
+    $id.tsx               # /einsaetze/:id route
+    $id.edit.tsx          # /einsaetze/:id/edit route
+```
+
+### Lifecycle Patterns
+
+**Loading States:**
+```typescript
+const EinsaetzeList = () => {
+  const { data, isLoading, isError, error } = useActiveEinsaetze();
+
+  if (isLoading) {
+    return <EinsaetzeSkeleton />;  // Skeleton screen pattern
+  }
+
+  if (isError) {
+    return <ErrorBoundary error={error} />;
+  }
+
+  return <EinsaetzeTable data={data} />;
+};
+```
+
+**Error Recovery:**
+```typescript
+// Error Boundary for React 19
+import { ErrorBoundary } from 'react-error-boundary';
+
+const App = () => (
+  <ErrorBoundary
+    fallback={<ErrorFallback />}
+    onReset={() => window.location.reload()}
+  >
+    <AppRoutes />
+  </ErrorBoundary>
+);
+
+const ErrorFallback = ({ error, resetErrorBoundary }) => (
+  <div className="error-container">
+    <h2>Etwas ist schiefgelaufen</h2>
+    <pre>{error.message}</pre>
+    <button onClick={resetErrorBoundary}>Erneut versuchen</button>
+  </div>
+);
+```
+
+**Retry Logic (Automatic via TanStack Query):**
+```typescript
+const useEinsaetze = () => {
+  return useQuery({
+    queryKey: QUERY_KEYS.einsatz.all,
+    queryFn: () => api.einsatz.findAll(),
+    retry: 3,              // Retry 3 times on failure
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000), // Exponential backoff
+  });
+};
+```
+
+### Location Patterns
+
+**Assets:**
+```
+src/assets/
+  images/        # Static images (logo, backgrounds)
+  icons/         # SVG icons (if not using icon library)
+  fonts/         # Custom fonts (if any)
+```
+
+**Public Files (Tauri):**
+```
+public/
+  favicon.ico
+  manifest.json
+```
+
+**Configuration Files:**
+```
+Root level:
+  vite.config.ts
+  tailwind.config.ts
+  tsconfig.json
+  package.json
+```
+
+### Consistency Patterns
+
+**Date Display:**
+```typescript
+// German locale date formatting
+const formatDate = (date: string | Date): string => {
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(date));
+};
+
+// Example: "15.01.2025, 10:30"
+```
+
+**Number Display:**
+```typescript
+// German locale number formatting
+const formatNumber = (value: number): string => {
+  return new Intl.NumberFormat('de-DE').format(value);
+};
+
+// Example: "1.234,56"
+```
+
+**Currency Display:**
+```typescript
+const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+  }).format(value);
+};
+
+// Example: "1.234,56 €"
+```
+
+**User-Facing Error Messages:**
+```typescript
+// German error messages for UI
+const ERROR_MESSAGES = {
+  network: 'Netzwerkfehler. Bitte überprüfen Sie Ihre Verbindung.',
+  notFound: 'Die angeforderte Ressource wurde nicht gefunden.',
+  unauthorized: 'Sie sind nicht berechtigt, diese Aktion auszuführen.',
+  serverError: 'Ein Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.',
+} as const;
+```
+
+**Logging Format (Console):**
+```typescript
+// English for logs (developer-facing)
+console.log('[EinsatzService] Fetching active Einsätze...');
+console.error('[API] Request failed:', error);
+```
+
+---
+
 ## 🔗 Epic to Architecture Mapping
 
 **Selected Strategy: Option A (Einsatz Domain Events in Epic 3)**

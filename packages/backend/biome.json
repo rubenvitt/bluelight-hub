@@ -33,6 +33,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/domain/**/*.ts"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noShadow": "off"
+          }
+        }
+      }
     }
   ]
 }

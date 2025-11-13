@@ -40,8 +40,17 @@ const fetchAlerts = async () => {
 
 - **Forms:** NUR @tanstack/react-form mit Zod-Schemas
 - **State:** @tanstack/react-store für globalen State
+- **Server State:** @tanstack/react-query für API-Kommunikation
 - **Timing:** @tanstack/pacer für Debouncing/Throttling
 - **NIEMALS:** HTML Forms, Redux, oder andere Libraries
+
+### Code Quality
+
+- **Linter/Formatter:** NUR Biome (kein ESLint/Prettier!)
+- **Pre-commit Hooks:** Husky + lint-staged (NIEMALS `--no-verify` verwenden)
+- **JSDoc:** Deutsche Kommentare für public APIs (Backend)
+  - Check: `pnpm --filter @bluelight-hub/backend check:jsdoc:public`
+  - Erkläre "warum", nicht "was"
 
 ### Commit Rules
 
@@ -49,75 +58,35 @@ const fetchAlerts = async () => {
 - **IMMER** nach jedem Subtask committen
 - Format: `<emoji>(<context>): <title>`
 
-## 🤖 BUILT-IN AGENTS (Claude Code)
-
-**WICHTIG:** Nutze IMMER die Built-in Agents via Task-Tool, wenn verfügbar. Bei komplexen Multi-Agent-Workflows arbeite
-im **Orchestrator-Mode** (parallele Agent-Launches).
-
-### Verfügbare Built-in Agents
-
-| Agent            | subagent_type        | Verwendung                                                  | Tools verfügbar               |
-|------------------|----------------------|-------------------------------------------------------------|-------------------------------|
-| **General**      | `general-purpose`    | Komplexe Recherchen, Code-Suche, Multi-Step-Tasks           | Alle Tools                    |
-| **Explorer**     | `Explore`            | Schnelle Codebase-Exploration, Pattern-Suche, Keyword-Suche | Glob, Grep, Read, Bash        |
-| **Planner**      | `Plan`               | Task-Planung, Codebase-Analyse für Implementierung          | Glob, Grep, Read, Bash        |
-
-### Wann welchen Agent nutzen?
-
-| Szenario                        | Agent             | Thoroughness Level            |
-|---------------------------------|-------------------|-------------------------------|
-| Codebase verstehen              | `Explore`         | `medium` oder `very thorough` |
-| Spezifische Datei/Klasse finden | Direkte Tools     | -                             |
-| Komplexe Implementierung planen | `Plan`            | `medium`                      |
-| Multi-Step Refactoring          | `general-purpose` | -                             |
-| Fehlersuche über mehrere Files  | `Explore`         | `very thorough`               |
-| Task-Breakdown & Strategie      | `Plan`            | `medium`                      |
-
-### Orchestrator-Mode (Parallele Agents)
-
-Für komplexe Workflows mit mehreren unabhängigen Aufgaben:
-
-```typescript
-// Beispiel: Parallele Agent-Launches in EINER Message
-Task({subagent_type: "Explore", prompt: "Find all authentication handlers"})
-Task({subagent_type: "Explore", prompt: "Find all API error handling patterns"})
-Task({subagent_type: "Plan", prompt: "Plan migration strategy for auth system"})
-```
-
-**Vorteile:**
-
-- Maximale Performance durch Parallelität
-- Mehrere Perspektiven gleichzeitig
-- Effiziente Codebase-Analyse
-
-### Task-Tool Usage Pattern
-
-```typescript
-// ✅ RICHTIG: Agent für Codebase-Exploration
-Task({
-    subagent_type: "Explore",
-    description: "Find error handlers",
-    prompt: "Locate all error handling patterns in the backend, thorough search",
-})
-
-// ❌ FALSCH: Direkte Tool-Aufrufe für offene Suchen
-Glob({pattern: "**/*error*"})
-Grep({pattern: "catch"})
-// ... mehrere Runden manueller Suche
-```
-
 ## 📁 PROJECT STRUCTURE
 
 ```text
-app/
+bluelight-hub/
 ├── packages/
-│   ├── frontend/          # React + Vite + Atomic Design
+│   ├── frontend/          # React 19 + Vite + Tauri Desktop App
+│   │   ├── src/
+│   │   │   ├── components/  # Atomic Design (atoms/molecules/organisms/pages/templates)
+│   │   │   ├── hooks/       # TanStack Query Hooks
+│   │   │   ├── stores/      # TanStack Store
+│   │   │   └── routes/      # TanStack Router (File-based)
+│   │   └── src-tauri/       # Tauri Rust Backend
 │   ├── backend/           # NestJS + Prisma + PostgreSQL
+│   │   ├── src/
+│   │   │   ├── modules/     # Feature Modules (Controller/Service/Repository)
+│   │   │   ├── prisma/      # Database Schema & Client
+│   │   │   └── common/      # Shared Utilities
+│   │   └── prisma/schema.prisma
 │   └── shared/
-│       └── client/apis/   # Generierte API-Clients (nicht manuell ändern!)
-├── docs/
-│   └── architecture/      # arc42 Dokumentation (PFLICHT für Architektur)
-└── ai-docs/              # AI-spezifische Dokumentation
+│       └── client/        # Generierte API-Clients (NICHT manuell ändern!)
+├── docs/                  # Modulare Projektdokumentation
+│   ├── index/             # 16 modulare Dokumentationsdateien
+│   ├── architecture/      # arc42 Template (12 Dateien)
+│   ├── backend-api-contracts/
+│   ├── frontend-components/
+│   └── development-guide/
+└── .bmad/                # BMad v6 Framework (Workflow Automation)
+    ├── core/             # BMad Core Module
+    └── _cfg/             # Manifests (tasks, workflows, agents)
 ```
 
 ## 🛠️ ESSENTIAL COMMANDS
@@ -126,128 +95,261 @@ app/
 
 ```bash
 # Projekt-weit
-pnpm -r dev                                    # Alle Services starten
+pnpm -r dev                                    # Alle Services starten (Backend + Tauri)
 pnpm -r build                                  # Alles bauen
 pnpm run generate-api                          # API-Client generieren (WICHTIG!)
 
 # Package-spezifisch
-pnpm --filter @bluelight-hub/backend dev      # Nur Backend
-pnpm --filter @bluelight-hub/frontend dev     # Nur Frontend
+pnpm --filter @bluelight-hub/backend dev      # Nur Backend (Port 3000)
+pnpm --filter @bluelight-hub/frontend dev     # Tauri Desktop App (Port 3001)
+pnpm --filter @bluelight-hub/frontend dev:vite # Nur Vite Dev Server (Port 3001)
 
-# E2E Tests wurden entfernt
+# Database
+pnpm --filter @bluelight-hub/backend prisma:migrate  # Migrations ausführen
+pnpm --filter @bluelight-hub/backend prisma:studio   # Prisma Studio öffnen
+
+# Code Quality
+pnpm lint                                      # Biome lint + fix
+pnpm lint:check                               # Biome check ohne fix
+
+# Backend Documentation
+pnpm --filter @bluelight-hub/backend docs:generate  # Compodoc generieren
 ```
 
-## 🔧 MCP SERVER INTEGRATION
+### Environment
 
-### Tailwind CSS + Headless UI - Component System
-
-- **Tailwind CSS:** Utility-first CSS Framework für Styling
-- **Headless UI:** Unstyled, accessible Komponenten (Dialogs, Dropdowns, etc.)
-- **Tailwind Plus/TailwindUI:** Premium-Komponenten
-    - WICHTIG: Komponenten müssen vom User bereitgestellt werden
-    - Workflow: Frage User nach benötigter Komponente → User kopiert von TailwindUI → Integration
-- **Tailwind Config:** Zentrale Theme-Konfiguration in `tailwind.config.js`
-
-## 📚 ARCHITECTURE & DOCUMENTATION
-
-### JSDoc Requirements
-
-- **Sprache:** Deutsch (für technische Dokumentation)
-- **Coverage Check:** `pnpm --filter @bluelight-hub/backend check:jsdoc:public`
-- Erkläre "warum", nicht "was"
+- **Backend:** `http://localhost:3000`
+  - API: `http://localhost:3000/api`
+  - Swagger UI: `http://localhost:3000/api`
+  - API Spec: `http://localhost:3000/api-json`
+- **Frontend:** `http://localhost:3001` (Vite Dev Server + Tauri Window)
+- **Database:** PostgreSQL 17 (siehe `.env` für Connection String)
 
 ## 🏗️ CODE PATTERNS
 
-### Frontend (Atomic Design)
+### Frontend (Atomic Design + TanStack Ecosystem)
 
-```text
+```typescript
 // Component-Struktur
-atoms/      # Basis-Komponenten (Tailwind Utilities)
-molecules/  # Kombinierte Komponenten (Headless UI + Tailwind)
-organisms/  # Komplexe Module (TailwindUI Komponenten vom User)
+atoms/      # Basis-Komponenten (Buttons, Inputs, Icons)
+molecules/  # Kombinierte Komponenten (Form Fields, Cards)
+organisms/  # Komplexe Module (Forms, Tables, Modals)
 templates/  # Seiten-Layouts
 pages/      # Route-Komponenten
 
-// IMMER Tailwind CSS Classes + Headless UI verwenden!
-// TailwindUI-Komponenten: User nach Code fragen, NICHT selbst erstellen!
+// API Integration (IMMER generierter Client!)
+import { api } from '@bluelight-hub/shared/client';
+import { useQuery, useMutation } from '@tanstack/react-query';
+
+const useEinsaetze = () => {
+  return useQuery({
+    queryKey: ['einsaetze'],
+    queryFn: () => api.einsatz.findAll(),
+  });
+};
+
+// Forms (IMMER @tanstack/react-form)
+import { useForm } from '@tanstack/react-form';
+import { zodValidator } from '@tanstack/zod-form-adapter';
+
+const form = useForm({
+  defaultValues: { name: '' },
+  validatorAdapter: zodValidator(),
+  validators: {
+    onChange: z.object({ name: z.string().min(3) }),
+  },
+});
+
+// Styling (NUR Tailwind CSS)
+<div className="flex items-center gap-4 rounded-lg bg-blue-100 p-4">
+  <Button variant="primary">Action</Button>
+</div>
 ```
 
-### Backend (NestJS Modular)
+### Backend (NestJS Modular + OpenAPI-First)
 
-```text
+```typescript
 // Module-Struktur
-controller/ # REST Endpoints
+controller/ # REST Endpoints (IMMER @ApiTags, @ApiOperation decorators)
 service/    # Business Logic
-repository/ # Data Access
-dto/       # Data Transfer Objects
+repository/ # Data Access (Prisma)
+dto/        # Data Transfer Objects (class-validator + OpenAPI decorators)
 
-// IMMER OpenAPI decorators für API-Generation!
+// Controller (IMMER OpenAPI decorators für API-Generation!)
+@Controller('einsatz')
+@ApiTags('einsatz')
+export class EinsatzController {
+  @Post()
+  @ApiOperation({ summary: 'Einsatz erstellen' })
+  @ApiCreatedResponse({ type: EinsatzDto })
+  async create(@Body() dto: CreateEinsatzDto) {
+    return this.service.create(dto);
+  }
+}
+
+// DTO (IMMER class-validator + @ApiProperty)
+export class CreateEinsatzDto {
+  @ApiProperty({ description: 'Einsatznummer' })
+  @IsString()
+  nummer: string;
+
+  @ApiProperty({ description: 'Einsatzort', required: false })
+  @IsOptional()
+  @IsString()
+  ort?: string;
+}
+
+// JSDoc (Deutsch, "warum" nicht "was")
+/**
+ * Erstellt einen neuen Einsatz und benachrichtigt alle aktiven Benutzer.
+ *
+ * Diese Methode löst ein Event aus, damit andere Module (z.B. Notifications)
+ * reagieren können, ohne direkte Abhängigkeit zu schaffen.
+ */
+async create(dto: CreateEinsatzDto): Promise<Einsatz> { ... }
 ```
 
 ## 🎯 COMMIT EMOJIS
 
 ### Semantic Release Triggers
 
-| Emoji | Typ      | Version | Verwendung       |
-|-------|----------|---------|------------------|
-| 💥    | Breaking | Major   | Breaking Changes |
-| ✨     | Feature  | Minor   | Neue Features    |
-| 🐛    | Fix      | Patch   | Bug Fixes        |
-| 🚑    | Hotfix   | Patch   | Kritische Fixes  |
-| 🔒    | Security | Patch   | Security Fixes   |
-| ♻️    | Refactor | Patch   | Code Refactoring |
+| Emoji | Typ      | Version | Verwendung           | Beispiel                                    |
+|-------|----------|---------|----------------------|---------------------------------------------|
+| 💥    | Breaking | Major   | Breaking Changes     | `💥(api): Change endpoint structure`        |
+| ✨     | Feature  | Minor   | Neue Features        | `✨(einsatz): Add status filter`            |
+| 🐛    | Fix      | Patch   | Bug Fixes            | `🐛(auth): Fix token expiration`            |
+| 🚑    | Hotfix   | Patch   | Kritische Fixes      | `🚑(db): Fix connection pool leak`          |
+| 🔒    | Security | Patch   | Security Fixes       | `🔒(auth): Patch XSS vulnerability`         |
+| ♻️    | Refactor | Patch   | Code Refactoring     | `♻️(service): Extract validation logic`     |
+| 📝    | Docs     | -       | Dokumentation        | `📝(readme): Update setup instructions`     |
+| 🔧    | Config   | -       | Konfiguration        | `🔧(ci): Add coverage reporting`            |
+| 🎨    | Style    | -       | Code Style           | `🎨(components): Apply consistent spacing`  |
+| ⚡     | Perf     | Patch   | Performance          | `⚡(query): Add database index`             |
+| 🔖    | Release  | -       | Version Tag          | `🔖(release): 1.2.3`                        |
 
-## ⚠️ KLARSTELLUNGEN
+## 🤖 BMad v6 Framework Integration
+
+Dieses Projekt nutzt BMad v6 für Workflow-Automation und Multi-Agent-Orchestration.
+
+### BMad Master Agent
+
+Der zentrale Orchestrator für BMad-Workflows:
+
+```bash
+# Aktivierung in Claude Code
+/bmad:core:agents:bmad-master
+
+# Verfügbare Optionen (im Agent-Menü):
+1. Liste verfügbare Tasks (*list-tasks)
+2. Liste Workflows (*list-workflows)
+3. Gruppen-Chat mit allen Agents (*party-mode)
+4. Exit (*exit)
+```
+
+### Wichtige BMad Workflows
+
+| Workflow | Command | Verwendung |
+|----------|---------|------------|
+| **Workflow Status** | `/bmad:bmm:workflows:workflow-status` | Projekt-Status abfragen |
+| **Product Brief** | `/bmad:bmm:workflows:product-brief` | Produkt-Vision definieren |
+| **Architecture** | `/bmad:bmm:workflows:architecture` | Architektur-Entscheidungen |
+| **PRD** | `/bmad:bmm:workflows:prd` | Product Requirements Document |
+| **Story Creation** | `/bmad:bmm:workflows:create-story` | User Stories generieren |
+| **Brainstorming** | `/bmad:core:workflows:brainstorming` | Kreative Ideation |
+
+**Hinweis:** BMad-Workflows sind OPTIONAL. Für reguläre Entwicklungsaufgaben sind sie NICHT erforderlich.
+
+## 🔧 MCP SERVER INTEGRATION
+
+Dieses Projekt nutzt mehrere MCP Server für erweiterte Funktionalität:
+
+### Verfügbare MCP Server
+
+| Server | Verwendung | Tools |
+|--------|------------|-------|
+| **Task Master** | Task-Management & TDD Workflows | `initialize_project`, `get_tasks`, `next_task`, `expand_task`, `autopilot_*` |
+| **Recall** | Session-Memory & Kontext-Persistenz | `store_memory`, `search_memories`, `get_time_window_context` |
+| **Context7** | Aktuelle Library-Dokumentation | `resolve-library-id`, `get-library-docs` |
+| **Chrome DevTools** | Browser-Automatisierung & E2E Testing | `navigate_page`, `take_snapshot`, `click`, `fill`, `evaluate_script` |
+| **IDE** | Diagnostics & Workspace Info | `getDiagnostics` |
+
+### Chrome DevTools für Testing
+
+**WICHTIG:** Nutze Chrome DevTools MCP für manuelle UI-Tests:
+
+```bash
+# Frontend starten (läuft auf Port 3001)
+pnpm --filter @bluelight-hub/frontend dev:vite
+
+# In Claude Code:
+# 1. Neue Seite öffnen
+mcp__chrome-devtools__new_page(url: "http://localhost:3001")
+
+# 2. Snapshot nehmen (zeigt interaktive Elemente mit UIDs)
+mcp__chrome-devtools__take_snapshot()
+
+# 3. Mit Elementen interagieren
+mcp__chrome-devtools__click(uid: "element-uid-from-snapshot")
+mcp__chrome-devtools__fill(uid: "input-uid", value: "Test")
+
+# 4. Network Requests prüfen
+mcp__chrome-devtools__list_network_requests()
+
+# 5. Console Logs prüfen
+mcp__chrome-devtools__list_console_messages()
+```
+
+## ⚠️ WICHTIGE HINWEISE
 
 ### Tests
 
-- Tests werden AKTUELL übersprungen (temporär)
-- E2E-Tests wurden entfernt
+- **Unit/Integration Tests:** AKTUELL ÜBERSPRUNGEN (temporär)
+- **E2E Tests:** Wurden entfernt
+- **Manuelle Tests:** Nutze Chrome DevTools MCP (siehe oben)
 
-### Built-in Agents
-
-- **Verfügbare Agents:** Siehe Sektion "🤖 BUILT-IN AGENTS"
-- **Verwendung:** PFLICHT für Codebase-Exploration und komplexe Multi-Step-Tasks
-- **Task-Tool:** Nutze das Task-Tool mit entsprechendem `subagent_type`
-- **Orchestrator-Mode:** Bei unabhängigen Tasks parallele Agent-Launches in EINER Message
-- **Keine direkten Tool-Aufrufe** für offene Codebase-Suchen - immer `Explore`-Agent nutzen
-
-### API Development
+### API Development Workflow
 
 1. Backend-Endpoint mit NestJS/Swagger erstellen
-2. API-Client generieren lassen
-3. Frontend nutzt generierten Client
-4. Bei fehlenden APIs: Backend-Endpoint erstellen → `pnpm run generate-api` → generierten Client nutzen
+2. API-Client generieren: `pnpm run generate-api`
+3. Frontend nutzt generierten Client aus `@bluelight-hub/shared/client`
+4. TanStack Query Hook erstellen
+
+### Tauri Desktop App
+
+- Frontend ist eine **Desktop-App** (Tauri), kein reiner Web-Client
+- Native Features: File System Access, System Tray, Native Notifications
+- Development: `pnpm --filter @bluelight-hub/frontend dev` (öffnet natives Fenster)
+- Web-Only: `pnpm --filter @bluelight-hub/frontend dev:vite` (Browser)
+
+## 📚 DOKUMENTATION
+
+Die Projektdokumentation ist modular aufgebaut:
+
+- **Haupt-Index:** `/docs/index/` (16 Dateien)
+- **Architektur:** `/docs/architecture/` (arc42 Template, 12 Dateien)
+- **API:** `/docs/backend-api-contracts/` (OpenAPI, DTOs, Endpoints)
+- **Frontend:** `/docs/frontend-components/` (Atomic Design Inventory)
+- **Development:** `/docs/development-guide/` (Setup, Commands, Best Practices)
+
+**Wichtig:** Bei Architektur-Änderungen IMMER arc42-Dokumente aktualisieren!
 
 ## 🔍 QUICK REFERENCE
 
-| Was                        | Wo       | Tool/Command                      | Built-in Agent / Orchestrator                         |
-|----------------------------|----------|-----------------------------------|-------------------------------------------------------|
-| **Codebase verstehen**     | -        | Task-Tool                         | `Explore` (medium/very thorough)                      |
-| **Implementierung planen** | -        | Task-Tool                         | `Plan` (medium) oder Orchestrator-Mode                |
-| **API erstellen**          | Backend  | NestJS + Swagger                  | `general-purpose` für komplexe API-Designs            |
-| **API nutzen**             | Frontend | Generierter Client in `@/api`     | -                                                     |
-| **UI Component**           | Frontend | Tailwind/Headless UI/TailwindUI\* | `Explore` für Beispiele, dann direkte Implementierung |
-| **Form erstellen**         | Frontend | TanStack Form + Zod               | `Explore` für Pattern-Suche                           |
-| **Refactoring**            | -        | Multi-Step                        | `general-purpose` oder Orchestrator-Mode              |
-| **Architektur**            | docs/    | arc42 Template                    | `Explore` für Bestandsanalyse                         |
-| **Bug-Analyse**            | -        | Code-Suche                        | `Explore` (very thorough)                             |
-
-## 🚀 DEVELOPMENT WORKFLOW CHECKLIST
-
-- [ ] **Codebase verstehen**: `Explore`-Agent mit `medium` thoroughness
-- [ ] **Planung**: `Plan`-Agent für Task-Breakdown und Implementierungsstrategie
-- [ ] **Komplexe Tasks**: `general-purpose`-Agent für Multi-Step-Workflows
-- [ ] **Parallele Recherche**: Orchestrator-Mode mit mehreren `Explore`-Agents
-- [ ] **Implementierung**: Direkte Tools nach Agent-basierter Planung
-- [ ] **Commit**: Semantic Emojis nach jedem Subtask
+| Was | Wo | Tool/Command |
+|-----|-----|-------------|
+| **API erstellen** | Backend | NestJS + Swagger Decorators → `pnpm run generate-api` |
+| **API nutzen** | Frontend | `@bluelight-hub/shared/client` + TanStack Query |
+| **UI Component** | Frontend | Tailwind CSS + Headless UI (TailwindUI nur auf Anfrage) |
+| **Form erstellen** | Frontend | @tanstack/react-form + Zod |
+| **State Management** | Frontend | @tanstack/react-store (global), @tanstack/react-query (server) |
+| **Database Migration** | Backend | `pnpm --filter @bluelight-hub/backend prisma:migrate` |
+| **Code Linting** | Überall | `pnpm lint` (Biome) |
+| **API Docs** | Backend | Swagger UI: `http://localhost:3000/api` |
+| **Code Docs** | Backend | `pnpm --filter @bluelight-hub/backend docs:generate` (Compodoc) |
+| **Manual Testing** | Frontend | Chrome DevTools MCP + `http://localhost:3001` |
 
 ---
 
-Mandatory: Spreche Deutsch mit mir, produziere Englischen Code, aber deutsche Dokumentation!
+**Mandatory:** Spreche Deutsch mit mir, produziere englischen Code, aber deutsche Dokumentation (JSDoc, Kommentare)!
 
 _Repository:_ github.com/rubenvitt/bluelight-hub
-
----
-
-- Verwende die Chrome-Dev Tools um die Anwendung auszuprobieren - die läuft wahrscheinlich auf :3001

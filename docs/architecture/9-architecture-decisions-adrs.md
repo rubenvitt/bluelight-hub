@@ -183,6 +183,140 @@ completeness = (filledFields / totalFields) * 100;
 - BMAD für brownfield-Analyse geeignet
 - Single Source of Truth aus Code
 
+### ADR-022: Domain Layer als Backend Subfolder
+
+**Status:** ✅ Accepted
+**Date:** 2025-11-13
+**Context:** Hexagonal Architecture Migration (Epic-1)
+**Decision Makers:** Architect + Scrum Master
+
+#### Context and Problem Statement
+
+Im Rahmen der Migration zu Hexagonaler Architektur (Epic-1, Story 1.1) muss entschieden werden, wo die Domain Layer strukturell leben soll. Die Domain Layer ist das Herzstück der Geschäftslogik und muss vollständig unabhängig von Infrastruktur (Prisma, HTTP, externe Services) sein.
+
+**Problem:** Zwei mögliche Ansätze stehen zur Diskussion:
+1. Separates Monorepo-Package (`packages/domain/`)
+2. Backend-Subfolder (`packages/backend/src/domain/`)
+
+#### Considered Options
+
+**Option 1: Monorepo Package (`packages/domain/`)**
+- Eigenes NPM-Package mit separatem `package.json`
+- Explizite Abhängigkeiten über `package.json`
+- Eigener Build-Step
+- Vollständige physische Isolation
+
+**Option 2: Backend Subfolder (`packages/backend/src/domain/`)**
+- Subfolder innerhalb des Backend-Packages
+- TypeScript Path Aliases (`@domain/*` → `src/domain/*`)
+- Kein separater Build-Step
+- Statische Analyse mit Madge für Dependency-Checking
+
+#### Decision Outcome
+
+**Chosen option:** "Backend Subfolder" (`packages/backend/src/domain/`)
+
+**Rationale:**
+- ✅ Einfachere Maintenance (kein separates Package)
+- ✅ TypeScript-Konfiguration via Backend `tsconfig.json`
+- ✅ Kein zusätzlicher Build-Step erforderlich
+- ✅ Schnellerer Development-Workflow
+- ✅ Weniger Boilerplate-Code
+- ⚠️ Erfordert disziplinierte Dependency-Rules
+
+#### Consequences
+
+**Positive:**
+- Einfachere Projektstruktur (weniger Packages)
+- Schnellere Builds (kein Cross-Package-Linking)
+- TypeScript Paths bieten logische Trennung
+- Entwickler-Erfahrung verbessert (keine `pnpm --filter` Commands nötig)
+
+**Negative:**
+- Keine physische Package-Boundary
+- Risiko ungewollter Imports aus `application/` oder `infrastructure/`
+- Abhängig von statischer Analyse (Madge) für Enforcement
+
+**Mitigation:**
+- **Madge Circular Dependency Check:** CI-Pipeline-Integration
+  ```bash
+  pnpm --filter @bluelight-hub/backend check:madge
+  ```
+- **ESLint no-restricted-imports:** Blockiere Imports von nicht-Domain-Code in Domain Layer
+- **Pre-commit Hooks:** Husky + lint-staged validieren Dependency Rules
+
+#### Technical Implementation
+
+**Verzeichnisstruktur:**
+```
+packages/backend/src/
+├── domain/                    # ✅ Kern-Geschäftslogik
+│   ├── entities/              # Aggregates, Entities, Value Objects
+│   ├── repositories/          # Repository-Interfaces (KEINE Implementierung!)
+│   ├── services/              # Domain Services
+│   └── events/                # Domain Events
+├── application/               # Use Cases, DTOs
+├── infrastructure/            # Prisma, HTTP, externe Services
+└── presentation/              # Controller
+```
+
+**TypeScript Path Configuration (`tsconfig.json`):**
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@domain/*": ["src/domain/*"],
+      "@application/*": ["src/application/*"],
+      "@infrastructure/*": ["src/infrastructure/*"]
+    }
+  }
+}
+```
+
+**Madge Dependency Rule (`.madgerc`):**
+```json
+{
+  "detectiveOptions": {
+    "ts": {
+      "skipTypeImports": true
+    }
+  },
+  "noCircular": true,
+  "noOrphans": true
+}
+```
+
+**ESLint Rule (`eslint.config.js`):**
+```javascript
+{
+  files: ['src/domain/**/*.ts'],
+  rules: {
+    'no-restricted-imports': ['error', {
+      patterns: [
+        '@application/*',
+        '@infrastructure/*',
+        '@nestjs/*',
+        '@prisma/*'
+      ]
+    }]
+  }
+}
+```
+
+#### Related Decisions
+
+- **ADR-006:** Hexagonal Architecture (Kontext für diese Entscheidung)
+- **ADR-003:** Monolith vs. Microservice (Modularer Monolith gewählt)
+- **Story 1.1:** Domain Layer Implementation (direkte Umsetzung)
+
+#### Validation Criteria
+
+✅ **Acceptance Criteria:**
+1. Domain Layer importiert NIEMALS aus `application/` oder `infrastructure/`
+2. Madge-Check läuft erfolgreich in CI/CD
+3. ESLint blockiert unerlaubte Imports
+4. TypeScript Paths funktionieren korrekt
+
 ## Partially Implemented ADRs (⚠️)
 
 ### ADR-001: Verbindungskonzept

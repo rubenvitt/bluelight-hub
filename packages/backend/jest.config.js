@@ -5,6 +5,10 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)sx?$': '@swc/jest',
   },
+  transformIgnorePatterns: [
+    // Transform ESM modules (nanoid) in node_modules
+    'node_modules/(?!(nanoid)/)',
+  ],
   moduleNameMapper: {
     '^@domain/(.*)$': '<rootDir>/src/domain/$1',
     '^@application/(.*)$': '<rootDir>/src/application/$1',

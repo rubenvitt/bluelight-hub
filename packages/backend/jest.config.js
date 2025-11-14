@@ -15,6 +15,10 @@ module.exports = {
     '^@infrastructure/(.*)$': '<rootDir>/src/infrastructure/$1',
   },
   collectCoverageFrom: ['src/domain/**/*.ts', '!src/domain/**/*.spec.ts'],
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    '\\.example\\.ts$', // Example files - not production code
+  ],
   coverageThreshold: {
     global: {
       branches: 80,

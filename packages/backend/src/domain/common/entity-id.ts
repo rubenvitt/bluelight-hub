@@ -123,6 +123,7 @@ export abstract class EntityId<TAggregateType extends string> extends ValueObjec
    * // result3.error === "Invalid nanoid format: must be 21 URL-safe characters"
    * ```
    */
+  // biome-ignore lint/suspicious/noExplicitAny: `this` parameter requires `any` type for subclass polymorphism
   static create<T extends string>(this: any, id?: string): Result<EntityId<T>> {
     // Auto-Generation via nanoid() wenn kein Parameter
     const actualId = id ?? nanoid();

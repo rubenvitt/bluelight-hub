@@ -30,11 +30,15 @@
       "prisma",
       "puppeteer",
       "unrs-resolver"
-    ]
+    ],
+    "overrides": {
+      "mermaid": ">=11.10.0"
+    }
   },
   "lint-staged": {
     "**/*.{js,ts,tsx,json,md,yml,yaml}": ["biome check --write --no-errors-on-unmatched"],
     "packages/backend/**/*.ts": ["pnpm --filter @bluelight-hub/backend lint"],
+    "packages/backend/src/domain/**/*.ts": ["pnpm --filter @bluelight-hub/backend lint:domain", "pnpm --filter @bluelight-hub/backend check:deps"],
     "packages/frontend/**/*.{ts,tsx}": ["pnpm --filter @bluelight-hub/frontend lint"]
   },
   "engines": {

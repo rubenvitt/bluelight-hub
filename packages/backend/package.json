@@ -14,6 +14,7 @@
     "start:prod": "node dist/src/main",
     "lint": "biome check --write",
     "lint:check": "biome check",
+    "lint:domain": "biome lint src/domain",
     "prisma:studio": "prisma studio",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -26,6 +27,7 @@
     "check:jsdoc": "ts-node -r tsconfig-paths/register scripts/find-missing-jsdoc.ts",
     "check:jsdoc:public": "ts-node -r tsconfig-paths/register scripts/find-missing-jsdoc.ts --public-only",
     "check:jsdoc:json": "ts-node -r tsconfig-paths/register scripts/find-missing-jsdoc.ts --json-report",
+    "check:deps": "madge --circular src/domain/",
     "admin:reset": "ts-node -r tsconfig-paths/register src/main-cli.ts"
   },
   "dependencies": {
@@ -64,7 +66,6 @@
   },
   "devDependencies": {
     "@compodoc/compodoc": "^1.1.32",
-    "@eslint/js": "^9.39.1",
     "@nestjs/cli": "^11.0.10",
     "@swc/jest": "^0.2.39",
     "@types/bcrypt": "^6.0.0",
@@ -79,10 +80,10 @@
     "globals": "^16.5.0",
     "jest": "^30.2.0",
     "jsonwebtoken": "^9.0.2",
+    "madge": "^8.0.0",
     "prisma": "^6.19.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "8.46.4"
+    "typescript": "^5.9.3"
   }
 }

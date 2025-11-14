@@ -40,6 +40,31 @@
         "rules": {
           "nursery": {
             "noShadow": "off"
+          },
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/application/*", "../application/*"],
+                    "message": "❌ Domain layer MUST NOT import from Application layer (violates Hexagonal Architecture)"
+                  },
+                  {
+                    "group": ["**/infrastructure/*", "../infrastructure/*"],
+                    "message": "❌ Domain layer MUST NOT import from Infrastructure layer (violates Hexagonal Architecture)"
+                  },
+                  {
+                    "group": ["@nestjs/*"],
+                    "message": "❌ Domain layer MUST be framework-agnostic (no NestJS imports allowed)"
+                  },
+                  {
+                    "group": ["@prisma/*"],
+                    "message": "❌ Domain layer MUST NOT depend on Prisma (use Repository interfaces instead)"
+                  }
+                ]
+              }
+            }
           }
         }
       }

@@ -79,7 +79,7 @@ console.log('\n=== 6. RESULT PATTERN ===');
 
 const result = UserId.create();
 if (result.isSuccess) {
-  const id = result.value;
+  const id = result.value!; // Safe because isSuccess === true
   console.log('✅ Success:', id.toString());
   console.log('   isSuccess:', result.isSuccess);
   console.log('   value defined:', result.value !== undefined);

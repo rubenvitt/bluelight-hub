@@ -19,7 +19,7 @@ export const getBaseUrl = (): string => {
     return configuredUrl;
   }
   // Fallback für Entwicklung
-  const fallbackUrl = 'http://localhost:3000';
+  const fallbackUrl = 'http://localhost:3090';
   logger.debug('Using fallback API URL', { fallbackUrl });
   return fallbackUrl;
 };

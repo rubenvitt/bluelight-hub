@@ -31,12 +31,12 @@ export class EinsaetzeController {
 ```
 
 **Swagger UI:**
-- Accessible at `http://localhost:3000/api` (development)
+- Accessible at `http://localhost:3090/api` (development)
 - Interactive API documentation
 - Test endpoints directly from browser
 
 **OpenAPI JSON:**
-- Generated at `http://localhost:3000/api-json`
+- Generated at `http://localhost:3090/api-json`
 - Input for OpenAPI Generator (generates TypeScript client)
 
 ## CORS Configuration
@@ -46,7 +46,7 @@ export class EinsaetzeController {
 ```typescript
 // packages/backend/src/main.ts
 app.enableCors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'],
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3091'],
   credentials: true, // Allow cookies
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 });
@@ -54,7 +54,7 @@ app.enableCors({
 
 **Environment:**
 ```env
-ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+ALLOWED_ORIGINS=http://localhost:3091,http://localhost:3090
 ```
 
 ---

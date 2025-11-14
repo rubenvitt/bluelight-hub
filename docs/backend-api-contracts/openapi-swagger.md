@@ -1,8 +1,8 @@
 # OpenAPI / Swagger
 
-**Swagger UI:** `http://localhost:3000/api-docs`
+**Swagger UI:** `http://localhost:3090/api`
 
-**OpenAPI JSON:** `http://localhost:3000/api-docs-json`
+**OpenAPI JSON:** `http://localhost:3090/api-json`
 
 **Features:**
 - Automatische Generierung aus NestJS Decorators

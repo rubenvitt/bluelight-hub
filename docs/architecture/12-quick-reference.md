@@ -77,13 +77,13 @@ pnpm -r format
 ## Key URLs
 
 ```
-Backend:       http://localhost:3000
-Swagger UI:    http://localhost:3000/api
-Frontend:      http://localhost:3001
-Prisma Studio: http://localhost:5555
+Backend:       http://localhost:3090
+Swagger UI:    http://localhost:3090/api
+Frontend:      http://localhost:3091
+Prisma Studio: http://localhost:3093
 
-Health:        http://localhost:3000/api/health
-OpenAPI JSON:  http://localhost:3000/api-json
+Health:        http://localhost:3090/api/health
+OpenAPI JSON:  http://localhost:3090/api-json
 ```
 
 ## Architecture Patterns Cheat Sheet

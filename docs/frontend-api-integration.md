@@ -30,7 +30,7 @@ class BackendApi {
 
   constructor() {
     this.configuration = new Configuration({
-      basePath: getBaseUrl(), // http://localhost:3000
+      basePath: getBaseUrl(), // http://localhost:3090
       fetchApi: fetchWithRefresh, // Auto token refresh
       credentials: 'include', // Cookie-based auth
     });

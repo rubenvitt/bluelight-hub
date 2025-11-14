@@ -17,11 +17,11 @@ docker logs bluelight-hub-postgres
 - User: `bluelight`
 - Password: `bluelight`
 - Database: `bluelight-hub`
-- Port: `9053` (mapped from container's 5432)
+- Port: `3092` (Docker Host, mapped from container's 5432)
 
 **Connection URL:**
 ```env
-DATABASE_URL="postgresql://bluelight:bluelight@localhost:9053/bluelight-hub?schema=public"
+DATABASE_URL="postgresql://bluelight:bluelight@localhost:3092/bluelight-hub?schema=public"
 ```
 
 ## Option 2: Local PostgreSQL Installation
@@ -78,7 +78,7 @@ pnpm --filter @bluelight-hub/backend prisma:seed
 pnpm --filter @bluelight-hub/backend prisma:studio
 ```
 
-Opens browser at `http://localhost:5555` for visual database management.
+Opens browser at `http://localhost:3093` for visual database management.
 
 ## Database Schema Overview
 

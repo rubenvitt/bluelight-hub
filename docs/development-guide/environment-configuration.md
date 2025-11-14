@@ -17,12 +17,12 @@ DATABASE_URL="postgresql://user:password@localhost:5432/bluelight_hub?schema=pub
 
 # Server
 NODE_ENV=development
-PORT=3000
-BACKEND_PORT=3000
-APP_URL=http://localhost:3000
+PORT=3090
+BACKEND_PORT=3090
+APP_URL=http://localhost:3090
 
 # CORS
-ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+ALLOWED_ORIGINS=http://localhost:3091,http://localhost:3090
 
 # JWT Authentication
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
@@ -73,7 +73,7 @@ cp packages/frontend/.env.example packages/frontend/.env
 
 ```env
 # API Configuration
-VITE_API_URL=http://localhost:3000
+VITE_API_URL=http://localhost:3090
 ```
 
 **Note:** Vite requires `VITE_` prefix for environment variables to be exposed to client.

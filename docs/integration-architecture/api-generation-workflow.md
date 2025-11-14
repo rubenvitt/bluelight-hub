@@ -68,7 +68,7 @@ app.use('/api-json', (req, res) => {
 // packages/shared/package.json
 {
   "scripts": {
-    "generate-api": "openapi-generator-cli generate -i http://localhost:3000/api-json -g typescript-axios -o client --additional-properties=useSingleRequestParameter=true"
+    "generate-api": "openapi-generator-cli generate -i http://localhost:3090/api-json -g typescript-axios -o client --additional-properties=useSingleRequestParameter=true"
   }
 }
 ```

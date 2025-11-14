@@ -95,8 +95,8 @@ pnpm install
 
 # Start all services
 pnpm -r dev
-# → Backend: http://localhost:3000
-# → Frontend: http://localhost:3001
+# → Backend: http://localhost:3090
+# → Frontend: http://localhost:3091
 # → Tauri: Desktop app with webview
 
 # Generate API client

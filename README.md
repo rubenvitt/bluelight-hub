@@ -84,7 +84,7 @@ pnpm --filter @bluelight-hub/backend dev
 
 Das Frontend nutzt ausschließlich den generierten OpenAPI-Client aus `packages/shared/client/`.
 
-1. Backend starten (Swagger verfügbar unter `http://localhost:3000/api-json`)
+1. Backend starten (Swagger verfügbar unter `http://localhost:3090/api-json`)
 2. Client generieren:
 
 ```bash

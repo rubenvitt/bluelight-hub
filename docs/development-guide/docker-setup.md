@@ -41,7 +41,7 @@ Override defaults in `.env` file (project root):
 DATABASE_USER=bluelight
 DATABASE_PASSWORD=bluelight
 DATABASE_NAME=bluelight-hub
-DATABASE_PORT=9053  # Host port (container uses 5432)
+DATABASE_PORT=3092  # Host port (container uses 5432)
 ```
 
 ## Database Persistence

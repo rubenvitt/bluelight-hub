@@ -45,13 +45,13 @@ pnpm run generate-api
 
 ## Port Already in Use
 
-**Problem:** `Error: listen EADDRINUSE: address already in use :::3000`
+**Problem:** `Error: listen EADDRINUSE: address already in use :::3090`
 
 **Solutions:**
-1. Kill process on port 3000:
+1. Kill process on port 3090:
    ```bash
    # Find PID
-   lsof -i :3000
+   lsof -i :3090
 
    # Kill process
    kill -9 <PID>
@@ -59,8 +59,8 @@ pnpm run generate-api
 
 2. Change port in `.env`:
    ```env
-   PORT=3001
-   BACKEND_PORT=3001
+   PORT=3090
+   BACKEND_PORT=3090
    ```
 
 ## Tauri Build Failures

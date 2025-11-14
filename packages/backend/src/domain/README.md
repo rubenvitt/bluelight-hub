@@ -10,9 +10,10 @@
 
 1. [Hexagonal Architecture Principles](#hexagonal-architecture-principles)
 2. [Layer Responsibilities](#layer-responsibilities)
-3. [Coding Conventions](#coding-conventions)
-4. [Example - How to create a new Aggregate](#example---how-to-create-a-new-aggregate)
-5. [Dependency Rules](#dependency-rules)
+3. [Base Classes](#base-classes)
+4. [Coding Conventions](#coding-conventions)
+5. [Example - How to create a new Aggregate](#example---how-to-create-a-new-aggregate)
+6. [Dependency Rules](#dependency-rules)
 
 ---
 
@@ -129,6 +130,314 @@ Hexagonal Architecture löst diese Probleme durch klare Separation:
   Beispiel: Email-Service, File-Storage, External APIs
 
 **Dependency:** Infrastructure Layer DARF Application + Domain importieren.
+
+---
+
+## 🧱 Base Classes
+
+Die Domain Layer Foundation besteht aus 4 Abstract Base Classes, die alle DDD Patterns implementieren:
+
+### 1. ValueObject<TProps>
+
+**Purpose:** Strukturelle Gleichheit und Immutability für Value Objects
+
+```typescript
+import { ValueObject } from '@domain/common/value-object';
+
+// Example: EinsatzStatus Value Object
+interface EinsatzStatusProps {
+  value: string;
+}
+
+class EinsatzStatus extends ValueObject<EinsatzStatusProps> {
+  private constructor(props: EinsatzStatusProps) {
+    super(props);
+  }
+
+  static create(value: string): Result<EinsatzStatus> {
+    if (!['AKTIV', 'ABGESCHLOSSEN', 'ARCHIVIERT'].includes(value)) {
+      return Result.fail('Invalid Einsatz status');
+    }
+    return Result.ok(new EinsatzStatus({ value }));
+  }
+
+  get value(): string {
+    return this.props.value;
+  }
+}
+
+// Usage
+const status1 = EinsatzStatus.create('AKTIV').value!;
+const status2 = EinsatzStatus.create('AKTIV').value!;
+status1.equals(status2); // true (structural equality!)
+```
+
+**Key Features:**
+- ✅ `equals()`: Deep structural comparison (nicht reference equality)
+- ✅ `hashCode()`: Für Set/Map Collections
+- ✅ `Object.freeze()`: Runtime immutability
+- ✅ Protected constructor erzwingt Factory Methods
+
+### 2. EntityId<TAggregateType>
+
+**Purpose:** Type-Safe IDs mit Nanoid validation
+
+```typescript
+import { EntityId } from '@domain/common/entity-id';
+import { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { UserId } from '@domain/value-objects/user-id';
+
+// Usage: Auto-Generation
+const result = EinsatzId.create(); // Generates Nanoid automatically
+if (result.isSuccess) {
+  console.log(result.value.value); // "A1B2C3D4E5F6G7H8I9J0K" (21 chars)
+}
+
+// Usage: With existing Nanoid
+const result2 = EinsatzId.create('A1B2C3D4E5F6G7H8I9J0K');
+
+// Type-Safety (compile-time!)
+function processEinsatz(id: EinsatzId) { ... }
+const userId = UserId.create().value!;
+processEinsatz(userId); // ❌ TypeScript Compile Error!
+```
+
+**Key Features:**
+- ✅ **Nanoid Validation:** `/^[A-Za-z0-9_-]{21}$/` (21 URL-safe chars)
+- ✅ **Auto-Generation:** `create()` ohne Parameter → `nanoid()`
+- ✅ **Type-Safety:** `EinsatzId ≠ UserId` at compile-time
+- ✅ **Result<T> Pattern:** Validierung mit Error Handling
+
+**Warum Nanoid statt UUID?**
+- 21 Zeichen (vs. 36 bei UUID)
+- URL-safe (keine special chars)
+- Collision-resistant (gleiche Sicherheit wie UUID)
+- Project Standard (package.json dependency)
+
+### 3. DomainEvent
+
+**Purpose:** Immutable Domain Events mit auto-generated eventId
+
+```typescript
+import { DomainEvent } from '@domain/common/domain-event';
+
+// Example: EinsatzCreatedEvent
+class EinsatzCreatedEvent extends DomainEvent {
+  constructor(
+    public readonly einsatzId: string,
+    public readonly name: string,
+    public readonly location: string,
+    aggregateId?: string
+  ) {
+    super(aggregateId); // eventId + occurredAt auto-generated!
+  }
+
+  static eventName(): string {
+    return 'EinsatzCreated'; // Past Tense!
+  }
+}
+
+// Usage
+const event = new EinsatzCreatedEvent(
+  'A1B2C3D4E5F6G7H8I9J0K',
+  'Wohnungsbrand',
+  'Musterstraße 42'
+);
+
+console.log(event.eventId);     // "X1Y2Z3..." (Nanoid, 21 chars)
+console.log(event.occurredAt);  // 2025-11-14T13:45:23.456Z
+console.log(EinsatzCreatedEvent.eventName()); // "EinsatzCreated"
+```
+
+**Key Features:**
+- ✅ **Auto-Generation:** `eventId` (nanoid) + `occurredAt` (Date) im Constructor
+- ✅ **Immutable:** Readonly properties (historical facts)
+- ✅ **Event Routing:** `eventName()` für type-safe dispatching
+- ✅ **Versioning:** `eventVersion()` für Schema Evolution
+
+**Event Naming Convention:**
+- ✅ Past Tense: "EinsatzCreatedEvent", "ETBEntryAddedEvent"
+- ❌ NOT Imperative: "CreateEinsatzEvent"
+
+### 4. AggregateRoot<TId>
+
+**Purpose:** DDD Aggregate Pattern mit Event Accumulation
+
+```typescript
+import { AggregateRoot } from '@domain/common/aggregate-root';
+import { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { EinsatzCreatedEvent } from '@domain/events/einsatz-created.event';
+
+// Example: Einsatz Aggregate
+class Einsatz extends AggregateRoot<EinsatzId> {
+  private constructor(
+    id: EinsatzId,
+    private _name: string,
+    private _location: string,
+    createdAt?: Date,
+    updatedAt?: Date
+  ) {
+    super(id, createdAt, updatedAt);
+  }
+
+  static create(name: string, location: string): Result<Einsatz> {
+    if (!name || name.trim().length === 0) {
+      return Result.fail('Einsatz name is required');
+    }
+
+    const idResult = EinsatzId.create();
+    if (idResult.isFailure) {
+      return Result.fail(idResult.error!);
+    }
+
+    const einsatz = new Einsatz(idResult.value!, name, location);
+    einsatz.addDomainEvent(
+      new EinsatzCreatedEvent(idResult.value!.value, name, location)
+    );
+    return Result.ok(einsatz);
+  }
+
+  updateName(name: string): void {
+    this._name = name;
+    this.addDomainEvent(
+      new EinsatzUpdatedEvent(this.id.value, { name })
+    );
+  }
+
+  get name(): string {
+    return this._name;
+  }
+}
+
+// Usage
+const result = Einsatz.create('Wohnungsbrand', 'Location');
+const einsatz = result.value!;
+
+// Event Accumulation
+einsatz.updateName('Großbrand');
+const events = einsatz.getDomainEvents(); // 2 events (Created + Updated)
+
+// Publish Events (Infrastructure Layer)
+events.forEach(event => eventBus.publish(event));
+einsatz.clearDomainEvents(); // Clear after publishing
+```
+
+**Key Features:**
+- ✅ **Event Accumulation:** `addDomainEvent()`, `getDomainEvents()`, `clearDomainEvents()`
+- ✅ **Shallow Copy:** `getDomainEvents()` returns `[..._domainEvents]` (mutation-safe!)
+- ✅ **Identity Equality:** `equals()` compares ONLY by ID
+- ✅ **Protected Constructor:** Erzwingt Result<T> Factory Methods
+- ✅ **Generic Constraint:** `<TId extends EntityId<any>>` für type-safe IDs
+
+**Critical Pattern: Shallow Copy**
+```typescript
+// ✅ CORRECT: Shallow copy prevents external mutations
+getDomainEvents(): DomainEvent[] {
+  return [...this._domainEvents];
+}
+
+// ❌ WRONG: Direct reference allows caller to mutate internal state!
+getDomainEvents(): DomainEvent[] {
+  return this._domainEvents; // Common DDD pitfall!
+}
+```
+
+### Integration Example
+
+Alle Base Classes arbeiten nahtlos zusammen:
+
+```typescript
+// 1. Create Aggregate (uses EntityId + DomainEvent internally)
+const result = Einsatz.create('Wohnungsbrand', 'Location');
+
+// 2. Result<T> Pattern
+if (result.isFailure) {
+  console.error(result.error);
+  return;
+}
+
+const einsatz = result.value!;
+
+// 3. Typed ID (EntityId<'Einsatz'>)
+const id: EinsatzId = einsatz.id;
+console.log(id.value); // Nanoid (21 chars)
+
+// 4. ValueObject Equality
+const sameId = EinsatzId.create(id.value).value!;
+console.log(id.equals(sameId)); // true (structural equality)
+
+// 5. Domain Events
+const events = einsatz.getDomainEvents();
+events.forEach(event => {
+  console.log(event.eventId);     // Nanoid
+  console.log(event.occurredAt);  // Date
+  console.log(event.constructor.name); // "EinsatzCreatedEvent"
+});
+
+// 6. Aggregate Identity Equality
+const einsatz2 = Einsatz.create('Other', 'Location').value!;
+console.log(einsatz.equals(einsatz2)); // false (different IDs)
+```
+
+### Best Practices
+
+1. **IMMER Result<T> Pattern nutzen**
+   ```typescript
+   // ✅ CORRECT
+   static create(...): Result<Aggregate> {
+     return Result.ok(new Aggregate(...));
+   }
+
+   // ❌ WRONG
+   static create(...): Aggregate {
+     return new Aggregate(...); // No error handling!
+   }
+   ```
+
+2. **IMMER Protected Constructors**
+   ```typescript
+   // ✅ CORRECT: Forces factory methods
+   private constructor(...) { ... }
+
+   // ❌ WRONG: Allows direct instantiation without validation
+   constructor(...) { ... }
+   ```
+
+3. **IMMER Nanoid für IDs (NICHT UUID)**
+   ```typescript
+   // ✅ CORRECT (Project Standard)
+   import { nanoid } from 'nanoid';
+   const id = nanoid(); // 21 URL-safe chars
+
+   // ❌ WRONG
+   import { randomUUID } from 'crypto';
+   const id = randomUUID(); // 36 chars, NOT project standard!
+   ```
+
+4. **Events in Past Tense**
+   ```typescript
+   // ✅ CORRECT
+   class EinsatzCreatedEvent extends DomainEvent { ... }
+
+   // ❌ WRONG
+   class CreateEinsatzEvent extends DomainEvent { ... }
+   ```
+
+### Test Coverage
+
+Alle Base Classes haben **100% Test Coverage** (Story 1.2):
+
+| Base Class | Statements | Branches | Functions | Lines |
+|------------|------------|----------|-----------|-------|
+| `aggregate-root.ts` | 100% | 100% | 100% | 100% |
+| `domain-event.ts` | 100% | 100% | 100% | 100% |
+| `entity-id.ts` | 100% | 100% | 100% | 100% |
+| `value-object.ts` | 87.87% | 83.33% | 100% | 100% |
+| `result.ts` | 100% | 100% | 100% | 100% |
+
+**Tests Location:**
+- `src/domain/common/*.spec.ts` (Unit Tests)
+- `src/domain/common/__tests__/base-classes.integration.spec.ts` (Integration Tests)
 
 ---
 

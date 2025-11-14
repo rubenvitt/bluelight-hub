@@ -1,4 +1,6 @@
 import { DomainEvent } from '@domain/common/domain-event';
+import type { EinsatzId } from '@domain/value-objects/einsatz-id';
+import type { UserId } from '@domain/value-objects/user-id';
 
 /**
  * Domain Event das auftritt wenn ein neuer Einsatz erstellt wurde.
@@ -15,23 +17,25 @@ import { DomainEvent } from '@domain/common/domain-event';
  * @example
  * ```typescript
  * // Event Creation nach Einsatz Creation
+ * const einsatzId = EinsatzId.create().value!;
+ * const createdBy = UserId.create().value!;
  * const event = new EinsatzCreatedEvent(
- *   'A1B2C3D4E5F6G7H8I9J0K',
+ *   einsatzId,
+ *   createdBy,
  *   'Wohnungsbrand',
- *   'Musterstraße 42, 12345 Berlin',
  *   'aggregate-einsatz-123'
  * );
  *
  * // Event Properties (readonly, immutabel)
  * console.log(event.eventId);        // Auto-generated nanoid
  * console.log(event.occurredAt);     // Auto-generated timestamp
- * console.log(event.einsatzId);      // "A1B2C3D4E5F6G7H8I9J0K"
- * console.log(event.name);           // "Wohnungsbrand"
- * console.log(event.location);       // "Musterstraße 42, 12345 Berlin"
+ * console.log(event.einsatzId);      // EinsatzId instance
+ * console.log(event.createdBy);      // UserId instance
+ * console.log(event.alarmstichwort); // "Wohnungsbrand"
  * console.log(event.aggregateId);    // "aggregate-einsatz-123"
  *
  * // Event Routing
- * console.log(EinsatzCreatedEvent.eventName()); // "EinsatzCreated"
+ * console.log(EinsatzCreatedEvent.eventName()); // "einsatz.created"
  * console.log(EinsatzCreatedEvent.eventVersion()); // 1
  * ```
  */
@@ -40,15 +44,15 @@ export class EinsatzCreatedEvent extends DomainEvent {
    * Constructor für EinsatzCreatedEvent mit allen relevanten Einsatz-Daten.
    * Base Class auto-generiert eventId und occurredAt.
    *
-   * @param einsatzId - Eindeutige ID des erstellten Einsatzes (nanoid)
-   * @param name - Name/Typ des Einsatzes (z.B. "Wohnungsbrand", "Verkehrsunfall")
-   * @param location - Einsatzort (z.B. "Musterstraße 42, 12345 Berlin")
+   * @param einsatzId - Type-Safe ID des erstellten Einsatzes
+   * @param createdBy - Type-Safe ID des Users der den Einsatz erstellt hat
+   * @param alarmstichwort - Alarmstichwort des Einsatzes (z.B. "Wohnungsbrand", "Verkehrsunfall")
    * @param aggregateId - Optional: ID der Einsatz Aggregate Root (für Event Store)
    */
   constructor(
-    public readonly einsatzId: string,
-    public readonly name: string,
-    public readonly location: string,
+    public readonly einsatzId: EinsatzId,
+    public readonly createdBy: UserId,
+    public readonly alarmstichwort: string,
     aggregateId?: string,
   ) {
     super(aggregateId);
@@ -58,9 +62,11 @@ export class EinsatzCreatedEvent extends DomainEvent {
    * Static Event Name für type-safe Event Routing.
    * Wird von Event Dispatcher/Handler verwendet zur Event-Type Resolution.
    *
-   * @returns "EinsatzCreated" (Past Tense!)
+   * Format: Lowercase, dot-separated (z.B. 'einsatz.created', 'einsatz.updated')
+   *
+   * @returns "einsatz.created" (lowercase, dot-separated!)
    */
   static eventName(): string {
-    return 'EinsatzCreated';
+    return 'einsatz.created';
   }
 }

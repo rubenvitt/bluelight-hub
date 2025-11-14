@@ -24,7 +24,7 @@
 
 ## Swagger & API-Client
 
-- Swagger: `http://localhost:3000/api` (JSON: `/api-json`)
+- Swagger: `http://localhost:3090/api` (JSON: `/api-json`)
 - Der TypeScript-Fetch-Client wird aus `packages/shared` generiert. Nach API-Änderungen:
     1) Backend starten
     2) `pnpm --filter @bluelight-hub/shared generate-api`

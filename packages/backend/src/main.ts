@@ -46,7 +46,7 @@ async function bootstrap() {
   // Get config service to determine environment
   const configService = app.get(ConfigService);
   const isProduction = configService.get('NODE_ENV') === 'production';
-  const appUrl = configService.get('APP_URL', 'http://localhost:3000');
+  const appUrl = configService.get('APP_URL', 'http://localhost:3090');
 
   const document = SwaggerModule.createDocument(app, config);
   document.servers = [
@@ -92,7 +92,7 @@ async function bootstrap() {
   const reflector = app.get(Reflector);
   app.useGlobalInterceptors(new PerformanceInterceptor(), new TransformInterceptor(reflector));
 
-  const port = configService.get('BACKEND_PORT') || configService.get('PORT') || 3000;
+  const port = configService.get('BACKEND_PORT') || configService.get('PORT') || 3090;
 
   await app.listen(port);
   const url = await app.getUrl();

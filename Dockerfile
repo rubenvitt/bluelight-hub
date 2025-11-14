@@ -64,10 +64,10 @@ RUN mkdir -p /app/uploads/lagekarte \
     && chown -R node:node /app/uploads
 
 USER node
-EXPOSE 3000
+EXPOSE 3090
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3090/api/health || exit 1
 
 # Start NestJS backend (dist/src/main wird von nest build erzeugt)
 CMD ["node", "dist/src/main"]

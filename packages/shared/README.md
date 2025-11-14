@@ -12,7 +12,7 @@
 
 ## API-Client generieren
 
-1) Backend lokal starten (Swagger unter `http://localhost:3000/api-json` erreichbar)
+1) Backend lokal starten (Swagger unter `http://localhost:3090/api-json` erreichbar)
 2) Ausführen: `pnpm --filter @bluelight-hub/shared generate-api`
 3) Linter formatiert den Output automatisch
 

@@ -12,8 +12,11 @@
 2. [Layer Responsibilities](#layer-responsibilities)
 3. [Base Classes](#base-classes)
 4. [Coding Conventions](#coding-conventions)
-5. [Example - How to create a new Aggregate](#example---how-to-create-a-new-aggregate)
-6. [Dependency Rules](#dependency-rules)
+   - [Einsatztagebuch (ETB) Aggregate](#2-einsatztagebuch-etb-aggregate---spezialfall-versioning--soft-delete)
+5. [Versioning Pattern (ETB Aggregate)](#-versioning-pattern-etb-aggregate)
+6. [Example - How to create a new Aggregate](#-example---how-to-create-a-new-aggregate)
+7. [ETB Aggregate - Code Examples](#-etb-aggregate---code-examples)
+8. [Dependency Rules](#-dependency-rules)
 
 ---
 
@@ -81,7 +84,7 @@ Hexagonal Architecture löst diese Probleme durch klare Separation:
 
 | Artefakt Type | Verantwortung | Beispiel |
 |---------------|---------------|----------|
-| **Aggregates** | Transaktionale Konsistenz-Grenzen, Business-Logik, Event-Emission | `Einsatz`, `Lagekarte`, `EinsatzTagebuch` |
+| **Aggregates** | Transaktionale Konsistenz-Grenzen, Business-Logik, Event-Emission | `Einsatz`, `EinsatztagebuchAggregate`, `Lagekarte` |
 | **Entities** | Business-Objekte mit Identität (Teil eines Aggregates) | `ETBEintrag` (gehört zu `EinsatzTagebuch` Aggregate) |
 | **Value Objects** | Immutable, self-validating Werte | `EinsatzId`, `EinsatzStatus`, `Coordinates` |
 | **Domain Events** | Fachliche Events bei Zustandsänderungen | `EinsatzCreatedEvent`, `ETBEintragAddedEvent` |
@@ -534,7 +537,60 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
 - Emittiert Domain Events via `addDomainEvent()`
 - KEINE `@Injectable()` oder andere Framework-Decorators!
 
-### 2. Value Objects
+### 2. Einsatztagebuch (ETB) Aggregate - Spezialfall: Versioning & Soft-Delete
+
+**Definition:**
+Das **Einsatztagebuch (ETB) Aggregate** modelliert das digitale Logbuch für Einsatzdokumentation mit automatischer
+Versionierung, unveränderlichen Sequenznummern und DRK-konformen Soft-Deletes.
+
+**Besonderheiten (unterscheidet sich vom Einsatz Aggregate):**
+
+1. **Hierarchische Struktur:**
+   - Aggregate Root: `EinsatztagebuchAggregate` (verwaltet Lebenszykl)
+   - Child Entity: `EtbEintrag` (einzelne Log-Einträge, kein separates Repository!)
+   - Foreign Aggregate Reference: `EinsatzId` (1:1 Beziehung zu Einsatz)
+
+2. **Versioning mit Snapshots:**
+   - Jede Änderung (add/update/delete) inkrementiert `_version`
+   - Version enthält monoton steigende Nummer + Timestamp
+   - Snapshots werden VOM REPOSITORY erstellt (NOT in Aggregate)
+   - Optimistic Locking verhindert Concurrency Conflicts (Epic 4)
+
+3. **State Machine (3 States):**
+   ```
+   DRAFT → ACTIVE → LOCKED (nur Vorwärts, LOCKED ist final)
+   ```
+   - **DRAFT:** Initial state, Bearbeitung erlaubt
+   - **ACTIVE:** Im Einsatz, Bearbeitung erlaubt
+   - **LOCKED:** Final state, KEINE Änderungen mehr möglich (DRK-Compliance)
+
+4. **Soft-Delete für Audit-Trail:**
+   - Gelöschte Einträge bleiben in `_eintraege[]` (mit `isDeleted=true`)
+   - Sequenznummern sind stabil (keine Gaps nach Delete)
+   - Garantiert 10-Jahres-Aufbewahrungspflicht (DRK)
+
+5. **Auto-Increment Sequenznummern:**
+   - Monoton steigend ab 1
+   - Unveränderlich nach Assignment
+   - Garantiert chronologische Sortierung
+
+**Wichtig:**
+- Extends `AggregateRoot<EtbId>` (Base-Class)
+- Private Constructor + Factory-Methode (`create()`)
+- Business-Logik-Methoden nutzen `Result<T>` Pattern
+- Emittiert Domain Events: `EintragAddedEvent`, `EintragUpdatedEvent`, `EintragDeletedEvent`, `EtbLockedEvent`
+- KEINE `@Injectable()` oder Framework-Decorators!
+
+**Dateien:**
+- Aggregate: `domain/aggregates/einsatztagebuch.aggregate.ts`
+- Entity: `domain/entities/etb-eintrag.entity.ts`
+- Value Objects: `domain/value-objects/etb-*.ts`
+- Events: `domain/events/eintrag-*.event.ts`, `domain/events/etb-locked.event.ts`
+- Repository: `domain/repositories/i-etb.repository.ts` (Epic 4)
+
+---
+
+### 3. Value Objects
 
 **Definition:**
 Value Objects sind **immutable**, self-validating Werte ohne Identität. Gleichheit wird über Wert-Vergleich
@@ -612,7 +668,7 @@ export class EinsatzStatus extends ValueObject<EinsatzStatusProps> {
 - Immutable (nur Getter, kein Setter)
 - `equals()` Methode von Base-Class (Deep-Comparison über Props)
 
-### 3. Domain Events
+### 4. Domain Events
 
 **Definition:**
 Domain Events repräsentieren fachliche Ereignisse, die im System passiert sind (Past Tense!).
@@ -654,7 +710,7 @@ export class EinsatzCreatedEvent extends DomainEvent {
 - Statische `eventName()` Methode für Event-Routing
 - KEINE String-Events (`'einsatz.created'`), immer typed Classes!
 
-### 4. Repository Interfaces (Ports)
+### 5. Repository Interfaces (Ports)
 
 **Definition:**
 Repository Interfaces definieren **Persistence-Contracts** im Domain Layer.
@@ -712,7 +768,7 @@ export interface IEinsatzRepository {
 - Alle Methoden geben `Promise<Result<T>>` zurück
 - KEINE Implementierung im Domain Layer!
 
-### 5. Domain Services
+### 6. Domain Services
 
 **Definition:**
 Domain Services kapseln **Cross-Aggregate Business-Logik**, die nicht zu einem einzelnen Aggregate gehört.
@@ -745,6 +801,158 @@ export interface IEinsatzNamingService {
 - Interface im Domain Layer, Implementierung in Infrastructure
 - Nutzt Domain Objects (Value Objects, Aggregates)
 - Gibt `Result<T>` zurück
+
+---
+
+## 📊 Versioning Pattern (ETB Aggregate)
+
+**Problem:**
+DRK verlangt lückenlose Audit-Trails mit Revisionsverlauf (10-Jahres-Aufbewahrungspflicht). Gleichzeitig müssen
+Concurrency-Konflikte vermieden werden, wenn mehrere User gleichzeitig das ETB bearbeiten.
+
+**Lösung:**
+Optimistic Locking via Versionierung + Snapshot-Persistierung durch Repository.
+
+**Architektur:**
+
+1. **EtbVersion Value Object** (in Aggregate)
+   - Monotone Versionsnummer (Version 1, 2, 3, ...)
+   - Timestamp für zeitliche Nachvollziehbarkeit
+   - Wird bei JEDER Änderung inkrementiert (add/update/delete)
+
+2. **Snapshots im Repository** (NOT im Aggregate)
+   - Repository erstellt VOR Änderung einen Snapshot der aktuellen Version
+   - Snapshots werden persistent gespeichert (Datenbank)
+   - Ermöglicht: `etb.getHistory()` → alle früheren Versionen
+
+3. **Concurrency Control**
+   - Application Layer lädt ETB (Version N)
+   - User führt Änderung aus (Version N+1 im Speicher)
+   - Repository.save() prüft: Ist DB-Version noch N?
+   - Wenn DB-Version ≠ N → ConflictException (Retry)
+
+**Warum NOT im Memory?**
+- Unbegrenztes Memory-Wachstum (10.000 Changes = 10.000 Snapshots im RAM)
+- Persistence ist Infrastructure-Responsibility (Hexagonal Architecture)
+- Repository entscheidet über Snapshot-Strategie
+
+**Implementierung:**
+
+```typescript
+// Domain Layer (Aggregate)
+export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
+  private _version: EtbVersion; // Version: 1, 2, 3, ...
+
+  // Business Operation (increment version)
+  addEintrag(text: string, userId: UserId): Result<EtbEintrag> {
+    if (this.isLocked()) {
+      return Result.fail('ETB ist gesperrt...');
+    }
+
+    const eintrag = new EtbEintrag(
+      EintragId.create().value!,
+      EtbSequenceNumber.create(this._nextSequenceNumber).value!,
+      text,
+      userId
+    );
+
+    this._eintraege.push(eintrag);
+    this._nextSequenceNumber++;
+
+    // Version automatisch inkrementiert
+    this._version = EtbVersion.increment(this._version);
+
+    this.addDomainEvent(new EintragAddedEvent(this.id, eintrag.id, text));
+    return Result.ok(eintrag);
+  }
+
+  get version(): EtbVersion {
+    return this._version;
+  }
+}
+
+// Application Layer (Handler)
+async updateEintrag(command: UpdateEintragCommand) {
+  // 1. Load mit aktuelle Version
+  const loadResult = await this.repository.findById(command.etbId);
+  if (loadResult.isFailure) throw new Error(loadResult.error);
+
+  const etb = loadResult.value!;
+  const versionBeforeMutation = etb.version.versionNumber; // e.g., 5
+
+  // 2. Mutation im Speicher (inkrementiert Version zu 6)
+  const updateResult = etb.updateEintrag(
+    command.eintragId,
+    command.newText,
+    command.userId
+  );
+  if (updateResult.isFailure) throw new Error(updateResult.error);
+
+  // 3. Save mit Optimistic Locking
+  // Repository.save() macht:
+  // - Prüfen: SELECT version FROM einsatztagebuch WHERE id = ? → Ist noch 5?
+  // - Snapshot erstellen von Version 5
+  // - Persist neue Daten mit Version 6
+  // - Bei Version-Mismatch → throw ConflictException
+  const saveResult = await this.repository.save(etb);
+  if (saveResult.isFailure) {
+    // Version mismatch - andere Änderung hat stattgefunden
+    // Retry: Reload from DB und erneut versuchen
+    throw new ConflictException('ETB version mismatch - please retry');
+  }
+}
+
+// Future: Epic 4 - Repository Implementation
+class PrismaEtbRepository implements IEtbRepository {
+  async save(etb: EinsatztagebuchAggregate): Promise<Result<void>> {
+    // 1. Snapshot of previous version
+    const currentVersion = await this.prisma.etb.findUnique({
+      where: { id: etb.id.value },
+      select: { version: true }
+    });
+
+    if (currentVersion && currentVersion.version !== etb.version.versionNumber - 1) {
+      // Version conflict
+      return Result.fail('Concurrency conflict - ETB was modified by another user');
+    }
+
+    // 2. Create snapshot (for audit trail)
+    if (currentVersion) {
+      await this.prisma.etbSnapshot.create({
+        data: {
+          etbId: etb.id.value,
+          version: currentVersion.version,
+          data: JSON.stringify(etb),
+          timestamp: new Date()
+        }
+      });
+    }
+
+    // 3. Persist updated ETB
+    await this.prisma.etb.upsert({
+      where: { id: etb.id.value },
+      update: {
+        version: etb.version.versionNumber,
+        eintraege: JSON.stringify(etb.eintraege),
+        status: etb.status.value,
+        updatedAt: new Date()
+      },
+      create: { ... }
+    });
+
+    return Result.ok();
+  }
+
+  // Get complete history (all snapshots)
+  async getHistory(id: EtbId): Promise<Result<EtbSnapshot[]>> {
+    const snapshots = await this.prisma.etbSnapshot.findMany({
+      where: { etbId: id.value },
+      orderBy: { version: 'asc' }
+    });
+    return Result.ok(snapshots);
+  }
+}
+```
 
 ---
 
@@ -1101,6 +1309,219 @@ export class PrismaLagekarteRepository implements ILagekarteRepository {
 │  ❌ NEVER imports @nestjs/*          │
 │  ❌ NEVER imports @prisma/*          │
 └──────────────────────────────────────┘
+```
+
+---
+
+## 💻 ETB Aggregate - Code Examples
+
+### 1. Create ETB (Factory Method)
+
+```typescript
+import { EinsatztagebuchAggregate } from '@domain/aggregates/einsatztagebuch.aggregate';
+import { EinsatzId } from '@domain/value-objects/einsatz-id';
+
+// Create new ETB for an Einsatz
+const einsatzId = EinsatzId.create().value!;
+const result = EinsatztagebuchAggregate.create(einsatzId);
+
+if (result.isSuccess) {
+  const etb = result.value!;
+  console.log(etb.status.value); // "DRAFT"
+  console.log(etb.version.versionNumber); // 1
+  console.log(etb.eintraege.length); // 0 (leer)
+  console.log(etb.getDomainEvents().length); // 0 (noch nicht emittiert)
+}
+```
+
+### 2. Add Entry (Sequence Numbers auto-increment)
+
+```typescript
+const userId = UserId.create().value!;
+const result = etb.addEintrag('Einsatzbeginn: 14:30 Uhr', userId);
+
+if (result.isSuccess) {
+  const eintrag = result.value!;
+  console.log(eintrag.sequenceNumber.value); // 1
+  console.log(eintrag.text); // 'Einsatzbeginn: 14:30 Uhr'
+  console.log(eintrag.createdBy.value); // userId.value
+}
+
+// Version automatically incremented
+console.log(etb.version.versionNumber); // 2
+
+// Event emitted (shallow copy!)
+const events = etb.getDomainEvents();
+console.log(events.length); // 1
+console.log(events[0].constructor.name); // "EintragAddedEvent"
+```
+
+### 3. Add Multiple Entries
+
+```typescript
+// Entry 1
+etb.addEintrag('Alarmierung: 14:30 Uhr', userId);
+console.log(etb.version.versionNumber); // 2
+
+// Entry 2
+etb.addEintrag('Fahrzeug ausgerückt: 14:32 Uhr', userId);
+console.log(etb.version.versionNumber); // 3
+
+// Entry 3
+etb.addEintrag('Ankunft Einsatzort: 14:40 Uhr', userId);
+console.log(etb.version.versionNumber); // 4
+
+// All entries with stable sequence numbers
+console.log(etb.eintraege.map(e => e.sequenceNumber.value)); // [1, 2, 3]
+console.log(etb.eintraege.length); // 3
+```
+
+### 4. Update Entry (Soft-Delete preserves sequence)
+
+```typescript
+const eintrag = etb.eintraege[0];
+const oldText = eintrag.text;
+
+// Update text
+const updateResult = etb.updateEintrag(eintrag.id, 'Alarmierung: 14:30 Uhr (korrigiert)', userId);
+
+if (updateResult.isSuccess) {
+  console.log(eintrag.text); // 'Alarmierung: 14:30 Uhr (korrigiert)'
+  console.log(eintrag.updatedAt); // Current timestamp
+  console.log(eintrag.sequenceNumber.value); // Still 1 (immutable!)
+}
+
+// Version incremented
+console.log(etb.version.versionNumber); // 5
+
+// Event contains old + new for audit trail
+const event = etb.getDomainEvents()[etb.getDomainEvents().length - 1];
+console.log(event.constructor.name); // "EintragUpdatedEvent"
+```
+
+### 5. Delete Entry (Soft-Delete with audit trail)
+
+```typescript
+const eintrag = etb.eintraege[0];
+const deleteResult = etb.deleteEintrag(eintrag.id, userId);
+
+if (deleteResult.isSuccess) {
+  // WICHTIG: Entry still in array!
+  console.log(etb.eintraege.length); // Still 3 (NOT removed)
+  console.log(eintrag.isDeleted); // true
+  console.log(eintrag.sequenceNumber.value); // Still 1 (stable)
+
+  // Soft-delete for DRK compliance (10-year audit trail)
+  // getHistory() würde alle Versionen (auch gelöschte) zeigen
+}
+
+// Version incremented
+console.log(etb.version.versionNumber); // 6
+
+// Event emitted
+const event = etb.getDomainEvents()[etb.getDomainEvents().length - 1];
+console.log(event.constructor.name); // "EintragDeletedEvent"
+```
+
+### 6. Lock ETB (Finalize - no more changes)
+
+```typescript
+// Transition: DRAFT or ACTIVE → LOCKED
+const lockResult = etb.lock(userId);
+
+if (lockResult.isSuccess) {
+  console.log(etb.status.value); // "LOCKED"
+  console.log(etb.isLocked()); // true
+
+  // All modifications now fail
+  const failAddResult = etb.addEintrag('Should fail', userId);
+  console.log(failAddResult.isFailure); // true
+  console.log(failAddResult.error); // 'ETB ist gesperrt...'
+
+  const failUpdateResult = etb.updateEintrag(etb.eintraege[0].id, 'Also fails', userId);
+  console.log(failUpdateResult.isFailure); // true
+
+  const failDeleteResult = etb.deleteEintrag(etb.eintraege[0].id, userId);
+  console.log(failDeleteResult.isFailure); // true
+}
+
+// Version incremented once more
+console.log(etb.version.versionNumber); // 7
+
+// Event emitted
+const event = etb.getDomainEvents()[etb.getDomainEvents().length - 1];
+console.log(event.constructor.name); // "EtbLockedEvent"
+```
+
+### 7. Full Lifecycle Example
+
+```typescript
+// 1. Create ETB
+const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+console.log(etb.status.value); // "DRAFT"
+console.log(etb.version.versionNumber); // 1
+
+// 2. Add entries during Einsatz
+etb.addEintrag('Alarmierung: 14:30', userId);
+etb.addEintrag('Ausrücken: 14:32', userId);
+etb.addEintrag('Ankunft: 14:40', userId);
+etb.addEintrag('Einsatz beendet: 15:20', userId);
+console.log(etb.version.versionNumber); // 5
+
+// 3. Update middle entry (typo)
+const entry2 = etb.eintraege[1];
+etb.updateEintrag(entry2.id, 'Ausrücken: 14:33 (korrigiert)', userId);
+console.log(etb.version.versionNumber); // 6
+
+// 4. Delete first entry (wrong entry)
+etb.deleteEintrag(etb.eintraege[0].id, userId);
+console.log(etb.version.versionNumber); // 7
+console.log(etb.eintraege[0].isDeleted); // true
+console.log(etb.eintraege[0].sequenceNumber.value); // Still 1
+
+// 5. Lock ETB (finalize)
+etb.lock(userId);
+console.log(etb.status.value); // "LOCKED"
+console.log(etb.version.versionNumber); // 8
+
+// Final state:
+console.log(etb.eintraege.length); // 4 (deleted entry still here)
+console.log(etb.eintraege.filter(e => !e.isDeleted).length); // 3 (active entries)
+console.log(etb.getDomainEvents().length); // 7 (all events)
+
+// All sequences are stable
+console.log(etb.eintraege.map(e => e.sequenceNumber.value)); // [1, 2, 3, 4]
+
+// Version history would be (from Repository in Epic 4):
+// Version 1: Initial creation
+// Version 2: Entry 1 added (seq 1)
+// Version 3: Entry 2 added (seq 2)
+// Version 4: Entry 3 added (seq 3)
+// Version 5: Entry 4 added (seq 4)
+// Version 6: Entry 2 updated
+// Version 7: Entry 1 deleted (soft)
+// Version 8: ETB locked
+```
+
+### 8. Filter & Display (User-Facing)
+
+```typescript
+// Get only active entries (for UI display)
+const activeEntries = etb.eintraege
+  .filter(e => !e.isDeleted)
+  .sort((a, b) => a.sequenceNumber.value - b.sequenceNumber.value);
+
+// Display
+activeEntries.forEach(e => {
+  console.log(`[${e.sequenceNumber.value}] ${e.text}`);
+  // [1] Ausrücken: 14:33 (korrigiert)
+  // [2] Ankunft: 14:40
+  // [3] Einsatz beendet: 15:20
+});
+
+// Deleted entries visible only in admin view or history
+const deletedEntries = etb.eintraege.filter(e => e.isDeleted);
+console.log(deletedEntries.length); // 1 (audit trail)
 ```
 
 ---

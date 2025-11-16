@@ -189,22 +189,25 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
     // Auto-generate ETB ID
     const idResult = EtbId.create();
     if (idResult.isFailure) {
-      return Result.fail<EinsatztagebuchAggregate>(idResult.error!);
+      return Result.fail<EinsatztagebuchAggregate>(idResult.error as string);
     }
 
     // Create initial version
     const versionResult = EtbVersion.create(1);
     if (versionResult.isFailure) {
-      return Result.fail<EinsatztagebuchAggregate>(versionResult.error!);
+      return Result.fail<EinsatztagebuchAggregate>(versionResult.error as string);
     }
 
-    // Create aggregate with initial state
+    // Create aggregate with initial state (safe to assert after isFailure checks)
+    const etbId = idResult.value as EtbId;
+    const version = versionResult.value as EtbVersion;
+
     const aggregate = new EinsatztagebuchAggregate(
-      idResult.value!,
+      etbId,
       einsatzId,
       EtbStatus.DRAFT(), // Initial status
       [], // Empty entries list
-      versionResult.value!, // Version 1
+      version, // Version 1
       1, // Next sequence number starts at 1
     );
 
@@ -256,17 +259,20 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
     // Create entry ID
     const idResult = EintragId.create();
     if (idResult.isFailure) {
-      return Result.fail<EtbEintrag>(idResult.error!);
+      return Result.fail<EtbEintrag>(idResult.error as string);
     }
 
     // Create sequence number (auto-incremented)
     const seqResult = EtbSequenceNumber.create(this._nextSequenceNumber);
     if (seqResult.isFailure) {
-      return Result.fail<EtbEintrag>(seqResult.error!);
+      return Result.fail<EtbEintrag>(seqResult.error as string);
     }
 
-    // Create EtbEintrag entity
-    const eintrag = new EtbEintrag(idResult.value!, seqResult.value!, text, userId);
+    // Create EtbEintrag entity (safe to assert after isFailure checks)
+    const eintragId = idResult.value as EintragId;
+    const sequenceNumber = seqResult.value as EtbSequenceNumber;
+
+    const eintrag = new EtbEintrag(eintragId, sequenceNumber, text, userId);
 
     // Add to entries list
     this._eintraege.push(eintrag);

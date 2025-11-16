@@ -4,6 +4,24 @@ import type { EtbId } from '@domain/value-objects/etb-id';
 import type { EtbSnapshot } from '@domain/value-objects/etb-snapshot';
 
 /**
+ * Opaque Transaction Context Type für Framework-Agnostische Transaction Support.
+ *
+ * Dieser Typ erlaubt Infrastructure Layer (Epic 4) die Transaktion als konkreten
+ * Type zu casten (z.B. Prisma.TransactionClient), ohne dass Domain Layer
+ * Prisma-Dependencies hat.
+ *
+ * @example
+ * ```typescript
+ * // Infrastructure Layer (Epic 4):
+ * async save(aggregate: EinsatztagebuchAggregate, tx?: TransactionContext) {
+ *   const prismaClient = tx as Prisma.TransactionClient ?? this.prisma;
+ *   // ... use prismaClient
+ * }
+ * ```
+ */
+export type TransactionContext = unknown;
+
+/**
  * Repository Interface für ETB Aggregate (Port nach Hexagonaler Architektur).
  *
  * Dieses Interface definiert den Vertrag für ETB-Persistierung und ist
@@ -28,9 +46,9 @@ import type { EtbSnapshot } from '@domain/value-objects/etb-snapshot';
  * - save() persistiert Soft-Deletes automatisch (isDeleted=true in DB)
  *
  * **Transaction Handling:**
- * - `tx?: any` Parameter für Unit of Work Pattern
+ * - `tx?: TransactionContext` Parameter für Unit of Work Pattern
  * - Event-Handler können mehrere Aggregates in einer Transaktion speichern
- * - Infrastructure Layer mappt `any` zu konkretem Type (z.B. Prisma.TransactionClient)
+ * - Infrastructure Layer mappt `TransactionContext` zu konkretem Type (z.B. Prisma.TransactionClient)
  *
  * **Snapshot Management:**
  * - getHistory() lädt Versions-Historie aus DB (NICHT aus Aggregate Memory!)
@@ -87,7 +105,7 @@ export interface IEtbRepository {
    * @param tx - Optional: Existierende Transaktion (framework-spezifisch)
    * @returns Promise<void> - Wirft Exception bei Persistierungs-Fehler
    */
-  save(aggregate: EinsatztagebuchAggregate, tx?: any): Promise<void>;
+  save(aggregate: EinsatztagebuchAggregate, tx?: TransactionContext): Promise<void>;
 
   /**
    * Lädt ein ETB-Aggregat anhand seiner ID.
@@ -111,7 +129,7 @@ export interface IEtbRepository {
    * @param tx - Optional: Existierende Transaktion für konsistente Reads
    * @returns Promise<EinsatztagebuchAggregate | null> - Aggregate oder null wenn nicht gefunden
    */
-  findById(id: EtbId, tx?: any): Promise<EinsatztagebuchAggregate | null>;
+  findById(id: EtbId, tx?: TransactionContext): Promise<EinsatztagebuchAggregate | null>;
 
   /**
    * Lädt ein ETB-Aggregat anhand der Einsatz-ID.
@@ -135,7 +153,7 @@ export interface IEtbRepository {
    * @param tx - Optional: Existierende Transaktion
    * @returns Promise<EinsatztagebuchAggregate | null> - Aggregate oder null wenn nicht gefunden
    */
-  findByEinsatzId(einsatzId: EinsatzId, tx?: any): Promise<EinsatztagebuchAggregate | null>;
+  findByEinsatzId(einsatzId: EinsatzId, tx?: TransactionContext): Promise<EinsatztagebuchAggregate | null>;
 
   /**
    * Lädt die Versions-Historie eines ETBs.

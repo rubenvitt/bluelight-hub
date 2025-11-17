@@ -16,6 +16,16 @@
   },
   "overrides": [
     {
+      "includes": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "src/**/*.service.ts",
         "src/**/*.controller.ts",

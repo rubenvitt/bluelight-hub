@@ -543,6 +543,40 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
 Das **Einsatztagebuch (ETB) Aggregate** modelliert das digitale Logbuch für Einsatzdokumentation mit automatischer
 Versionierung, unveränderlichen Sequenznummern und DRK-konformen Soft-Deletes.
 
+### 3. LagekarteAggregate (Lagekarte + POI Management)
+
+**Purpose:** Manages tactical map with Points of Interest (POIs) using MGRS coordinate system (DRK standard).
+
+**Key Features:**
+- MGRS coordinates as primary (Military Grid Reference System)
+- Lat/Lng fallback for external APIs (Nominatim geocoding)
+- POI management (add, remove, update position)
+- German MGRS zones validation (32U, 33U, 33N)
+
+**Aggregates:**
+- `LagekarteAggregate` - Root aggregate managing POIs
+
+**Entities:**
+- `Poi` - Point of Interest (managed by LagekarteAggregate)
+
+**Value Objects:**
+- `LagekarteId` - Typed ID for Lagekarte
+- `PoiId` - Typed ID for POI entities
+- `MgrsCoordinate` - Primary coordinate system (MGRS)
+- `GeoCoordinate` - Fallback coordinate system (Lat/Lng)
+- `PoiCategory` - POI categorization (EINSATZSTELLE, BEREITSTELLUNGSRAUM, etc.)
+
+**Domain Events:**
+- `PoiAddedEvent` - POI added to Lagekarte
+- `PoiRemovedEvent` - POI removed from Lagekarte
+- `PoiPositionUpdatedEvent` - POI position changed (includes old + new coordinates)
+
+**Repository Interface:**
+- `ILagekarteRepository` - Persistence contract (Infrastructure implementation in Epic 2)
+
+**Domain Service Port:**
+- `IGeocodingPort` - Geocoding service contract (Nominatim adapter in Epic 2)
+
 **Besonderheiten (unterscheidet sich vom Einsatz Aggregate):**
 
 1. **Hierarchische Struktur:**
@@ -1522,6 +1556,145 @@ activeEntries.forEach(e => {
 // Deleted entries visible only in admin view or history
 const deletedEntries = etb.eintraege.filter(e => e.isDeleted);
 console.log(deletedEntries.length); // 1 (audit trail)
+```
+
+---
+
+## 📍 MGRS Coordinate System (DRK Standard)
+
+**Why MGRS?**
+- NATO standard used by DRK for tactical positioning
+- Higher precision than Lat/Lng (up to 1 meter)
+- Grid-based system optimized for emergency response
+- Avoids confusion with decimal degrees
+
+**German MGRS Zones:**
+- **Zone 32U:** Western/Northern Germany (Hamburg, Cologne)
+- **Zone 33U:** Eastern Germany (Berlin, Leipzig, Dresden)
+- **Zone 33N:** Central/Southern Germany (Frankfurt, Stuttgart, Munich)
+
+**Conversion Strategy:**
+```
+External APIs (Nominatim) → Lat/Lng → MGRS → Storage
+Storage → MGRS → Lat/Lng → External APIs
+```
+
+**Precision Levels:**
+- 0 digits: 100km grid square
+- 2 digits: 10km precision
+- 4 digits: 1km precision
+- 6 digits: 100m precision
+- 8 digits: 10m precision
+- 10 digits: 1m precision (used in Bluelight Hub)
+
+**Example MGRS Format:**
+```
+33UUU8990317936
+│││└─ Coordinates (10 digits = 1m precision)
+││└── 100km Square ID (UU)
+│└─── Latitude Band (U)
+└──── Grid Zone (33)
+```
+
+---
+
+## 📍 Lagekarte Aggregate - Code Examples
+
+### Create Lagekarte with initial POI (Lazy Creation Pattern)
+
+```typescript
+const einsatzId = EinsatzId.create().getValue();
+const userId = UserId.create().getValue();
+
+// Option 1: Create empty Lagekarte
+const lagekarteResult = LagekarteAggregate.create(einsatzId);
+if (lagekarteResult.isFailure) {
+  throw new Error(lagekarteResult.error);
+}
+const lagekarte = lagekarteResult.getValue();
+
+// Option 2: Create with initial POI (atomic)
+const berlinMgrs = MgrsCoordinate.fromLatLng(52.52, 13.40, 5).getValue();
+const initialPoi = Poi.create('Einsatzstelle', berlinMgrs, PoiCategory.EINSATZSTELLE(), userId);
+const lagekarteWithPoi = LagekarteAggregate.create(einsatzId, initialPoi).getValue();
+```
+
+### Add POI with MGRS coordinate
+
+```typescript
+const berlinMgrs = MgrsCoordinate.fromLatLng(52.52, 13.40, 5).getValue();
+const poiResult = lagekarte.addPoi(
+  'Einsatzstelle Brandenburger Tor',
+  berlinMgrs,
+  PoiCategory.EINSATZSTELLE(),
+  userId
+);
+
+if (poiResult.isSuccess) {
+  const poi = poiResult.getValue();
+  console.log(`POI created with ID: ${poi.id.value}`);
+}
+```
+
+### Add POI with Lat/Lng (auto-converts to MGRS)
+
+```typescript
+const hamburgGeo = GeoCoordinate.create(53.55, 10.00).getValue();
+const poiResult = lagekarte.addPoi(
+  'Bereitstellungsraum Hamburg',
+  hamburgGeo, // Auto-converts to MGRS Zone 32U
+  PoiCategory.BEREITSTELLUNGSRAUM(),
+  userId
+);
+```
+
+### Update POI position
+
+```typescript
+const hamburgMgrs = MgrsCoordinate.fromLatLng(53.55, 10.00, 5).getValue();
+const updateResult = lagekarte.updatePoiPosition(poi.id, hamburgMgrs, userId);
+
+if (updateResult.isSuccess) {
+  // Event emitted with old + new coordinates for distance calculation
+  const events = lagekarte.getDomainEvents();
+  const positionEvent = events.find(e => e instanceof PoiPositionUpdatedEvent);
+  const distanceKm = positionEvent.oldCoordinate.distanceTo(positionEvent.newCoordinate) / 1000;
+  console.log(`POI moved ${distanceKm.toFixed(2)} km`);
+}
+```
+
+### Remove POI
+
+```typescript
+const removeResult = lagekarte.removePoi(poi.id, userId);
+if (removeResult.isSuccess) {
+  console.log('POI removed successfully');
+}
+```
+
+### Filter POIs by category
+
+```typescript
+const einsatzstellen = lagekarte.findPoisByCategory(PoiCategory.EINSATZSTELLE());
+console.log(`Found ${einsatzstellen.length} Einsatzstellen`);
+```
+
+### MGRS ↔ Lat/Lng Conversion Examples
+
+```typescript
+// Convert Lat/Lng to MGRS
+const berlinMgrs = MgrsCoordinate.fromLatLng(52.52, 13.40, 5).getValue();
+console.log(berlinMgrs.value); // "33UUU8990317936" (Zone 33U, 1m precision)
+console.log(berlinMgrs.gridZone); // "33U"
+
+// Convert MGRS to Lat/Lng
+const latLng = berlinMgrs.toLatLng();
+console.log(`${latLng.latitude}, ${latLng.longitude}`); // 52.52, 13.40
+
+// Calculate distance between two MGRS coordinates
+const hamburgMgrs = MgrsCoordinate.fromLatLng(53.55, 10.00, 5).getValue();
+const distanceMeters = berlinMgrs.distanceTo(hamburgMgrs);
+console.log(`${(distanceMeters / 1000).toFixed(2)} km`); // ~255 km
 ```
 
 ---

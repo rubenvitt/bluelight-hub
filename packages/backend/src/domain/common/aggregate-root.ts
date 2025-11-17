@@ -81,7 +81,7 @@ import type { EntityId } from '@domain/common/entity-id';
  * einsatz1.equals(einsatz2); // false (different IDs)
  * ```
  */
-export abstract class AggregateRoot<TId extends EntityId<any>> {
+export abstract class AggregateRoot<TId extends EntityId<string>> {
   /**
    * Protected readonly ID field.
    * Verhindert direkte ID-Änderung nach Construction.

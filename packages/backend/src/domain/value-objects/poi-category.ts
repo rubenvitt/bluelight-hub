@@ -10,7 +10,7 @@ type PoiCategoryType = 'EINSATZSTELLE' | 'BEREITSTELLUNGSRAUM' | 'GEFAHRENSTELLE
 /**
  * Properties für PoiCategory Value Object.
  */
-interface PoiCategoryProps {
+interface PoiCategoryProps extends Record<string, unknown> {
   value: PoiCategoryType;
 }
 

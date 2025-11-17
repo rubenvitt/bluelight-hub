@@ -90,8 +90,8 @@ export class EtbEintrag {
   private _isDeleted: boolean;
 
   /**
-   * Protected Constructor verhindert direkte Instanziierung.
-   * Nur EinsatztagebuchAggregate kann Einträge erstellen (Aggregate Boundary).
+   * Public Constructor für Verwendung durch EinsatztagebuchAggregate.
+   * Nur EinsatztagebuchAggregate sollte Einträge erstellen (Aggregate Boundary).
    *
    * @param id - Eindeutige Eintrags-ID
    * @param sequenceNumber - Immutable Sequenznummer für Sortierung
@@ -99,7 +99,7 @@ export class EtbEintrag {
    * @param createdBy - User ID des Erstellers
    * @param createdAt - Optional: Creation timestamp (default: new Date())
    */
-  protected constructor(id: EintragId, sequenceNumber: EtbSequenceNumber, text: string, createdBy: UserId, createdAt?: Date) {
+  public constructor(id: EintragId, sequenceNumber: EtbSequenceNumber, text: string, createdBy: UserId, createdAt?: Date) {
     this._id = id;
     this._sequenceNumber = sequenceNumber;
     this._text = text;

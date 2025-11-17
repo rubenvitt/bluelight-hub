@@ -6,7 +6,7 @@ import * as mgrs from 'mgrs';
 /**
  * Properties für MgrsCoordinate Value Object.
  */
-interface MgrsCoordinateProps {
+interface MgrsCoordinateProps extends Record<string, unknown> {
   value: string; // Full MGRS string (e.g., "33UUU1234567890")
   gridZone: string; // Grid Zone Designator (e.g., "33U")
   squareId: string; // 100km Square ID (e.g., "UU")
@@ -168,6 +168,11 @@ export class MgrsCoordinate extends ValueObject<MgrsCoordinateProps> {
       return Result.fail<MgrsCoordinate>(`Could not extract grid zone from: ${mgrsString}`);
     }
     const gridZone = zoneMatch[1];
+
+    // Null safety check for gridZone
+    if (!gridZone) {
+      return Result.fail<MgrsCoordinate>(`Could not extract grid zone from: ${mgrsString}`);
+    }
 
     // Validate German zones
     if (!MgrsCoordinate.GERMAN_ZONES.has(gridZone)) {

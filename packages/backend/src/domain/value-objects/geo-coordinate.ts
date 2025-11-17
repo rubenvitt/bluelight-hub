@@ -4,7 +4,7 @@ import { Result } from '@domain/common/result';
 /**
  * Properties für GeoCoordinate Value Object.
  */
-interface GeoCoordinateProps {
+interface GeoCoordinateProps extends Record<string, unknown> {
   latitude: number; // WGS84 datum, range [-90, 90]
   longitude: number; // WGS84 datum, range [-180, 180]
 }

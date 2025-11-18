@@ -10,9 +10,12 @@
 
 1. [Hexagonal Architecture Principles](#hexagonal-architecture-principles)
 2. [Layer Responsibilities](#layer-responsibilities)
-3. [Base Classes](#base-classes)
-4. [Coding Conventions](#coding-conventions)
+3. [DRK Compliance: NO-DELETE Policy (Double-Layer Protection)](#-drk-compliance-no-delete-policy-double-layer-protection)
+4. [Base Classes](#base-classes)
+5. [Coding Conventions](#coding-conventions)
    - [Einsatztagebuch (ETB) Aggregate](#2-einsatztagebuch-etb-aggregate---spezialfall-versioning--soft-delete)
+   - [LagekarteAggregate (Lagekarte + POI Management)](#3-lagekarteaggregate-lagekarte--poi-management)
+   - [UserAggregate (RBAC User Management)](#4-useraggregate-rbac-user-management)
 5. [Versioning Pattern (ETB Aggregate)](#-versioning-pattern-etb-aggregate)
 6. [Example - How to create a new Aggregate](#-example---how-to-create-a-new-aggregate)
 7. [ETB Aggregate - Code Examples](#-etb-aggregate---code-examples)
@@ -133,6 +136,132 @@ Hexagonal Architecture löst diese Probleme durch klare Separation:
   Beispiel: Email-Service, File-Storage, External APIs
 
 **Dependency:** Infrastructure Layer DARF Application + Domain importieren.
+
+---
+
+## 🔒 DRK Compliance: NO-DELETE Policy (Double-Layer Protection)
+
+Bluelight Hub implementiert eine **zweischichtige NO-DELETE Strategie** zur Einhaltung der DRK 10-Jahres-Aufbewahrungspflicht für Einsatzdokumente. Beide Schutzschichten arbeiten unabhängig voneinander und bieten **Defense in Depth**.
+
+### Layer 1: Domain Layer (Story 1.3, 1.4, 1.6)
+
+Die **erste Schutzschicht** ist in der Business-Logik der Domain Aggregates verankert:
+
+- **Aggregates:** `canBeDeleted(): boolean` gibt IMMER `false` zurück
+- **Application Layer:** Respektiert Domain-Regeln via `Result<T>` Pattern
+- **Beispiel:** `EinsatzAggregate.canBeDeleted()` verhindert versehentliche Löschungen in der Business-Logik
+
+```typescript
+// Domain Layer Schutz (Story 1.3)
+class EinsatzAggregate extends AggregateRoot<EinsatzId> {
+  canBeDeleted(): boolean {
+    return false; // ❌ Einsätze dürfen NIEMALS gelöscht werden (DRK Compliance)
+  }
+}
+```
+
+**Stories mit Domain-Layer-Schutz:**
+- [Story 1.3](../../../../.bmad-ephemeral/stories/1-3-einsatz-aggregate-value-objects.md) - Einsatz Aggregate: `canBeDeleted()` immer `false`
+- [Story 1.4](../../../../.bmad-ephemeral/stories/1-4-einsatztagebuch-etb-aggregate-with-versioning.md) - ETB Soft-Delete: `is_deleted` Flag statt physischer Löschung
+- [Story 1.6](../../../../.bmad-ephemeral/stories/1-6-user-aggregate-rbac-value-objects.md) - User Account Locking: `is_locked` Flag für Sperrungen
+
+### Layer 2: Database Layer (Story 1.8) ⭐ NEW
+
+Die **zweite Schutzschicht** sind PostgreSQL BEFORE DELETE Triggers, die physische DELETE Operations auf Datenbank-Ebene blockieren:
+
+- **PostgreSQL Triggers:** Verhindern direkte DELETE Operations
+- **Enforcement:** Greift AUCH wenn Domain Layer umgangen wird (Migrations, Admin Scripts, Raw SQL)
+- **Protected Tables:** `einsaetze`, `etb_eintraege`, `lagekarte_poi`, `User`
+
+```sql
+-- PostgreSQL Trigger Beispiel (Story 1.8 Task 1)
+CREATE OR REPLACE FUNCTION prevent_einsatz_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'DRK Compliance Violation: Einsatz cannot be deleted. Use status=ARCHIVIERT instead.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER einsatz_no_delete
+  BEFORE DELETE ON einsaetze
+  FOR EACH ROW
+  EXECUTE FUNCTION prevent_einsatz_delete();
+```
+
+**Migration:** [`20251118081643_add_no_delete_triggers`](../../prisma/migrations/20251118081643_add_no_delete_triggers/migration.sql)
+
+### Archival Strategy (Alternativen zu DELETE)
+
+Statt physischer Löschung nutzt Bluelight Hub diese Archivierungs-Strategien:
+
+| Entity | Alternative Action | Implementierung | Story |
+|--------|-------------------|----------------|-------|
+| **Einsatz** | `status = ARCHIVIERT` setzen | 10-Jahres-Aufbewahrung, dann Archivierung | [Story 1.7](../../../../.bmad-ephemeral/stories/1-7-domain-services-for-cross-aggregate-logic.md) |
+| **ETB Eintrag** | `is_deleted = true` setzen | Soft-Delete, Historie bleibt erhalten | [Story 1.4](../../../../.bmad-ephemeral/stories/1-4-einsatztagebuch-etb-aggregate-with-versioning.md) |
+| **User** | `is_locked = true` setzen | Account-Sperrung (reversibel) | [Story 1.6](../../../../.bmad-ephemeral/stories/1-6-user-aggregate-rbac-value-objects.md) |
+| **POI** | Removal via Aggregate Methode | Business-Logik-kontrolliert | [Story 1.5](../../../../.bmad-ephemeral/stories/1-5-lagekarte-aggregate-with-mgrs-coordinates.md) |
+
+**Beispiel - Einsatz Archivierung:**
+```typescript
+// ✅ RICHTIG: Einsatz archivieren (UPDATE statt DELETE)
+const userId = UserId.create().getValue();
+const archiveResult = einsatz.archive(userId); // Setzt status = ARCHIVIERT
+
+// ❌ FALSCH: Einsatz löschen (wird von BEIDEN Layers blockiert!)
+const deleteResult = await repository.delete(einsatzId);
+// Layer 1: canBeDeleted() returns false
+// Layer 2: PostgreSQL Trigger wirft Exception
+```
+
+### Vorteile der doppelten Schutzschicht
+
+1. **Defense in Depth**
+   Domain Layer + Database Layer = Zwei unabhängige Schutzschichten
+
+2. **Fail-Safe**
+   Selbst Admin-Scripts oder Raw-SQL können DRK-Compliance nicht umgehen
+
+3. **Audit Trail**
+   Klare Fehlermeldungen referenzieren "DRK Compliance Violation"
+
+4. **Zero Performance Impact**
+   Triggers feuern nur bei DELETE-Operationen (die nie passieren sollten)
+
+### Testing
+
+Die Double-Layer Protection wird auf beiden Ebenen getestet:
+
+**Domain Layer Tests:**
+- Unit Tests validieren Aggregate Business Rules (`canBeDeleted()`, `archive()`, etc.)
+- Pfad: `packages/backend/src/domain/aggregates/__tests__/`
+
+**Infrastructure Layer Tests:**
+- Integration Tests validieren PostgreSQL Triggers mit echter Datenbank
+- Pfad: [`packages/backend/src/infrastructure/__tests__/no-delete-triggers.integration.spec.ts`](../infrastructure/__tests__/no-delete-triggers.integration.spec.ts)
+- **7 Tests:**
+  - 4 Tests: Prevent DELETE Operations (Einsatz, ETB, POI, User)
+  - 3 Tests: Allow Alternative Actions (UPDATE zu ARCHIVIERT, is_deleted, is_locked)
+
+**Test Beispiel:**
+```typescript
+// Test: Trigger verhindert DELETE auf einsaetze table
+it('should prevent direct DELETE on einsatz table', async () => {
+  // Given: Einsatz exists in database
+  const einsatz = await prisma.einsatz.create({ ... });
+
+  // When: Try to delete via Prisma Client
+  const deletePromise = prisma.einsatz.delete({ where: { id: einsatz.id } });
+
+  // Then: Expect DRK Compliance Violation exception
+  await expect(deletePromise).rejects.toThrow(/DRK Compliance Violation/);
+
+  // Verify: Einsatz still exists (not deleted)
+  const stillExists = await prisma.einsatz.findUnique({ where: { id: einsatz.id } });
+  expect(stillExists).not.toBeNull();
+});
+```
+
+**Story:** [Story 1.8 - Database Constraints & Triggers](../../../../.bmad-ephemeral/stories/1-8-database-constraints-triggers.md)
 
 ---
 
@@ -577,6 +706,119 @@ Versionierung, unveränderlichen Sequenznummern und DRK-konformen Soft-Deletes.
 **Domain Service Port:**
 - `IGeocodingPort` - Geocoding service contract (Nominatim adapter in Epic 2)
 
+### 4. UserAggregate (RBAC User Management)
+
+**Purpose:** RBAC User Management mit Permission Hierarchie und Unified Auth Strategy
+
+**Value Objects:**
+- `UserId` - Type-Safe User ID (extends EntityId<'User'>)
+- `Username` - Case-insensitive username (3-50 chars, lowercase normalization)
+- `UserRole` - Role enum (SUPER_ADMIN, ADMIN, USER)
+- `Permission` - Resource:Action format mit Wildcard Matching
+
+**Business Rules:**
+
+1. **Min-1-SUPER_ADMIN Constraint:** System MUSS immer mindestens 1 SUPER_ADMIN haben
+   - `updateRole()` prüft via `IUserRepository.countByRole()` BEVOR Downgrade
+   - Verhindert "Lock-Out" durch versehentliche Entfernung aller Admins
+   - Atomare Operation: Count + Update in einer Transaction (Infrastructure Layer)
+
+2. **Role-Based Permission Defaults:** Jede Role hat unveränderliche Default Permissions
+   - `SUPER_ADMIN`: `*:*` (Full System Access)
+   - `ADMIN`: `user:*, einsatz:*, fahrzeug:*, dienst:*` (Management Access)
+   - `USER`: `user:read_self` (Self-Service only)
+
+3. **Custom Permissions:** Zusätzlich zu Role-Defaults können Custom Permissions gewährt werden
+   - Beispiel: ADMIN mit zusätzlicher Permission `etb:lock` (ETB finalisieren)
+   - Permissions sind additiv (Role Defaults + Custom Grants)
+   - Prüfung via `hasPermission()` matcht gegen BEIDE Sets
+
+4. **Account Locking ≠ Deletion:** Lock ist reversibel, Delete ist Soft Delete
+   - `lockAccount()`: Setzt `isLocked=true`, User kann reaktiviert werden
+   - Delete: Soft Delete via Repository (Infrastructure Layer)
+
+**Code Example:**
+
+```typescript
+// Create User mit Role
+const usernameResult = Username.create('johndoe');
+if (usernameResult.isFailure) {
+  throw new Error(usernameResult.error);
+}
+
+const user = UserAggregate.create(
+  usernameResult.getValue(),
+  UserRole.ADMIN(),
+).getValue();
+
+// Grant Custom Permission (zusätzlich zu ADMIN Defaults)
+const permission = Permission.create('etb:lock').getValue();
+user.grantPermission(permission, adminUserId);
+
+// Check Permission (Role Defaults + Custom Grants)
+user.hasPermission(Permission.CREATE_EINSATZ()); // true (ADMIN hat einsatz:*)
+user.hasPermission(Permission.LOCK_ETB());       // true (Custom Grant)
+user.hasPermission(Permission.DELETE_USER());    // false (keine Wildcard Match)
+
+// Update Role (mit Min-1-SUPER_ADMIN Check im Application Layer)
+const updateResult = await user.updateRole(
+  UserRole.SUPER_ADMIN(),
+  adminUserId,
+  repository
+);
+if (updateResult.isFailure) {
+  // Könnte fehlschlagen wenn letzter SUPER_ADMIN downgegraded würde
+  console.error(updateResult.error);
+}
+
+// Lock Account (reversibel)
+user.lockAccount(adminUserId);
+console.log(user.isLocked); // true
+
+// Check vor Login
+if (user.isLocked) {
+  throw new Error('Account ist gesperrt');
+}
+```
+
+**Unified Auth Strategy (Password-Agnostic Domain Layer):**
+
+Die Domain Layer hat KEINE Kenntnis von Passwörtern! Auth-Strategie wird in Infrastructure Layer implementiert:
+
+- **USER Role:** Passwordless Auth (Magic Link via Email)
+  - Token Generation: `ITokenServicePort.generateEmailVerificationToken()`
+  - User klickt Link → Token verifiziert → Login
+  - KEIN Password Hash im UserAggregate
+
+- **ADMIN/SUPER_ADMIN:** Password-Based Auth
+  - Token Generation: `ITokenServicePort.generatePasswordResetToken()`
+  - Password Hash wird in Infrastructure Layer gespeichert (NICHT im Domain Layer)
+  - Domain Layer validiert NUR Permissions, NICHT Passwörter
+
+**Warum Password-Agnostic?**
+- Domain Layer ist framework-agnostisch (keine bcrypt, JWT Dependencies)
+- Auth-Strategie kann gewechselt werden ohne Domain Layer zu ändern
+- Testbarkeit: Mock `ITokenServicePort` für Unit Tests
+
+**Repository Interface:**
+- `IUserRepository` - Persistence contract für User Management
+  - `findById(id: UserId): Promise<Result<UserAggregate>>`
+  - `save(user: UserAggregate): Promise<Result<void>>`
+  - `countByRole(role: UserRole): Promise<number>` (für Min-1-SUPER_ADMIN Constraint)
+
+**Domain Service Port:**
+- `ITokenServicePort` - Token Generation für Auth (Infrastructure Adapter)
+  - `generateEmailVerificationToken(userId: UserId): Promise<string>`
+  - `generatePasswordResetToken(userId: UserId): Promise<string>`
+
+**Domain Events:**
+- `UserCreatedEvent` - User erstellt
+- `UserRoleUpdatedEvent` - Role geändert (enthält old + new Role)
+- `UserPermissionGrantedEvent` - Custom Permission gewährt
+- `UserPermissionRevokedEvent` - Custom Permission entzogen
+- `UserAccountLockedEvent` - Account gesperrt
+- `UserAccountUnlockedEvent` - Account entsperrt
+
 **Besonderheiten (unterscheidet sich vom Einsatz Aggregate):**
 
 1. **Hierarchische Struktur:**
@@ -835,6 +1077,107 @@ export interface IEinsatzNamingService {
 - Interface im Domain Layer, Implementierung in Infrastructure
 - Nutzt Domain Objects (Value Objects, Aggregates)
 - Gibt `Result<T>` zurück
+
+### Implemented Domain Services (Story 1.7)
+
+In Story 1.7 wurden 3 Domain Services für Einsatz-Management implementiert:
+
+| Service | Type | Purpose | Location |
+|---------|------|---------|----------|
+| **EinsatzNamingService** | Pure Function | Einsatznummern-Generierung (E{JAHR}-{LAUFNUMMER}) | `domain/services/einsatz-naming.service.ts` |
+| **EinsatzCompletenessService** | Pure Function | Vollständigkeits-Validierung vor Abschluss | `domain/services/einsatz-completeness.service.ts` |
+| **EinsatzArchivalPolicy** | Domain Policy | DRK 10-Jahres-Archivierungspflicht | `domain/services/einsatz-archival.policy.ts` |
+| **IGeocodingPort** | Port Interface | Geocoding Contract (Nominatim Adapter) | `domain/services/ports/i-geocoding.port.ts` (Story 1.5) |
+
+**Code Examples:**
+
+```typescript
+// 1. EinsatzNamingService - Pure Function
+const namingService = new EinsatzNamingService();
+const jahr = 2024;
+const sequenznummer = 42; // From Repository.getNextSequenceNumber()
+const nummer = namingService.generateEinsatzNummer(jahr, sequenznummer);
+console.log(nummer); // "E2024-042"
+```
+
+```typescript
+// 2. EinsatzCompletenessService - Validation
+const completenessService = new EinsatzCompletenessService();
+const einsatz = getEinsatzFromSomewhere();
+
+// Check if Einsatz can be completed
+const validationResult = completenessService.canBeCompleted(einsatz, true);
+if (validationResult.isFailure) {
+  const missing = completenessService.getMissingRequirements(einsatz);
+  console.error(`Fehlende Felder: ${missing.join(', ')}`);
+} else {
+  // Abschluss ist erlaubt
+  const userId = UserId.create().value!;
+  einsatz.complete(userId);
+}
+```
+
+```typescript
+// 3. EinsatzArchivalPolicy - 10-Year Rule
+const archivalPolicy = new EinsatzArchivalPolicy();
+const now = new Date();
+const einsatz = getCompletedEinsatz(); // Einsatz with ABGESCHLOSSEN status
+
+// Check if 10-year retention period expired
+if (archivalPolicy.canBeArchived(einsatz, now)) {
+  const archivalDate = archivalPolicy.getArchivalDate(einsatz);
+  console.log(`Einsatz kann archiviert werden (Frist seit ${archivalDate.toLocaleDateString('de-DE')} abgelaufen)`);
+  einsatz.archive();
+} else {
+  console.log('Einsatz noch nicht archivierbar (10-Jahres-Frist nicht abgelaufen)');
+}
+```
+
+**Framework-Agnostic Testing:**
+
+Alle 3 Domain Services sind framework-unabhängig und werden OHNE NestJS TestingModule getestet:
+
+```typescript
+// ✅ CORRECT: Direct instantiation (NO NestJS)
+describe('EinsatzNamingService', () => {
+  let service: EinsatzNamingService;
+
+  beforeEach(() => {
+    service = new EinsatzNamingService(); // Pure TypeScript
+  });
+
+  it('should format number with zero-padding', () => {
+    // Given
+    const year = 2024;
+    const sequence = 1;
+
+    // When
+    const result = service.generateEinsatzNummer(year, sequence);
+
+    // Then
+    expect(result).toBe('E2024-001');
+  });
+});
+```
+
+**Test Coverage (Story 1.7):**
+
+| Service | Statements | Branches | Functions | Lines | Test File |
+|---------|------------|----------|-----------|-------|-----------|
+| `einsatz-naming.service.ts` | 100% | 100% | 100% | 100% | 10 tests |
+| `einsatz-completeness.service.ts` | 94.44% | 95.45% | 100% | 94.44% | 14 tests |
+| `einsatz-archival.policy.ts` | 92.3% | 83.33% | 100% | 92.3% | 12 tests |
+| **Integration Tests** | - | - | - | - | 8 tests |
+| **Total** | **94.11%** | **92.85%** | **100%** | **94.11%** | **44 tests** |
+
+**Port Consolidation (AC3):**
+
+`IGeocodingPort` wurde in Story 1.5 implementiert und wird hier nur referenziert (NO duplication):
+- **Location:** `domain/services/ports/i-geocoding.port.ts`
+- **Methods:** `geocodeAddress()`, `reverseGeocode()`
+- **Implementation:** Nominatim Adapter (Infrastructure Layer, Epic 2)
+
+**Weitere Details:** Siehe `domain/services/README.md` für vollständige Dokumentation aller Services.
 
 ---
 

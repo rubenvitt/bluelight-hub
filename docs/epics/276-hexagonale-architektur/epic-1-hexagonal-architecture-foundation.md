@@ -945,3 +945,53 @@ Add to `packages/backend/src/domain/README.md`:
 **Priority:** 🔴 CRITICAL (Blocker for Epic 4 - DRK Compliance requirement)
 
 ---
+
+## Post-Review Follow-ups (Epic 1)
+
+### Story 1.7 - Domain Services Code Review (2025-11-18)
+
+**Review Outcome:** ⚠️ CHANGES REQUESTED
+
+**Summary:** All 5 ACs implemented, all 7 tasks verified complete, test coverage 94.11% (exceeds 90% target). However, 4 code quality issues identified that require attention before final approval.
+
+**Action Items:**
+
+1. **[CRITICAL] Fix Flaky Test - Non-Deterministic nanoid Mock**
+   - **Story:** 1.7
+   - **File:** `packages/backend/src/domain/services/__tests__/domain-services.integration.spec.ts:23-33`
+   - **Issue:** Integration tests use `Math.random()` causing non-deterministic results
+   - **Fix:** Replace with deterministic mock `nanoid: jest.fn((length = 21) => 'A'.repeat(length))`
+   - **Estimated Effort:** 5 minutes
+   - **Blocker:** YES - CI/CD reliability risk
+
+2. **[MEDIUM] Extract Validation Logic (DRY Principle)**
+   - **Story:** 1.7
+   - **File:** `packages/backend/src/domain/services/einsatz-completeness.service.ts:64-128`
+   - **Issue:** Duplicate validation logic in `canBeCompleted()` and `getMissingRequirements()`
+   - **Fix:** Extract private methods: `isAlarmstichwortValid()`, `isEinsatzortValid()`, `isStatusValid()`
+   - **Estimated Effort:** 15 minutes
+
+3. **[MEDIUM] Replace Magic Number with Named Constant**
+   - **Story:** 1.7
+   - **File:** `packages/backend/src/domain/services/einsatz-archival.policy.ts:142`
+   - **Issue:** DRK 10-year retention policy hardcoded
+   - **Fix:** Add class constant `private static readonly RETENTION_YEARS = 10;`
+   - **Estimated Effort:** 5 minutes
+
+4. **[MEDIUM] Complete Test for Empty Alarmstichwort**
+   - **Story:** 1.7
+   - **File:** `packages/backend/src/domain/services/einsatz-completeness.service.spec.ts:76-115`
+   - **Issue:** Test has commented-out logic, only validates Aggregate factory
+   - **Fix:** Remove comments, test Service logic with type casting
+   - **Estimated Effort:** 10 minutes
+
+**Total Estimated Effort:** 35 minutes
+
+**Next Steps:**
+1. Address CRITICAL flaky test issue immediately
+2. Fix MEDIUM code quality improvements
+3. Re-run test suite: `pnpm --filter @bluelight-hub/backend test:cov -- --testPathPattern=domain/services`
+4. Verify tests pass consistently (3-5 runs)
+5. Update story status: review → in-progress → ready-for-dev (after fixes)
+
+---

@@ -1,1 +1,9 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# TypeScript Smoke Test (NO compilation output, just validation)
+# Ensures type safety before commit to catch errors early
+pnpm --filter @bluelight-hub/backend exec tsc --noEmit || exit 1
+
+# Code quality checks (Biome linting + formatting)
 pnpm lint-staged

@@ -1,9 +1,24 @@
 module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
-  testMatch: ['**/domain/**/*.spec.ts', '**/infrastructure/**/*.spec.ts'],
+  testMatch: ['**/domain/**/*.spec.ts', '**/infrastructure/**/*.spec.ts', '**/application/**/*.spec.ts'],
   transform: {
-    '^.+\\.(t|j)sx?$': '@swc/jest',
+    '^.+\\.(t|j)sx?$': [
+      '@swc/jest',
+      {
+        jsc: {
+          parser: {
+            syntax: 'typescript',
+            decorators: true,
+          },
+          transform: {
+            legacyDecorator: true,
+            decoratorMetadata: true,
+          },
+          target: 'es2021',
+        },
+      },
+    ],
   },
   transformIgnorePatterns: [
     // Transform ESM modules (nanoid) in node_modules

@@ -7,7 +7,18 @@
  * @module application/lagekarte/commands
  */
 
-// Commands werden hier exportiert (sobald implementiert)
-// export * from './create-lagekarte.command';
-// export * from './create-lagekarte.handler';
-// ...
+// CreateLagekarte Command (AC 1)
+export * from './create-lagekarte.command';
+export * from './create-lagekarte.handler';
+
+// AddPoi Command (AC 2)
+export * from './add-poi.command';
+export * from './add-poi.handler';
+
+// RemovePoi Command (AC 3)
+export * from './remove-poi.command';
+export * from './remove-poi.handler';
+
+// UpdatePoiPosition Command (AC 4)
+export * from './update-poi-position.command';
+export * from './update-poi-position.handler';

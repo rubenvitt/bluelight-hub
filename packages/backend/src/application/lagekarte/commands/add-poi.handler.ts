@@ -69,8 +69,7 @@ export class AddPoiCommandHandler {
     }
 
     // Step 6: Add POI to aggregate (business logic delegation)
-    // Note: beschreibung parameter not supported yet in aggregate.addPoi()
-    const addPoiResult = aggregate.addPoi(command.name, mgrsCoordinate, categoryResult.value!, userIdResult.value!);
+    const addPoiResult = aggregate.addPoi(command.name, mgrsCoordinate, categoryResult.value!, userIdResult.value!, command.beschreibung);
     if (addPoiResult.isFailure) {
       return Result.fail<PoiId>(addPoiResult.error!);
     }

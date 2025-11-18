@@ -260,6 +260,39 @@ describe('LagekarteAggregate', () => {
       lagekarte.addPoi('POI3', munichMgrs, testCategory, testUserId);
       expect(lagekarte.pois).toHaveLength(3);
     });
+
+    it('should add POI with optional beschreibung', () => {
+      // When: Add POI with beschreibung
+      const result = lagekarte.addPoi('Gefahrenstelle', berlinMgrs, testCategory, testUserId, 'Überflutete Straße, nicht befahrbar');
+
+      // Then: Success
+      expect(result.isSuccess).toBe(true);
+      const poi = result.value as Poi;
+      expect(poi.beschreibung).toBe('Überflutete Straße, nicht befahrbar');
+      expect(lagekarte.pois).toHaveLength(1);
+      expect(lagekarte.pois[0].beschreibung).toBe('Überflutete Straße, nicht befahrbar');
+    });
+
+    it('should add POI without beschreibung (undefined)', () => {
+      // When: Add POI without beschreibung
+      const result = lagekarte.addPoi('Einsatzstelle', berlinMgrs, testCategory, testUserId);
+
+      // Then: Success
+      expect(result.isSuccess).toBe(true);
+      const poi = result.value as Poi;
+      expect(poi.beschreibung).toBeUndefined();
+      expect(lagekarte.pois).toHaveLength(1);
+    });
+
+    it('should add POI with explicitly passed undefined beschreibung', () => {
+      // When: Add POI with explicit undefined
+      const result = lagekarte.addPoi('Test POI', berlinMgrs, testCategory, testUserId, undefined);
+
+      // Then: Success
+      expect(result.isSuccess).toBe(true);
+      const poi = result.value as Poi;
+      expect(poi.beschreibung).toBeUndefined();
+    });
   });
 
   describe('removePoi Tests', () => {

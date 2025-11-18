@@ -238,6 +238,7 @@ export class LagekarteAggregate extends AggregateRoot<LagekarteId> {
    * @param coordinate - MGRS oder Lat/Lng (wird zu MGRS konvertiert)
    * @param category - POI-Kategorie (EINSATZSTELLE, BEREITSTELLUNGSRAUM, etc.)
    * @param userId - Benutzer-ID des Erstellers
+   * @param beschreibung - Optionale Beschreibung für zusätzliche Informationen
    * @returns Result mit erstelltem POI oder Fehler
    *
    * @example
@@ -251,6 +252,10 @@ export class LagekarteAggregate extends AggregateRoot<LagekarteId> {
    * const hamburgGeo = GeoCoordinate.create(53.55, 10.00).getValue();
    * const result2 = lagekarte.addPoi('Rathaus Hamburg', hamburgGeo, category, userId);
    * // result2.getValue().coordinate ist MgrsCoordinate (automatisch konvertiert)
+   *
+   * // Mit Beschreibung
+   * const result3 = lagekarte.addPoi('Gefahrenstelle', berlinMgrs, category, userId, 'Überflutete Straße');
+   * // result3.getValue().beschreibung === 'Überflutete Straße'
    *
    * // Validation Fehler: Leerer Name
    * const fail1 = lagekarte.addPoi('', berlinMgrs, category, userId);
@@ -267,7 +272,7 @@ export class LagekarteAggregate extends AggregateRoot<LagekarteId> {
    * // fail3.error === "Failed to convert coordinate to MGRS: ..."
    * ```
    */
-  public addPoi(name: string, coordinate: MgrsCoordinate | GeoCoordinate, category: PoiCategory, userId: UserId): Result<Poi> {
+  public addPoi(name: string, coordinate: MgrsCoordinate | GeoCoordinate, category: PoiCategory, userId: UserId, beschreibung?: string): Result<Poi> {
     // Validation: name not empty
     if (!name || name.trim().length === 0) {
       return Result.fail('POI name cannot be empty');
@@ -292,7 +297,7 @@ export class LagekarteAggregate extends AggregateRoot<LagekarteId> {
     }
 
     // Create POI entity
-    const poi = Poi.create(name, mgrsCoord, category, userId);
+    const poi = Poi.create(name, mgrsCoord, category, userId, beschreibung);
     this._pois.push(poi);
 
     // Emit PoiAddedEvent

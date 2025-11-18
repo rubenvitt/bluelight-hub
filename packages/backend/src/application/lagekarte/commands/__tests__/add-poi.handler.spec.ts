@@ -141,11 +141,36 @@ describe('AddPoiCommandHandler', () => {
       // Then
       expect(result.isSuccess).toBe(true);
 
-      // Note: beschreibung not yet supported in aggregate.addPoi()
-      // Test documents current behavior
+      // Verify beschreibung was passed to aggregate
       const savedAggregate = mockLagekarteRepo.save.mock.calls[0][0];
       expect(savedAggregate.pois.length).toBe(1);
       expect(savedAggregate.pois[0].name).toBe('Gefahrenstelle');
+      expect(savedAggregate.pois[0].beschreibung).toBe('Überflutete Straße, nicht befahrbar');
+    });
+
+    it('should add POI without beschreibung when omitted', async () => {
+      // Given
+      const lagekarteId = createValidTestId('lagekarte');
+      const command = new AddPoiCommand(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE');
+
+      // Create existing aggregate
+      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
+      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+
+      // Mock: Lagekarte exists
+      mockLagekarteRepo.findById.mockResolvedValue(aggregate);
+      mockLagekarteRepo.save.mockResolvedValue(undefined);
+
+      // When
+      const result = await handler.execute(command);
+
+      // Then
+      expect(result.isSuccess).toBe(true);
+
+      // Verify undefined beschreibung was passed to aggregate
+      const savedAggregate = mockLagekarteRepo.save.mock.calls[0][0];
+      expect(savedAggregate.pois.length).toBe(1);
+      expect(savedAggregate.pois[0].beschreibung).toBeUndefined();
     });
 
     it('should emit PoiAddedEvent when POI is added', async () => {

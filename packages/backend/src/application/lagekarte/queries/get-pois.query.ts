@@ -1,7 +1,4 @@
-/**
- * Nanoid format: 21 characters, alphanumeric + _ and -
- */
-const NANOID_REGEX = /^[A-Za-z0-9_-]{21}$/;
+import { validateRequiredString, validateNanoidFormat } from '@application/common/validators/string-validator';
 
 /**
  * Query zum Abrufen von POIs einer Lagekarte.
@@ -63,11 +60,7 @@ export class GetPoisQuery {
     public readonly lagekarteId: string,
     public readonly category?: string,
   ) {
-    if (!lagekarteId?.trim()) {
-      throw new Error('lagekarteId is required');
-    }
-    if (!NANOID_REGEX.test(lagekarteId)) {
-      throw new Error('lagekarteId must be a valid nanoid format (21 alphanumeric characters)');
-    }
+    validateRequiredString(lagekarteId, 'lagekarteId');
+    validateNanoidFormat(lagekarteId, 'lagekarteId');
   }
 }

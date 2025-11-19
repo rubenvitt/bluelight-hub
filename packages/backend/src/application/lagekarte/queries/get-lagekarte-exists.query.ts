@@ -1,7 +1,4 @@
-/**
- * Nanoid format: 21 characters, alphanumeric + _ and -
- */
-const NANOID_REGEX = /^[A-Za-z0-9_-]{21}$/;
+import { validateRequiredString, validateNanoidFormat } from '@application/common/validators/string-validator';
 
 /**
  * Query zum Prüfen ob eine Lagekarte für einen Einsatz existiert.
@@ -53,11 +50,7 @@ export class GetLagekarteExistsQuery {
    * ```
    */
   constructor(public readonly einsatzId: string) {
-    if (!einsatzId?.trim()) {
-      throw new Error('einsatzId is required');
-    }
-    if (!NANOID_REGEX.test(einsatzId)) {
-      throw new Error('einsatzId must be a valid nanoid format (21 alphanumeric characters)');
-    }
+    validateRequiredString(einsatzId, 'einsatzId');
+    validateNanoidFormat(einsatzId, 'einsatzId');
   }
 }

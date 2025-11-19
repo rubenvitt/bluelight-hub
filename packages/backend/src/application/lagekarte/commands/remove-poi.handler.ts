@@ -65,6 +65,6 @@ export class RemovePoiCommandHandler {
     // await this.eventPublisher.publishAll(aggregate.getDomainEvents());
     // aggregate.clearDomainEvents();
 
-    return Result.ok(undefined as undefined);
+    return Result.ok(undefined);
   }
 }

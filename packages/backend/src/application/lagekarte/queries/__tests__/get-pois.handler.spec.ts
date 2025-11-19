@@ -7,6 +7,7 @@ import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import { UserId } from '@domain/value-objects/user-id';
+import { createValidTestId } from './helpers/test-id.helper';
 
 // Mock nanoid for deterministic test IDs
 jest.mock('nanoid/non-secure', () => ({
@@ -20,18 +21,6 @@ jest.mock('nanoid/non-secure', () => ({
     return result;
   }),
 }));
-
-/**
- * Helper function: Generates valid 21-character nanoid for testing.
- */
-function createValidTestId(prefix = 'test'): string {
-  const validChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-  let id = prefix;
-  while (id.length < 21) {
-    id += validChars.charAt(Math.floor(Math.random() * validChars.length));
-  }
-  return id.substring(0, 21);
-}
 
 /**
  * Unit Tests für GetPoisQueryHandler.

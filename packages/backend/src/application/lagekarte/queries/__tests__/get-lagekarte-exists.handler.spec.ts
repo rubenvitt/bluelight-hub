@@ -1,6 +1,7 @@
 import { GetLagekarteExistsQueryHandler } from '../get-lagekarte-exists.handler';
 import { GetLagekarteExistsQuery } from '../get-lagekarte-exists.query';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import { createValidTestId } from './helpers/test-id.helper';
 
 // Mock nanoid for deterministic test IDs
 jest.mock('nanoid/non-secure', () => ({
@@ -14,18 +15,6 @@ jest.mock('nanoid/non-secure', () => ({
     return result;
   }),
 }));
-
-/**
- * Helper function: Generates valid 21-character nanoid for testing.
- */
-function createValidTestId(prefix = 'test'): string {
-  const validChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-  let id = prefix;
-  while (id.length < 21) {
-    id += validChars.charAt(Math.floor(Math.random() * validChars.length));
-  }
-  return id.substring(0, 21);
-}
 
 /**
  * Unit Tests für GetLagekarteExistsQueryHandler.

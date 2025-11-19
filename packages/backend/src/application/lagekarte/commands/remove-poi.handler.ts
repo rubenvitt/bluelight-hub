@@ -32,21 +32,37 @@ export class RemovePoiCommandHandler {
     // Step 1: Validate LagekarteId
     const lagekarteIdResult = LagekarteId.create(command.lagekarteId);
     if (lagekarteIdResult.isFailure) {
-      return Result.fail(lagekarteIdResult.error!);
+      return Result.fail(lagekarteIdResult.error ?? 'Invalid Lagekarte ID');
+    }
+
+    const lagekarteId = lagekarteIdResult.value;
+    if (!lagekarteId) {
+      this.logger.error('Unexpected null LagekarteId after successful validation', {
+        command: command.constructor.name,
+      });
+      return Result.fail('Invalid Lagekarte ID result');
     }
 
     // Step 2: Validate PoiId
     const poiIdResult = PoiId.create(command.poiId);
     if (poiIdResult.isFailure) {
-      return Result.fail(poiIdResult.error!);
+      return Result.fail(poiIdResult.error ?? 'Invalid POI ID');
+    }
+
+    const poiId = poiIdResult.value;
+    if (!poiId) {
+      this.logger.error('Unexpected null PoiId after successful validation', {
+        command: command.constructor.name,
+      });
+      return Result.fail('Invalid POI ID result');
     }
 
     // Step 3: Load aggregate
-    const aggregate = await this.lagekarteRepository.findById(lagekarteIdResult.value!);
+    const aggregate = await this.lagekarteRepository.findById(lagekarteId);
     if (!aggregate) {
       // Server-side logging with full diagnostic context
       this.logger.warn('Lagekarte not found during POI removal', {
-        lagekarteId: lagekarteIdResult.value!.value,
+        lagekarteId: lagekarteId.value,
         timestamp: new Date().toISOString(),
       });
 
@@ -58,13 +74,21 @@ export class RemovePoiCommandHandler {
     // TODO: Replace with actual authenticated user ID when auth is implemented
     const userIdResult = UserId.create();
     if (userIdResult.isFailure) {
-      return Result.fail(userIdResult.error!);
+      return Result.fail(userIdResult.error ?? 'Failed to generate User ID');
+    }
+
+    const userId = userIdResult.value;
+    if (!userId) {
+      this.logger.error('Unexpected null UserId after successful creation', {
+        command: command.constructor.name,
+      });
+      return Result.fail('Invalid User ID result');
     }
 
     // Step 5: Remove POI (business logic delegation)
-    const removeResult = aggregate.removePoi(poiIdResult.value!, userIdResult.value!);
+    const removeResult = aggregate.removePoi(poiId, userId);
     if (removeResult.isFailure) {
-      return Result.fail(removeResult.error!);
+      return Result.fail(removeResult.error ?? 'Failed to remove POI from Lagekarte');
     }
 
     // Step 6: Save

@@ -34,16 +34,28 @@ export class UpdatePoiPositionCommandHandler {
     // Step 1: Validate LagekarteId
     const lagekarteIdResult = LagekarteId.create(command.lagekarteId);
     if (lagekarteIdResult.isFailure) {
-      return Result.fail(lagekarteIdResult.error!);
+      return Result.fail(lagekarteIdResult.error ?? 'Invalid Lagekarte ID');
     }
-    const lagekarteId = lagekarteIdResult.value!;
+    const lagekarteId = lagekarteIdResult.value;
+    if (!lagekarteId) {
+      this.logger.error('Unexpected null LagekarteId after successful validation', {
+        command: command.constructor.name,
+      });
+      return Result.fail('Invalid Lagekarte ID result');
+    }
 
     // Step 2: Validate PoiId
     const poiIdResult = PoiId.create(command.poiId);
     if (poiIdResult.isFailure) {
-      return Result.fail(poiIdResult.error!);
+      return Result.fail(poiIdResult.error ?? 'Invalid POI ID');
     }
-    const poiId = poiIdResult.value!;
+    const poiId = poiIdResult.value;
+    if (!poiId) {
+      this.logger.error('Unexpected null PoiId after successful validation', {
+        command: command.constructor.name,
+      });
+      return Result.fail('Invalid POI ID result');
+    }
 
     // Step 3: Load aggregate
     const aggregate = await this.lagekarteRepository.findById(lagekarteId);
@@ -61,21 +73,35 @@ export class UpdatePoiPositionCommandHandler {
     // Step 4: Convert coordinate to MGRS
     const mgrsResult = CoordinateConverter.toMgrs(command.newCoordinate);
     if (mgrsResult.isFailure) {
-      return Result.fail(mgrsResult.error!);
+      return Result.fail(mgrsResult.error ?? 'Invalid coordinate format');
     }
-    const mgrsCoordinate = mgrsResult.value!;
+    const mgrsCoordinate = mgrsResult.value;
+    if (!mgrsCoordinate) {
+      this.logger.error('Unexpected null MGRS coordinate after successful conversion', {
+        command: command.constructor.name,
+      });
+      return Result.fail('Invalid coordinate conversion result');
+    }
 
     // Step 5: Get UserId (auto-generate until auth implemented)
     // TODO: Replace with actual authenticated user ID when auth is implemented
     const userIdResult = UserId.create();
     if (userIdResult.isFailure) {
-      return Result.fail(userIdResult.error!);
+      return Result.fail(userIdResult.error ?? 'Failed to generate User ID');
+    }
+
+    const userId = userIdResult.value;
+    if (!userId) {
+      this.logger.error('Unexpected null UserId after successful creation', {
+        command: command.constructor.name,
+      });
+      return Result.fail('Invalid User ID result');
     }
 
     // Step 6: Update POI position (business logic delegation)
-    const updateResult = aggregate.updatePoiPosition(poiId, mgrsCoordinate, userIdResult.value!);
+    const updateResult = aggregate.updatePoiPosition(poiId, mgrsCoordinate, userId);
     if (updateResult.isFailure) {
-      return Result.fail(updateResult.error!);
+      return Result.fail(updateResult.error ?? 'Failed to update POI position');
     }
 
     // Step 7: Save

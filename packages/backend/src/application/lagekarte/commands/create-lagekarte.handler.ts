@@ -37,14 +37,20 @@ export class CreateLagekarteCommandHandler {
     // Step 1: Validate EinsatzId
     const einsatzIdResult = EinsatzId.create(command.einsatzId);
     if (einsatzIdResult.isFailure) {
-      return Result.fail<LagekarteId>(einsatzIdResult.error!);
+      return Result.fail<LagekarteId>(einsatzIdResult.error ?? 'Invalid Einsatz ID');
     }
-    const einsatzId = einsatzIdResult.value!;
+    const einsatzId = einsatzIdResult.value;
+    if (!einsatzId) {
+      this.logger.error('Unexpected null EinsatzId after successful validation', {
+        command: command.constructor.name,
+      });
+      return Result.fail<LagekarteId>('Invalid Einsatz ID result');
+    }
 
     // Step 2: Check Einsatz exists
     const einsatzExistsResult = await this.einsatzRepository.exists(einsatzId);
     if (einsatzExistsResult.isFailure) {
-      return Result.fail<LagekarteId>(einsatzExistsResult.error!);
+      return Result.fail<LagekarteId>(einsatzExistsResult.error ?? 'Failed to verify Einsatz existence');
     }
     if (!einsatzExistsResult.value) {
       // Server-side logging with full diagnostic context
@@ -77,9 +83,15 @@ export class CreateLagekarteCommandHandler {
       // Convert coordinate to MGRS
       const mgrsResult = CoordinateConverter.toMgrs(command.initialPoi.coordinate);
       if (mgrsResult.isFailure) {
-        return Result.fail<LagekarteId>(mgrsResult.error!);
+        return Result.fail<LagekarteId>(mgrsResult.error ?? 'Invalid coordinate format');
       }
-      const mgrsCoordinate = mgrsResult.value!;
+      const mgrsCoordinate = mgrsResult.value;
+      if (!mgrsCoordinate) {
+        this.logger.error('Unexpected null MGRS coordinate after successful conversion', {
+          command: command.constructor.name,
+        });
+        return Result.fail<LagekarteId>('Invalid coordinate conversion result');
+      }
 
       // Create PoiCategory
       const categoryResult = PoiCategory.create(command.initialPoi.category);
@@ -91,19 +103,41 @@ export class CreateLagekarteCommandHandler {
       // TODO: Replace with actual authenticated user ID when auth is implemented
       const userIdResult = UserId.create();
       if (userIdResult.isFailure) {
-        return Result.fail<LagekarteId>(userIdResult.error!);
+        return Result.fail<LagekarteId>(userIdResult.error ?? 'Failed to generate User ID');
+      }
+
+      const category = categoryResult.value;
+      if (!category) {
+        this.logger.error('Unexpected null POI category after successful validation', {
+          command: command.constructor.name,
+        });
+        return Result.fail<LagekarteId>('Invalid POI category result');
+      }
+
+      const userId = userIdResult.value;
+      if (!userId) {
+        this.logger.error('Unexpected null UserId after successful creation', {
+          command: command.constructor.name,
+        });
+        return Result.fail<LagekarteId>('Invalid User ID result');
       }
 
       // Create Poi entity using factory method
-      initialPoi = Poi.create(command.initialPoi.name, mgrsCoordinate, categoryResult.value!, userIdResult.value!);
+      initialPoi = Poi.create(command.initialPoi.name, mgrsCoordinate, category, userId);
     }
 
     // Step 5: Create aggregate
     const aggregateResult = LagekarteAggregate.create(einsatzId, initialPoi);
     if (aggregateResult.isFailure) {
-      return Result.fail<LagekarteId>(aggregateResult.error!);
+      return Result.fail<LagekarteId>(aggregateResult.error ?? 'Failed to create Lagekarte aggregate');
     }
-    const aggregate = aggregateResult.value!;
+    const aggregate = aggregateResult.value;
+    if (!aggregate) {
+      this.logger.error('Unexpected null aggregate after successful creation', {
+        command: command.constructor.name,
+      });
+      return Result.fail<LagekarteId>('Invalid Lagekarte aggregate result');
+    }
 
     // Step 6: Save
     try {

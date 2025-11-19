@@ -5,5 +5,5 @@
  * und DTOs für API-Responses. Mappers sind zustandslos und side-effect-frei.
  */
 
-// Placeholder: Mappers werden in nachfolgenden Tasks implementiert
-export {};
+export { LagekarteMapper } from './lagekarte.mapper';
+export { PoiMapper } from './poi.mapper';

@@ -116,7 +116,7 @@ export class GetPoisQueryHandler {
       }
 
       // Step 4: Get POIs (with optional category filter)
-      let pois = [...aggregate.pois]; // Copy array to avoid mutation
+      let pois = aggregate.pois; // No copy needed - ReadonlyArray
       if (query.category !== undefined) {
         // Validate category BEFORE filtering (including empty strings)
         const categoryResult = PoiCategory.create(query.category);

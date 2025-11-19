@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiCategory } from '@domain/value-objects/poi-category';
@@ -15,10 +15,16 @@ import type { AddPoiCommand } from './add-poi.command';
  * Validiert Lagekarte-Existenz, konvertiert Koordinaten via CoordinateConverter,
  * delegiert Business-Logic an LagekarteAggregate.
  *
+ * Security: Sanitized error messages prevent ID disclosure to API consumers,
+ * while server-side logging preserves full diagnostic context for debugging.
+ * This prevents OWASP A01:2021 (Broken Access Control) information leakage.
+ *
  * TODO (Epic 2.7): Event Publishing via IEventPublisher nach save() hinzufügen.
  */
 @Injectable()
 export class AddPoiCommandHandler {
+  private readonly logger = new Logger(AddPoiCommandHandler.name);
+
   constructor(private readonly lagekarteRepository: ILagekarteRepository) {}
 
   async execute(command: AddPoiCommand): Promise<Result<PoiId>> {
@@ -32,15 +38,22 @@ export class AddPoiCommandHandler {
     // Step 2: Load aggregate
     const aggregate = await this.lagekarteRepository.findById(lagekarteId);
     if (!aggregate) {
-      return Result.fail<PoiId>(`Lagekarte with ID ${lagekarteId.value} not found`);
+      // Server-side logging with full diagnostic context
+      this.logger.warn('Lagekarte not found during POI addition', {
+        lagekarteId: lagekarteId.value,
+        timestamp: new Date().toISOString(),
+      });
+
+      // User-facing sanitized message (NO internal IDs)
+      return Result.fail<PoiId>('Lagekarte not found');
     }
 
     // Step 3: Convert coordinate to MGRS
     const mgrsResult = CoordinateConverter.toMgrs(command.coordinate);
     if (mgrsResult.isFailure) {
-      return Result.fail<PoiId>(mgrsResult.error);
+      return Result.fail<PoiId>(mgrsResult.error!);
     }
-    const mgrsCoordinate = mgrsResult.value;
+    const mgrsCoordinate = mgrsResult.value!;
 
     // Step 4: Create PoiCategory
     const categoryResult = PoiCategory.create(command.category);

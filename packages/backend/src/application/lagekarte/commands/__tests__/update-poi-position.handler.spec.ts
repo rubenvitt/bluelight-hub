@@ -271,7 +271,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
 
       // Then
       expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('not found');
+      expect(result.error).toBe('Lagekarte not found');
 
       // Verify save was NOT called
       expect(mockLagekarteRepo.save).not.toHaveBeenCalled();

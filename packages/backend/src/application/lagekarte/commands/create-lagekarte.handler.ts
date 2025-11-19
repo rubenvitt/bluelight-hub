@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { Poi } from '@domain/entities/poi.entity';
@@ -18,10 +18,16 @@ import type { CreateLagekarteCommand } from './create-lagekarte.command';
  * Validiert Einsatz-Existenz, konvertiert Koordinaten via CoordinateConverter,
  * delegiert Business-Logic an LagekarteAggregate.
  *
+ * Security: Sanitized error messages prevent ID disclosure to API consumers,
+ * while server-side logging preserves full diagnostic context for debugging.
+ * This prevents OWASP A01:2021 (Broken Access Control) information leakage.
+ *
  * TODO (Epic 2.7): Event Publishing via IEventPublisher nach save() hinzufügen.
  */
 @Injectable()
 export class CreateLagekarteCommandHandler {
+  private readonly logger = new Logger(CreateLagekarteCommandHandler.name);
+
   constructor(
     private readonly einsatzRepository: IEinsatzRepository,
     private readonly lagekarteRepository: ILagekarteRepository,
@@ -41,13 +47,28 @@ export class CreateLagekarteCommandHandler {
       return Result.fail<LagekarteId>(einsatzExistsResult.error!);
     }
     if (!einsatzExistsResult.value) {
-      return Result.fail<LagekarteId>(`Einsatz with ID ${einsatzId.value} not found`);
+      // Server-side logging with full diagnostic context
+      this.logger.warn('Einsatz not found during Lagekarte creation', {
+        einsatzId: einsatzId.value,
+        timestamp: new Date().toISOString(),
+      });
+
+      // User-facing sanitized message (NO internal IDs)
+      return Result.fail<LagekarteId>('Einsatz not found');
     }
 
     // Step 3: Check Lagekarte doesn't already exist
     const existingLagekarte = await this.lagekarteRepository.findByEinsatzId(einsatzId);
     if (existingLagekarte !== null) {
-      return Result.fail<LagekarteId>(`Lagekarte already exists for Einsatz ${einsatzId.value}`);
+      // Server-side logging with full diagnostic context
+      this.logger.warn('Attempted to create duplicate Lagekarte', {
+        einsatzId: einsatzId.value,
+        existingLagekarteId: existingLagekarte.id.value,
+        timestamp: new Date().toISOString(),
+      });
+
+      // User-facing sanitized message (NO internal IDs)
+      return Result.fail<LagekarteId>('Lagekarte for this Einsatz already exists');
     }
 
     // Step 4: Create Poi entity if initialPoi provided
@@ -56,9 +77,9 @@ export class CreateLagekarteCommandHandler {
       // Convert coordinate to MGRS
       const mgrsResult = CoordinateConverter.toMgrs(command.initialPoi.coordinate);
       if (mgrsResult.isFailure) {
-        return Result.fail<LagekarteId>(mgrsResult.error);
+        return Result.fail<LagekarteId>(mgrsResult.error!);
       }
-      const mgrsCoordinate = mgrsResult.value;
+      const mgrsCoordinate = mgrsResult.value!;
 
       // Create PoiCategory
       const categoryResult = PoiCategory.create(command.initialPoi.category);

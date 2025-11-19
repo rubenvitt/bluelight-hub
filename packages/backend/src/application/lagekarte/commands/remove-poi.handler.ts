@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiId } from '@domain/value-objects/poi-id';
@@ -16,10 +16,16 @@ import type { RemovePoiCommand } from './remove-poi.command';
  * Warum void Return: Lösch-Operationen haben keinen Rückgabewert außer Erfolg/Fehler.
  * Result<void> signalisiert Operation ohne Ergebnis-Payload (analog zu HTTP 204 No Content).
  *
+ * Security: Sanitized error messages prevent ID disclosure to API consumers,
+ * while server-side logging preserves full diagnostic context for debugging.
+ * This prevents OWASP A01:2021 (Broken Access Control) information leakage.
+ *
  * TODO (Epic 2.7): Event Publishing via IEventPublisher nach save() hinzufügen.
  */
 @Injectable()
 export class RemovePoiCommandHandler {
+  private readonly logger = new Logger(RemovePoiCommandHandler.name);
+
   constructor(private readonly lagekarteRepository: ILagekarteRepository) {}
 
   async execute(command: RemovePoiCommand): Promise<Result<void>> {
@@ -38,7 +44,14 @@ export class RemovePoiCommandHandler {
     // Step 3: Load aggregate
     const aggregate = await this.lagekarteRepository.findById(lagekarteIdResult.value!);
     if (!aggregate) {
-      return Result.fail(`Lagekarte with ID ${command.lagekarteId} not found`);
+      // Server-side logging with full diagnostic context
+      this.logger.warn('Lagekarte not found during POI removal', {
+        lagekarteId: lagekarteIdResult.value!.value,
+        timestamp: new Date().toISOString(),
+      });
+
+      // User-facing sanitized message (NO internal IDs)
+      return Result.fail('Lagekarte not found');
     }
 
     // Step 4: Get UserId (auto-generate until auth implemented)

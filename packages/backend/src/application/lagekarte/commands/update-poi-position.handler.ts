@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiId } from '@domain/value-objects/poi-id';
@@ -18,10 +18,16 @@ import type { UpdatePoiPositionCommand } from './update-poi-position.command';
  * damit Event-Handler Distanzen ohne zusätzliche DB-Queries berechnen können
  * (z.B. für Alarmierungsradius-Anpassungen bei >500m Positionsänderungen).
  *
+ * Security: Sanitized error messages prevent ID disclosure to API consumers,
+ * while server-side logging preserves full diagnostic context for debugging.
+ * This prevents OWASP A01:2021 (Broken Access Control) information leakage.
+ *
  * TODO (Epic 2.7): Event Publishing via IEventPublisher nach save() hinzufügen.
  */
 @Injectable()
 export class UpdatePoiPositionCommandHandler {
+  private readonly logger = new Logger(UpdatePoiPositionCommandHandler.name);
+
   constructor(private readonly lagekarteRepository: ILagekarteRepository) {}
 
   async execute(command: UpdatePoiPositionCommand): Promise<Result<void>> {
@@ -42,15 +48,22 @@ export class UpdatePoiPositionCommandHandler {
     // Step 3: Load aggregate
     const aggregate = await this.lagekarteRepository.findById(lagekarteId);
     if (!aggregate) {
-      return Result.fail(`Lagekarte with ID ${command.lagekarteId} not found`);
+      // Server-side logging with full diagnostic context
+      this.logger.warn('Lagekarte not found during POI position update', {
+        lagekarteId: lagekarteId.value,
+        timestamp: new Date().toISOString(),
+      });
+
+      // User-facing sanitized message (NO internal IDs)
+      return Result.fail('Lagekarte not found');
     }
 
     // Step 4: Convert coordinate to MGRS
     const mgrsResult = CoordinateConverter.toMgrs(command.newCoordinate);
     if (mgrsResult.isFailure) {
-      return Result.fail(mgrsResult.error);
+      return Result.fail(mgrsResult.error!);
     }
-    const mgrsCoordinate = mgrsResult.value;
+    const mgrsCoordinate = mgrsResult.value!;
 
     // Step 5: Get UserId (auto-generate until auth implemented)
     // TODO: Replace with actual authenticated user ID when auth is implemented

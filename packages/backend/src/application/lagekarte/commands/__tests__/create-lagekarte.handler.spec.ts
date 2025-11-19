@@ -252,7 +252,7 @@ describe('CreateLagekarteCommandHandler', () => {
 
       // Then
       expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('not found');
+      expect(result.error).toBe('Einsatz not found');
 
       // Verify save was NOT called
       expect(mockLagekarteRepo.save).not.toHaveBeenCalled();
@@ -287,7 +287,10 @@ describe('CreateLagekarteCommandHandler', () => {
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
 
       // Mock: Lagekarte already exists (return non-null aggregate)
-      const existingAggregate = {} as any; // Mock aggregate
+      const existingLagekarteId = createValidTestId('lagekarte');
+      const existingAggregate = {
+        id: { value: existingLagekarteId },
+      } as any; // Mock aggregate
       mockLagekarteRepo.findByEinsatzId.mockResolvedValue(existingAggregate);
 
       // When
@@ -295,8 +298,7 @@ describe('CreateLagekarteCommandHandler', () => {
 
       // Then
       expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('already exists');
-      expect(result.error).toContain(einsatzId);
+      expect(result.error).toBe('Lagekarte for this Einsatz already exists');
 
       // Verify save was NOT called
       expect(mockLagekarteRepo.save).not.toHaveBeenCalled();

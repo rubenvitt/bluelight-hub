@@ -11,6 +11,12 @@ import { Result } from '@domain/common/result';
  * Boundary). NO-DELETE Policy gilt nur für Aggregates, nicht für Entities.
  */
 export class RemovePoiCommand {
+  /**
+   * Privater Konstruktor - erzwingt Verwendung der Factory-Methode.
+   *
+   * @param lagekarteId - Eindeutige ID der Lagekarte (Nanoid, 21 Zeichen)
+   * @param poiId - Eindeutige ID des zu entfernenden POI (Nanoid, 21 Zeichen)
+   */
   private constructor(
     public readonly lagekarteId: string,
     public readonly poiId: string,

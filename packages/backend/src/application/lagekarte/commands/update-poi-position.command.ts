@@ -14,6 +14,13 @@ import { Result } from '@domain/common/result';
  * ohne N+1 DB-Queries.
  */
 export class UpdatePoiPositionCommand {
+  /**
+   * Privater Konstruktor - erzwingt Verwendung der Factory-Methode.
+   *
+   * @param lagekarteId - Eindeutige ID der Lagekarte (Nanoid, 21 Zeichen)
+   * @param poiId - Eindeutige ID des POI (Nanoid, 21 Zeichen)
+   * @param newCoordinate - Neue Koordinaten als Lat/Lng (WGS84) ODER MGRS (DRK-Standard)
+   */
   private constructor(
     public readonly lagekarteId: string,
     public readonly poiId: string,

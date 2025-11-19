@@ -323,7 +323,7 @@ describe('CreateLagekarteCommandHandler', () => {
 
       // Then
       expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Invalid MGRS coordinate');
+      expect(result.error).toContain('Invalid MGRS format');
 
       // Verify save was NOT called
       expect(mockLagekarteRepo.save).not.toHaveBeenCalled();
@@ -348,7 +348,7 @@ describe('CreateLagekarteCommandHandler', () => {
 
       // Then
       expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Invalid Lat/Lng coordinate');
+      expect(result.error).toContain('Invalid latitude');
 
       // Verify save was NOT called
       expect(mockLagekarteRepo.save).not.toHaveBeenCalled();
@@ -373,7 +373,7 @@ describe('CreateLagekarteCommandHandler', () => {
 
       // Then
       expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Invalid Lat/Lng coordinate');
+      expect(result.error).toContain('Invalid longitude');
 
       // Verify save was NOT called
       expect(mockLagekarteRepo.save).not.toHaveBeenCalled();
@@ -398,7 +398,7 @@ describe('CreateLagekarteCommandHandler', () => {
 
       // Then
       expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Invalid Lat/Lng coordinate');
+      expect(result.error).toContain('Invalid latitude');
 
       // Verify save was NOT called
       expect(mockLagekarteRepo.save).not.toHaveBeenCalled();

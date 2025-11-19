@@ -4,23 +4,19 @@ import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { Poi } from '@domain/entities/poi.entity';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { LagekarteId } from '@domain/value-objects/lagekarte-id';
-import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import { UserId } from '@domain/value-objects/user-id';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import { CoordinateConverter } from '@application/common/coordinate-converter';
 import type { CreateLagekarteCommand } from './create-lagekarte.command';
 
 /**
  * Handler für CreateLagekarteCommand.
  *
  * Orchestriert die Erstellung einer Lagekarte über das Domain-Aggregate.
- * Validiert Einsatz-Existenz, konvertiert Koordinaten, delegiert Business-Logic
- * an LagekarteAggregate.
- *
- * Warum Koordinaten-Konversion hier: Application Layer ist zuständig für
- * Format-Transformation (Lat/Lng → MGRS). Domain Layer arbeitet ausschließlich
- * mit MGRS (DRK-Standard).
+ * Validiert Einsatz-Existenz, konvertiert Koordinaten via CoordinateConverter,
+ * delegiert Business-Logic an LagekarteAggregate.
  *
  * TODO (Epic 2.7): Event Publishing via IEventPublisher nach save() hinzufügen.
  */
@@ -58,20 +54,11 @@ export class CreateLagekarteCommandHandler {
     let initialPoi: Poi | undefined;
     if (command.initialPoi) {
       // Convert coordinate to MGRS
-      let mgrsCoordinate: MgrsCoordinate;
-      if ('mgrs' in command.initialPoi.coordinate) {
-        const mgrsResult = MgrsCoordinate.fromString(command.initialPoi.coordinate.mgrs);
-        if (mgrsResult.isFailure) {
-          return Result.fail<LagekarteId>(`Invalid MGRS coordinate: ${mgrsResult.error}`);
-        }
-        mgrsCoordinate = mgrsResult.value!;
-      } else {
-        const mgrsResult = MgrsCoordinate.fromLatLng(command.initialPoi.coordinate.lat, command.initialPoi.coordinate.lng);
-        if (mgrsResult.isFailure) {
-          return Result.fail<LagekarteId>(`Invalid Lat/Lng coordinate: ${mgrsResult.error}`);
-        }
-        mgrsCoordinate = mgrsResult.value!;
+      const mgrsResult = CoordinateConverter.toMgrs(command.initialPoi.coordinate);
+      if (mgrsResult.isFailure) {
+        return Result.fail<LagekarteId>(mgrsResult.error);
       }
+      const mgrsCoordinate = mgrsResult.value;
 
       // Create PoiCategory
       const categoryResult = PoiCategory.create(command.initialPoi.category);

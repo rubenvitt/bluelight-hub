@@ -1,23 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
-import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import type { PoiId } from '@domain/value-objects/poi-id';
 import { UserId } from '@domain/value-objects/user-id';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import { CoordinateConverter } from '@application/common/coordinate-converter';
 import type { AddPoiCommand } from './add-poi.command';
 
 /**
  * Handler für AddPoiCommand.
  *
  * Orchestriert das Hinzufügen eines POI zu einer bestehenden Lagekarte.
- * Validiert Lagekarte-Existenz, konvertiert Koordinaten, delegiert Business-Logic
- * an LagekarteAggregate.
- *
- * Warum Koordinaten-Konversion hier: Application Layer ist zuständig für
- * Format-Transformation (Lat/Lng → MGRS). Domain Layer arbeitet ausschließlich
- * mit MGRS (DRK-Standard).
+ * Validiert Lagekarte-Existenz, konvertiert Koordinaten via CoordinateConverter,
+ * delegiert Business-Logic an LagekarteAggregate.
  *
  * TODO (Epic 2.7): Event Publishing via IEventPublisher nach save() hinzufügen.
  */
@@ -40,20 +36,11 @@ export class AddPoiCommandHandler {
     }
 
     // Step 3: Convert coordinate to MGRS
-    let mgrsCoordinate: MgrsCoordinate;
-    if ('mgrs' in command.coordinate) {
-      const mgrsResult = MgrsCoordinate.fromString(command.coordinate.mgrs);
-      if (mgrsResult.isFailure) {
-        return Result.fail<PoiId>(`Invalid MGRS coordinate: ${mgrsResult.error}`);
-      }
-      mgrsCoordinate = mgrsResult.value!;
-    } else {
-      const mgrsResult = MgrsCoordinate.fromLatLng(command.coordinate.lat, command.coordinate.lng);
-      if (mgrsResult.isFailure) {
-        return Result.fail<PoiId>(`Invalid Lat/Lng coordinate: ${mgrsResult.error}`);
-      }
-      mgrsCoordinate = mgrsResult.value!;
+    const mgrsResult = CoordinateConverter.toMgrs(command.coordinate);
+    if (mgrsResult.isFailure) {
+      return Result.fail<PoiId>(mgrsResult.error);
     }
+    const mgrsCoordinate = mgrsResult.value;
 
     // Step 4: Create PoiCategory
     const categoryResult = PoiCategory.create(command.category);

@@ -2,21 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiId } from '@domain/value-objects/poi-id';
-import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { UserId } from '@domain/value-objects/user-id';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import { CoordinateConverter } from '@application/common/coordinate-converter';
 import type { UpdatePoiPositionCommand } from './update-poi-position.command';
 
 /**
  * Handler für UpdatePoiPositionCommand.
  *
  * Orchestriert das Aktualisieren der POI-Position in einer bestehenden Lagekarte.
- * Validiert Lagekarte-Existenz, konvertiert Koordinaten, delegiert Business-Logic
- * an LagekarteAggregate.
- *
- * Warum Koordinaten-Konversion hier: Application Layer ist zuständig für
- * Format-Transformation (Lat/Lng → MGRS). Domain Layer arbeitet ausschließlich
- * mit MGRS (DRK-Standard).
+ * Validiert Lagekarte-Existenz, konvertiert Koordinaten via CoordinateConverter,
+ * delegiert Business-Logic an LagekarteAggregate.
  *
  * Event-Carried State Transfer: Handler speichert alte + neue Position im Event,
  * damit Event-Handler Distanzen ohne zusätzliche DB-Queries berechnen können
@@ -50,20 +46,11 @@ export class UpdatePoiPositionCommandHandler {
     }
 
     // Step 4: Convert coordinate to MGRS
-    let mgrsCoordinate: MgrsCoordinate;
-    if ('mgrs' in command.newCoordinate) {
-      const mgrsResult = MgrsCoordinate.fromString(command.newCoordinate.mgrs);
-      if (mgrsResult.isFailure) {
-        return Result.fail(`Invalid MGRS coordinate: ${mgrsResult.error}`);
-      }
-      mgrsCoordinate = mgrsResult.value!;
-    } else {
-      const mgrsResult = MgrsCoordinate.fromLatLng(command.newCoordinate.lat, command.newCoordinate.lng);
-      if (mgrsResult.isFailure) {
-        return Result.fail(`Invalid Lat/Lng coordinate: ${mgrsResult.error}`);
-      }
-      mgrsCoordinate = mgrsResult.value!;
+    const mgrsResult = CoordinateConverter.toMgrs(command.newCoordinate);
+    if (mgrsResult.isFailure) {
+      return Result.fail(mgrsResult.error);
     }
+    const mgrsCoordinate = mgrsResult.value;
 
     // Step 5: Get UserId (auto-generate until auth implemented)
     // TODO: Replace with actual authenticated user ID when auth is implemented

@@ -1,4 +1,9 @@
 /**
+ * Nanoid format: 21 characters, alphanumeric + _ and -
+ */
+const NANOID_REGEX = /^[A-Za-z0-9_-]{21}$/;
+
+/**
  * Query zum Abrufen einer Lagekarte für einen Einsatz.
  *
  * Diese Query lädt die Lagekarte mit allen POIs und konvertiert
@@ -24,10 +29,14 @@ export class GetLagekarteQuery {
    *
    * @param einsatzId - Eindeutige ID des Einsatzes (Nanoid, 21 Zeichen)
    * @throws Error wenn einsatzId leer oder undefined ist
+   * @throws Error wenn einsatzId kein gültiges nanoid Format hat
    */
   constructor(public readonly einsatzId: string) {
     if (!einsatzId?.trim()) {
       throw new Error('einsatzId is required');
+    }
+    if (!NANOID_REGEX.test(einsatzId)) {
+      throw new Error('einsatzId must be a valid nanoid format (21 alphanumeric characters)');
     }
   }
 }

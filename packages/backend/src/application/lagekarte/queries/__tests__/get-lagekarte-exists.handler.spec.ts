@@ -151,7 +151,7 @@ describe('GetLagekarteExistsQueryHandler', () => {
     it('should throw error when EinsatzId creation fails', async () => {
       // Given: Invalid EinsatzId (empty string)
       const invalidId = '';
-      const query = new GetLagekarteExistsQuery('valid-einsatz-id-21');
+      const query = new GetLagekarteExistsQuery('AZaz09_-0123456789XYZ'); // Valid 21-char nanoid
 
       // Override query.einsatzId to trigger EinsatzId.create() failure
       Object.defineProperty(query, 'einsatzId', {

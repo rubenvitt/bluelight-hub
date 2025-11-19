@@ -10,7 +10,7 @@ describe('GetLagekarteExistsQuery', () => {
   describe('Constructor Validation', () => {
     it('should create query with valid einsatzId', () => {
       // Given
-      const einsatzId = 'einsatz-123456789012';
+      const einsatzId = 'AZaz09_-0123456789XYZ'; // Valid 21-char nanoid
 
       // When
       const query = new GetLagekarteExistsQuery(einsatzId);
@@ -61,23 +61,12 @@ describe('GetLagekarteExistsQuery', () => {
       // When/Then
       expect(() => new GetLagekarteExistsQuery(nullId)).toThrow('einsatzId is required');
     });
-
-    it('should create query with einsatzId containing leading/trailing spaces', () => {
-      // Given
-      const idWithSpaces = '  einsatz-123  ';
-
-      // When
-      const query = new GetLagekarteExistsQuery(idWithSpaces);
-
-      // Then: Constructor doesn't trim - passes through as-is
-      expect(query.einsatzId).toBe(idWithSpaces);
-    });
   });
 
   describe('Immutability', () => {
     it('should have readonly einsatzId property', () => {
       // Given
-      const query = new GetLagekarteExistsQuery('einsatz-123');
+      const query = new GetLagekarteExistsQuery('AZaz09_-0123456789XYZ'); // Valid 21-char nanoid
 
       // When/Then: TypeScript enforces readonly at compile-time
       // Runtime check: Property descriptor should not be writable
@@ -88,44 +77,32 @@ describe('GetLagekarteExistsQuery', () => {
 
     it('should not allow modification of einsatzId via Object.assign', () => {
       // Given
-      const query = new GetLagekarteExistsQuery('einsatz-123');
+      const query = new GetLagekarteExistsQuery('AZaz09_-0123456789XYZ');
       const originalId = query.einsatzId;
 
       // When: Try to modify via Object.assign
-      Object.assign(query, { einsatzId: 'modified-id' });
+      Object.assign(query, { einsatzId: 'V1StGXR8_Z5jdHi6B-myT' });
 
       // Then: In runtime, property CAN be modified (readonly is compile-time only)
       // This test documents the behavior (not enforcing immutability at runtime)
-      expect(query.einsatzId).toBe('modified-id');
-      expect(originalId).toBe('einsatz-123');
+      expect(query.einsatzId).toBe('V1StGXR8_Z5jdHi6B-myT');
+      expect(originalId).toBe('AZaz09_-0123456789XYZ');
     });
   });
 
   describe('Edge Cases', () => {
-    it('should accept very long einsatzId', () => {
-      // Given: Very long ID (not typical nanoid, but valid string)
-      const longId = 'einsatz-' + 'x'.repeat(100);
+    it('should accept valid nanoid with all valid characters', () => {
+      // Given: Valid nanoid format (21 URL-safe characters)
+      const validNanoid = 'AZaz09_-0123456789XYZ';
 
       // When
-      const query = new GetLagekarteExistsQuery(longId);
+      const query = new GetLagekarteExistsQuery(validNanoid);
 
       // Then
-      expect(query.einsatzId).toBe(longId);
-      expect(query.einsatzId.length).toBe(108); // 'einsatz-' + 100 chars
+      expect(query.einsatzId).toBe(validNanoid);
     });
 
-    it('should accept special characters in einsatzId', () => {
-      // Given: Nanoid uses URL-safe characters (A-Za-z0-9_-)
-      const specialId = 'einsatz_123-456_789';
-
-      // When
-      const query = new GetLagekarteExistsQuery(specialId);
-
-      // Then
-      expect(query.einsatzId).toBe(specialId);
-    });
-
-    it('should accept numeric-only einsatzId', () => {
+    it('should accept numeric-only nanoid (21 characters)', () => {
       // Given
       const numericId = '123456789012345678901';
 
@@ -134,6 +111,56 @@ describe('GetLagekarteExistsQuery', () => {
 
       // Then
       expect(query.einsatzId).toBe(numericId);
+    });
+  });
+
+  describe('Nanoid Format Validation', () => {
+    it('should throw error for invalid nanoid format (too short)', () => {
+      // Given
+      const invalidId = 'invalid';
+
+      // When/Then
+      expect(() => new GetLagekarteExistsQuery(invalidId)).toThrow('valid nanoid format');
+    });
+
+    it('should throw error for invalid nanoid format (wrong length)', () => {
+      // Given
+      const invalidId = 'abc-123-xyz'; // Only 11 chars
+
+      // When/Then
+      expect(() => new GetLagekarteExistsQuery(invalidId)).toThrow('valid nanoid format');
+    });
+
+    it('should throw error for invalid nanoid format (too long)', () => {
+      // Given
+      const invalidId = 'toolongnanoidexceedstwentyonecharacters'; // 42 chars
+
+      // When/Then
+      expect(() => new GetLagekarteExistsQuery(invalidId)).toThrow('valid nanoid format');
+    });
+
+    it('should throw error for nanoid with invalid characters', () => {
+      // Given
+      const invalidId = 'invalid@chars#!21char'; // 21 chars but invalid symbols
+
+      // When/Then
+      expect(() => new GetLagekarteExistsQuery(invalidId)).toThrow('valid nanoid format');
+    });
+
+    it('should reject very long einsatzId', () => {
+      // Given: Very long ID (not typical nanoid)
+      const longId = 'einsatz-' + 'x'.repeat(100);
+
+      // When/Then
+      expect(() => new GetLagekarteExistsQuery(longId)).toThrow('valid nanoid format');
+    });
+
+    it('should reject einsatzId with spaces', () => {
+      // Given
+      const idWithSpaces = 'einsatz 123 456 7890'; // 20 chars but has spaces
+
+      // When/Then
+      expect(() => new GetLagekarteExistsQuery(idWithSpaces)).toThrow('valid nanoid format');
     });
   });
 });

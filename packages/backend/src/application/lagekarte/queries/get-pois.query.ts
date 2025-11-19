@@ -1,4 +1,9 @@
 /**
+ * Nanoid format: 21 characters, alphanumeric + _ and -
+ */
+const NANOID_REGEX = /^[A-Za-z0-9_-]{21}$/;
+
+/**
  * Query zum Abrufen von POIs einer Lagekarte.
  *
  * Diese Query lädt POIs mit optionaler Kategorie-Filterung und konvertiert
@@ -38,6 +43,7 @@ export class GetPoisQuery {
    * @param lagekarteId - Eindeutige ID der Lagekarte (Nanoid, 21 Zeichen)
    * @param category - Optionale Kategorie-Filterung (z.B. "EINSATZSTELLE")
    * @throws Error wenn lagekarteId leer oder undefined ist
+   * @throws Error wenn lagekarteId kein gültiges nanoid Format hat
    *
    * @example
    * ```typescript
@@ -59,6 +65,9 @@ export class GetPoisQuery {
   ) {
     if (!lagekarteId?.trim()) {
       throw new Error('lagekarteId is required');
+    }
+    if (!NANOID_REGEX.test(lagekarteId)) {
+      throw new Error('lagekarteId must be a valid nanoid format (21 alphanumeric characters)');
     }
   }
 }

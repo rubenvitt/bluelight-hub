@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
+import { PoiCategory } from '@domain/value-objects/poi-category';
 import { Result } from '@domain/common/result';
 import type { PoiDto } from '@application/lagekarte/dtos/poi.dto';
 import { PoiMapper } from '@application/lagekarte/mappers/poi.mapper';
@@ -116,8 +117,13 @@ export class GetPoisQueryHandler {
 
       // Step 4: Get POIs (with optional category filter)
       let pois = [...aggregate.pois]; // Copy array to avoid mutation
-      if (query.category) {
-        pois = pois.filter((poi) => poi.category.value === query.category);
+      if (query.category !== undefined) {
+        // Validate category BEFORE filtering (including empty strings)
+        const categoryResult = PoiCategory.create(query.category);
+        if (categoryResult.isFailure) {
+          return Result.fail(`Invalid category: ${query.category}`);
+        }
+        pois = pois.filter((poi) => poi.category.value === categoryResult.value!.value);
       }
 
       // Step 5: Map POIs to DTOs

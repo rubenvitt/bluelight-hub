@@ -1,4 +1,9 @@
 /**
+ * Nanoid format: 21 characters, alphanumeric + _ and -
+ */
+const NANOID_REGEX = /^[A-Za-z0-9_-]{21}$/;
+
+/**
  * Query zum Prüfen ob eine Lagekarte für einen Einsatz existiert.
  *
  * Diese Query wird verwendet, um Duplikate zu vermeiden (z.B. vor
@@ -34,6 +39,7 @@ export class GetLagekarteExistsQuery {
    *
    * @param einsatzId - Eindeutige ID des Einsatzes (Nanoid, 21 Zeichen)
    * @throws Error wenn einsatzId leer oder undefined ist
+   * @throws Error wenn einsatzId kein gültiges nanoid Format hat
    *
    * @example
    * ```typescript
@@ -49,6 +55,9 @@ export class GetLagekarteExistsQuery {
   constructor(public readonly einsatzId: string) {
     if (!einsatzId?.trim()) {
       throw new Error('einsatzId is required');
+    }
+    if (!NANOID_REGEX.test(einsatzId)) {
+      throw new Error('einsatzId must be a valid nanoid format (21 alphanumeric characters)');
     }
   }
 }

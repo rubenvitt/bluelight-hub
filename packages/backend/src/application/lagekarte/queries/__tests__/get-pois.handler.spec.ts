@@ -356,18 +356,13 @@ describe('GetPoisQueryHandler', () => {
       expect(result.error).toBe('Failed to load POIs');
     });
 
-    it('should fail when LagekarteId is invalid', async () => {
+    it('should fail when LagekarteId format is invalid (query constructor validates)', async () => {
       // Given
       const invalidLagekarteId = 'invalid'; // Too short (< 21 chars)
-      const query = new GetPoisQuery(invalidLagekarteId);
 
-      // When
-      const result = await handler.execute(query);
-
-      // Then
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toBeDefined();
-      // LagekarteId.create() will fail with validation error
+      // When/Then
+      // Query constructor now validates nanoid format and throws
+      expect(() => new GetPoisQuery(invalidLagekarteId)).toThrow('valid nanoid format');
     });
   });
 
@@ -516,7 +511,7 @@ describe('GetPoisQueryHandler', () => {
       expect(result.value).toEqual([]);
     });
 
-    it('should handle case-sensitive category filtering', async () => {
+    it('should handle case-insensitive category filtering (normalized to uppercase)', async () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
@@ -530,7 +525,7 @@ describe('GetPoisQueryHandler', () => {
 
       mockRepo.findById.mockResolvedValue(aggregate);
 
-      // Query with lowercase (should NOT match)
+      // Query with lowercase (PoiCategory.create normalizes to uppercase)
       const query = new GetPoisQuery(lagekarteId, 'einsatzstelle');
 
       // When
@@ -538,7 +533,71 @@ describe('GetPoisQueryHandler', () => {
 
       // Then
       expect(result.isSuccess).toBe(true);
-      expect(result.value).toEqual([]); // No match due to case sensitivity
+      expect(result.value!.length).toBe(1); // Match due to case-insensitive normalization
+      expect(result.value![0].category).toBe('EINSATZSTELLE');
+    });
+  });
+
+  describe('Category Validation', () => {
+    /**
+     * Helper function: Creates a valid aggregate for testing.
+     */
+    function createValidAggregate(): LagekarteAggregate {
+      const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+
+      const coord = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
+      const userId = UserId.create().value!;
+
+      aggregate.addPoi('Test POI 1', coord, PoiCategory.EINSATZSTELLE(), userId);
+      aggregate.addPoi('Test POI 2', coord, PoiCategory.BEREITSTELLUNGSRAUM(), userId);
+
+      return aggregate;
+    }
+
+    it('should return error when category is invalid', async () => {
+      // Given
+      const lagekarteId = createValidTestId('lagekarte');
+      const aggregate = createValidAggregate();
+      mockRepo.findById.mockResolvedValue(aggregate);
+      const query = new GetPoisQuery(lagekarteId, 'INVALID_CATEGORY');
+
+      // When
+      const result = await handler.execute(query);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toContain('Invalid category');
+    });
+
+    it('should return error for SQL injection attempts in category', async () => {
+      // Given
+      const lagekarteId = createValidTestId('lagekarte');
+      const aggregate = createValidAggregate();
+      mockRepo.findById.mockResolvedValue(aggregate);
+      const query = new GetPoisQuery(lagekarteId, '"; DROP TABLE--');
+
+      // When
+      const result = await handler.execute(query);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toContain('Invalid category');
+    });
+
+    it('should treat empty string category as error (NOT "no filter")', async () => {
+      // Given
+      const lagekarteId = createValidTestId('lagekarte');
+      const aggregate = createValidAggregate();
+      mockRepo.findById.mockResolvedValue(aggregate);
+      const query = new GetPoisQuery(lagekarteId, '');
+
+      // When
+      const result = await handler.execute(query);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toContain('Invalid category');
     });
   });
 });

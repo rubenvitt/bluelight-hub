@@ -7,3 +7,5 @@
 
 export { GetLagekarteQuery } from './get-lagekarte.query';
 export { GetLagekarteQueryHandler } from './get-lagekarte.handler';
+export { GetPoisQuery } from './get-pois.query';
+export { GetPoisQueryHandler } from './get-pois.handler';

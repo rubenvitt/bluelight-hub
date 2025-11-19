@@ -80,7 +80,7 @@ describe('RemovePoiCommandHandler', () => {
       const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
       const poiId = addResult.value!.id;
 
-      const command = new RemovePoiCommand(lagekarteId, poiId.value);
+      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
 
       // Mock: Lagekarte exists with POI
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -111,7 +111,7 @@ describe('RemovePoiCommandHandler', () => {
       const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
       const poiId = addResult.value!.id;
 
-      const command = new RemovePoiCommand(lagekarteId, poiId.value);
+      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
 
       // Mock: Lagekarte exists with POI
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -149,7 +149,7 @@ describe('RemovePoiCommandHandler', () => {
       const initialPoiCount = aggregate.pois.length;
       expect(initialPoiCount).toBe(1);
 
-      const command = new RemovePoiCommand(lagekarteId, poiId.value);
+      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
 
       // Mock: Lagekarte exists with POI
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -193,7 +193,7 @@ describe('RemovePoiCommandHandler', () => {
       expect(aggregate.pois.length).toBe(3);
 
       // Remove POI 2
-      const command = new RemovePoiCommand(lagekarteId, poi2Id.value);
+      const command = RemovePoiCommand.create(lagekarteId, poi2Id.value).value!;
 
       // Mock: Lagekarte exists with POIs
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -222,7 +222,7 @@ describe('RemovePoiCommandHandler', () => {
       // Given
       const invalidLagekarteId = 'invalid-id-too-short'; // Less than 21 chars
       const poiId = createValidTestId('poi');
-      const command = new RemovePoiCommand(invalidLagekarteId, poiId);
+      const command = RemovePoiCommand.create(invalidLagekarteId, poiId).value!;
 
       // When
       const result = await handler.execute(command);
@@ -239,7 +239,7 @@ describe('RemovePoiCommandHandler', () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
       const poiId = createValidTestId('poi');
-      const command = new RemovePoiCommand(lagekarteId, poiId);
+      const command = RemovePoiCommand.create(lagekarteId, poiId).value!;
 
       // Mock: Lagekarte does NOT exist
       mockLagekarteRepo.findById.mockResolvedValue(null);
@@ -262,7 +262,7 @@ describe('RemovePoiCommandHandler', () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
       const invalidPoiId = 'invalid-poi-id-short'; // Less than 21 chars
-      const command = new RemovePoiCommand(lagekarteId, invalidPoiId);
+      const command = RemovePoiCommand.create(lagekarteId, invalidPoiId).value!;
 
       // When
       const result = await handler.execute(command);
@@ -282,7 +282,7 @@ describe('RemovePoiCommandHandler', () => {
       const aggregate = LagekarteAggregate.create(einsatzId).value!;
 
       const fakePoiId = createValidTestId('poi');
-      const command = new RemovePoiCommand(lagekarteId, fakePoiId);
+      const command = RemovePoiCommand.create(lagekarteId, fakePoiId).value!;
 
       // Mock: Lagekarte exists but POI does NOT
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -314,7 +314,7 @@ describe('RemovePoiCommandHandler', () => {
       const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
       const poiId = addResult.value!.id;
 
-      const command = new RemovePoiCommand(lagekarteId, poiId.value);
+      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -344,7 +344,7 @@ describe('RemovePoiCommandHandler', () => {
       const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
       const poiId = addResult.value!.id;
 
-      const command = new RemovePoiCommand(lagekarteId, poiId.value);
+      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -376,7 +376,7 @@ describe('RemovePoiCommandHandler', () => {
       const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
       const poiId = addResult.value!.id;
 
-      const command = new RemovePoiCommand(lagekarteId, poiId.value);
+      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
       const callOrder: string[] = [];
 
       // Mock: Track call order
@@ -409,7 +409,7 @@ describe('RemovePoiCommandHandler', () => {
       const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
       const poiId = addResult.value!.id;
 
-      const command = new RemovePoiCommand(lagekarteId, poiId.value);
+      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -438,7 +438,7 @@ describe('RemovePoiCommandHandler', () => {
       const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
       const poiId = addResult.value!.id;
 
-      const command = new RemovePoiCommand(lagekarteId, poiId.value);
+      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -471,7 +471,7 @@ describe('RemovePoiCommandHandler', () => {
       const initialPoiCount = aggregate.pois.length;
       expect(initialPoiCount).toBe(3);
 
-      const command = new RemovePoiCommand(lagekarteId, poi2Result.value!.id.value);
+      const command = RemovePoiCommand.create(lagekarteId, poi2Result.value!.id.value).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -499,7 +499,7 @@ describe('RemovePoiCommandHandler', () => {
       const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
       const poiId = addResult.value!.id;
 
-      const command = new RemovePoiCommand(lagekarteId, poiId.value);
+      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -535,7 +535,7 @@ describe('RemovePoiCommandHandler', () => {
       const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
       const poiId = addResult.value!.id;
 
-      const command = new RemovePoiCommand(complexLagekarteId, poiId.value);
+      const command = RemovePoiCommand.create(complexLagekarteId, poiId.value).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -563,7 +563,7 @@ describe('RemovePoiCommandHandler', () => {
       const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
       const poiId = addResult.value!.id;
 
-      const command = new RemovePoiCommand(lagekarteId, poiId.value);
+      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);

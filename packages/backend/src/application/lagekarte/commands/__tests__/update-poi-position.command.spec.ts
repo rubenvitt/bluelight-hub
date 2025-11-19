@@ -3,7 +3,7 @@ import { UpdatePoiPositionCommand } from '../update-poi-position.command';
 /**
  * Unit Tests für UpdatePoiPositionCommand.
  *
- * Testet Command-Validation (Constructor Guards) gemäß BDD Given-When-Then Pattern.
+ * Testet Command-Validation (Factory Pattern) gemäß BDD Given-When-Then Pattern.
  * Keine Mock-Dependencies erforderlich (Value Object Pattern).
  *
  * Coverage Target: >90%
@@ -18,12 +18,14 @@ describe('UpdatePoiPositionCommand', () => {
       const newCoordinate = { lat: 52.5163, lng: 13.3777 };
 
       // When
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, newCoordinate);
+      const result = UpdatePoiPositionCommand.create(lagekarteId, poiId, newCoordinate);
 
       // Then
-      expect(command.lagekarteId).toBe(lagekarteId);
-      expect(command.poiId).toBe(poiId);
-      expect(command.newCoordinate).toEqual(newCoordinate);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBeDefined();
+      expect(result.value!.lagekarteId).toBe(lagekarteId);
+      expect(result.value!.poiId).toBe(poiId);
+      expect(result.value!.newCoordinate).toEqual(newCoordinate);
     });
 
     it('should create command with all required fields (MGRS coordinate)', () => {
@@ -33,94 +35,138 @@ describe('UpdatePoiPositionCommand', () => {
       const newCoordinate = { mgrs: '32UNE8934004990' };
 
       // When
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, newCoordinate);
+      const result = UpdatePoiPositionCommand.create(lagekarteId, poiId, newCoordinate);
 
       // Then
-      expect(command.lagekarteId).toBe(lagekarteId);
-      expect(command.poiId).toBe(poiId);
-      expect(command.newCoordinate).toEqual(newCoordinate);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBeDefined();
+      expect(result.value!.lagekarteId).toBe(lagekarteId);
+      expect(result.value!.poiId).toBe(poiId);
+      expect(result.value!.newCoordinate).toEqual(newCoordinate);
     });
 
-    it('should accept lagekarteId with leading/trailing spaces (not trimmed in constructor)', () => {
+    it('should accept lagekarteId with leading/trailing spaces (not trimmed in factory)', () => {
       // Given
       const lagekarteId = '  lagekarte-123  ';
       const poiId = 'poi-456';
       const newCoordinate = { lat: 52.5163, lng: 13.3777 };
 
       // When
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, newCoordinate);
+      const result = UpdatePoiPositionCommand.create(lagekarteId, poiId, newCoordinate);
 
       // Then
-      expect(command.lagekarteId).toBe(lagekarteId); // Constructor does NOT trim
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.lagekarteId).toBe(lagekarteId); // Factory does NOT trim
     });
 
-    it('should accept poiId with leading/trailing spaces (not trimmed in constructor)', () => {
+    it('should accept poiId with leading/trailing spaces (not trimmed in factory)', () => {
       // Given
       const lagekarteId = 'lagekarte-123';
       const poiId = '  poi-456  ';
       const newCoordinate = { lat: 52.5163, lng: 13.3777 };
 
       // When
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, newCoordinate);
+      const result = UpdatePoiPositionCommand.create(lagekarteId, poiId, newCoordinate);
 
       // Then
-      expect(command.poiId).toBe(poiId); // Constructor does NOT trim
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.poiId).toBe(poiId); // Factory does NOT trim
     });
   });
 
   describe('Invalid Commands - lagekarteId validation', () => {
-    it('should throw error when lagekarteId is undefined', () => {
-      // Given/When/Then
-      expect(() => new UpdatePoiPositionCommand(undefined as any, 'poi-456', { lat: 52.5163, lng: 13.3777 })).toThrow('lagekarteId is required');
+    it('should return failure when lagekarteId is undefined', () => {
+      // Given/When
+      const result = UpdatePoiPositionCommand.create(undefined as any, 'poi-456', { lat: 52.5163, lng: 13.3777 });
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('lagekarteId is required');
     });
 
-    it('should throw error when lagekarteId is null', () => {
-      // Given/When/Then
-      expect(() => new UpdatePoiPositionCommand(null as any, 'poi-456', { lat: 52.5163, lng: 13.3777 })).toThrow('lagekarteId is required');
+    it('should return failure when lagekarteId is null', () => {
+      // Given/When
+      const result = UpdatePoiPositionCommand.create(null as any, 'poi-456', { lat: 52.5163, lng: 13.3777 });
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('lagekarteId is required');
     });
 
-    it('should throw error when lagekarteId is empty string', () => {
-      // Given/When/Then
-      expect(() => new UpdatePoiPositionCommand('', 'poi-456', { lat: 52.5163, lng: 13.3777 })).toThrow('lagekarteId is required');
+    it('should return failure when lagekarteId is empty string', () => {
+      // Given/When
+      const result = UpdatePoiPositionCommand.create('', 'poi-456', { lat: 52.5163, lng: 13.3777 });
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('lagekarteId is required');
     });
 
-    it('should throw error when lagekarteId is only whitespace', () => {
-      // Given/When/Then
-      expect(() => new UpdatePoiPositionCommand('   ', 'poi-456', { lat: 52.5163, lng: 13.3777 })).toThrow('lagekarteId is required');
+    it('should return failure when lagekarteId is only whitespace', () => {
+      // Given/When
+      const result = UpdatePoiPositionCommand.create('   ', 'poi-456', { lat: 52.5163, lng: 13.3777 });
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('lagekarteId is required');
     });
   });
 
   describe('Invalid Commands - poiId validation', () => {
-    it('should throw error when poiId is undefined', () => {
-      // Given/When/Then
-      expect(() => new UpdatePoiPositionCommand('lagekarte-123', undefined as any, { lat: 52.5163, lng: 13.3777 })).toThrow('poiId is required');
+    it('should return failure when poiId is undefined', () => {
+      // Given/When
+      const result = UpdatePoiPositionCommand.create('lagekarte-123', undefined as any, { lat: 52.5163, lng: 13.3777 });
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('poiId is required');
     });
 
-    it('should throw error when poiId is null', () => {
-      // Given/When/Then
-      expect(() => new UpdatePoiPositionCommand('lagekarte-123', null as any, { lat: 52.5163, lng: 13.3777 })).toThrow('poiId is required');
+    it('should return failure when poiId is null', () => {
+      // Given/When
+      const result = UpdatePoiPositionCommand.create('lagekarte-123', null as any, { lat: 52.5163, lng: 13.3777 });
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('poiId is required');
     });
 
-    it('should throw error when poiId is empty string', () => {
-      // Given/When/Then
-      expect(() => new UpdatePoiPositionCommand('lagekarte-123', '', { lat: 52.5163, lng: 13.3777 })).toThrow('poiId is required');
+    it('should return failure when poiId is empty string', () => {
+      // Given/When
+      const result = UpdatePoiPositionCommand.create('lagekarte-123', '', { lat: 52.5163, lng: 13.3777 });
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('poiId is required');
     });
 
-    it('should throw error when poiId is only whitespace', () => {
-      // Given/When/Then
-      expect(() => new UpdatePoiPositionCommand('lagekarte-123', '   ', { lat: 52.5163, lng: 13.3777 })).toThrow('poiId is required');
+    it('should return failure when poiId is only whitespace', () => {
+      // Given/When
+      const result = UpdatePoiPositionCommand.create('lagekarte-123', '   ', { lat: 52.5163, lng: 13.3777 });
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('poiId is required');
     });
   });
 
   describe('Invalid Commands - newCoordinate validation', () => {
-    it('should throw error when newCoordinate is undefined', () => {
-      // Given/When/Then
-      expect(() => new UpdatePoiPositionCommand('lagekarte-123', 'poi-456', undefined as any)).toThrow('newCoordinate is required');
+    it('should return failure when newCoordinate is undefined', () => {
+      // Given/When
+      const result = UpdatePoiPositionCommand.create('lagekarte-123', 'poi-456', undefined as any);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('newCoordinate is required');
     });
 
-    it('should throw error when newCoordinate is null', () => {
-      // Given/When/Then
-      expect(() => new UpdatePoiPositionCommand('lagekarte-123', 'poi-456', null as any)).toThrow('newCoordinate is required');
+    it('should return failure when newCoordinate is null', () => {
+      // Given/When
+      const result = UpdatePoiPositionCommand.create('lagekarte-123', 'poi-456', null as any);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('newCoordinate is required');
     });
   });
 
@@ -132,10 +178,11 @@ describe('UpdatePoiPositionCommand', () => {
       const newCoordinate = { lat: 90, lng: 0 };
 
       // When
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, newCoordinate);
+      const result = UpdatePoiPositionCommand.create(lagekarteId, poiId, newCoordinate);
 
       // Then
-      expect(command.newCoordinate).toEqual({ lat: 90, lng: 0 });
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.newCoordinate).toEqual({ lat: 90, lng: 0 });
     });
 
     it('should accept boundary latitude values (South Pole)', () => {
@@ -145,10 +192,11 @@ describe('UpdatePoiPositionCommand', () => {
       const newCoordinate = { lat: -90, lng: 0 };
 
       // When
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, newCoordinate);
+      const result = UpdatePoiPositionCommand.create(lagekarteId, poiId, newCoordinate);
 
       // Then
-      expect(command.newCoordinate).toEqual({ lat: -90, lng: 0 });
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.newCoordinate).toEqual({ lat: -90, lng: 0 });
     });
 
     it('should accept boundary longitude values (International Date Line)', () => {
@@ -158,10 +206,11 @@ describe('UpdatePoiPositionCommand', () => {
       const newCoordinate = { lat: 0, lng: 180 };
 
       // When
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, newCoordinate);
+      const result = UpdatePoiPositionCommand.create(lagekarteId, poiId, newCoordinate);
 
       // Then
-      expect(command.newCoordinate).toEqual({ lat: 0, lng: 180 });
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.newCoordinate).toEqual({ lat: 0, lng: 180 });
     });
 
     it('should accept MGRS string with various precisions', () => {
@@ -171,10 +220,11 @@ describe('UpdatePoiPositionCommand', () => {
       const newCoordinate = { mgrs: '33UUU' }; // Low precision MGRS
 
       // When
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, newCoordinate);
+      const result = UpdatePoiPositionCommand.create(lagekarteId, poiId, newCoordinate);
 
       // Then
-      expect(command.newCoordinate).toEqual({ mgrs: '33UUU' });
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.newCoordinate).toEqual({ mgrs: '33UUU' });
     });
 
     it('should accept IDs with all valid nanoid characters', () => {
@@ -184,11 +234,12 @@ describe('UpdatePoiPositionCommand', () => {
       const newCoordinate = { lat: 52.5163, lng: 13.3777 };
 
       // When
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, newCoordinate);
+      const result = UpdatePoiPositionCommand.create(lagekarteId, poiId, newCoordinate);
 
       // Then
-      expect(command.lagekarteId).toBe(lagekarteId);
-      expect(command.poiId).toBe(poiId);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.lagekarteId).toBe(lagekarteId);
+      expect(result.value!.poiId).toBe(poiId);
     });
   });
 });

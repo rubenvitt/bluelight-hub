@@ -84,7 +84,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       const poi = addResult.value!;
 
       // Create command with actual POI ID
-      const command = new UpdatePoiPositionCommand(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 }); // Hamburg
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 }).value!; // Hamburg
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -123,7 +123,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       const poi = addResult.value!;
 
       // Create command with actual POI ID
-      const command = new UpdatePoiPositionCommand(lagekarteId, poi.id.value, { mgrs: newMgrsString });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poi.id.value, { mgrs: newMgrsString }).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -160,7 +160,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       const poi = addResult.value!;
 
       // Create command with actual POI ID
-      const command = new UpdatePoiPositionCommand(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 }).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -199,7 +199,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       const poi = addResult.value!;
 
       // Create command with actual POI ID
-      const command = new UpdatePoiPositionCommand(lagekarteId, poi.id.value, newLatLng);
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poi.id.value, newLatLng).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -227,7 +227,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       // Given
       const invalidLagekarteId = 'invalid-id-too-short'; // Less than 21 chars
       const poiId = createValidTestId('poi');
-      const command = new UpdatePoiPositionCommand(invalidLagekarteId, poiId, { lat: 53.55, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(invalidLagekarteId, poiId, { lat: 53.55, lng: 10.0 }).value!;
 
       // When
       const result = await handler.execute(command);
@@ -244,7 +244,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
       const invalidPoiId = 'invalid-poi-id'; // Less than 21 chars
-      const command = new UpdatePoiPositionCommand(lagekarteId, invalidPoiId, { lat: 53.55, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, invalidPoiId, { lat: 53.55, lng: 10.0 }).value!;
 
       // When
       const result = await handler.execute(command);
@@ -261,7 +261,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
       const poiId = createValidTestId('poi');
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, { lat: 53.55, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poiId, { lat: 53.55, lng: 10.0 }).value!;
 
       // Mock: Lagekarte does NOT exist
       mockLagekarteRepo.findById.mockResolvedValue(null);
@@ -281,7 +281,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
       const nonExistentPoiId = createValidTestId('nonexistent');
-      const command = new UpdatePoiPositionCommand(lagekarteId, nonExistentPoiId, { lat: 53.55, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, nonExistentPoiId, { lat: 53.55, lng: 10.0 }).value!;
 
       // Create existing aggregate WITHOUT the POI
       const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
@@ -307,7 +307,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
       const poiId = createValidTestId('poi');
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, { mgrs: 'INVALID_MGRS_STRING' });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poiId, { mgrs: 'INVALID_MGRS_STRING' }).value!;
 
       // Create existing aggregate with POI
       const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
@@ -337,7 +337,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
       const poiId = createValidTestId('poi');
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, { lat: 91, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poiId, { lat: 91, lng: 10.0 }).value!;
 
       // Create existing aggregate with POI
       const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
@@ -367,7 +367,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
       const poiId = createValidTestId('poi');
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, { lat: -91, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poiId, { lat: -91, lng: 10.0 }).value!;
 
       // Create existing aggregate with POI
       const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
@@ -397,7 +397,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
       const poiId = createValidTestId('poi');
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, { lat: 53.55, lng: 181 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poiId, { lat: 53.55, lng: 181 }).value!;
 
       // Create existing aggregate with POI
       const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
@@ -427,7 +427,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
       const poiId = createValidTestId('poi');
-      const command = new UpdatePoiPositionCommand(lagekarteId, poiId, { lat: 53.55, lng: -181 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poiId, { lat: 53.55, lng: -181 }).value!;
 
       // Create existing aggregate with POI
       const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
@@ -471,7 +471,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       const poi = addResult.value!;
 
       // Create command with actual POI ID
-      const command = new UpdatePoiPositionCommand(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 }).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -504,7 +504,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       const poi = addResult.value!;
 
       // Create command with actual POI ID
-      const command = new UpdatePoiPositionCommand(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 }).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -540,7 +540,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       const poi = addResult.value!;
 
       // Create command with actual POI ID
-      const command = new UpdatePoiPositionCommand(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 }).value!;
 
       // Mock: Track call order
       mockLagekarteRepo.findById.mockImplementation(async () => {
@@ -575,7 +575,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       const poi = addResult.value!;
 
       // Create command with actual POI ID
-      const command = new UpdatePoiPositionCommand(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 }).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -606,7 +606,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       const poi = addResult.value!;
 
       // Create command with actual POI ID
-      const command = new UpdatePoiPositionCommand(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poi.id.value, { lat: 53.55, lng: 10.0 }).value!;
 
       // Clear initial events
       aggregate.clearDomainEvents();
@@ -630,7 +630,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
     it('should handle updating POI 2 in multi-POI aggregate (POI 1 + 3 unchanged)', async () => {
       // Given
       const lagekarteId = createValidTestId('lagekarte');
-      const command = new UpdatePoiPositionCommand(lagekarteId, 'poi-will-be-replaced', { lat: 53.55, lng: 10.0 });
+      const command = UpdatePoiPositionCommand.create(lagekarteId, 'poi-will-be-replaced', { lat: 53.55, lng: 10.0 }).value!;
 
       // Create aggregate with 3 POIs
       const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
@@ -649,7 +649,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       aggregate.addPoi('POI 3', munichMgrs, category, userId);
 
       // Update command to use actual POI 2 ID
-      const actualCommand = new UpdatePoiPositionCommand(lagekarteId, poi2.id.value, { lat: 53.55, lng: 10.0 });
+      const actualCommand = UpdatePoiPositionCommand.create(lagekarteId, poi2.id.value, { lat: 53.55, lng: 10.0 }).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -684,7 +684,7 @@ describe('UpdatePoiPositionCommandHandler', () => {
       const poi = addResult.value!;
 
       // Create command with actual POI ID
-      const command = new UpdatePoiPositionCommand(lagekarteId, poi.id.value, sameCoordinate);
+      const command = UpdatePoiPositionCommand.create(lagekarteId, poi.id.value, sameCoordinate).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);

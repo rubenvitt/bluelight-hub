@@ -1,3 +1,5 @@
+import { Result } from '@domain/common/result';
+
 /**
  * Command zum Hinzufügen eines POI zu einer bestehenden Lagekarte.
  *
@@ -10,25 +12,43 @@
  * konvertiert automatisch zu MGRS (DRK-Standard).
  */
 export class AddPoiCommand {
-  constructor(
+  private constructor(
     public readonly lagekarteId: string,
     public readonly name: string,
     public readonly coordinate: { lat: number; lng: number } | { mgrs: string },
     public readonly category: string,
     public readonly beschreibung?: string,
-  ) {
+  ) {}
+
+  /**
+   * Factory-Methode für AddPoiCommand mit Validierung.
+   *
+   * Warum hier: Result<T>-Pattern für konsistente Fehlerbehandlung ohne
+   * Exceptions. Command-Validierung stellt sicher, dass nur gültige POI-Daten
+   * ins Domain-Layer gelangen (Defense in Depth).
+   *
+   * @param lagekarteId - ID der Lagekarte, zu der der POI hinzugefügt wird
+   * @param name - Name des POI
+   * @param coordinate - Koordinate (Lat/Lng oder MGRS)
+   * @param category - Kategorie des POI
+   * @param beschreibung - Optionale Beschreibung
+   * @returns Result mit validiertem Command oder Fehlermeldung
+   */
+  public static create(lagekarteId: string, name: string, coordinate: { lat: number; lng: number } | { mgrs: string }, category: string, beschreibung?: string): Result<AddPoiCommand> {
     // Validation: All required fields
     if (!lagekarteId || lagekarteId.trim().length === 0) {
-      throw new Error('lagekarteId is required');
+      return Result.fail('lagekarteId is required');
     }
     if (!name || name.trim().length === 0) {
-      throw new Error('name is required');
+      return Result.fail('name is required');
     }
     if (!coordinate) {
-      throw new Error('coordinate is required');
+      return Result.fail('coordinate is required');
     }
     if (!category || category.trim().length === 0) {
-      throw new Error('category is required');
+      return Result.fail('category is required');
     }
+
+    return Result.ok(new AddPoiCommand(lagekarteId, name, coordinate, category, beschreibung));
   }
 }

@@ -3,7 +3,7 @@ import { RemovePoiCommand } from '../remove-poi.command';
 /**
  * Unit Tests für RemovePoiCommand.
  *
- * Testet Command-Validation (Constructor Guards) gemäß BDD Given-When-Then Pattern.
+ * Testet Command-Validation (Factory Pattern) gemäß BDD Given-When-Then Pattern.
  * Keine Mock-Dependencies erforderlich (Value Object Pattern).
  *
  * Coverage Target: >90%
@@ -17,35 +17,39 @@ describe('RemovePoiCommand', () => {
       const poiId = 'poi-456';
 
       // When
-      const command = new RemovePoiCommand(lagekarteId, poiId);
+      const result = RemovePoiCommand.create(lagekarteId, poiId);
 
       // Then
-      expect(command.lagekarteId).toBe(lagekarteId);
-      expect(command.poiId).toBe(poiId);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBeDefined();
+      expect(result.value!.lagekarteId).toBe(lagekarteId);
+      expect(result.value!.poiId).toBe(poiId);
     });
 
-    it('should accept lagekarteId with leading/trailing spaces (not trimmed in constructor)', () => {
+    it('should accept lagekarteId with leading/trailing spaces (not trimmed in factory)', () => {
       // Given
       const lagekarteId = '  lagekarte-123  ';
       const poiId = 'poi-456';
 
       // When
-      const command = new RemovePoiCommand(lagekarteId, poiId);
+      const result = RemovePoiCommand.create(lagekarteId, poiId);
 
       // Then
-      expect(command.lagekarteId).toBe(lagekarteId); // Constructor does NOT trim
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.lagekarteId).toBe(lagekarteId); // Factory does NOT trim
     });
 
-    it('should accept poiId with leading/trailing spaces (not trimmed in constructor)', () => {
+    it('should accept poiId with leading/trailing spaces (not trimmed in factory)', () => {
       // Given
       const lagekarteId = 'lagekarte-123';
       const poiId = '  poi-456  ';
 
       // When
-      const command = new RemovePoiCommand(lagekarteId, poiId);
+      const result = RemovePoiCommand.create(lagekarteId, poiId);
 
       // Then
-      expect(command.poiId).toBe(poiId); // Constructor does NOT trim
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.poiId).toBe(poiId); // Factory does NOT trim
     });
 
     it('should accept UUID-format IDs', () => {
@@ -54,11 +58,12 @@ describe('RemovePoiCommand', () => {
       const poiId = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
       // When
-      const command = new RemovePoiCommand(lagekarteId, poiId);
+      const result = RemovePoiCommand.create(lagekarteId, poiId);
 
       // Then
-      expect(command.lagekarteId).toBe(lagekarteId);
-      expect(command.poiId).toBe(poiId);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.lagekarteId).toBe(lagekarteId);
+      expect(result.value!.poiId).toBe(poiId);
     });
 
     it('should accept nanoid-format IDs (21 chars)', () => {
@@ -67,55 +72,88 @@ describe('RemovePoiCommand', () => {
       const poiId = 'K3pQx9_a2NyRv8ZwL4mFB';
 
       // When
-      const command = new RemovePoiCommand(lagekarteId, poiId);
+      const result = RemovePoiCommand.create(lagekarteId, poiId);
 
       // Then
-      expect(command.lagekarteId).toBe(lagekarteId);
-      expect(command.poiId).toBe(poiId);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.lagekarteId).toBe(lagekarteId);
+      expect(result.value!.poiId).toBe(poiId);
     });
   });
 
   describe('Invalid Commands - lagekarteId validation', () => {
-    it('should throw error when lagekarteId is undefined', () => {
-      // Given/When/Then
-      expect(() => new RemovePoiCommand(undefined as any, 'poi-456')).toThrow('lagekarteId is required');
+    it('should return failure when lagekarteId is undefined', () => {
+      // Given/When
+      const result = RemovePoiCommand.create(undefined as any, 'poi-456');
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('lagekarteId is required');
     });
 
-    it('should throw error when lagekarteId is null', () => {
-      // Given/When/Then
-      expect(() => new RemovePoiCommand(null as any, 'poi-456')).toThrow('lagekarteId is required');
+    it('should return failure when lagekarteId is null', () => {
+      // Given/When
+      const result = RemovePoiCommand.create(null as any, 'poi-456');
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('lagekarteId is required');
     });
 
-    it('should throw error when lagekarteId is empty string', () => {
-      // Given/When/Then
-      expect(() => new RemovePoiCommand('', 'poi-456')).toThrow('lagekarteId is required');
+    it('should return failure when lagekarteId is empty string', () => {
+      // Given/When
+      const result = RemovePoiCommand.create('', 'poi-456');
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('lagekarteId is required');
     });
 
-    it('should throw error when lagekarteId is only whitespace', () => {
-      // Given/When/Then
-      expect(() => new RemovePoiCommand('   ', 'poi-456')).toThrow('lagekarteId is required');
+    it('should return failure when lagekarteId is only whitespace', () => {
+      // Given/When
+      const result = RemovePoiCommand.create('   ', 'poi-456');
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('lagekarteId is required');
     });
   });
 
   describe('Invalid Commands - poiId validation', () => {
-    it('should throw error when poiId is undefined', () => {
-      // Given/When/Then
-      expect(() => new RemovePoiCommand('lagekarte-123', undefined as any)).toThrow('poiId is required');
+    it('should return failure when poiId is undefined', () => {
+      // Given/When
+      const result = RemovePoiCommand.create('lagekarte-123', undefined as any);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('poiId is required');
     });
 
-    it('should throw error when poiId is null', () => {
-      // Given/When/Then
-      expect(() => new RemovePoiCommand('lagekarte-123', null as any)).toThrow('poiId is required');
+    it('should return failure when poiId is null', () => {
+      // Given/When
+      const result = RemovePoiCommand.create('lagekarte-123', null as any);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('poiId is required');
     });
 
-    it('should throw error when poiId is empty string', () => {
-      // Given/When/Then
-      expect(() => new RemovePoiCommand('lagekarte-123', '')).toThrow('poiId is required');
+    it('should return failure when poiId is empty string', () => {
+      // Given/When
+      const result = RemovePoiCommand.create('lagekarte-123', '');
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('poiId is required');
     });
 
-    it('should throw error when poiId is only whitespace', () => {
-      // Given/When/Then
-      expect(() => new RemovePoiCommand('lagekarte-123', '   ')).toThrow('poiId is required');
+    it('should return failure when poiId is only whitespace', () => {
+      // Given/When
+      const result = RemovePoiCommand.create('lagekarte-123', '   ');
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('poiId is required');
     });
   });
 
@@ -126,11 +164,12 @@ describe('RemovePoiCommand', () => {
       const poiId = 'B'.repeat(1000);
 
       // When
-      const command = new RemovePoiCommand(lagekarteId, poiId);
+      const result = RemovePoiCommand.create(lagekarteId, poiId);
 
       // Then
-      expect(command.lagekarteId.length).toBe(1000);
-      expect(command.poiId.length).toBe(1000);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.lagekarteId.length).toBe(1000);
+      expect(result.value!.poiId.length).toBe(1000);
     });
 
     it('should accept IDs with special characters', () => {
@@ -139,11 +178,12 @@ describe('RemovePoiCommand', () => {
       const poiId = 'poi_456-test-id';
 
       // When
-      const command = new RemovePoiCommand(lagekarteId, poiId);
+      const result = RemovePoiCommand.create(lagekarteId, poiId);
 
       // Then
-      expect(command.lagekarteId).toBe(lagekarteId);
-      expect(command.poiId).toBe(poiId);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.lagekarteId).toBe(lagekarteId);
+      expect(result.value!.poiId).toBe(poiId);
     });
 
     it('should accept IDs with all valid nanoid characters', () => {
@@ -152,11 +192,12 @@ describe('RemovePoiCommand', () => {
       const poiId = 'aZ09_-9876543210ZYXaz'; // Exactly 21 chars
 
       // When
-      const command = new RemovePoiCommand(lagekarteId, poiId);
+      const result = RemovePoiCommand.create(lagekarteId, poiId);
 
       // Then
-      expect(command.lagekarteId).toBe(lagekarteId);
-      expect(command.poiId).toBe(poiId);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.lagekarteId).toBe(lagekarteId);
+      expect(result.value!.poiId).toBe(poiId);
     });
   });
 });

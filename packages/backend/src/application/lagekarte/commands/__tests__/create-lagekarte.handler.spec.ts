@@ -76,7 +76,7 @@ describe('CreateLagekarteCommandHandler', () => {
     it('should create Lagekarte when Einsatz exists (no initialPoi)', async () => {
       // Given
       const einsatzId = createValidTestId('einsatz');
-      const command = new CreateLagekarteCommand(einsatzId);
+      const command = CreateLagekarteCommand.create(einsatzId).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -119,7 +119,7 @@ describe('CreateLagekarteCommandHandler', () => {
         coordinate: { lat: 52.5163, lng: 13.3777 },
         category: 'EINSATZSTELLE',
       };
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -149,7 +149,7 @@ describe('CreateLagekarteCommandHandler', () => {
         coordinate: { mgrs: '32UNE8934004990' }, // Hamburg MGRS (10 digits = 1m precision)
         category: 'BEREITSTELLUNGSRAUM',
       };
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -178,7 +178,7 @@ describe('CreateLagekarteCommandHandler', () => {
         coordinate: { lat: 52.5163, lng: 13.3777 },
         category: 'EINSATZSTELLE',
       };
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -204,7 +204,7 @@ describe('CreateLagekarteCommandHandler', () => {
     it('should NOT emit events when no initialPoi provided', async () => {
       // Given
       const einsatzId = createValidTestId('ein123');
-      const command = new CreateLagekarteCommand(einsatzId);
+      const command = CreateLagekarteCommand.create(einsatzId).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -228,7 +228,7 @@ describe('CreateLagekarteCommandHandler', () => {
     it('should fail when EinsatzId format is invalid', async () => {
       // Given
       const invalidEinsatzId = ''; // Invalid format (caught by EinsatzId.create())
-      const command = new CreateLagekarteCommand('valid-id'); // Command validation passes
+      const command = CreateLagekarteCommand.create('valid-id').value!; // Command validation passes
 
       // Mock EinsatzId.create() failure by using invalid ID
       // When
@@ -242,7 +242,7 @@ describe('CreateLagekarteCommandHandler', () => {
 
     it('should fail when Einsatz does not exist', async () => {
       // Given
-      const command = new CreateLagekarteCommand(createValidTestId('ein999'));
+      const command = CreateLagekarteCommand.create(createValidTestId('ein999'));
 
       // Mock: Einsatz does NOT exist
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(false));
@@ -260,7 +260,7 @@ describe('CreateLagekarteCommandHandler', () => {
 
     it('should fail when repository.exists() returns error', async () => {
       // Given
-      const command = new CreateLagekarteCommand(createValidTestId('ein123'));
+      const command = CreateLagekarteCommand.create(createValidTestId('ein123'));
 
       // Mock: Repository error
       mockEinsatzRepo.exists.mockResolvedValue(Result.fail('Database connection error'));
@@ -281,7 +281,7 @@ describe('CreateLagekarteCommandHandler', () => {
     it('should fail when Lagekarte already exists for Einsatz', async () => {
       // Given
       const einsatzId = createValidTestId('ein123');
-      const command = new CreateLagekarteCommand(einsatzId);
+      const command = CreateLagekarteCommand.create(einsatzId).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -312,7 +312,7 @@ describe('CreateLagekarteCommandHandler', () => {
         coordinate: { mgrs: 'INVALID_MGRS_STRING' },
         category: 'EINSATZSTELLE',
       };
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -337,7 +337,7 @@ describe('CreateLagekarteCommandHandler', () => {
         coordinate: { lat: 91, lng: 13.3777 }, // Latitude > 90
         category: 'EINSATZSTELLE',
       };
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -362,7 +362,7 @@ describe('CreateLagekarteCommandHandler', () => {
         coordinate: { lat: 52.5163, lng: 181 }, // Longitude > 180
         category: 'EINSATZSTELLE',
       };
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -387,7 +387,7 @@ describe('CreateLagekarteCommandHandler', () => {
         coordinate: { lat: -91, lng: 13.3777 }, // Latitude < -90
         category: 'EINSATZSTELLE',
       };
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -414,7 +414,7 @@ describe('CreateLagekarteCommandHandler', () => {
         coordinate: { lat: 52.5163, lng: 13.3777 },
         category: 'INVALID_CATEGORY',
       };
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -436,7 +436,7 @@ describe('CreateLagekarteCommandHandler', () => {
     it('should fail when repository.save() throws error', async () => {
       // Given
       const einsatzId = createValidTestId('ein123');
-      const command = new CreateLagekarteCommand(einsatzId);
+      const command = CreateLagekarteCommand.create(einsatzId).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -457,7 +457,7 @@ describe('CreateLagekarteCommandHandler', () => {
     it('should fail when repository.save() throws non-Error object', async () => {
       // Given
       const einsatzId = createValidTestId('ein123');
-      const command = new CreateLagekarteCommand(einsatzId);
+      const command = CreateLagekarteCommand.create(einsatzId).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -480,7 +480,7 @@ describe('CreateLagekarteCommandHandler', () => {
     it('should call repository methods in correct order', async () => {
       // Given
       const einsatzId = createValidTestId('ein123');
-      const command = new CreateLagekarteCommand(einsatzId);
+      const command = CreateLagekarteCommand.create(einsatzId).value!;
       const callOrder: string[] = [];
 
       // Mock: Track call order
@@ -507,7 +507,7 @@ describe('CreateLagekarteCommandHandler', () => {
     it('should verify EinsatzId value object equality', async () => {
       // Given
       const einsatzId = createValidTestId('ein123');
-      const command = new CreateLagekarteCommand(einsatzId);
+      const command = CreateLagekarteCommand.create(einsatzId).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -538,7 +538,7 @@ describe('CreateLagekarteCommandHandler', () => {
         coordinate: { lat: 52.5163, lng: 13.3777 },
         category: 'EINSATZSTELLE',
       };
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -565,7 +565,7 @@ describe('CreateLagekarteCommandHandler', () => {
     it('should handle einsatzId with all valid characters', async () => {
       // Given: Test with all types of valid nanoid characters (A-Za-z0-9_-)
       const complexEinsatzId = 'AZaz09_-0123456789XYZ'; // Exactly 21 chars with all valid types
-      const command = new CreateLagekarteCommand(complexEinsatzId);
+      const command = CreateLagekarteCommand.create(complexEinsatzId).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -589,7 +589,7 @@ describe('CreateLagekarteCommandHandler', () => {
         coordinate: { lat: 54.78, lng: 9.44 }, // Northern Germany
         category: 'SONSTIGES',
       };
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
@@ -614,7 +614,7 @@ describe('CreateLagekarteCommandHandler', () => {
         coordinate: { lat: 48.1371, lng: 11.5754 }, // Munich (Zone 33U/33N)
         category: 'SONSTIGES',
       };
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
 
       // Mock: Einsatz exists
       mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));

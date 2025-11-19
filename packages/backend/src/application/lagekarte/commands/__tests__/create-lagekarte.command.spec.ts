@@ -3,7 +3,7 @@ import { CreateLagekarteCommand } from '../create-lagekarte.command';
 /**
  * Unit Tests für CreateLagekarteCommand.
  *
- * Testet Command-Validation (Constructor Guards) gemäß BDD Given-When-Then Pattern.
+ * Testet Command-Validation (Factory Pattern) gemäß BDD Given-When-Then Pattern.
  * Keine Mock-Dependencies erforderlich (Value Object Pattern).
  *
  * Coverage Target: >90%
@@ -16,11 +16,13 @@ describe('CreateLagekarteCommand', () => {
       const einsatzId = 'einsatz-123';
 
       // When
-      const command = new CreateLagekarteCommand(einsatzId);
+      const result = CreateLagekarteCommand.create(einsatzId);
 
       // Then
-      expect(command.einsatzId).toBe(einsatzId);
-      expect(command.initialPoi).toBeUndefined();
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBeDefined();
+      expect(result.value!.einsatzId).toBe(einsatzId);
+      expect(result.value!.initialPoi).toBeUndefined();
     });
 
     it('should create command with einsatzId + initialPoi (Lat/Lng)', () => {
@@ -33,14 +35,16 @@ describe('CreateLagekarteCommand', () => {
       };
 
       // When
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const result = CreateLagekarteCommand.create(einsatzId, initialPoi);
 
       // Then
-      expect(command.einsatzId).toBe(einsatzId);
-      expect(command.initialPoi).toEqual(initialPoi);
-      expect(command.initialPoi?.name).toBe('Brandenburger Tor');
-      expect(command.initialPoi?.coordinate).toEqual({ lat: 52.5163, lng: 13.3777 });
-      expect(command.initialPoi?.category).toBe('EINSATZSTELLE');
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBeDefined();
+      expect(result.value!.einsatzId).toBe(einsatzId);
+      expect(result.value!.initialPoi).toEqual(initialPoi);
+      expect(result.value!.initialPoi?.name).toBe('Brandenburger Tor');
+      expect(result.value!.initialPoi?.coordinate).toEqual({ lat: 52.5163, lng: 13.3777 });
+      expect(result.value!.initialPoi?.category).toBe('EINSATZSTELLE');
     });
 
     it('should create command with einsatzId + initialPoi (MGRS)', () => {
@@ -53,52 +57,72 @@ describe('CreateLagekarteCommand', () => {
       };
 
       // When
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const result = CreateLagekarteCommand.create(einsatzId, initialPoi);
 
       // Then
-      expect(command.einsatzId).toBe(einsatzId);
-      expect(command.initialPoi).toEqual(initialPoi);
-      expect(command.initialPoi?.name).toBe('Rathaus Hamburg');
-      expect(command.initialPoi?.coordinate).toEqual({ mgrs: '33UUU89060199' });
-      expect(command.initialPoi?.category).toBe('BEREITSTELLUNGSRAUM');
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBeDefined();
+      expect(result.value!.einsatzId).toBe(einsatzId);
+      expect(result.value!.initialPoi).toEqual(initialPoi);
+      expect(result.value!.initialPoi?.name).toBe('Rathaus Hamburg');
+      expect(result.value!.initialPoi?.coordinate).toEqual({ mgrs: '33UUU89060199' });
+      expect(result.value!.initialPoi?.category).toBe('BEREITSTELLUNGSRAUM');
     });
 
-    it('should accept einsatzId with leading/trailing spaces (not trimmed in constructor)', () => {
+    it('should accept einsatzId with leading/trailing spaces (not trimmed in factory)', () => {
       // Given
       const einsatzId = '  einsatz-123  ';
 
       // When
-      const command = new CreateLagekarteCommand(einsatzId);
+      const result = CreateLagekarteCommand.create(einsatzId);
 
       // Then
-      expect(command.einsatzId).toBe(einsatzId); // Constructor does NOT trim (trimming happens in EinsatzId.create())
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBeDefined();
+      expect(result.value!.einsatzId).toBe(einsatzId); // Factory does NOT trim (trimming happens in EinsatzId.create())
     });
   });
 
   describe('Invalid Commands - einsatzId validation', () => {
-    it('should throw error when einsatzId is undefined', () => {
-      // Given/When/Then
-      expect(() => new CreateLagekarteCommand(undefined as any)).toThrow('einsatzId is required');
+    it('should return failure when einsatzId is undefined', () => {
+      // Given/When
+      const result = CreateLagekarteCommand.create(undefined as any);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('einsatzId is required');
     });
 
-    it('should throw error when einsatzId is null', () => {
-      // Given/When/Then
-      expect(() => new CreateLagekarteCommand(null as any)).toThrow('einsatzId is required');
+    it('should return failure when einsatzId is null', () => {
+      // Given/When
+      const result = CreateLagekarteCommand.create(null as any);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('einsatzId is required');
     });
 
-    it('should throw error when einsatzId is empty string', () => {
-      // Given/When/Then
-      expect(() => new CreateLagekarteCommand('')).toThrow('einsatzId is required');
+    it('should return failure when einsatzId is empty string', () => {
+      // Given/When
+      const result = CreateLagekarteCommand.create('');
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('einsatzId is required');
     });
 
-    it('should throw error when einsatzId is only whitespace', () => {
-      // Given/When/Then
-      expect(() => new CreateLagekarteCommand('   ')).toThrow('einsatzId is required');
+    it('should return failure when einsatzId is only whitespace', () => {
+      // Given/When
+      const result = CreateLagekarteCommand.create('   ');
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('einsatzId is required');
     });
   });
 
   describe('Invalid Commands - initialPoi validation', () => {
-    it('should throw error when initialPoi.name is missing', () => {
+    it('should return failure when initialPoi.name is missing', () => {
       // Given
       const einsatzId = 'einsatz-123';
       const invalidPoi = {
@@ -107,11 +131,15 @@ describe('CreateLagekarteCommand', () => {
         category: 'EINSATZSTELLE',
       };
 
-      // When/Then
-      expect(() => new CreateLagekarteCommand(einsatzId, invalidPoi as any)).toThrow('initialPoi.name is required when initialPoi is provided');
+      // When
+      const result = CreateLagekarteCommand.create(einsatzId, invalidPoi as any);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('initialPoi.name is required when initialPoi is provided');
     });
 
-    it('should throw error when initialPoi.name is only whitespace', () => {
+    it('should return failure when initialPoi.name is only whitespace', () => {
       // Given
       const einsatzId = 'einsatz-123';
       const invalidPoi = {
@@ -120,11 +148,15 @@ describe('CreateLagekarteCommand', () => {
         category: 'EINSATZSTELLE',
       };
 
-      // When/Then
-      expect(() => new CreateLagekarteCommand(einsatzId, invalidPoi as any)).toThrow('initialPoi.name is required when initialPoi is provided');
+      // When
+      const result = CreateLagekarteCommand.create(einsatzId, invalidPoi as any);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('initialPoi.name is required when initialPoi is provided');
     });
 
-    it('should throw error when initialPoi.coordinate is missing', () => {
+    it('should return failure when initialPoi.coordinate is missing', () => {
       // Given
       const einsatzId = 'einsatz-123';
       const invalidPoi = {
@@ -133,11 +165,15 @@ describe('CreateLagekarteCommand', () => {
         category: 'EINSATZSTELLE',
       };
 
-      // When/Then
-      expect(() => new CreateLagekarteCommand(einsatzId, invalidPoi)).toThrow('initialPoi.coordinate is required');
+      // When
+      const result = CreateLagekarteCommand.create(einsatzId, invalidPoi);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('initialPoi.coordinate is required');
     });
 
-    it('should throw error when initialPoi.coordinate is null', () => {
+    it('should return failure when initialPoi.coordinate is null', () => {
       // Given
       const einsatzId = 'einsatz-123';
       const invalidPoi = {
@@ -146,11 +182,15 @@ describe('CreateLagekarteCommand', () => {
         category: 'EINSATZSTELLE',
       };
 
-      // When/Then
-      expect(() => new CreateLagekarteCommand(einsatzId, invalidPoi)).toThrow('initialPoi.coordinate is required');
+      // When
+      const result = CreateLagekarteCommand.create(einsatzId, invalidPoi);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('initialPoi.coordinate is required');
     });
 
-    it('should throw error when initialPoi.category is missing', () => {
+    it('should return failure when initialPoi.category is missing', () => {
       // Given
       const einsatzId = 'einsatz-123';
       const invalidPoi = {
@@ -159,11 +199,15 @@ describe('CreateLagekarteCommand', () => {
         category: '',
       };
 
-      // When/Then
-      expect(() => new CreateLagekarteCommand(einsatzId, invalidPoi as any)).toThrow('initialPoi.category is required when initialPoi is provided');
+      // When
+      const result = CreateLagekarteCommand.create(einsatzId, invalidPoi as any);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('initialPoi.category is required when initialPoi is provided');
     });
 
-    it('should throw error when initialPoi.category is only whitespace', () => {
+    it('should return failure when initialPoi.category is only whitespace', () => {
       // Given
       const einsatzId = 'einsatz-123';
       const invalidPoi = {
@@ -172,8 +216,12 @@ describe('CreateLagekarteCommand', () => {
         category: '   ',
       };
 
-      // When/Then
-      expect(() => new CreateLagekarteCommand(einsatzId, invalidPoi as any)).toThrow('initialPoi.category is required when initialPoi is provided');
+      // When
+      const result = CreateLagekarteCommand.create(einsatzId, invalidPoi as any);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('initialPoi.category is required when initialPoi is provided');
     });
   });
 
@@ -188,10 +236,11 @@ describe('CreateLagekarteCommand', () => {
       };
 
       // When
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const result = CreateLagekarteCommand.create(einsatzId, initialPoi);
 
       // Then
-      expect(command.initialPoi?.name).toBe('POI "Hauptstraße" (Südseite) – Besondere Lage!');
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.initialPoi?.name).toBe('POI "Hauptstraße" (Südseite) – Besondere Lage!');
     });
 
     it('should accept initialPoi with very long name (no length restriction in command)', () => {
@@ -205,11 +254,12 @@ describe('CreateLagekarteCommand', () => {
       };
 
       // When
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const result = CreateLagekarteCommand.create(einsatzId, initialPoi);
 
       // Then
-      expect(command.initialPoi?.name).toBe(veryLongName);
-      expect(command.initialPoi?.name.length).toBe(1000);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.initialPoi?.name).toBe(veryLongName);
+      expect(result.value!.initialPoi?.name.length).toBe(1000);
     });
 
     it('should accept initialPoi with boundary latitude values', () => {
@@ -222,10 +272,11 @@ describe('CreateLagekarteCommand', () => {
       };
 
       // When
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const result = CreateLagekarteCommand.create(einsatzId, initialPoi);
 
       // Then
-      expect(command.initialPoi?.coordinate).toEqual({ lat: 90, lng: 0 });
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.initialPoi?.coordinate).toEqual({ lat: 90, lng: 0 });
     });
 
     it('should accept initialPoi with boundary longitude values', () => {
@@ -238,10 +289,11 @@ describe('CreateLagekarteCommand', () => {
       };
 
       // When
-      const command = new CreateLagekarteCommand(einsatzId, initialPoi);
+      const result = CreateLagekarteCommand.create(einsatzId, initialPoi);
 
       // Then
-      expect(command.initialPoi?.coordinate).toEqual({ lat: 0, lng: 180 });
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.initialPoi?.coordinate).toEqual({ lat: 0, lng: 180 });
     });
   });
 });

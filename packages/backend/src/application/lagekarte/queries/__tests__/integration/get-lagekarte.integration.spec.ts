@@ -67,7 +67,7 @@ describe('GetLagekarteQueryHandler - Integration Tests', () => {
       const poi = Poi.create(
         'Einsatzstelle',
         MgrsCoordinate.fromString('33UUU8990317936').value!, // Berlin MGRS
-        PoiCategory.create('EINSATZSTELLE').value!,
+        PoiCategory.EINSATZSTELLE(),
         UserId.create().value!,
         'Test POI Beschreibung',
       );
@@ -122,27 +122,27 @@ describe('GetLagekarteQueryHandler - Integration Tests', () => {
       const poi1 = Poi.create(
         'Einsatzstelle',
         MgrsCoordinate.fromString('33UUU8990317936').value!, // Berlin MGRS
-        PoiCategory.create('EINSATZSTELLE').value!,
+        PoiCategory.EINSATZSTELLE(),
         userId,
       );
 
       // Create aggregate with first POI
       const aggregate = LagekarteAggregate.create(einsatzId, poi1).value!;
 
-      // Add POI 2: SAMMELPLATZ (Different location in Berlin grid)
+      // Add POI 2: BEREITSTELLUNGSRAUM (Different location in Berlin grid)
       const poi2Result = aggregate.addPoi(
-        'Sammelplatz',
+        'Bereitstellungsraum',
         MgrsCoordinate.fromString('33UUU1234567890').value!, // Berlin MGRS
-        PoiCategory.create('SAMMELPLATZ').value!,
+        PoiCategory.BEREITSTELLUNGSRAUM(),
         userId,
       );
       expect(poi2Result.isSuccess).toBe(true);
 
-      // Add POI 3: GEFAHRENBEREICH (without beschreibung)
+      // Add POI 3: GEFAHRENSTELLE (without beschreibung)
       const poi3Result = aggregate.addPoi(
-        'Gefahrenbereich',
+        'Gefahrenstelle',
         MgrsCoordinate.fromString('33UUU1111122222').value!, // Berlin grid
-        PoiCategory.create('GEFAHRENBEREICH').value!,
+        PoiCategory.GEFAHRENSTELLE(),
         userId,
         undefined, // No beschreibung
       );
@@ -161,7 +161,7 @@ describe('GetLagekarteQueryHandler - Integration Tests', () => {
 
       // Verify each POI category
       const categories = result.value!.pois.map((p) => p.category);
-      expect(categories).toEqual(['EINSATZSTELLE', 'SAMMELPLATZ', 'GEFAHRENBEREICH']);
+      expect(categories).toEqual(['EINSATZSTELLE', 'BEREITSTELLUNGSRAUM', 'GEFAHRENSTELLE']);
 
       // Verify optional field handling (beschreibung)
       // POI entities created without beschreibung should have undefined
@@ -173,7 +173,7 @@ describe('GetLagekarteQueryHandler - Integration Tests', () => {
       const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
       const userId = UserId.create().value!;
 
-      const poi = Poi.create('Gefahrenstelle', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.create('GEFAHRENSTELLE').value!, userId, 'Achtung: Überflutete Straße');
+      const poi = Poi.create('Gefahrenstelle', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.GEFAHRENSTELLE(), userId, 'Achtung: Überflutete Straße');
 
       const aggregate = LagekarteAggregate.create(einsatzId, poi).value!;
       await repository.save(aggregate);

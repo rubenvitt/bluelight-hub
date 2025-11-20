@@ -57,28 +57,34 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
    * Test Helper: Erstellt ein Lagekarte-Aggregat mit mehreren POIs.
    *
    * @param einsatzId - Die Einsatz-ID
-   * @returns Lagekarte mit 3 POIs (2 EINSATZSTELLE, 1 SAMMELPLATZ)
+   * @returns Lagekarte mit 3 POIs (2 EINSATZSTELLE, 1 BEREITSTELLUNGSRAUM)
    */
   const createAggregateWithMixedPois = (einsatzId: EinsatzId): LagekarteAggregate => {
     const userId = UserId.create().value!;
 
     // POI 1: EINSATZSTELLE (Berlin)
-    const poi1 = Poi.create('Einsatzstelle 1', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.create('EINSATZSTELLE').value!, userId);
+    const poi1 = Poi.create('Einsatzstelle 1', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.EINSATZSTELLE(), userId);
 
     const aggregate = LagekarteAggregate.create(einsatzId, poi1).value!;
 
     // POI 2: EINSATZSTELLE (Hamburg - using valid 32U zone)
-    aggregate.addPoi('Einsatzstelle 2', MgrsCoordinate.fromString('32UPU1234567890').value!, PoiCategory.create('EINSATZSTELLE').value!, userId);
+    const poi2Result = aggregate.addPoi('Einsatzstelle 2', MgrsCoordinate.fromString('32UPU1234567890').value!, PoiCategory.EINSATZSTELLE(), userId);
+    if (poi2Result.isFailure) {
+      throw new Error(`Failed to add POI 2: ${poi2Result.error}`);
+    }
 
-    // POI 3: SAMMELPLATZ (Munich)
-    aggregate.addPoi('Sammelplatz', MgrsCoordinate.fromString('33UUU1111122222').value!, PoiCategory.create('SAMMELPLATZ').value!, userId);
+    // POI 3: BEREITSTELLUNGSRAUM (Munich) - Changed from SAMMELPLATZ to BEREITSTELLUNGSRAUM (valid category)
+    const poi3Result = aggregate.addPoi('Bereitstellungsraum', MgrsCoordinate.fromString('33UUU1111122222').value!, PoiCategory.BEREITSTELLUNGSRAUM(), userId);
+    if (poi3Result.isFailure) {
+      throw new Error(`Failed to add POI 3: ${poi3Result.error}`);
+    }
 
     return aggregate;
   };
 
   describe('Full Application → Domain → Repository Flow', () => {
     it('should load aggregate and filter POIs by category', async () => {
-      // Given: Aggregate with 3 POIs (2 EINSATZSTELLE, 1 SAMMELPLATZ)
+      // Given: Aggregate with 3 POIs (2 EINSATZSTELLE, 1 BEREITSTELLUNGSRAUM)
       const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
 
       const aggregate = createAggregateWithMixedPois(einsatzId);
@@ -97,7 +103,7 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
       const names = result.value!.map((p) => p.name);
       expect(names).toContain('Einsatzstelle 1');
       expect(names).toContain('Einsatzstelle 2');
-      expect(names).not.toContain('Sammelplatz');
+      expect(names).not.toContain('Bereitstellungsraum');
     });
 
     it('should return all POIs when no category filter specified', async () => {
@@ -118,7 +124,7 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
       // Verify all categories are present
       const categories = result.value!.map((p) => p.category);
       expect(categories).toContain('EINSATZSTELLE');
-      expect(categories).toContain('SAMMELPLATZ');
+      expect(categories).toContain('BEREITSTELLUNGSRAUM');
     });
 
     it('should return error when Lagekarte does not exist', async () => {
@@ -154,13 +160,13 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
       const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
       const userId = UserId.create().value!;
 
-      const poi = Poi.create('Einsatzstelle', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.create('EINSATZSTELLE').value!, userId);
+      const poi = Poi.create('Einsatzstelle', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.EINSATZSTELLE(), userId);
 
       const aggregate = LagekarteAggregate.create(einsatzId, poi).value!;
       await repository.save(aggregate);
 
-      // When: Query with category GEFAHRENBEREICH (no POIs have this category)
-      const query = new GetPoisQuery(aggregate.id.value, 'GEFAHRENBEREICH');
+      // When: Query with category GEFAHRENSTELLE (no POIs have this category)
+      const query = new GetPoisQuery(aggregate.id.value, 'GEFAHRENSTELLE');
       const result = await handler.execute(query);
 
       // Then: Should return empty array (NOT error!)
@@ -193,7 +199,7 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
       const poi = Poi.create(
         'Brandenburger Tor',
         MgrsCoordinate.fromString('33UUU8990317936').value!, // Berlin MGRS
-        PoiCategory.create('EINSATZSTELLE').value!,
+        PoiCategory.EINSATZSTELLE(),
         userId,
         'Historisches Wahrzeichen',
       );

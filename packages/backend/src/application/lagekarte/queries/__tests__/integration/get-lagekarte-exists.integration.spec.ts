@@ -57,7 +57,7 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
       const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
       const userId = UserId.create().value!;
 
-      const poi = Poi.create('Einsatzstelle', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.create('EINSATZSTELLE').value!, userId);
+      const poi = Poi.create('Einsatzstelle', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.EINSATZSTELLE(), userId);
 
       const aggregate = LagekarteAggregate.create(einsatzId, poi).value!;
       await repository.save(aggregate);
@@ -88,12 +88,12 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
       const einsatzId2 = EinsatzId.create('V1StGXR8_Z5jdHi6B-my2').value!;
       const userId = UserId.create().value!;
 
-      const poi1 = Poi.create('Einsatzstelle 1', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.create('EINSATZSTELLE').value!, userId);
+      const poi1 = Poi.create('Einsatzstelle 1', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.EINSATZSTELLE(), userId);
 
       const poi2 = Poi.create(
         'Einsatzstelle 2',
         MgrsCoordinate.fromString('32UPU1234567890').value!, // Hamburg MGRS (32U zone)
-        PoiCategory.create('EINSATZSTELLE').value!,
+        PoiCategory.EINSATZSTELLE(),
         userId,
       );
 
@@ -156,7 +156,7 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
       const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
       const userId = UserId.create().value!;
 
-      const poi = Poi.create('Einsatzstelle', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.create('EINSATZSTELLE').value!, userId);
+      const poi = Poi.create('Einsatzstelle', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.EINSATZSTELLE(), userId);
 
       const aggregate = LagekarteAggregate.create(einsatzId, poi).value!;
       await repository.save(aggregate);

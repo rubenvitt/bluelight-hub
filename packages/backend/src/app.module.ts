@@ -15,6 +15,7 @@ import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UserManagementModule } from './user-management/user-management.module';
 import { LagekarteModule } from './modules/lagekarte/lagekarte.module';
+import { LagekarteInfrastructureModule } from './infrastructure/lagekarte-infrastructure.module';
 
 /**
  * Haupt-Anwendungsmodul der Bluelight Hub Backend-Anwendung
@@ -64,6 +65,7 @@ import { LagekarteModule } from './modules/lagekarte/lagekarte.module';
     EinsatzModule,
     EtbModule,
     LagekarteModule,
+    LagekarteInfrastructureModule,
   ],
   controllers: [AppController],
   providers: [

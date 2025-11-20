@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { Poi } from '@domain/entities/poi.entity';
@@ -29,7 +29,9 @@ export class CreateLagekarteCommandHandler {
   private readonly logger = new Logger(CreateLagekarteCommandHandler.name);
 
   constructor(
+    @Inject('IEinsatzRepository')
     private readonly einsatzRepository: IEinsatzRepository,
+    @Inject('ILagekarteRepository')
     private readonly lagekarteRepository: ILagekarteRepository,
   ) {}
 

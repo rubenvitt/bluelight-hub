@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiId } from '@domain/value-objects/poi-id';
@@ -26,7 +26,10 @@ import type { RemovePoiCommand } from './remove-poi.command';
 export class RemovePoiCommandHandler {
   private readonly logger = new Logger(RemovePoiCommandHandler.name);
 
-  constructor(private readonly lagekarteRepository: ILagekarteRepository) {}
+  constructor(
+    @Inject('ILagekarteRepository')
+    private readonly lagekarteRepository: ILagekarteRepository,
+  ) {}
 
   async execute(command: RemovePoiCommand): Promise<Result<void>> {
     // Step 1: Validate LagekarteId

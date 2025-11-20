@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { GetLagekarteExistsQuery } from './get-lagekarte-exists.query';
@@ -48,7 +48,10 @@ import type { GetLagekarteExistsQuery } from './get-lagekarte-exists.query';
  */
 @Injectable()
 export class GetLagekarteExistsQueryHandler {
-  constructor(private readonly lagekarteRepository: ILagekarteRepository) {}
+  constructor(
+    @Inject('ILagekarteRepository')
+    private readonly lagekarteRepository: ILagekarteRepository,
+  ) {}
 
   /**
    * Führt die Query aus und prüft, ob eine Lagekarte existiert.

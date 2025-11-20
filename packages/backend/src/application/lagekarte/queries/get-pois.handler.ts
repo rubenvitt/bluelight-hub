@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiCategory } from '@domain/value-objects/poi-category';
@@ -65,7 +65,10 @@ import type { GetPoisQuery } from './get-pois.query';
  */
 @Injectable()
 export class GetPoisQueryHandler {
-  constructor(private readonly lagekarteRepository: ILagekarteRepository) {}
+  constructor(
+    @Inject('ILagekarteRepository')
+    private readonly lagekarteRepository: ILagekarteRepository,
+  ) {}
 
   /**
    * Führt die Query aus und lädt POIs einer Lagekarte.

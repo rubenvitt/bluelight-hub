@@ -21,10 +21,11 @@ module.exports = {
     ],
   },
   transformIgnorePatterns: [
-    // Transform ESM modules (nanoid) in node_modules
-    'node_modules/(?!(nanoid)/)',
+    // Don't ignore nanoid - it needs to be transformed from ESM to CJS
+    '/node_modules/(?!nanoid)',
   ],
   moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
     '^@domain/(.*)$': '<rootDir>/src/domain/$1',
     '^@application/(.*)$': '<rootDir>/src/application/$1',
     '^@infrastructure/(.*)$': '<rootDir>/src/infrastructure/$1',

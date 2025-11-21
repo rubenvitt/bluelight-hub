@@ -14,6 +14,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -32,6 +33,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -704,25 +706,32 @@ export class LagekarteCqrsController {
   }
 
   /**
-   * POIs einer Lagekarte abrufen (AC 6)
+   * POIs einer Lagekarte abrufen (AC3)
    *
-   * Nutzt GetPoisQuery via QueryBus.
+   * Nutzt GetPoisQuery via QueryBus mit optionaler Kategorie-Filterung.
    *
    * @param lagekarteId - ID der Lagekarte
-   * @returns Liste aller POIs
+   * @param category - Optionale Kategorie-Filterung (z.B. "EINSATZSTELLE")
+   * @returns Liste aller POIs (gefiltert falls category angegeben)
    */
   @Get(':lagekarteId/pois')
   @ApiOperation({
     summary: 'POIs einer Lagekarte abrufen',
-    description: 'Gibt alle POIs einer Lagekarte zurück. Nutzt CQRS QueryBus für Read-Operations.',
+    description: 'Gibt alle POIs einer Lagekarte zurück. Optionale Filterung nach Kategorie. Nutzt CQRS QueryBus für Read-Operations.',
   })
   @ApiOkResponse({ type: [PoiDto], description: 'POIs erfolgreich abgerufen' })
   @ApiNotFoundResponse({ description: 'Lagekarte nicht gefunden' })
-  @ApiBadRequestResponse({ description: 'Ungültige Lagekarte-ID' })
-  async getPois(@Param('lagekarteId') lagekarteId: string): Promise<PoiDto[]> {
-    this.logger.log(`Getting POIs for Lagekarte ${lagekarteId} (via QueryBus)`);
+  @ApiBadRequestResponse({ description: 'Ungültige Lagekarte-ID oder Kategorie' })
+  @ApiQuery({
+    name: 'category',
+    required: false,
+    description: 'Optionale Kategorie-Filterung',
+    enum: ['EINSATZSTELLE', 'BEREITSTELLUNGSRAUM', 'GEFAHRENSTELLE', 'WASSERENTNAHMESTELLE', 'SONSTIGES'],
+  })
+  async getPois(@Param('lagekarteId') lagekarteId: string, @Query('category') category?: string): Promise<PoiDto[]> {
+    this.logger.log(`Getting POIs for Lagekarte ${lagekarteId}${category ? ` (category: ${category})` : ''} (via QueryBus)`);
 
-    const query = new GetPoisQuery(lagekarteId);
+    const query = new GetPoisQuery(lagekarteId, category);
     const result = await this.queryBus.execute(query);
 
     if (result.isFailure || !result.value) {

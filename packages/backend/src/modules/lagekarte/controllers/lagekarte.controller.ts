@@ -9,6 +9,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
   Logger,
   Param,
   Post,
@@ -31,6 +32,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -46,6 +48,7 @@ import { GetLagekarteQuery, GetPoisQuery } from '@/application/lagekarte/queries
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { LagekarteDto, PoiDto } from '@/application/lagekarte/dtos';
 import { LagekarteMapper } from '@/application/lagekarte/mappers/lagekarte.mapper';
+import { PoiMapper } from '@/application/lagekarte/mappers/poi.mapper';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { Inject } from '@nestjs/common';
@@ -448,6 +451,33 @@ export class LagekarteCqrsController {
   }
 
   /**
+   * Helper: Load Lagekarte aggregate and map a specific POI to DTO.
+   *
+   * @param lagekarteId - ID der Lagekarte
+   * @param poiId - ID des POI
+   * @returns PoiDto
+   * @throws NotFoundException wenn Lagekarte oder POI nicht gefunden
+   */
+  private async loadAndMapPoi(lagekarteId: string, poiId: string): Promise<PoiDto> {
+    const idResult = LagekarteId.create(lagekarteId);
+    if (idResult.isFailure || !idResult.value) {
+      throw new BadRequestException('Invalid Lagekarte ID');
+    }
+
+    const aggregate = await this.lagekarteRepository.findById(idResult.value);
+    if (!aggregate) {
+      throw new NotFoundException(`Lagekarte ${lagekarteId} nicht gefunden`);
+    }
+
+    const poi = aggregate.pois.find((p) => p.id.value === poiId);
+    if (!poi) {
+      throw new NotFoundException(`POI ${poiId} nicht gefunden`);
+    }
+
+    return PoiMapper.toDto(poi);
+  }
+
+  /**
    * Lagekarte erstellen (AC 1)
    *
    * Erstellt eine neue Lagekarte für einen Einsatz via CommandBus.
@@ -500,21 +530,21 @@ export class LagekarteCqrsController {
    *
    * @param lagekarteId - ID der Lagekarte
    * @param dto - AddPoiDto mit POI-Details (name, coordinate, category, beschreibung)
-   * @returns Aktualisierte Lagekarte
+   * @returns Neu erstellter POI
    */
   @Post(':lagekarteId/poi')
   @ApiOperation({
     summary: 'POI hinzufügen',
     description: 'Fügt einen neuen POI zur Lagekarte hinzu. Koordinaten können als Lat/Lng oder MGRS angegeben werden.',
   })
-  @ApiCreatedResponse({ type: LagekarteDto, description: 'POI erfolgreich hinzugefügt' })
+  @ApiCreatedResponse({ type: PoiDto, description: 'POI erfolgreich hinzugefügt' })
   @ApiNotFoundResponse({ description: 'Lagekarte nicht gefunden' })
   @ApiBadRequestResponse({ description: 'Validierungsfehler in den Eingabedaten' })
   async addPoi(
     @Param('lagekarteId') lagekarteId: string,
     @Body(new ValidationPipe({ transform: true, whitelist: true }))
     dto: AddPoiDto,
-  ): Promise<LagekarteDto> {
+  ): Promise<PoiDto> {
     this.logger.log(`Adding POI to Lagekarte ${lagekarteId} (via CommandBus)`);
 
     const commandResult = AddPoiCommand.create(lagekarteId, dto.name, dto.coordinate, dto.category, dto.beschreibung);
@@ -535,10 +565,16 @@ export class LagekarteCqrsController {
       throw new BadRequestException(result.error);
     }
 
-    // Load updated Lagekarte and return DTO
-    const lagekarte = await this.loadAndMapLagekarte(lagekarteId);
-    this.logger.log(`POI added to Lagekarte ${lagekarteId}`);
-    return lagekarte;
+    // Handler returns Result<PoiId>, extract POI ID
+    const poiId = result.value;
+    if (!poiId) {
+      throw new BadRequestException('Failed to add POI: No POI ID returned');
+    }
+
+    // Load the newly created POI and return DTO
+    const poiDto = await this.loadAndMapPoi(lagekarteId, poiId.value);
+    this.logger.log(`POI ${poiId.value} added to Lagekarte ${lagekarteId}`);
+    return poiDto;
   }
 
   /**
@@ -549,14 +585,14 @@ export class LagekarteCqrsController {
    * @param lagekarteId - ID der Lagekarte
    * @param poiId - ID des POIs
    * @param dto - UpdatePoiPositionDto mit neuer Koordinate
-   * @returns Aktualisierte Lagekarte
+   * @returns Aktualisierter POI
    */
   @Put(':lagekarteId/poi/:poiId')
   @ApiOperation({
     summary: 'POI-Position aktualisieren',
     description: 'Aktualisiert die Position eines POIs. Koordinaten können als Lat/Lng oder MGRS angegeben werden.',
   })
-  @ApiOkResponse({ type: LagekarteDto, description: 'POI-Position erfolgreich aktualisiert' })
+  @ApiOkResponse({ type: PoiDto, description: 'POI-Position erfolgreich aktualisiert' })
   @ApiNotFoundResponse({ description: 'Lagekarte oder POI nicht gefunden' })
   @ApiBadRequestResponse({ description: 'Validierungsfehler in den Eingabedaten' })
   async updatePoiPosition(
@@ -564,7 +600,7 @@ export class LagekarteCqrsController {
     @Param('poiId') poiId: string,
     @Body(new ValidationPipe({ transform: true, whitelist: true }))
     dto: UpdatePoiPositionDto,
-  ): Promise<LagekarteDto> {
+  ): Promise<PoiDto> {
     this.logger.log(`Updating position of POI ${poiId} in Lagekarte ${lagekarteId} (via CommandBus)`);
 
     const commandResult = UpdatePoiPositionCommand.create(lagekarteId, poiId, dto.newCoordinate);
@@ -585,10 +621,10 @@ export class LagekarteCqrsController {
       throw new BadRequestException(result.error);
     }
 
-    // Load updated Lagekarte and return DTO
-    const lagekarte = await this.loadAndMapLagekarte(lagekarteId);
+    // Handler returns Result<void>, load the updated POI and return DTO
+    const poiDto = await this.loadAndMapPoi(lagekarteId, poiId);
     this.logger.log(`POI ${poiId} position updated in Lagekarte ${lagekarteId}`);
-    return lagekarte;
+    return poiDto;
   }
 
   /**
@@ -598,17 +634,18 @@ export class LagekarteCqrsController {
    *
    * @param lagekarteId - ID der Lagekarte
    * @param poiId - ID des POIs
-   * @returns Aktualisierte Lagekarte
+   * @returns Void (HTTP 204 No Content)
    */
   @Delete(':lagekarteId/poi/:poiId')
+  @HttpCode(204)
   @ApiOperation({
     summary: 'POI entfernen',
     description: 'Entfernt einen POI von der Lagekarte.',
   })
-  @ApiOkResponse({ type: LagekarteDto, description: 'POI erfolgreich entfernt' })
+  @ApiResponse({ status: 204, description: 'POI erfolgreich entfernt' })
   @ApiNotFoundResponse({ description: 'Lagekarte oder POI nicht gefunden' })
   @ApiBadRequestResponse({ description: 'Validierungsfehler' })
-  async removePoi(@Param('lagekarteId') lagekarteId: string, @Param('poiId') poiId: string): Promise<LagekarteDto> {
+  async removePoi(@Param('lagekarteId') lagekarteId: string, @Param('poiId') poiId: string): Promise<void> {
     this.logger.log(`Removing POI ${poiId} from Lagekarte ${lagekarteId} (via CommandBus)`);
 
     const commandResult = RemovePoiCommand.create(lagekarteId, poiId);
@@ -629,10 +666,9 @@ export class LagekarteCqrsController {
       throw new BadRequestException(result.error);
     }
 
-    // Load updated Lagekarte and return DTO
-    const lagekarte = await this.loadAndMapLagekarte(lagekarteId);
+    // Handler returns Result<void>, operation successful
     this.logger.log(`POI ${poiId} removed from Lagekarte ${lagekarteId}`);
-    return lagekarte;
+    // No return statement (void) - HTTP 204 No Content
   }
 
   /**

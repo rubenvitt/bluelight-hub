@@ -1,23 +1,35 @@
 import { Module } from '@nestjs/common';
 import { PrismaLagekarteRepository } from './repositories/prisma-lagekarte.repository';
+import { NominatimGeocodingAdapter } from './geocoding/nominatim-geocoding.adapter';
 import { PrismaModule } from '@/prisma/prisma.module';
 
 /**
  * NestJS Module für Lagekarte Infrastructure Layer.
  *
  * Dieses Modul registriert die Infrastructure-Implementierungen
- * der Domain Repository Ports (Hexagonal Architecture Pattern).
+ * der Domain Repository Ports und Service Ports (Hexagonal Architecture Pattern).
  *
  * **Dependency Injection Strategy:**
  * - ILagekarteRepository wird als String Token bereitgestellt
- * - PrismaLagekarteRepository ist die konkrete Implementierung
- * - Application Layer kann das Interface injizieren via @Inject()
+ * - IGeocodingPort wird als String Token bereitgestellt
+ * - PrismaLagekarteRepository ist die konkrete Repository-Implementierung
+ * - NominatimGeocodingAdapter ist die konkrete Geocoding-Implementierung
+ * - Application Layer kann die Interfaces injizieren via @Inject()
  *
  * **Warum String Token statt Class Token:**
- * - Domain Layer kennt NUR das Interface (ILagekarteRepository)
+ * - Domain Layer kennt NUR das Interface (ILagekarteRepository, IGeocodingPort)
  * - Domain Layer kann NICHT auf Infrastructure Class referenzieren
- * - String Token "ILagekarteRepository" entkoppelt Domain von Infrastructure
- * - Ermöglicht austauschbare Implementierungen (Prisma, TypeORM, In-Memory)
+ * - String Token entkoppelt Domain von Infrastructure
+ * - Ermöglicht austauschbare Implementierungen:
+ *   - Repository: Prisma, TypeORM, In-Memory
+ *   - Geocoding: Nominatim, Google Maps, Here.com, Mock
+ *
+ * **Warum Nominatim statt Google Maps:**
+ * - Kostenlos und Open Source (keine API-Keys, keine Kosten)
+ * - DRK-konform (keine Drittanbieter-Datenschutzprobleme)
+ * - Gut genug für deutsche Einsatzadressen (OSM-Datenqualität hoch)
+ * - Kein Vendor-Lock-in (kann jederzeit zu anderem Provider wechseln)
+ * - Rate-Limiting (1 req/s) ist für MVP/Development akzeptabel
  *
  * **Module Dependencies:**
  * - PrismaModule: Stellt PrismaService für Repository zur Verfügung
@@ -29,7 +41,9 @@ import { PrismaModule } from '@/prisma/prisma.module';
  * export class CreateLagekarteCommandHandler {
  *   constructor(
  *     @Inject('ILagekarteRepository')
- *     private readonly lagekarteRepository: ILagekarteRepository
+ *     private readonly lagekarteRepository: ILagekarteRepository,
+ *     @Inject('IGeocodingPort')
+ *     private readonly geocodingPort: IGeocodingPort
  *   ) {}
  * }
  * ```
@@ -41,7 +55,11 @@ import { PrismaModule } from '@/prisma/prisma.module';
       provide: 'ILagekarteRepository', // String Token (Interface-Name)
       useClass: PrismaLagekarteRepository, // Konkrete Implementation
     },
+    {
+      provide: 'IGeocodingPort', // String Token (Interface-Name)
+      useClass: NominatimGeocodingAdapter, // Konkrete Implementation
+    },
   ],
-  exports: ['ILagekarteRepository'], // Export für andere Module
+  exports: ['ILagekarteRepository', 'IGeocodingPort'], // Export für andere Module
 })
 export class LagekarteInfrastructureModule {}

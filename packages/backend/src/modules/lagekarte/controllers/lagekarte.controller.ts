@@ -12,6 +12,7 @@ import {
   Logger,
   Param,
   Post,
+  Put,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -20,24 +21,59 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiForbiddenResponse, ApiNotFoundResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { join } from 'node:path';
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
 import { LagekarteService } from '../services/lagekarte.service';
 import { SaveLagekarteStateDto } from '../dto/save-lagekarte-state.dto';
 import { Lagekarte } from '@prisma/client';
+import { CreateLagekarteDto, AddPoiDto, UpdatePoiPositionDto } from '@/application/lagekarte/dto';
+import { CreateLagekarteCommand, AddPoiCommand, RemovePoiCommand, UpdatePoiPositionCommand } from '@/application/lagekarte/commands';
+import { GetLagekarteQuery, GetPoisQuery } from '@/application/lagekarte/queries';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import { LagekarteDto, PoiDto } from '@/application/lagekarte/dtos';
+import { LagekarteMapper } from '@/application/lagekarte/mappers/lagekarte.mapper';
+import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import { LagekarteId } from '@domain/value-objects/lagekarte-id';
+import { Inject } from '@nestjs/common';
 
 /**
- * Controller für Lagekarten-Management
+ * Controller für Lagekarten-Management (Hybrid: CQRS + Legacy)
  *
- * **Lazy Creation Pattern:**
- * - Lagekarten werden erst beim ersten GET-Request erstellt, nicht bei Einsatz-Erstellung
- * - Bei Erstellung wird automatisch ein initialer POI (Typ: EINSATZORT) aus `einsatz.einsatzort` geocoded
+ * **Architecture:**
+ * - CQRS Endpoints: Verwenden CommandBus/QueryBus (Story 2-6 Scope)
+ * - Legacy Endpoints: Verwenden LagekarteService direkt (Screenshot/State Management - Out of Scope)
+ *
+ * **CQRS Endpoints (Refactored):**
+ * - GET /einsatz/:einsatzId/lagekarte → GetLagekarteQuery
+ * - POST /lagekarte → CreateLagekarteCommand
+ * - POST /lagekarte/:lagekarteId/poi → AddPoiCommand
+ * - PUT /lagekarte/:lagekarteId/poi/:poiId → UpdatePoiPositionCommand
+ * - DELETE /lagekarte/:lagekarteId/poi/:poiId → RemovePoiCommand
+ * - GET /lagekarte/:lagekarteId/pois → GetPoisQuery
+ *
+ * **Legacy Endpoints (Preserved):**
+ * - POST /einsatz/:einsatzId/lagekarte → saveLagekarteState (GeoJSON)
+ * - POST /einsatz/:einsatzId/lagekarte/screenshot → uploadScreenshot
+ * - DELETE /einsatz/:einsatzId/lagekarte/screenshot/:filename → deleteScreenshot
+ * - DELETE /einsatz/:einsatzId/lagekarte → deleteLagekarte
  *
  * **Route Structure:**
- * - Base: `/einsatz/:einsatzId/lagekarte`
- * - Alle Routes sind JWT-geschützt via `JwtAuthGuard`
+ * - Legacy Base: `/einsatz/:einsatzId/lagekarte` (für Screenshot/State)
+ * - CQRS Routes: `/lagekarte/*` (neue API-Struktur)
  *
  * @security Alle Endpunkte erfordern valides JWT Token
  */
@@ -56,8 +92,9 @@ export class LagekarteController {
   private readonly uploadDir: string;
 
   constructor(
-    private readonly lagekarteService: LagekarteService,
+    private readonly queryBus: QueryBus,
     private readonly configService: ConfigService,
+    private readonly lagekarteService: LagekarteService, // KEPT for legacy endpoints only
   ) {
     // Get uploads path from ENV or use default (relative to project root)
     const uploadsBase = this.configService.get<string>('UPLOADS_PATH') || 'uploads';
@@ -73,34 +110,47 @@ export class LagekarteController {
     }
   }
 
+  // ============================================
+  // CQRS ENDPOINTS (Story 2-6 Scope)
+  // ============================================
+
   /**
-   * Lagekarte abrufen oder lazy erstellen
+   * Lagekarte für Einsatz abrufen (REFACTORED - uses QueryBus)
    *
-   * **Lazy Creation:**
-   * - Wenn keine Lagekarte existiert, wird sie automatisch erstellt
-   * - Bei Neuerstellung wird initialer POI (Typ: EINSATZORT) aus `einsatz.einsatzort` geocoded
+   * Nutzt GetLagekarteQuery via QueryBus für CQRS-Pattern.
+   * Ersetzt vorheriges Service-basiertes getOrCreateLagekarte().
    *
    * @param einsatzId - ID des Einsatzes
-   * @returns Lagekarte mit allen POIs
+   * @returns Lagekarte mit allen POIs oder null wenn nicht gefunden
    */
   @Get()
   @ApiOperation({
     summary: 'Lagekarte abrufen',
-    description:
-      'Gibt die Lagekarte für einen Einsatz zurück. Lazy Creation: Wenn keine Lagekarte existiert, wird sie automatisch erstellt mit initialem POI (Typ: EINSATZORT) aus einsatz.einsatzort.',
+    description: 'Gibt die Lagekarte für einen Einsatz zurück. Nutzt CQRS QueryBus für Read-Operations.',
   })
-  @ApiWrappedResponse(Object, { description: 'Lagekarte erfolgreich abgerufen oder erstellt' })
-  @ApiNotFoundResponse({ description: 'Einsatz nicht gefunden' })
+  @ApiOkResponse({ type: LagekarteDto, description: 'Lagekarte erfolgreich abgerufen' })
+  @ApiNotFoundResponse({ description: 'Lagekarte nicht gefunden' })
   @ApiBadRequestResponse({ description: 'Ungültige Einsatz-ID' })
-  async getLagekarte(@Param('einsatzId') einsatzId: string): Promise<Lagekarte> {
-    this.logger.log(`Getting Lagekarte for Einsatz ${einsatzId}`);
-    const lagekarte = await this.lagekarteService.getOrCreateLagekarte(einsatzId);
-    this.logger.log(`Lagekarte ${lagekarte.id} returned for Einsatz ${einsatzId}`);
-    return lagekarte;
+  async getLagekarte(@Param('einsatzId') einsatzId: string): Promise<LagekarteDto | null> {
+    this.logger.log(`Getting Lagekarte for Einsatz ${einsatzId} (via QueryBus)`);
+
+    const query = new GetLagekarteQuery(einsatzId);
+    const result = await this.queryBus.execute(query);
+
+    if (result.isFailure) {
+      this.logger.error(`Failed to get Lagekarte for Einsatz ${einsatzId}: ${result.error}`);
+      throw new NotFoundException(result.error);
+    }
+
+    this.logger.log(`Lagekarte ${result.value?.id ?? 'null'} returned for Einsatz ${einsatzId}`);
+    return result.value ?? null;
   }
 
   /**
-   * Lagekarte-State speichern (GeoJSON Zeichnungen)
+   * Lagekarte-State speichern (GeoJSON Zeichnungen) - LEGACY ENDPOINT
+   *
+   * **OUT OF SCOPE:** Diese Methode bleibt unverändert und nutzt weiterhin LagekarteService.
+   * GeoJSON State Management ist nicht Teil der CQRS-Refactoring Story 2-6.
    *
    * @param einsatzId - ID des Einsatzes
    * @param dto - SaveLagekarteStateDto mit state (GeoJSON FeatureCollection)
@@ -109,7 +159,7 @@ export class LagekarteController {
    */
   @Post()
   @ApiOperation({
-    summary: 'Lagekarte-State speichern',
+    summary: 'Lagekarte-State speichern (Legacy)',
     description: 'Speichert den GeoJSON State (Zeichnungen) einer Lagekarte. Der State enthält Polygone, Linien und Marker im GeoJSON FeatureCollection Format.',
   })
   @ApiWrappedResponse(Object, { description: 'Lagekarte-State erfolgreich gespeichert' })
@@ -137,7 +187,10 @@ export class LagekarteController {
   }
 
   /**
-   * Screenshot der Lagekarte hochladen (für ETB-Integration)
+   * Screenshot der Lagekarte hochladen (für ETB-Integration) - LEGACY ENDPOINT
+   *
+   * **OUT OF SCOPE:** Diese Methode bleibt unverändert.
+   * File Upload Management ist nicht Teil der CQRS-Refactoring Story 2-6.
    *
    * **Security:**
    * - PNG und JPEG-Files erlaubt (MIME-Type Validierung)
@@ -155,7 +208,7 @@ export class LagekarteController {
    */
   @Post('screenshot')
   @ApiOperation({
-    summary: 'Screenshot der Lagekarte hochladen',
+    summary: 'Screenshot der Lagekarte hochladen (Legacy)',
     description: 'Upload eines Screenshots der Lagekarte für ETB-Integration. PNG- und JPEG-Files bis 10MB. Rückgabe: File-URL für Verwendung in ETB-Einträgen.',
   })
   @ApiConsumes('multipart/form-data')
@@ -230,7 +283,10 @@ export class LagekarteController {
   }
 
   /**
-   * Screenshot löschen (für ETB-Fehler-Cleanup)
+   * Screenshot löschen (für ETB-Fehler-Cleanup) - LEGACY ENDPOINT
+   *
+   * **OUT OF SCOPE:** Diese Methode bleibt unverändert.
+   * File Upload Management ist nicht Teil der CQRS-Refactoring Story 2-6.
    *
    * **Security:**
    * - Filename Validierung (verhindert Path Traversal)
@@ -246,7 +302,7 @@ export class LagekarteController {
    */
   @Delete('screenshot/:filename')
   @ApiOperation({
-    summary: 'Screenshot löschen',
+    summary: 'Screenshot löschen (Legacy)',
     description: 'Löscht einen Screenshot der Lagekarte (PNG oder JPEG). Verwendet für Cleanup wenn ETB-Eintrag-Erstellung fehlschlägt (AC7). Filename-Validierung verhindert Path Traversal.',
   })
   @ApiWrappedResponse(Object, { description: 'Screenshot erfolgreich gelöscht' })
@@ -297,14 +353,17 @@ export class LagekarteController {
   }
 
   /**
-   * Lagekarte löschen (CASCADE: POIs werden automatisch mitgelöscht)
+   * Lagekarte löschen (CASCADE: POIs werden automatisch mitgelöscht) - LEGACY ENDPOINT
+   *
+   * **OUT OF SCOPE:** Diese Methode bleibt unverändert und nutzt weiterhin LagekarteService.
+   * Delete-Operations sind nicht Teil der CQRS-Refactoring Story 2-6.
    *
    * @param einsatzId - ID des Einsatzes
    * @param user - Authentifizierter User
    */
   @Delete()
   @ApiOperation({
-    summary: 'Lagekarte löschen',
+    summary: 'Lagekarte löschen (Legacy)',
     description: 'Löscht die Lagekarte eines Einsatzes. CASCADE: Alle zugehörigen POIs werden automatisch mitgelöscht.',
   })
   @ApiWrappedResponse(Object, { description: 'Lagekarte erfolgreich gelöscht' })
@@ -323,5 +382,319 @@ export class LagekarteController {
     // Delete (cascade to POIs)
     await this.lagekarteService.deleteLagekarte(lagekarte.id);
     this.logger.warn(`Lagekarte ${lagekarte.id} deleted for Einsatz ${einsatzId} (CASCADE to POIs)`);
+  }
+}
+
+// ============================================
+// CQRS ENDPOINTS - SEPARATE CONTROLLER
+// ============================================
+
+/**
+ * Controller für neue CQRS-basierte Lagekarte API
+ *
+ * Dieser Controller implementiert die neuen CQRS-Endpunkte aus Story 2-6.
+ * Separater Controller ermöglicht saubere Trennung zwischen Legacy- und CQRS-Routes.
+ *
+ * **Route Structure:**
+ * - Base: `/lagekarte` (ohne einsatzId im Path)
+ * - Alle Routes nutzen CommandBus/QueryBus (kein LagekarteService)
+ *
+ * **Endpoints:**
+ * - POST /lagekarte → CreateLagekarteCommand
+ * - POST /lagekarte/:lagekarteId/poi → AddPoiCommand
+ * - PUT /lagekarte/:lagekarteId/poi/:poiId → UpdatePoiPositionCommand
+ * - DELETE /lagekarte/:lagekarteId/poi/:poiId → RemovePoiCommand
+ * - GET /lagekarte/einsatz/:einsatzId → GetLagekarteQuery
+ * - GET /lagekarte/:lagekarteId/pois → GetPoisQuery
+ */
+@ApiTags('Lagekarte (CQRS)')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@ApiUnauthorizedResponse({ description: 'Nicht authentifiziert - JWT Token fehlt oder ungültig' })
+@ApiForbiddenResponse({ description: 'Keine Berechtigung für diese Aktion' })
+@Controller({
+  path: 'lagekarte',
+  version: 'alpha',
+})
+export class LagekarteCqrsController {
+  private readonly logger = new Logger(LagekarteCqrsController.name);
+
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+    @Inject('ILagekarteRepository')
+    private readonly lagekarteRepository: ILagekarteRepository,
+  ) {}
+
+  /**
+   * Helper: Load Lagekarte aggregate by ID and map to DTO.
+   *
+   * @param lagekarteId - ID der Lagekarte
+   * @returns LagekarteDto
+   * @throws NotFoundException wenn Lagekarte nicht gefunden
+   */
+  private async loadAndMapLagekarte(lagekarteId: string): Promise<LagekarteDto> {
+    const idResult = LagekarteId.create(lagekarteId);
+    if (idResult.isFailure || !idResult.value) {
+      throw new BadRequestException('Invalid Lagekarte ID');
+    }
+
+    const aggregate = await this.lagekarteRepository.findById(idResult.value);
+    if (!aggregate) {
+      throw new NotFoundException(`Lagekarte ${lagekarteId} nicht gefunden`);
+    }
+
+    return LagekarteMapper.toDto(aggregate);
+  }
+
+  /**
+   * Lagekarte erstellen (AC 1)
+   *
+   * Erstellt eine neue Lagekarte für einen Einsatz via CommandBus.
+   * Optional kann ein initialer POI (z.B. Einsatzort) mitgegeben werden.
+   *
+   * @param dto - CreateLagekarteDto mit einsatzId und optionalem initialPoi
+   * @returns Erstellte Lagekarte
+   */
+  @Post()
+  @ApiOperation({
+    summary: 'Lagekarte erstellen',
+    description: 'Erstellt eine neue Lagekarte für einen Einsatz. Optional kann ein initialer POI (z.B. Einsatzort) mitgegeben werden.',
+  })
+  @ApiCreatedResponse({ type: LagekarteDto, description: 'Lagekarte erfolgreich erstellt' })
+  @ApiBadRequestResponse({ description: 'Validierungsfehler in den Eingabedaten' })
+  async createLagekarte(
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    dto: CreateLagekarteDto,
+  ): Promise<LagekarteDto> {
+    this.logger.log(`Creating Lagekarte for Einsatz ${dto.einsatzId} (via CommandBus)`);
+
+    const commandResult = CreateLagekarteCommand.create(dto.einsatzId, dto.initialPoi);
+    if (commandResult.isFailure || !commandResult.value) {
+      this.logger.error(`Invalid command for Einsatz ${dto.einsatzId}: ${commandResult.error}`);
+      throw new BadRequestException(commandResult.error);
+    }
+
+    const result = await this.commandBus.execute(commandResult.value);
+
+    if (result.isFailure) {
+      this.logger.error(`Failed to create Lagekarte for Einsatz ${dto.einsatzId}: ${result.error}`);
+      throw new BadRequestException(result.error);
+    }
+
+    // Retrieve the created Lagekarte to return DTO
+    const queryResult = await this.queryBus.execute(new GetLagekarteQuery(dto.einsatzId));
+    if (queryResult.isFailure || !queryResult.value) {
+      this.logger.error(`Failed to retrieve created Lagekarte for Einsatz ${dto.einsatzId}`);
+      throw new BadRequestException('Failed to retrieve created Lagekarte');
+    }
+
+    this.logger.log(`Lagekarte ${result.value?.value ?? 'unknown'} created for Einsatz ${dto.einsatzId}`);
+    return queryResult.value;
+  }
+
+  /**
+   * POI hinzufügen (AC 2)
+   *
+   * Fügt einen neuen POI zur Lagekarte hinzu via CommandBus.
+   *
+   * @param lagekarteId - ID der Lagekarte
+   * @param dto - AddPoiDto mit POI-Details (name, coordinate, category, beschreibung)
+   * @returns Aktualisierte Lagekarte
+   */
+  @Post(':lagekarteId/poi')
+  @ApiOperation({
+    summary: 'POI hinzufügen',
+    description: 'Fügt einen neuen POI zur Lagekarte hinzu. Koordinaten können als Lat/Lng oder MGRS angegeben werden.',
+  })
+  @ApiCreatedResponse({ type: LagekarteDto, description: 'POI erfolgreich hinzugefügt' })
+  @ApiNotFoundResponse({ description: 'Lagekarte nicht gefunden' })
+  @ApiBadRequestResponse({ description: 'Validierungsfehler in den Eingabedaten' })
+  async addPoi(
+    @Param('lagekarteId') lagekarteId: string,
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    dto: AddPoiDto,
+  ): Promise<LagekarteDto> {
+    this.logger.log(`Adding POI to Lagekarte ${lagekarteId} (via CommandBus)`);
+
+    const commandResult = AddPoiCommand.create(lagekarteId, dto.name, dto.coordinate, dto.category, dto.beschreibung);
+    if (commandResult.isFailure || !commandResult.value) {
+      this.logger.error(`Invalid command for Lagekarte ${lagekarteId}: ${commandResult.error}`);
+      throw new BadRequestException(commandResult.error);
+    }
+
+    const result = await this.commandBus.execute(commandResult.value);
+
+    if (result.isFailure) {
+      this.logger.error(`Failed to add POI to Lagekarte ${lagekarteId}: ${result.error}`);
+
+      if (result.error?.includes('nicht gefunden')) {
+        throw new NotFoundException(result.error);
+      }
+
+      throw new BadRequestException(result.error);
+    }
+
+    // Load updated Lagekarte and return DTO
+    const lagekarte = await this.loadAndMapLagekarte(lagekarteId);
+    this.logger.log(`POI added to Lagekarte ${lagekarteId}`);
+    return lagekarte;
+  }
+
+  /**
+   * POI-Position aktualisieren (AC 4)
+   *
+   * Aktualisiert die Position eines POIs via CommandBus.
+   *
+   * @param lagekarteId - ID der Lagekarte
+   * @param poiId - ID des POIs
+   * @param dto - UpdatePoiPositionDto mit neuer Koordinate
+   * @returns Aktualisierte Lagekarte
+   */
+  @Put(':lagekarteId/poi/:poiId')
+  @ApiOperation({
+    summary: 'POI-Position aktualisieren',
+    description: 'Aktualisiert die Position eines POIs. Koordinaten können als Lat/Lng oder MGRS angegeben werden.',
+  })
+  @ApiOkResponse({ type: LagekarteDto, description: 'POI-Position erfolgreich aktualisiert' })
+  @ApiNotFoundResponse({ description: 'Lagekarte oder POI nicht gefunden' })
+  @ApiBadRequestResponse({ description: 'Validierungsfehler in den Eingabedaten' })
+  async updatePoiPosition(
+    @Param('lagekarteId') lagekarteId: string,
+    @Param('poiId') poiId: string,
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    dto: UpdatePoiPositionDto,
+  ): Promise<LagekarteDto> {
+    this.logger.log(`Updating position of POI ${poiId} in Lagekarte ${lagekarteId} (via CommandBus)`);
+
+    const commandResult = UpdatePoiPositionCommand.create(lagekarteId, poiId, dto.newCoordinate);
+    if (commandResult.isFailure || !commandResult.value) {
+      this.logger.error(`Invalid command for POI ${poiId}: ${commandResult.error}`);
+      throw new BadRequestException(commandResult.error);
+    }
+
+    const result = await this.commandBus.execute(commandResult.value);
+
+    if (result.isFailure) {
+      this.logger.error(`Failed to update POI ${poiId} position in Lagekarte ${lagekarteId}: ${result.error}`);
+
+      if (result.error?.includes('nicht gefunden')) {
+        throw new NotFoundException(result.error);
+      }
+
+      throw new BadRequestException(result.error);
+    }
+
+    // Load updated Lagekarte and return DTO
+    const lagekarte = await this.loadAndMapLagekarte(lagekarteId);
+    this.logger.log(`POI ${poiId} position updated in Lagekarte ${lagekarteId}`);
+    return lagekarte;
+  }
+
+  /**
+   * POI entfernen (AC 3)
+   *
+   * Entfernt einen POI von der Lagekarte via CommandBus.
+   *
+   * @param lagekarteId - ID der Lagekarte
+   * @param poiId - ID des POIs
+   * @returns Aktualisierte Lagekarte
+   */
+  @Delete(':lagekarteId/poi/:poiId')
+  @ApiOperation({
+    summary: 'POI entfernen',
+    description: 'Entfernt einen POI von der Lagekarte.',
+  })
+  @ApiOkResponse({ type: LagekarteDto, description: 'POI erfolgreich entfernt' })
+  @ApiNotFoundResponse({ description: 'Lagekarte oder POI nicht gefunden' })
+  @ApiBadRequestResponse({ description: 'Validierungsfehler' })
+  async removePoi(@Param('lagekarteId') lagekarteId: string, @Param('poiId') poiId: string): Promise<LagekarteDto> {
+    this.logger.log(`Removing POI ${poiId} from Lagekarte ${lagekarteId} (via CommandBus)`);
+
+    const commandResult = RemovePoiCommand.create(lagekarteId, poiId);
+    if (commandResult.isFailure || !commandResult.value) {
+      this.logger.error(`Invalid command for POI ${poiId}: ${commandResult.error}`);
+      throw new BadRequestException(commandResult.error);
+    }
+
+    const result = await this.commandBus.execute(commandResult.value);
+
+    if (result.isFailure) {
+      this.logger.error(`Failed to remove POI ${poiId} from Lagekarte ${lagekarteId}: ${result.error}`);
+
+      if (result.error?.includes('nicht gefunden')) {
+        throw new NotFoundException(result.error);
+      }
+
+      throw new BadRequestException(result.error);
+    }
+
+    // Load updated Lagekarte and return DTO
+    const lagekarte = await this.loadAndMapLagekarte(lagekarteId);
+    this.logger.log(`POI ${poiId} removed from Lagekarte ${lagekarteId}`);
+    return lagekarte;
+  }
+
+  /**
+   * Lagekarte für Einsatz abrufen (AC 5)
+   *
+   * Nutzt GetLagekarteQuery via QueryBus.
+   * Alternative Route zu GET /einsatz/:einsatzId/lagekarte (Legacy).
+   *
+   * @param einsatzId - ID des Einsatzes
+   * @returns Lagekarte mit allen POIs oder null wenn nicht gefunden
+   */
+  @Get('einsatz/:einsatzId')
+  @ApiOperation({
+    summary: 'Lagekarte für Einsatz abrufen',
+    description: 'Gibt die Lagekarte für einen Einsatz zurück. Nutzt CQRS QueryBus für Read-Operations.',
+  })
+  @ApiOkResponse({ type: LagekarteDto, description: 'Lagekarte erfolgreich abgerufen' })
+  @ApiNotFoundResponse({ description: 'Lagekarte nicht gefunden' })
+  @ApiBadRequestResponse({ description: 'Ungültige Einsatz-ID' })
+  async getLagekarteByEinsatzId(@Param('einsatzId') einsatzId: string): Promise<LagekarteDto | null> {
+    this.logger.log(`Getting Lagekarte for Einsatz ${einsatzId} (via QueryBus)`);
+
+    const query = new GetLagekarteQuery(einsatzId);
+    const result = await this.queryBus.execute(query);
+
+    if (result.isFailure) {
+      this.logger.error(`Failed to get Lagekarte for Einsatz ${einsatzId}: ${result.error}`);
+      throw new NotFoundException(result.error);
+    }
+
+    this.logger.log(`Lagekarte ${result.value?.id ?? 'null'} returned for Einsatz ${einsatzId}`);
+    return result.value ?? null;
+  }
+
+  /**
+   * POIs einer Lagekarte abrufen (AC 6)
+   *
+   * Nutzt GetPoisQuery via QueryBus.
+   *
+   * @param lagekarteId - ID der Lagekarte
+   * @returns Liste aller POIs
+   */
+  @Get(':lagekarteId/pois')
+  @ApiOperation({
+    summary: 'POIs einer Lagekarte abrufen',
+    description: 'Gibt alle POIs einer Lagekarte zurück. Nutzt CQRS QueryBus für Read-Operations.',
+  })
+  @ApiOkResponse({ type: [PoiDto], description: 'POIs erfolgreich abgerufen' })
+  @ApiNotFoundResponse({ description: 'Lagekarte nicht gefunden' })
+  @ApiBadRequestResponse({ description: 'Ungültige Lagekarte-ID' })
+  async getPois(@Param('lagekarteId') lagekarteId: string): Promise<PoiDto[]> {
+    this.logger.log(`Getting POIs for Lagekarte ${lagekarteId} (via QueryBus)`);
+
+    const query = new GetPoisQuery(lagekarteId);
+    const result = await this.queryBus.execute(query);
+
+    if (result.isFailure || !result.value) {
+      this.logger.error(`Failed to get POIs for Lagekarte ${lagekarteId}: ${result.error}`);
+      throw new NotFoundException(result.error ?? 'POIs not found');
+    }
+
+    this.logger.log(`${result.value.length} POIs returned for Lagekarte ${lagekarteId}`);
+    return result.value;
   }
 }

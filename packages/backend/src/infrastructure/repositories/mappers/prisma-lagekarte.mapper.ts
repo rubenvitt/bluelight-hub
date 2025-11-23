@@ -3,6 +3,7 @@ import { LagekarteAggregate as LagekarteAggregateImpl } from '@domain/aggregates
 import type { Lagekarte, LagekartePoi, Prisma } from '@prisma/client';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { UserId } from '@domain/value-objects/user-id';
 import { PrismaPoiMapper } from './prisma-poi.mapper';
 
 /**
@@ -115,8 +116,15 @@ export class PrismaLagekarteMapper {
     const pois = prisma.pois.map((prismaPoi) => PrismaPoiMapper.toEntity(prismaPoi));
 
     // Aggregate Reconstruction via create() + manual property override
-    // HINWEIS: create() validiert nur einsatzId, wir überschreiben dann ID + Timestamps
-    const aggregate = LagekarteAggregateImpl.create(einsatzId);
+    // HINWEIS: create() validiert einsatzId + createdBy, wir überschreiben dann ID + Timestamps
+    // Dummy UserId für Reconstruction (Events werden ohnehin geclearet)
+    const dummyUserIdResult = UserId.create();
+    if (dummyUserIdResult.isFailure) {
+      throw new Error(`Failed to create dummy UserId: ${dummyUserIdResult.error}`);
+    }
+    const dummyUserId = dummyUserIdResult.value as UserId;
+
+    const aggregate = LagekarteAggregateImpl.create(einsatzId, dummyUserId);
     if (aggregate.isFailure) {
       throw new Error(`Failed to create aggregate: ${aggregate.error}`);
     }

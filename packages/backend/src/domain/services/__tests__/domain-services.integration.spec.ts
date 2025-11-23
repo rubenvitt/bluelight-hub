@@ -22,8 +22,20 @@ import { EinsatzNamingService } from '../einsatz-naming.service';
 
 // Mock für nanoid (für deterministische Tests)
 // WICHTIG: Nutzt deterministisches Pattern statt Math.random() für zuverlässige CI/CD Tests
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length = 21) => 'A'.repeat(length)), // Deterministische ID-Generierung
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
 }));
 
 describe('Domain Services Integration', () => {
@@ -131,6 +143,7 @@ describe('Domain Services Integration', () => {
 
       // Create Einsatz with empty alarmstichwort (bypassing factory validation)
       const incompleteEinsatz1 = createTestEinsatz('Valid', true);
+      // biome-ignore lint/suspicious/noExplicitAny: Test bypasses factory validation for testing edge case
       (incompleteEinsatz1 as any)._alarmstichwort = ''; // Manually set to empty after creation
       incompleteEinsatz1.updateStatus(EinsatzStatus.IN_BEARBEITUNG());
 
@@ -168,6 +181,7 @@ describe('Domain Services Integration', () => {
         // Manually set abgeschlossenAt to simulate age
         const completedAt = new Date(currentDate);
         completedAt.setFullYear(completedAt.getFullYear() - yearsOld);
+        // biome-ignore lint/suspicious/noExplicitAny: Test bypasses factory for date simulation
         (einsatz as any)._abgeschlossenAt = completedAt;
 
         return einsatz;
@@ -193,6 +207,7 @@ describe('Domain Services Integration', () => {
     it('should block archival if Einsatz is incomplete', () => {
       // GIVEN: Incomplete Einsatz (manually set empty alarmstichwort)
       const incompleteEinsatz = createTestEinsatz('Valid', true);
+      // biome-ignore lint/suspicious/noExplicitAny: Test bypasses factory validation for testing edge case
       (incompleteEinsatz as any)._alarmstichwort = ''; // Manually set to empty after creation
       incompleteEinsatz.updateStatus(EinsatzStatus.IN_BEARBEITUNG());
 
@@ -253,11 +268,13 @@ describe('Domain Services Integration', () => {
       const abgeschlossen = createTestEinsatz();
       abgeschlossen.updateStatus(EinsatzStatus.IN_BEARBEITUNG());
       abgeschlossen.complete(createTestUserId());
+      // biome-ignore lint/suspicious/noExplicitAny: Test bypasses factory for date simulation
       (abgeschlossen as any)._abgeschlossenAt = completedAt; // Simulate 10 years old
 
       const archiviert = createTestEinsatz();
       archiviert.updateStatus(EinsatzStatus.IN_BEARBEITUNG());
       archiviert.complete(createTestUserId());
+      // biome-ignore lint/suspicious/noExplicitAny: Test bypasses factory for date simulation
       (archiviert as any)._abgeschlossenAt = completedAt;
       archiviert.archive(); // Already archived
 

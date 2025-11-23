@@ -1,5 +1,4 @@
 import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
-import { Result } from '@domain/common/result';
 
 describe('MgrsCoordinate', () => {
   describe('fromString() - Factory Method', () => {

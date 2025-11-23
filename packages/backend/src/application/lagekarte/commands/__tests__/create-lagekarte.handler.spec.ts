@@ -2,35 +2,39 @@ import { CreateLagekarteCommandHandler } from '../create-lagekarte.handler';
 import { CreateLagekarteCommand } from '../create-lagekarte.command';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { Result } from '@domain/common/result';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 
-// Mock nanoid for deterministic test IDs
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    // Generate valid nanoid format: URL-safe characters only (A-Za-z0-9_-)
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const targetLength = length || 21;
-    let result = '';
-    for (let i = 0; i < targetLength; i++) {
+// Mock cuid2 for deterministic test IDs
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
   }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
 }));
 
 /**
- * Helper function: Generates valid 21-character nanoid for testing.
- * Uses URL-safe characters (A-Za-z0-9_-) as per nanoid format.
+ * Helper function: Generates valid CUID2-format test ID.
+ * CUID2 format: 20-30 chars, lowercase a-z0-9, starts with lowercase letter.
  */
-function createValidTestId(prefix = 'test'): string {
-  // Create exactly 21 characters (padded with valid chars)
-  const validChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-  let id = prefix;
-  while (id.length < 21) {
-    id += validChars.charAt(Math.floor(Math.random() * validChars.length));
-  }
-  return id.substring(0, 21); // Ensure exactly 21 chars
+function createValidTestId(suffix = ''): string {
+  const base = 'clw3h8x9y0000qwertyui';
+  const safeSuffix = suffix
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .padEnd(5, '0')
+    .slice(0, 5);
+  return base + safeSuffix;
 }
 
 /**
@@ -46,6 +50,7 @@ describe('CreateLagekarteCommandHandler', () => {
   let handler: CreateLagekarteCommandHandler;
   let mockEinsatzRepo: jest.Mocked<IEinsatzRepository>;
   let mockLagekarteRepo: jest.Mocked<ILagekarteRepository>;
+  let mockEventPublisher: jest.Mocked<IEventPublisher>;
 
   beforeEach(() => {
     // Create mock repositories with all required methods
@@ -55,6 +60,7 @@ describe('CreateLagekarteCommandHandler', () => {
       save: jest.fn(),
       findActive: jest.fn(),
       findByNummer: jest.fn(),
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
     mockLagekarteRepo = {
@@ -62,10 +68,17 @@ describe('CreateLagekarteCommandHandler', () => {
       findById: jest.fn(),
       findByEinsatzId: jest.fn(),
       exists: jest.fn(),
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
+    // Create mock event publisher
+    mockEventPublisher = {
+      publish: jest.fn().mockResolvedValue(undefined),
+      publishAll: jest.fn().mockResolvedValue(undefined),
+    };
+
     // Instantiate handler with mocks (Direct Instantiation Pattern)
-    handler = new CreateLagekarteCommandHandler(mockEinsatzRepo, mockLagekarteRepo);
+    handler = new CreateLagekarteCommandHandler(mockEinsatzRepo, mockLagekarteRepo, mockEventPublisher);
   });
 
   afterEach(() => {
@@ -191,17 +204,17 @@ describe('CreateLagekarteCommandHandler', () => {
       // Then
       expect(result.isSuccess).toBe(true);
 
-      // Verify domain event emitted
-      const savedAggregate = mockLagekarteRepo.save.mock.calls[0][0];
-      const events = savedAggregate.getDomainEvents();
-      expect(events.length).toBe(1);
-      expect(events[0].constructor.name).toBe('PoiAddedEvent');
-      expect(events[0]).toMatchObject({
+      // Verify domain event was published via eventPublisher
+      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
+      expect(publishedEvents.length).toBe(2); // LagekarteCreatedEvent + PoiAddedEvent
+      expect(publishedEvents[1].constructor.name).toBe('PoiAddedEvent');
+      expect(publishedEvents[1]).toMatchObject({
         name: 'Brandenburger Tor', // Event uses 'name', not 'poiName'
       });
     });
 
-    it('should NOT emit events when no initialPoi provided', async () => {
+    it('should only emit LagekarteCreatedEvent when no initialPoi provided', async () => {
       // Given
       const einsatzId = createValidTestId('ein123');
       const command = CreateLagekarteCommand.create(einsatzId).value!;
@@ -217,22 +230,23 @@ describe('CreateLagekarteCommandHandler', () => {
       // Then
       expect(result.isSuccess).toBe(true);
 
-      // Verify NO events emitted
-      const savedAggregate = mockLagekarteRepo.save.mock.calls[0][0];
-      const events = savedAggregate.getDomainEvents();
-      expect(events.length).toBe(0);
+      // Verify only LagekarteCreatedEvent was published (no PoiAddedEvent)
+      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
+      expect(publishedEvents.length).toBe(1);
+      expect(publishedEvents[0].constructor.name).toBe('LagekarteCreatedEvent');
     });
   });
 
   describe('Failure Cases - EinsatzId validation', () => {
     it('should fail when EinsatzId format is invalid', async () => {
       // Given
-      const invalidEinsatzId = ''; // Invalid format (caught by EinsatzId.create())
+      const _invalidEinsatzId = ''; // Invalid format (caught by EinsatzId.create())
       const command = CreateLagekarteCommand.create('valid-id').value!; // Command validation passes
 
       // Mock EinsatzId.create() failure by using invalid ID
       // When
-      const result = await handler.execute(command);
+      const _result = await handler.execute(command);
 
       // Then: EinsatzId.create() validation happens in handler
       // Note: Since we're using 'valid-id', this won't fail. Let's test with actual invalid ID handled by constructor
@@ -290,6 +304,7 @@ describe('CreateLagekarteCommandHandler', () => {
       const existingLagekarteId = createValidTestId('lagekarte');
       const existingAggregate = {
         id: { value: existingLagekarteId },
+        // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
       } as any; // Mock aggregate
       mockLagekarteRepo.findByEinsatzId.mockResolvedValue(existingAggregate);
 
@@ -532,7 +547,7 @@ describe('CreateLagekarteCommandHandler', () => {
       expect(existsCall.equals(findByEinsatzIdCall)).toBe(true);
     });
 
-    it('should verify NO event publishing yet (Epic 2.7 deferred)', async () => {
+    it('should verify event publishing happens after successful save', async () => {
       // Given
       const einsatzId = createValidTestId('ein123');
       const initialPoi = {
@@ -550,23 +565,112 @@ describe('CreateLagekarteCommandHandler', () => {
       // When
       await handler.execute(command);
 
-      // Then: Verify events are NOT published (only stored in aggregate)
-      const savedAggregate = mockLagekarteRepo.save.mock.calls[0][0];
-      const events = savedAggregate.getDomainEvents();
+      // Then: Verify events are published via eventPublisher
+      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
+      expect(publishedEvents.length).toBeGreaterThan(0);
+    });
+  });
 
-      // Events should exist in aggregate but NOT published yet
-      expect(events.length).toBeGreaterThan(0);
+  describe('Event Publishing', () => {
+    it('should publish LagekarteCreatedEvent after successful save (no initialPoi)', async () => {
+      // Given
+      const einsatzId = createValidTestId('ein123');
+      const command = CreateLagekarteCommand.create(einsatzId).value!;
 
-      // Verify NO eventPublisher injected/called (TODO Epic 2.7)
-      // This test documents current behavior - will change in Epic 2.7
-      expect(true).toBe(true); // Placeholder assertion
+      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
+      mockLagekarteRepo.findByEinsatzId.mockResolvedValue(null);
+      mockLagekarteRepo.save.mockResolvedValue(undefined);
+
+      // When
+      await handler.execute(command);
+
+      // Then
+      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
+      expect(publishedEvents.length).toBe(1);
+      expect(publishedEvents[0].constructor.name).toBe('LagekarteCreatedEvent');
+    });
+
+    it('should publish both LagekarteCreatedEvent AND PoiAddedEvent when initialPoi provided', async () => {
+      // Given
+      const einsatzId = createValidTestId('ein123');
+      const initialPoi = {
+        name: 'Brandenburger Tor',
+        coordinate: { lat: 52.5163, lng: 13.3777 },
+        category: 'EINSATZSTELLE',
+      };
+      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
+
+      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
+      mockLagekarteRepo.findByEinsatzId.mockResolvedValue(null);
+      mockLagekarteRepo.save.mockResolvedValue(undefined);
+
+      // When
+      await handler.execute(command);
+
+      // Then
+      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
+      expect(publishedEvents.length).toBe(2);
+      expect(publishedEvents[0].constructor.name).toBe('LagekarteCreatedEvent');
+      expect(publishedEvents[1].constructor.name).toBe('PoiAddedEvent');
+    });
+
+    it('should NOT publish events when Einsatz not found', async () => {
+      // Given
+      const einsatzId = createValidTestId('ein123');
+      const command = CreateLagekarteCommand.create(einsatzId).value!;
+
+      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(false));
+
+      // When
+      const result = await handler.execute(command);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+    });
+
+    it('should NOT publish events when save fails', async () => {
+      // Given
+      const einsatzId = createValidTestId('ein123');
+      const command = CreateLagekarteCommand.create(einsatzId).value!;
+
+      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
+      mockLagekarteRepo.findByEinsatzId.mockResolvedValue(null);
+      mockLagekarteRepo.save.mockRejectedValue(new Error('DB Error'));
+
+      // When
+      const result = await handler.execute(command);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+    });
+
+    it('should clear domain events after publishing', async () => {
+      // Given
+      const einsatzId = createValidTestId('ein123');
+      const command = CreateLagekarteCommand.create(einsatzId).value!;
+
+      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
+      mockLagekarteRepo.findByEinsatzId.mockResolvedValue(null);
+      mockLagekarteRepo.save.mockResolvedValue(undefined);
+
+      // When
+      await handler.execute(command);
+
+      // Then: Events are cleared after publishing (aggregate is modified)
+      // We verify publishAll was called, which is followed by clearDomainEvents
+      expect(mockEventPublisher.publishAll).toHaveBeenCalled();
     });
   });
 
   describe('Edge Cases', () => {
     it('should handle einsatzId with all valid characters', async () => {
-      // Given: Test with all types of valid nanoid characters (A-Za-z0-9_-)
-      const complexEinsatzId = 'AZaz09_-0123456789XYZ'; // Exactly 21 chars with all valid types
+      // Given: Test with all types of valid CUID2 characters (a-z0-9, starts with letter)
+      const complexEinsatzId = 'clw3h8x9y0000qwertyuiazaz0'; // Valid CUID2 format
       const command = CreateLagekarteCommand.create(complexEinsatzId).value!;
 
       // Mock: Einsatz exists

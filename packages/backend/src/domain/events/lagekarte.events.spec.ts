@@ -1,13 +1,17 @@
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock cuid2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -59,18 +63,21 @@ describe('Lagekarte Domain Events', () => {
       expect(event.coordinate).toBe(berlinMgrs);
       expect(event.category).toBe(testCategory);
       expect(event.createdBy).toBe(testUserId);
-      expect(event.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
       expect(event.occurredAt).toBeInstanceOf(Date);
     });
 
-    it('should auto-generate eventId (nanoid)', () => {
+    it('should auto-generate eventId (cuid2)', () => {
       // Given/When: Create event
       const event = new PoiAddedEvent(testLagekarteId, testPoiId, 'POI', berlinMgrs, testCategory, testUserId);
 
-      // Then: eventId is auto-generated nanoid (21 chars)
+      // Then: eventId is auto-generated cuid2 (20-30 chars, starts with lowercase)
       expect(event.eventId).toBeDefined();
-      expect(event.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
-      expect(event.eventId.length).toBe(21);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should auto-generate occurredAt timestamp', () => {
@@ -110,8 +117,8 @@ describe('Lagekarte Domain Events', () => {
 
       // When/Then: All eventIds are unique
       expect(event1.eventId).not.toBe(event2.eventId);
-      expect(event1.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
-      expect(event2.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event1.eventId).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(event2.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should have readonly properties (immutability)', () => {
@@ -166,7 +173,9 @@ describe('Lagekarte Domain Events', () => {
       expect(event.lagekarteId).toBe(testLagekarteId);
       expect(event.poiId).toBe(testPoiId);
       expect(event.removedBy).toBe(testUserId);
-      expect(event.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
       expect(event.occurredAt).toBeInstanceOf(Date);
     });
 
@@ -180,7 +189,9 @@ describe('Lagekarte Domain Events', () => {
       // Then: Auto-generated fields are set
       const after = new Date();
       expect(event.eventId).toBeDefined();
-      expect(event.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
       expect(event.occurredAt).toBeInstanceOf(Date);
       expect(event.occurredAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
       expect(event.occurredAt.getTime()).toBeLessThanOrEqual(after.getTime());
@@ -217,8 +228,8 @@ describe('Lagekarte Domain Events', () => {
 
       // When/Then: All eventIds are unique
       expect(event1.eventId).not.toBe(event2.eventId);
-      expect(event1.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
-      expect(event2.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event1.eventId).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(event2.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should work with typed value objects', () => {
@@ -243,7 +254,9 @@ describe('Lagekarte Domain Events', () => {
       expect(event.oldCoordinate).toBe(berlinMgrs);
       expect(event.newCoordinate).toBe(hamburgMgrs);
       expect(event.updatedBy).toBe(testUserId);
-      expect(event.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
       expect(event.occurredAt).toBeInstanceOf(Date);
     });
 
@@ -257,7 +270,9 @@ describe('Lagekarte Domain Events', () => {
       // Then: Auto-generated fields are set
       const after = new Date();
       expect(event.eventId).toBeDefined();
-      expect(event.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
       expect(event.occurredAt).toBeInstanceOf(Date);
       expect(event.occurredAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
       expect(event.occurredAt.getTime()).toBeLessThanOrEqual(after.getTime());
@@ -307,8 +322,8 @@ describe('Lagekarte Domain Events', () => {
 
       // When/Then: All eventIds are unique
       expect(event1.eventId).not.toBe(event2.eventId);
-      expect(event1.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
-      expect(event2.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event1.eventId).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(event2.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should work with typed value objects', () => {

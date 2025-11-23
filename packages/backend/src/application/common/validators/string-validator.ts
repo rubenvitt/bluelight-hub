@@ -15,22 +15,35 @@ export function validateRequiredString(value: string | undefined, fieldName: str
 }
 
 /**
- * Nanoid format: 21 characters, alphanumeric + underscore and hyphen.
+ * CUID2 format: 20-30 characters, lowercase a-z0-9, starts with lowercase letter.
+ * This is the format used by @paralleldrive/cuid2 for Entity IDs.
  */
-export const NANOID_REGEX = /^[A-Za-z0-9_-]{21}$/;
+export const CUID2_REGEX = /^[a-z][a-z0-9]{19,29}$/;
 
 /**
- * Validiert, ob ein String dem Nanoid-Format entspricht (21 Zeichen).
+ * @deprecated Use validateCuid2Format instead. Kept for backwards compatibility.
+ */
+export const NANOID_REGEX = CUID2_REGEX;
+
+/**
+ * Validiert, ob ein String dem CUID2-Format entspricht.
  *
- * Nanoid-Format: Genau 21 alphanumerische Zeichen (A-Z, a-z, 0-9, _, -).
- * Verwendet für alle Entity-IDs im System.
+ * CUID2-Format: 20-30 Zeichen, nur lowercase (a-z, 0-9), startet mit Kleinbuchstabe.
+ * Verwendet für alle Entity-IDs im System nach Migration von Nanoid.
  *
  * @param value - Der zu validierende String
  * @param fieldName - Name des Feldes (für Fehlermeldung)
  * @throws Error wenn Format ungültig
  */
-export function validateNanoidFormat(value: string, fieldName: string): void {
-  if (!NANOID_REGEX.test(value)) {
-    throw new Error(`${fieldName} must be a valid nanoid format (21 alphanumeric characters)`);
+export function validateCuid2Format(value: string, fieldName: string): void {
+  if (!CUID2_REGEX.test(value)) {
+    throw new Error(`${fieldName} must be a valid CUID2 format (20-30 lowercase alphanumeric characters, starting with a letter)`);
   }
+}
+
+/**
+ * @deprecated Use validateCuid2Format instead. Kept for backwards compatibility.
+ */
+export function validateNanoidFormat(value: string, fieldName: string): void {
+  validateCuid2Format(value, fieldName);
 }

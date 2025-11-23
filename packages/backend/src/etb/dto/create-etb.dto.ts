@@ -1,15 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty } from 'class-validator';
+import { IsCuid } from '@/common/decorators/is-cuid.decorator';
 
 /**
  * DTO zum Erstellen eines neuen ETB für einen Einsatz.
  */
 export class CreateEtbDto {
   @ApiProperty({
-    description: 'ID of the Einsatz for which to create the ETB',
-    example: '1FbFxKghXUeg3Od0Slhr1',
+    description: 'ID des Einsatzes, für den das ETB erstellt werden soll (CUID)',
+    example: 'clw3h8x9y0000qwertyuiopas',
   })
-  @IsString({ message: 'einsatzId muss eine Zeichenkette sein' })
+  @IsCuid({ message: 'einsatzId muss eine gültige CUID sein' })
   @IsNotEmpty({ message: 'einsatzId darf nicht leer sein' })
   einsatzId!: string;
 }

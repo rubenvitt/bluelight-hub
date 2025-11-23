@@ -8,22 +8,36 @@ import { EinsatzCompletedEvent } from '@domain/events/einsatz-completed.event';
 import { EinsatzArchivedEvent } from '@domain/events/einsatz-archived.event';
 import { EinsatzStatusChangedEvent } from '@domain/events/einsatz-status-changed.event';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    // Generate valid nanoid format with specified length
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const targetLength = length || 21;
-    let result = '';
-    for (let i = 0; i < targetLength; i++) {
+// Mock CUID2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    // Generate valid CUID2 format: starts with lowercase letter, 20-30 lowercase alphanumeric chars
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
   }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
 }));
 
-// Import after mock setup
-const { nanoid } = require('nanoid/non-secure');
+/**
+ * Helper function: Erstellt eine deterministische Test-CUID.
+ * Nützlich für Tests, die vorhersagbare IDs benötigen.
+ *
+ * @param suffix - Optionaler Suffix für Eindeutigkeit zwischen Tests
+ * @returns Gültige CUID2-formatierte Test-ID
+ */
+function _generateTestCuid(suffix = ''): string {
+  const base = 'clw3h8x9y0000qwertyu';
+  const padding = suffix.padEnd(5, '0').slice(0, 5);
+  return base + padding;
+}
 
 /**
  * Helper function: Erstellt einen Test-Einsatz mit Standardwerten.
@@ -160,7 +174,7 @@ describe('Einsatz Aggregate', () => {
       expect(result.error).toContain('Alarmstichwort ist erforderlich');
     });
 
-    it('should auto-generate nummer in format E{YEAR}-{NANOID-6}', () => {
+    it('should auto-generate nummer in format E{YEAR}-{CUID-8}', () => {
       // Given: Valid props
       const props = {
         alarmstichwort: 'Test',
@@ -170,9 +184,9 @@ describe('Einsatz Aggregate', () => {
       // When: Creating Einsatz
       const result = Einsatz.create(props);
 
-      // Then: Nummer matches pattern E{YEAR}-{6-char-nanoid}
+      // Then: Nummer matches pattern E{YEAR}-{8-char-cuid}
       const year = new Date().getFullYear();
-      expect(result.value?.nummer).toMatch(new RegExp(`^E${year}-[A-Za-z0-9_-]{6}$`));
+      expect(result.value?.nummer).toMatch(new RegExp(`^E${year}-[a-z0-9]{8}$`));
     });
 
     it('should generate unique nummer for each Einsatz', () => {
@@ -182,7 +196,7 @@ describe('Einsatz Aggregate', () => {
         createdBy: UserId.create().value!,
       };
 
-      // When: Creating multiple Einsätze
+      // When: Creating multiple Einsaetze
       const einsatz1 = Einsatz.create(props).value!;
       const einsatz2 = Einsatz.create(props).value!;
       const einsatz3 = Einsatz.create(props).value!;
@@ -193,7 +207,7 @@ describe('Einsatz Aggregate', () => {
       expect(einsatz1.nummer).not.toBe(einsatz3.nummer);
     });
 
-    it('should auto-generate EinsatzId (valid nanoid)', () => {
+    it('should auto-generate EinsatzId (valid CUID)', () => {
       // Given: Valid props
       const props = {
         alarmstichwort: 'Test',
@@ -203,9 +217,9 @@ describe('Einsatz Aggregate', () => {
       // When: Creating Einsatz
       const einsatz = Einsatz.create(props).value!;
 
-      // Then: Valid EinsatzId (21-char nanoid)
+      // Then: Valid EinsatzId (CUID format: lowercase letter followed by lowercase alphanumeric)
       expect(einsatz.id).toBeDefined();
-      expect(einsatz.id.value).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(einsatz.id.value).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should set initial status to ANGELEGT', () => {
@@ -267,8 +281,8 @@ describe('Einsatz Aggregate', () => {
       // When: Accessing nummer
       const nummer = einsatz.nummer;
 
-      // Then: Returns auto-generated nummer
-      expect(nummer).toMatch(/^E\d{4}-[A-Za-z0-9_-]{6}$/);
+      // Then: Returns auto-generated nummer (CUID format)
+      expect(nummer).toMatch(/^E\d{4}-[a-z0-9]{8}$/);
     });
 
     it('should provide readonly access to alarmstichwort', () => {
@@ -381,7 +395,7 @@ describe('Einsatz Aggregate', () => {
   });
 
   describe('Status Transitions - Valid Paths', () => {
-    it('should transition ANGELEGT → ABGESCHLOSSEN via complete()', () => {
+    it('should transition ANGELEGT -> ABGESCHLOSSEN via complete()', () => {
       // Given: Einsatz in ANGELEGT status
       const einsatz = createTestEinsatz();
       const userId = UserId.create().value!;
@@ -396,7 +410,7 @@ describe('Einsatz Aggregate', () => {
       expect(einsatz.status.value).toBe('ABGESCHLOSSEN');
     });
 
-    it('should transition ANGELEGT → IN_BEARBEITUNG via updateStatus()', () => {
+    it('should transition ANGELEGT -> IN_BEARBEITUNG via updateStatus()', () => {
       // Given: Einsatz in ANGELEGT status
       const einsatz = createTestEinsatz();
 
@@ -408,7 +422,7 @@ describe('Einsatz Aggregate', () => {
       expect(einsatz.status.value).toBe('IN_BEARBEITUNG');
     });
 
-    it('should transition ANGELEGT → ARCHIVIERT via archive()', () => {
+    it('should transition ANGELEGT -> ARCHIVIERT via archive()', () => {
       // Given: Einsatz in ANGELEGT status
       const einsatz = createTestEinsatz();
       const userId = UserId.create().value!;
@@ -421,7 +435,7 @@ describe('Einsatz Aggregate', () => {
       expect(einsatz.status.value).toBe('ARCHIVIERT');
     });
 
-    it('should transition IN_BEARBEITUNG → ABGESCHLOSSEN via complete()', () => {
+    it('should transition IN_BEARBEITUNG -> ABGESCHLOSSEN via complete()', () => {
       // Given: Einsatz in IN_BEARBEITUNG status
       const einsatz = createTestEinsatz();
       einsatz.updateStatus(EinsatzStatus.IN_BEARBEITUNG());
@@ -435,7 +449,7 @@ describe('Einsatz Aggregate', () => {
       expect(einsatz.status.value).toBe('ABGESCHLOSSEN');
     });
 
-    it('should transition IN_BEARBEITUNG → ARCHIVIERT via archive()', () => {
+    it('should transition IN_BEARBEITUNG -> ARCHIVIERT via archive()', () => {
       // Given: Einsatz in IN_BEARBEITUNG status
       const einsatz = createTestEinsatz();
       einsatz.updateStatus(EinsatzStatus.IN_BEARBEITUNG());
@@ -449,7 +463,7 @@ describe('Einsatz Aggregate', () => {
       expect(einsatz.status.value).toBe('ARCHIVIERT');
     });
 
-    it('should transition ABGESCHLOSSEN → ARCHIVIERT via archive()', () => {
+    it('should transition ABGESCHLOSSEN -> ARCHIVIERT via archive()', () => {
       // Given: Einsatz in ABGESCHLOSSEN status
       const einsatz = createTestEinsatz();
       const userId = UserId.create().value!;
@@ -572,7 +586,7 @@ describe('Einsatz Aggregate', () => {
   });
 
   describe('Status Transitions - Invalid Paths', () => {
-    it('should block backward transition ABGESCHLOSSEN → ANGELEGT', () => {
+    it('should block backward transition ABGESCHLOSSEN -> ANGELEGT', () => {
       // Given: Einsatz in ABGESCHLOSSEN status
       const einsatz = createTestEinsatz();
       einsatz.complete(UserId.create().value!);
@@ -589,7 +603,7 @@ describe('Einsatz Aggregate', () => {
       expect(einsatz.status.value).toBe('ABGESCHLOSSEN'); // Status unchanged
     });
 
-    it('should block backward transition ABGESCHLOSSEN → IN_BEARBEITUNG', () => {
+    it('should block backward transition ABGESCHLOSSEN -> IN_BEARBEITUNG', () => {
       // Given: Einsatz in ABGESCHLOSSEN status
       const einsatz = createTestEinsatz();
       einsatz.complete(UserId.create().value!);
@@ -603,7 +617,7 @@ describe('Einsatz Aggregate', () => {
       expect(einsatz.status.value).toBe('ABGESCHLOSSEN');
     });
 
-    it('should block backward transition IN_BEARBEITUNG → ANGELEGT', () => {
+    it('should block backward transition IN_BEARBEITUNG -> ANGELEGT', () => {
       // Given: Einsatz in IN_BEARBEITUNG status
       const einsatz = createTestEinsatz();
       einsatz.updateStatus(EinsatzStatus.IN_BEARBEITUNG());
@@ -723,7 +737,7 @@ describe('Einsatz Aggregate', () => {
     });
 
     it('should enforce NO-DELETE policy for all statuses', () => {
-      // Given: Einsätze in verschiedenen Zuständen
+      // Given: Einsaetze in verschiedenen Zustaenden
       const einsatzAngelegt = createTestEinsatz();
       const einsatzInBearbeitung = createTestEinsatz();
       einsatzInBearbeitung.updateStatus(EinsatzStatus.IN_BEARBEITUNG());
@@ -898,6 +912,7 @@ describe('Einsatz Aggregate', () => {
       // When: Getting events and mutating copy
       const events1 = einsatz.getDomainEvents();
       const originalLength = events1.length;
+      // biome-ignore lint/suspicious/noExplicitAny: Test verifies shallow copy behavior
       events1.push({} as any); // Mutate copy
 
       // Then: Original events unchanged
@@ -920,7 +935,7 @@ describe('Einsatz Aggregate', () => {
     });
 
     it('should return false for different instances with different IDs', () => {
-      // Given: Two different Einsätze
+      // Given: Two different Einsaetze
       const einsatz1 = createTestEinsatz();
       const einsatz2 = createTestEinsatz();
 
@@ -937,6 +952,7 @@ describe('Einsatz Aggregate', () => {
       const einsatz = createTestEinsatz();
 
       // When: Comparing with undefined
+      // biome-ignore lint/suspicious/noExplicitAny: Test verifies null-safety
       const areEqual = einsatz.equals(undefined as any);
 
       // Then: Returns false
@@ -948,6 +964,7 @@ describe('Einsatz Aggregate', () => {
       const einsatz = createTestEinsatz();
 
       // When: Comparing with null
+      // biome-ignore lint/suspicious/noExplicitAny: Test verifies null-safety
       const areEqual = einsatz.equals(null as any);
 
       // Then: Returns false
@@ -955,7 +972,7 @@ describe('Einsatz Aggregate', () => {
     });
 
     it('should use identity equality (not structural equality)', () => {
-      // Given: Two Einsätze with identical properties (but different IDs)
+      // Given: Two Einsaetze with identical properties (but different IDs)
       const props = {
         alarmstichwort: 'Identical',
         createdBy: UserId.create().value!,
@@ -984,7 +1001,7 @@ describe('Einsatz Aggregate', () => {
       // When: Attempting to complete again
       const result = einsatz.complete(userId);
 
-      // Then: Failure (can't transition ABGESCHLOSSEN → ABGESCHLOSSEN)
+      // Then: Failure (can't transition ABGESCHLOSSEN -> ABGESCHLOSSEN)
       expect(result.isFailure).toBe(true);
       expect(result.error).toContain('Ungültige Status-Transition');
       expect(einsatz.abgeschlossenAt).toBe(firstCompletedAt); // Unchanged
@@ -1100,9 +1117,9 @@ describe('Einsatz Aggregate', () => {
       // When: Accessing ID
       const id = einsatz.id;
 
-      // Then: Is EinsatzId instance
+      // Then: Is EinsatzId instance with valid CUID format
       expect(id).toBeInstanceOf(EinsatzId);
-      expect(id.value).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(id.value).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should work with EinsatzStatus value object', () => {

@@ -1,21 +1,40 @@
 import { EntityId } from '@domain/common/entity-id';
 import { Result } from '@domain/common/result';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  }),
-}));
+// Mock CUID2 for Jest compatibility (ESM module issue)
+// CUID2 generiert ~25 Zeichen, beginnt mit Kleinbuchstabe, nur [a-z0-9]
+jest.mock('@paralleldrive/cuid2', () => {
+  // Counter für deterministische Test-IDs
+  let _counter = 0;
+  return {
+    createId: jest.fn(() => {
+      // Generate valid CUID2 format: starts with lowercase letter, then alphanumeric
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      let result = 'c'; // CUID2 startet typischerweise mit 'c'
+      for (let i = 0; i < 24; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      _counter++;
+      return result;
+    }),
+    isCuid: jest.fn((id: string) => {
+      // CUID2 validation: starts with lowercase letter, only [a-z0-9], ~24-25 chars
+      if (typeof id !== 'string') return false;
+      if (id.length < 20 || id.length > 30) return false;
+      return /^[a-z][a-z0-9]+$/.test(id);
+    }),
+  };
+});
 
-// Import after mock setup
-const { nanoid } = require('nanoid/non-secure');
+/**
+ * Helper function to generate valid test CUIDs.
+ * Generates deterministic CUID-like IDs for testing.
+ */
+function generateTestCuid(suffix = ''): string {
+  const base = 'clw3h8x9y0000qwertyu';
+  const padding = suffix.padEnd(5, '0').slice(0, 5);
+  return base + padding;
+}
 
 /**
  * Test-Implementierung einer konkreten EntityId Klasse.
@@ -25,36 +44,38 @@ class TestEntityId extends EntityId<'TestEntity'> {}
 
 describe('EntityId<TAggregateType>', () => {
   describe('create() - Factory Method', () => {
-    it('should auto-generate valid nanoid when no id parameter provided', () => {
+    it('should auto-generate valid CUID when no id parameter provided', () => {
       // Given: No ID parameter
       const noIdParameter = undefined;
 
       // When: Creating EntityId without parameter
       const result = TestEntityId.create(noIdParameter);
 
-      // Then: Success with auto-generated nanoid
+      // Then: Success with auto-generated CUID
       expect(result.isSuccess).toBe(true);
       expect(result.value).toBeDefined();
-      expect(result.value?.value).toMatch(/^[A-Za-z0-9_-]{21}$/);
-      expect(result.value?.value).toHaveLength(21);
+      // CUID2 format: starts with lowercase letter, only [a-z0-9], ~25 chars
+      expect(result.value?.value).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(result.value?.value.length).toBeGreaterThanOrEqual(20);
+      expect(result.value?.value.length).toBeLessThanOrEqual(30);
     });
 
-    it('should create EntityId with valid nanoid string', () => {
-      // Given: Valid nanoid format
-      const validNanoid = nanoid(); // Generates 21-char nanoid
+    it('should create EntityId with valid CUID string', () => {
+      // Given: Valid CUID format
+      const validCuid = generateTestCuid('abcde');
 
-      // When: Creating EntityId with valid nanoid
-      const result = TestEntityId.create(validNanoid);
+      // When: Creating EntityId with valid CUID
+      const result = TestEntityId.create(validCuid);
 
-      // Then: Success with provided nanoid
+      // Then: Success with provided CUID
       expect(result.isSuccess).toBe(true);
       expect(result.value).toBeDefined();
-      expect(result.value?.value).toBe(validNanoid);
+      expect(result.value?.value).toBe(validCuid);
       expect(result.error).toBeUndefined();
     });
 
-    it('should fail with invalid nanoid format (too short)', () => {
-      // Given: Invalid nanoid (too short)
+    it('should fail with invalid CUID format (too short)', () => {
+      // Given: Invalid CUID (too short)
       const tooShortId = 'abc123';
 
       // When: Creating EntityId with invalid format
@@ -64,68 +85,80 @@ describe('EntityId<TAggregateType>', () => {
       expect(result.isFailure).toBe(true);
       expect(result.isSuccess).toBe(false);
       expect(result.value).toBeUndefined();
-      expect(result.error).toBe('Invalid nanoid format: must be 21 URL-safe characters');
+      expect(result.error).toBe('Invalid CUID format');
     });
 
-    it('should fail with invalid nanoid format (too long)', () => {
-      // Given: Invalid nanoid (too long)
-      const tooLongId = 'A1B2C3D4E5F6G7H8I9J0K_EXTRA';
+    it('should fail with invalid CUID format (too long)', () => {
+      // Given: Invalid CUID (too long - more than 30 chars)
+      const tooLongId = 'clw3h8x9y0000qwertyuiopasdfghjklmnopqrstuvwxyz';
 
       // When: Creating EntityId with invalid format
       const result = TestEntityId.create(tooLongId);
 
       // Then: Failure with error message
       expect(result.isFailure).toBe(true);
-      expect(result.error).toBe('Invalid nanoid format: must be 21 URL-safe characters');
+      expect(result.error).toBe('Invalid CUID format');
     });
 
-    it('should fail with invalid characters in nanoid', () => {
-      // Given: Invalid characters (special chars not allowed)
-      const invalidChars = 'A1B2C3D4E5F6G7H8I9J@!'; // '@' and '!' not allowed
+    it('should fail with invalid characters in CUID', () => {
+      // Given: Invalid characters (uppercase, special chars not allowed in CUID2)
+      const invalidChars = 'ABC123DEF456GHI789JKL0'; // Uppercase not allowed
 
       // When: Creating EntityId with invalid characters
       const result = TestEntityId.create(invalidChars);
 
       // Then: Failure with error message
       expect(result.isFailure).toBe(true);
-      expect(result.error).toBe('Invalid nanoid format: must be 21 URL-safe characters');
+      expect(result.error).toBe('Invalid CUID format');
     });
 
-    it('should accept all valid nanoid characters (A-Za-z0-9_-)', () => {
-      // Given: Nanoid with all valid character types
-      const validMixedChars = 'ABCxyz123_-4567890123'; // 21 chars with A-Z, a-z, 0-9, _, -
+    it('should fail when CUID starts with a digit', () => {
+      // Given: CUID starting with digit (invalid)
+      const startsWithDigit = '1lw3h8x9y0000qwertyuiop';
 
-      // When: Creating EntityId with valid mixed characters
-      const result = TestEntityId.create(validMixedChars);
+      // When: Creating EntityId
+      const result = TestEntityId.create(startsWithDigit);
+
+      // Then: Failure - CUID must start with lowercase letter
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('Invalid CUID format');
+    });
+
+    it('should accept valid CUID format (lowercase alphanumeric)', () => {
+      // Given: CUID with all valid character types
+      const validCuid = 'clw3h8x9y0000qwertyuiopa'; // 25 chars, starts with 'c', all lowercase/digits
+
+      // When: Creating EntityId with valid CUID
+      const result = TestEntityId.create(validCuid);
 
       // Then: Success
       expect(result.isSuccess).toBe(true);
-      expect(result.value?.value).toBe(validMixedChars);
+      expect(result.value?.value).toBe(validCuid);
     });
   });
 
   describe('value - Getter', () => {
-    it('should return the nanoid string via value getter', () => {
-      // Given: EntityId with known nanoid
-      const knownNanoid = nanoid();
-      const result = TestEntityId.create(knownNanoid);
+    it('should return the CUID string via value getter', () => {
+      // Given: EntityId with known CUID
+      const knownCuid = generateTestCuid('value');
+      const result = TestEntityId.create(knownCuid);
 
       // When: Accessing value getter
       const entityId = result.value as TestEntityId;
       const idValue = entityId.value;
 
-      // Then: Returns nanoid string
-      expect(idValue).toBe(knownNanoid);
+      // Then: Returns CUID string
+      expect(idValue).toBe(knownCuid);
       expect(typeof idValue).toBe('string');
     });
   });
 
   describe('equals() - Equality', () => {
-    it('should return true for EntityIds with same nanoid value', () => {
-      // Given: Two EntityIds with same nanoid
-      const sharedNanoid = nanoid();
-      const id1 = TestEntityId.create(sharedNanoid).value as TestEntityId;
-      const id2 = TestEntityId.create(sharedNanoid).value as TestEntityId;
+    it('should return true for EntityIds with same CUID value', () => {
+      // Given: Two EntityIds with same CUID
+      const sharedCuid = generateTestCuid('equal');
+      const id1 = TestEntityId.create(sharedCuid).value as TestEntityId;
+      const id2 = TestEntityId.create(sharedCuid).value as TestEntityId;
 
       // When: Comparing for equality
       const areEqual = id1.equals(id2);
@@ -135,10 +168,10 @@ describe('EntityId<TAggregateType>', () => {
       expect(id1).not.toBe(id2); // Different object instances
     });
 
-    it('should return false for EntityIds with different nanoid values', () => {
-      // Given: Two EntityIds with different nanoids
-      const id1 = TestEntityId.create(nanoid()).value as TestEntityId;
-      const id2 = TestEntityId.create(nanoid()).value as TestEntityId;
+    it('should return false for EntityIds with different CUID values', () => {
+      // Given: Two EntityIds with different CUIDs
+      const id1 = TestEntityId.create(generateTestCuid('diff1')).value as TestEntityId;
+      const id2 = TestEntityId.create(generateTestCuid('diff2')).value as TestEntityId;
 
       // When: Comparing for equality
       const areEqual = id1.equals(id2);
@@ -149,7 +182,7 @@ describe('EntityId<TAggregateType>', () => {
 
     it('should return true when comparing same instance', () => {
       // Given: Same EntityId instance
-      const id = TestEntityId.create(nanoid()).value as TestEntityId;
+      const id = TestEntityId.create(generateTestCuid('same1')).value as TestEntityId;
 
       // When: Comparing with itself
       const areEqual = id.equals(id);
@@ -160,7 +193,7 @@ describe('EntityId<TAggregateType>', () => {
 
     it('should return false when comparing with undefined', () => {
       // Given: EntityId and undefined
-      const id = TestEntityId.create(nanoid()).value as TestEntityId;
+      const id = TestEntityId.create(generateTestCuid('undef')).value as TestEntityId;
       const undefinedId = undefined;
 
       // When: Comparing with undefined
@@ -172,7 +205,7 @@ describe('EntityId<TAggregateType>', () => {
 
     it('should return false when comparing with null', () => {
       // Given: EntityId and null
-      const id = TestEntityId.create(nanoid()).value as TestEntityId;
+      const id = TestEntityId.create(generateTestCuid('nulll')).value as TestEntityId;
       const nullId = null as unknown as TestEntityId;
 
       // When: Comparing with null
@@ -184,28 +217,29 @@ describe('EntityId<TAggregateType>', () => {
   });
 
   describe('toString() - String Representation', () => {
-    it('should return nanoid string for logging', () => {
-      // Given: EntityId with known nanoid
-      const knownNanoid = nanoid();
-      const id = TestEntityId.create(knownNanoid).value as TestEntityId;
+    it('should return CUID string for logging', () => {
+      // Given: EntityId with known CUID
+      const knownCuid = generateTestCuid('log01');
+      const id = TestEntityId.create(knownCuid).value as TestEntityId;
 
       // When: Converting to string
       const stringRepresentation = id.toString();
 
-      // Then: Returns nanoid value
-      expect(stringRepresentation).toBe(knownNanoid);
+      // Then: Returns CUID value
+      expect(stringRepresentation).toBe(knownCuid);
     });
 
     it('should work in template literals for logging', () => {
       // Given: EntityId
-      const id = TestEntityId.create(nanoid()).value as TestEntityId;
+      const id = TestEntityId.create(generateTestCuid('templ')).value as TestEntityId;
 
       // When: Using in template literal
       const logMessage = `Entity ID: ${id}`;
 
-      // Then: Contains nanoid value
+      // Then: Contains CUID value
       expect(logMessage).toContain('Entity ID: ');
-      expect(logMessage.replace('Entity ID: ', '')).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      // CUID format: starts with lowercase, only [a-z0-9]
+      expect(logMessage.replace('Entity ID: ', '')).toMatch(/^[a-z][a-z0-9]+$/);
     });
   });
 
@@ -258,11 +292,11 @@ describe('EntityId<TAggregateType>', () => {
 
   describe('Result<T> Pattern Integration', () => {
     it('should return Result<EntityId> with success state', () => {
-      // Given: Valid nanoid
-      const validNanoid = nanoid();
+      // Given: Valid CUID
+      const validCuid = generateTestCuid('resok');
 
       // When: Creating EntityId
-      const result = TestEntityId.create(validNanoid);
+      const result = TestEntityId.create(validCuid);
 
       // Then: Result object with success state
       expect(result).toBeInstanceOf(Result);
@@ -273,11 +307,11 @@ describe('EntityId<TAggregateType>', () => {
     });
 
     it('should return Result<EntityId> with failure state', () => {
-      // Given: Invalid nanoid
-      const invalidNanoid = 'invalid';
+      // Given: Invalid CUID
+      const invalidCuid = 'invalid';
 
       // When: Creating EntityId
-      const result = TestEntityId.create(invalidNanoid);
+      const result = TestEntityId.create(invalidCuid);
 
       // Then: Result object with failure state
       expect(result).toBeInstanceOf(Result);
@@ -285,7 +319,7 @@ describe('EntityId<TAggregateType>', () => {
       expect(result.isFailure).toBe(true);
       expect(result.value).toBeUndefined();
       expect(result.error).toBeDefined();
-      expect(result.error).toBe('Invalid nanoid format: must be 21 URL-safe characters');
+      expect(result.error).toBe('Invalid CUID format');
     });
 
     it('should allow safe access via isSuccess check', () => {
@@ -298,7 +332,8 @@ describe('EntityId<TAggregateType>', () => {
 
         // Then: Safe access to value
         expect(id).toBeDefined();
-        expect(id?.value).toMatch(/^[A-Za-z0-9_-]{21}$/);
+        // CUID format: starts with lowercase, only [a-z0-9]
+        expect(id?.value).toMatch(/^[a-z][a-z0-9]+$/);
       } else {
         // This branch should not execute for auto-generated IDs
         fail('Auto-generated ID should always succeed');
@@ -309,7 +344,7 @@ describe('EntityId<TAggregateType>', () => {
   describe('ValueObject Integration', () => {
     it('should inherit from ValueObject with immutable props', () => {
       // Given: EntityId instance
-      const id = TestEntityId.create(nanoid()).value as TestEntityId;
+      const id = TestEntityId.create(generateTestCuid('immut')).value as TestEntityId;
 
       // When: Accessing props
       const props = id.props;
@@ -324,7 +359,7 @@ describe('EntityId<TAggregateType>', () => {
 
     it('should have hashCode for Set/Map compatibility', () => {
       // Given: EntityId instance
-      const id = TestEntityId.create(nanoid()).value as TestEntityId;
+      const id = TestEntityId.create(generateTestCuid('hash1')).value as TestEntityId;
 
       // When: Generating hashCode
       const hash = id.hashCode();
@@ -335,10 +370,10 @@ describe('EntityId<TAggregateType>', () => {
     });
 
     it('should produce same hashCode for equal EntityIds', () => {
-      // Given: Two EntityIds with same nanoid
-      const sharedNanoid = nanoid();
-      const id1 = TestEntityId.create(sharedNanoid).value as TestEntityId;
-      const id2 = TestEntityId.create(sharedNanoid).value as TestEntityId;
+      // Given: Two EntityIds with same CUID
+      const sharedCuid = generateTestCuid('hash2');
+      const id1 = TestEntityId.create(sharedCuid).value as TestEntityId;
+      const id2 = TestEntityId.create(sharedCuid).value as TestEntityId;
 
       // When: Generating hashCodes
       const hash1 = id1.hashCode();
@@ -362,19 +397,19 @@ describe('EntityId<TAggregateType>', () => {
     });
 
     it('should handle whitespace-only string as invalid', () => {
-      // Given: Whitespace string (21 spaces)
-      const whitespace = '                     '; // 21 spaces
+      // Given: Whitespace string (25 spaces)
+      const whitespace = '                         '; // 25 spaces
 
       // When: Creating EntityId
       const result = TestEntityId.create(whitespace);
 
-      // Then: Failure (spaces not allowed in nanoid)
+      // Then: Failure (spaces not allowed in CUID)
       expect(result.isFailure).toBe(true);
     });
 
-    it('should handle exact 21 characters with valid chars', () => {
-      // Given: Exactly 21 valid characters
-      const exactLength = 'A1B2C3D4E5F6G7H8I9J0K';
+    it('should handle valid CUID with exactly 25 characters', () => {
+      // Given: Exactly 25 valid CUID characters
+      const exactLength = 'clw3h8x9y0000qwertyuiopa';
 
       // When: Creating EntityId
       const result = TestEntityId.create(exactLength);
@@ -384,7 +419,7 @@ describe('EntityId<TAggregateType>', () => {
       expect(result.value?.value).toBe(exactLength);
     });
 
-    it('should consistently generate different nanoids on each call', () => {
+    it('should consistently generate different CUIDs on each call', () => {
       // Given: Multiple auto-generations
       const id1 = TestEntityId.create().value as TestEntityId;
       const id2 = TestEntityId.create().value as TestEntityId;
@@ -393,8 +428,20 @@ describe('EntityId<TAggregateType>', () => {
       // When: Comparing generated values
       const allUnique = id1.value !== id2.value && id2.value !== id3.value && id1.value !== id3.value;
 
-      // Then: All different (extremely high probability with nanoid)
+      // Then: All different (extremely high probability with CUID2)
       expect(allUnique).toBe(true);
+    });
+
+    it('should reject underscore and hyphen (valid in nanoid but not CUID2)', () => {
+      // Given: String with underscore and hyphen (nanoid chars, not CUID2)
+      const nanoidStyle = 'a1b2c3d4e5f6g7h8i9j_k-l';
+
+      // When: Creating EntityId
+      const result = TestEntityId.create(nanoidStyle);
+
+      // Then: Failure - underscore and hyphen not allowed in CUID2
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('Invalid CUID format');
     });
   });
 });

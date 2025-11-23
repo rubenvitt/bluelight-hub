@@ -1,5 +1,4 @@
 import { PoiCategory } from '@domain/value-objects/poi-category';
-import { Result } from '@domain/common/result';
 
 describe('PoiCategory', () => {
   describe('create() - Factory Method', () => {

@@ -4,6 +4,7 @@ import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiId } from '@domain/value-objects/poi-id';
 import { UserId } from '@domain/value-objects/user-id';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { CoordinateConverter } from '@application/common/coordinate-converter';
 import type { UpdatePoiPositionCommand } from './update-poi-position.command';
 
@@ -22,7 +23,8 @@ import type { UpdatePoiPositionCommand } from './update-poi-position.command';
  * while server-side logging preserves full diagnostic context for debugging.
  * This prevents OWASP A01:2021 (Broken Access Control) information leakage.
  *
- * TODO (Epic 2.7): Event Publishing via IEventPublisher nach save() hinzufügen.
+ * Nach erfolgreichem Save werden Domain Events via IEventPublisher publiziert
+ * (transaktionale Konsistenz: Events nur nach erfolgreicher Persistenz).
  */
 @Injectable()
 export class UpdatePoiPositionCommandHandler {
@@ -31,6 +33,8 @@ export class UpdatePoiPositionCommandHandler {
   constructor(
     @Inject('ILagekarteRepository')
     private readonly lagekarteRepository: ILagekarteRepository,
+    @Inject('IEventPublisher')
+    private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(command: UpdatePoiPositionCommand): Promise<Result<void>> {
@@ -114,9 +118,9 @@ export class UpdatePoiPositionCommandHandler {
       return Result.fail(`Failed to save Lagekarte: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    // TODO (Epic 2.7): Publish domain events
-    // await this.eventPublisher.publishAll(aggregate.getDomainEvents());
-    // aggregate.clearDomainEvents();
+    // Step 8: Publish domain events (AFTER successful save - transactional consistency)
+    await this.eventPublisher.publishAll(aggregate.getDomainEvents());
+    aggregate.clearDomainEvents();
 
     return Result.ok(undefined);
   }

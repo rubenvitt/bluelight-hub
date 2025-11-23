@@ -1,13 +1,17 @@
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock cuid2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -54,10 +58,12 @@ describe('User Domain Events', () => {
       // When: Creating Event
       const event = new UserCreatedEvent(userId, username, role);
 
-      // Then: eventId should be auto-generated (nanoid: 21 chars)
+      // Then: eventId should be auto-generated (cuid2: 20-30 chars, starts with lowercase)
       expect(event.eventId).toBeDefined();
       expect(typeof event.eventId).toBe('string');
-      expect(event.eventId.length).toBe(21);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should auto-generate occurredAt timestamp', () => {
@@ -153,10 +159,12 @@ describe('User Domain Events', () => {
       // When: Creating Event
       const event = new UserRoleChangedEvent(userId, oldRole, newRole, changedBy);
 
-      // Then: eventId should be auto-generated (nanoid: 21 chars)
+      // Then: eventId should be auto-generated (cuid2: 20-30 chars, starts with lowercase)
       expect(event.eventId).toBeDefined();
       expect(typeof event.eventId).toBe('string');
-      expect(event.eventId.length).toBe(21);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should auto-generate occurredAt timestamp', () => {
@@ -237,10 +245,12 @@ describe('User Domain Events', () => {
       // When: Creating Event
       const event = new PermissionGrantedEvent(userId, permission, grantedBy);
 
-      // Then: eventId should be auto-generated (nanoid: 21 chars)
+      // Then: eventId should be auto-generated (cuid2: 20-30 chars, starts with lowercase)
       expect(event.eventId).toBeDefined();
       expect(typeof event.eventId).toBe('string');
-      expect(event.eventId.length).toBe(21);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should auto-generate occurredAt timestamp', () => {
@@ -318,10 +328,12 @@ describe('User Domain Events', () => {
       // When: Creating Event
       const event = new PermissionRevokedEvent(userId, permission, revokedBy);
 
-      // Then: eventId should be auto-generated (nanoid: 21 chars)
+      // Then: eventId should be auto-generated (cuid2: 20-30 chars, starts with lowercase)
       expect(event.eventId).toBeDefined();
       expect(typeof event.eventId).toBe('string');
-      expect(event.eventId.length).toBe(21);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should auto-generate occurredAt timestamp', () => {
@@ -396,10 +408,12 @@ describe('User Domain Events', () => {
       // When: Creating Event
       const event = new UserDeletedEvent(userId, deletedBy);
 
-      // Then: eventId should be auto-generated (nanoid: 21 chars)
+      // Then: eventId should be auto-generated (cuid2: 20-30 chars, starts with lowercase)
       expect(event.eventId).toBeDefined();
       expect(typeof event.eventId).toBe('string');
-      expect(event.eventId.length).toBe(21);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should auto-generate occurredAt timestamp', () => {

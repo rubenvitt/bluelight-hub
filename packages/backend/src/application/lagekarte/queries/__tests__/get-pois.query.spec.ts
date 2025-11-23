@@ -10,7 +10,7 @@ describe('GetPoisQuery', () => {
   describe('Constructor Validation', () => {
     it('should create query with lagekarteId only', () => {
       // Given
-      const lagekarteId = 'V1StGXR8_Z5jdHi6B-myT'; // Valid 21-char nanoid
+      const lagekarteId = 'clw3h8x9y0000qwertyui00001'; // Valid CUID2 format
 
       // When
       const query = new GetPoisQuery(lagekarteId);
@@ -22,7 +22,7 @@ describe('GetPoisQuery', () => {
 
     it('should create query with lagekarteId and category', () => {
       // Given
-      const lagekarteId = 'V1StGXR8_Z5jdHi6B-myT'; // Valid 21-char nanoid
+      const lagekarteId = 'clw3h8x9y0000qwertyui00001'; // Valid CUID2 format
       const category = 'EINSATZSTELLE';
 
       // When
@@ -51,6 +51,7 @@ describe('GetPoisQuery', () => {
 
     it('should throw error when lagekarteId is undefined', () => {
       // Given
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const undefinedLagekarteId = undefined as any;
 
       // When & Then
@@ -59,26 +60,27 @@ describe('GetPoisQuery', () => {
 
     it('should throw error when lagekarteId is null', () => {
       // Given
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const nullLagekarteId = null as any;
 
       // When & Then
       expect(() => new GetPoisQuery(nullLagekarteId)).toThrow('lagekarteId is required');
     });
 
-    it('should accept valid nanoid as lagekarteId', () => {
+    it('should accept valid CUID2 as lagekarteId', () => {
       // Given
-      const validNanoid = 'V1StGXR8_Z5jdHi6B-myT'; // 21 chars
+      const validCuid2 = 'clw3h8x9y0000qwertyui00001'; // 25 chars, lowercase
 
       // When
-      const query = new GetPoisQuery(validNanoid);
+      const query = new GetPoisQuery(validCuid2);
 
       // Then
-      expect(query.lagekarteId).toBe(validNanoid);
+      expect(query.lagekarteId).toBe(validCuid2);
     });
 
     it('should accept category with all valid POI categories', () => {
       // Given
-      const lagekarteId = 'V1StGXR8_Z5jdHi6B-myT'; // Valid 21-char nanoid
+      const lagekarteId = 'clw3h8x9y0000qwertyui00001'; // Valid CUID2 format
       const categories = ['EINSATZSTELLE', 'BEREITSTELLUNGSRAUM', 'GEFAHRENSTELLE', 'WASSERENTNAHMESTELLE', 'SONSTIGES'];
 
       // When & Then
@@ -90,7 +92,7 @@ describe('GetPoisQuery', () => {
 
     it('should allow undefined category (no filtering)', () => {
       // Given
-      const lagekarteId = 'V1StGXR8_Z5jdHi6B-myT'; // Valid 21-char nanoid
+      const lagekarteId = 'clw3h8x9y0000qwertyui00001'; // Valid CUID2 format
       const category = undefined;
 
       // When
@@ -102,7 +104,7 @@ describe('GetPoisQuery', () => {
 
     it('should store category as-is without validation (Handler responsibility)', () => {
       // Given
-      const lagekarteId = 'V1StGXR8_Z5jdHi6B-myT'; // Valid 21-char nanoid
+      const lagekarteId = 'clw3h8x9y0000qwertyui00001'; // Valid CUID2 format
       const invalidCategory = 'INVALID_CATEGORY';
 
       // When
@@ -117,11 +119,11 @@ describe('GetPoisQuery', () => {
   describe('Immutability', () => {
     it('should have readonly lagekarteId property (compile-time check)', () => {
       // Given
-      const query = new GetPoisQuery('V1StGXR8_Z5jdHi6B-myT'); // Valid 21-char nanoid
+      const query = new GetPoisQuery('clw3h8x9y0000qwertyui00001'); // Valid CUID2 format
 
       // Then - TypeScript prevents assignment at compile-time
       // Runtime: readonly is advisory, not enforced (JavaScript limitation)
-      expect(query.lagekarteId).toBe('V1StGXR8_Z5jdHi6B-myT');
+      expect(query.lagekarteId).toBe('clw3h8x9y0000qwertyui00001');
 
       // This would fail TypeScript compilation:
       // @ts-expect-error - readonly property cannot be reassigned
@@ -130,7 +132,7 @@ describe('GetPoisQuery', () => {
 
     it('should have readonly category property (compile-time check)', () => {
       // Given
-      const query = new GetPoisQuery('V1StGXR8_Z5jdHi6B-myT', 'EINSATZSTELLE');
+      const query = new GetPoisQuery('clw3h8x9y0000qwertyui00001', 'EINSATZSTELLE');
 
       // Then - TypeScript prevents assignment at compile-time
       expect(query.category).toBe('EINSATZSTELLE');
@@ -141,59 +143,59 @@ describe('GetPoisQuery', () => {
     });
   });
 
-  describe('Nanoid Format Validation', () => {
-    it('should throw error for invalid nanoid format (too short)', () => {
+  describe('CUID2 Format Validation', () => {
+    it('should throw error for invalid CUID2 format (too short)', () => {
       // Given
       const invalidId = 'invalid';
 
       // When/Then
-      expect(() => new GetPoisQuery(invalidId)).toThrow('valid nanoid format');
+      expect(() => new GetPoisQuery(invalidId)).toThrow('valid CUID2 format');
     });
 
-    it('should throw error for invalid nanoid format (wrong length)', () => {
+    it('should throw error for invalid CUID2 format (wrong length)', () => {
       // Given
-      const invalidId = 'abc-123-xyz'; // Only 11 chars
+      const invalidId = 'abc123xyz'; // Only 9 chars, needs 20-30
 
       // When/Then
-      expect(() => new GetPoisQuery(invalidId)).toThrow('valid nanoid format');
+      expect(() => new GetPoisQuery(invalidId)).toThrow('valid CUID2 format');
     });
 
-    it('should throw error for invalid nanoid format (too long)', () => {
+    it('should throw error for invalid CUID2 format (too long)', () => {
       // Given
-      const invalidId = 'toolongnanoidexceedstwentyonecharacters'; // 42 chars
+      const invalidId = 'clw3h8x9y0000qwertyuiazaz0toolongexceedsthirtycharacters'; // >30 chars
 
       // When/Then
-      expect(() => new GetPoisQuery(invalidId)).toThrow('valid nanoid format');
+      expect(() => new GetPoisQuery(invalidId)).toThrow('valid CUID2 format');
     });
 
-    it('should accept valid 21-character nanoid with all valid characters', () => {
+    it('should accept valid CUID2 format (20-30 lowercase alphanumeric characters starting with letter)', () => {
       // Given
-      const validNanoid = 'AZaz09_-0123456789XYZ'; // 21 chars, all valid
+      const validCuid2 = 'clw3h8x9y0000qwertyuiazaz0'; // 26 chars, lowercase, starts with 'c'
 
       // When
-      const query = new GetPoisQuery(validNanoid);
+      const query = new GetPoisQuery(validCuid2);
 
       // Then
-      expect(query.lagekarteId).toBe(validNanoid);
+      expect(query.lagekarteId).toBe(validCuid2);
     });
 
-    it('should throw error for nanoid with invalid characters', () => {
+    it('should throw error for CUID2 with invalid characters (uppercase)', () => {
       // Given
-      const invalidId = 'invalid@chars#!21char'; // 21 chars but invalid symbols
+      const invalidId = 'CLW3H8X9Y0000QWERTYUIAZAZ'; // Uppercase not allowed
 
       // When/Then
-      expect(() => new GetPoisQuery(invalidId)).toThrow('valid nanoid format');
+      expect(() => new GetPoisQuery(invalidId)).toThrow('valid CUID2 format');
     });
 
-    it('should allow category parameter with valid nanoid', () => {
+    it('should allow category parameter with valid CUID2', () => {
       // Given
-      const validNanoid = 'V1StGXR8_Z5jdHi6B-myT'; // 21 chars
+      const validCuid2 = 'clw3h8x9y0000qwertyui00001'; // 25 chars
 
       // When
-      const query = new GetPoisQuery(validNanoid, 'EINSATZSTELLE');
+      const query = new GetPoisQuery(validCuid2, 'EINSATZSTELLE');
 
       // Then
-      expect(query.lagekarteId).toBe(validNanoid);
+      expect(query.lagekarteId).toBe(validCuid2);
       expect(query.category).toBe('EINSATZSTELLE');
     });
   });

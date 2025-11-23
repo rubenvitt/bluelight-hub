@@ -8,31 +8,35 @@ import type { ILagekarteRepository } from '@/domain/repositories/i-lagekarte.rep
 import type { CreateLagekarteDto, AddPoiDto, UpdatePoiPositionDto } from '@/application/lagekarte/dto';
 import type { LagekarteDto, PoiDto } from '@/application/lagekarte/dtos';
 
-// Mock nanoid for deterministic test IDs
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    // Generate valid nanoid format: URL-safe characters only (A-Za-z0-9_-)
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const targetLength = length || 21;
-    let result = '';
-    for (let i = 0; i < targetLength; i++) {
+// Mock cuid2 for deterministic test IDs
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
   }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
 }));
 
 /**
- * Helper function: Generates valid 21-character nanoid for testing.
- * Uses URL-safe characters (A-Za-z0-9_-) as per nanoid format.
+ * Helper function: Generates valid CUID2-format test ID.
+ * CUID2 format: 20-30 chars, lowercase a-z0-9, starts with lowercase letter.
  */
-function createValidTestId(prefix = 'test'): string {
-  const validChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-  let id = prefix;
-  while (id.length < 21) {
-    id += validChars.charAt(Math.floor(Math.random() * validChars.length));
-  }
-  return id.substring(0, 21); // Ensure exactly 21 chars
+function createValidTestId(suffix = ''): string {
+  const base = 'clw3h8x9y0000qwertyui';
+  const safeSuffix = suffix
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .padEnd(5, '0')
+    .slice(0, 5);
+  return base + safeSuffix;
 }
 
 /**
@@ -63,10 +67,12 @@ describe('LagekarteCqrsController', () => {
     // Create mock buses
     mockCommandBus = {
       execute: jest.fn(),
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
     mockQueryBus = {
       execute: jest.fn(),
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
     // Create mock repository
@@ -75,6 +81,7 @@ describe('LagekarteCqrsController', () => {
       findByEinsatzId: jest.fn(),
       save: jest.fn(),
       exists: jest.fn(),
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
     // Instantiate controller with mocks (Direct Instantiation Pattern)
@@ -218,6 +225,7 @@ describe('LagekarteCqrsController', () => {
       };
 
       mockCommandBus.execute.mockResolvedValueOnce(Result.ok(poiId));
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock aggregate
       mockRepository.findById.mockResolvedValueOnce(mockAggregate as any);
 
       // When
@@ -288,6 +296,7 @@ describe('LagekarteCqrsController', () => {
       };
 
       mockCommandBus.execute.mockResolvedValueOnce(Result.ok(poiId));
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock aggregate
       mockRepository.findById.mockResolvedValueOnce(mockAggregate as any);
 
       // When
@@ -339,6 +348,7 @@ describe('LagekarteCqrsController', () => {
       };
 
       mockCommandBus.execute.mockResolvedValueOnce(Result.ok(undefined));
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock aggregate
       mockRepository.findById.mockResolvedValueOnce(mockAggregate as any);
 
       // When
@@ -399,6 +409,7 @@ describe('LagekarteCqrsController', () => {
       };
 
       mockCommandBus.execute.mockResolvedValueOnce(Result.ok(undefined));
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock aggregate
       mockRepository.findById.mockResolvedValueOnce(mockAggregate as any);
 
       // When

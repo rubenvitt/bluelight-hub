@@ -1,5 +1,4 @@
 import { GeoCoordinate } from '@domain/value-objects/geo-coordinate';
-import { Result } from '@domain/common/result';
 
 describe('GeoCoordinate', () => {
   describe('create() - Factory Method', () => {

@@ -9,16 +9,20 @@ import { PoiCategory } from '@domain/value-objects/poi-category';
 import { UserId } from '@domain/value-objects/user-id';
 import { createValidTestId } from './helpers/test-id.helper';
 
-// Mock nanoid for deterministic test IDs
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const targetLength = length || 21;
-    let result = '';
-    for (let i = 0; i < targetLength; i++) {
+// Mock cuid2 for deterministic test IDs
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -41,6 +45,7 @@ describe('GetPoisQueryHandler', () => {
       save: jest.fn(),
       findByEinsatzId: jest.fn(),
       exists: jest.fn(),
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
     // Instantiate handler with mock (Direct Instantiation Pattern)
@@ -57,14 +62,14 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       // Add multiple POIs with different categories
       const berlin = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
       const hamburg = MgrsCoordinate.fromString('32UNE8934004990').value!;
       const einsatzstelle = PoiCategory.create('EINSATZSTELLE').value!;
       const bereitstellungsraum = PoiCategory.create('BEREITSTELLUNGSRAUM').value!;
-      const userId = UserId.create().value!;
 
       aggregate.addPoi('Einsatzstelle Berlin', berlin, einsatzstelle, userId);
       aggregate.addPoi('Bereitstellungsraum Hamburg', hamburg, bereitstellungsraum, userId);
@@ -96,7 +101,8 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       // Add multiple POIs with different categories
       const berlin = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
@@ -104,7 +110,6 @@ describe('GetPoisQueryHandler', () => {
       const munich = MgrsCoordinate.fromLatLng(48.1351, 11.582, 5).value!;
       const einsatzstelle = PoiCategory.create('EINSATZSTELLE').value!;
       const bereitstellungsraum = PoiCategory.create('BEREITSTELLUNGSRAUM').value!;
-      const userId = UserId.create().value!;
 
       aggregate.addPoi('Einsatzstelle 1', berlin, einsatzstelle, userId);
       aggregate.addPoi('Bereitstellungsraum 1', hamburg, bereitstellungsraum, userId);
@@ -137,12 +142,12 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       // Add POIs with different category
       const berlin = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
       const einsatzstelle = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = UserId.create().value!;
 
       aggregate.addPoi('Einsatzstelle Berlin', berlin, einsatzstelle, userId);
 
@@ -165,7 +170,8 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
       // No POIs added
 
       mockRepo.findById.mockResolvedValue(aggregate);
@@ -186,12 +192,12 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       // Add POI with MGRS
       const berlinMgrs = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
       const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = UserId.create().value!;
 
       aggregate.addPoi('Brandenburger Tor', berlinMgrs, category, userId);
 
@@ -227,11 +233,11 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       const berlin = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
       const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = UserId.create().value!;
 
       aggregate.addPoi('Einsatzort', berlin, category, userId, 'Rauchentwicklung im 2. OG');
 
@@ -252,10 +258,10 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       const coord = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
-      const userId = UserId.create().value!;
 
       aggregate.addPoi('POI1', coord, PoiCategory.EINSATZSTELLE(), userId);
       aggregate.addPoi('POI2', coord, PoiCategory.BEREITSTELLUNGSRAUM(), userId);
@@ -347,11 +353,11 @@ describe('GetPoisQueryHandler', () => {
 
     it('should fail when LagekarteId format is invalid (query constructor validates)', async () => {
       // Given
-      const invalidLagekarteId = 'invalid'; // Too short (< 21 chars)
+      const invalidLagekarteId = 'invalid'; // Too short (< 20 chars)
 
       // When/Then
-      // Query constructor now validates nanoid format and throws
-      expect(() => new GetPoisQuery(invalidLagekarteId)).toThrow('valid nanoid format');
+      // Query constructor now validates CUID2 format and throws
+      expect(() => new GetPoisQuery(invalidLagekarteId)).toThrow('valid CUID2 format');
     });
   });
 
@@ -376,7 +382,8 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       mockRepo.findById.mockResolvedValue(aggregate);
 
@@ -394,11 +401,11 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       const coord = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
       const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = UserId.create().value!;
 
       aggregate.addPoi('POI1', coord, category, userId);
       aggregate.addPoi('POI2', coord, PoiCategory.BEREITSTELLUNGSRAUM(), userId);
@@ -421,11 +428,11 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       // Add 20 POIs
       const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = UserId.create().value!;
 
       for (let i = 0; i < 20; i++) {
         const lat = 52.5 + i * 0.01;
@@ -454,12 +461,13 @@ describe('GetPoisQueryHandler', () => {
       });
     });
 
-    it('should handle lagekarteId with all valid nanoid characters', async () => {
+    it('should handle lagekarteId with all valid cuid2 characters', async () => {
       // Given
-      const complexLagekarteId = 'AZaz09_-0123456789XYZ'; // All valid chars
+      const complexLagekarteId = 'clw3h8x9y0000qwertyuiazaz0'; // Valid CUID2 format
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       mockRepo.findById.mockResolvedValue(aggregate);
 
@@ -478,10 +486,10 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       const coord = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
-      const userId = UserId.create().value!;
 
       // Add only EINSATZSTELLE POIs
       aggregate.addPoi('POI1', coord, PoiCategory.EINSATZSTELLE(), userId);
@@ -505,10 +513,10 @@ describe('GetPoisQueryHandler', () => {
       const lagekarteId = createValidTestId('lagekarte');
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       const coord = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
-      const userId = UserId.create().value!;
 
       aggregate.addPoi('POI1', coord, PoiCategory.EINSATZSTELLE(), userId);
 
@@ -533,10 +541,10 @@ describe('GetPoisQueryHandler', () => {
      */
     function createValidAggregate(): LagekarteAggregate {
       const einsatzIdVo = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       const coord = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
-      const userId = UserId.create().value!;
 
       aggregate.addPoi('Test POI 1', coord, PoiCategory.EINSATZSTELLE(), userId);
       aggregate.addPoi('Test POI 2', coord, PoiCategory.BEREITSTELLUNGSRAUM(), userId);

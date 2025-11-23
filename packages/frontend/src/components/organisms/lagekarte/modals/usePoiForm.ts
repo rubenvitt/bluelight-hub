@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { asyncDebounce } from '@tanstack/pacer';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatMgrs, isValidMgrs, latLngToMgrs, mgrsToLatLng } from '@/utils/lagekarte/mgrs';
+import { COORDINATE_ERROR_MESSAGES, COORDINATE_LIMITS } from '@/utils/lagekarte/coordinate-limits';
 
 /**
  * Zod-Validierungsschema für POI-Erstellung
@@ -28,8 +29,14 @@ import { formatMgrs, isValidMgrs, latLngToMgrs, mgrsToLatLng } from '@/utils/lag
 const poiFormSchema = z.object({
   name: z.string().min(3, 'Name muss mindestens 3 Zeichen lang sein'),
   adresse: z.string().optional(),
-  latitude: z.number({ required_error: 'Breitengrad ist erforderlich' }).min(-90, 'Breitengrad muss zwischen -90 und 90 liegen').max(90, 'Breitengrad muss zwischen -90 und 90 liegen'),
-  longitude: z.number({ required_error: 'Längengrad ist erforderlich' }).min(-180, 'Längengrad muss zwischen -180 und 180 liegen').max(180, 'Längengrad muss zwischen -180 und 180 liegen'),
+  latitude: z
+    .number({ required_error: COORDINATE_ERROR_MESSAGES.LATITUDE.REQUIRED })
+    .min(COORDINATE_LIMITS.LATITUDE.MIN, COORDINATE_ERROR_MESSAGES.LATITUDE.OUT_OF_RANGE)
+    .max(COORDINATE_LIMITS.LATITUDE.MAX, COORDINATE_ERROR_MESSAGES.LATITUDE.OUT_OF_RANGE),
+  longitude: z
+    .number({ required_error: COORDINATE_ERROR_MESSAGES.LONGITUDE.REQUIRED })
+    .min(COORDINATE_LIMITS.LONGITUDE.MIN, COORDINATE_ERROR_MESSAGES.LONGITUDE.OUT_OF_RANGE)
+    .max(COORDINATE_LIMITS.LONGITUDE.MAX, COORDINATE_ERROR_MESSAGES.LONGITUDE.OUT_OF_RANGE),
   mgrs: z.string().optional(),
   type: z.string(), // PoiType as string (validated by backend)
   icon: z.string().optional(),
@@ -143,8 +150,6 @@ export const usePoiForm = ({ einsatzId, lagekarteId, initialType, initialCoordin
         const validated = poiFormSchema.parse(value);
 
         // API-Call via TanStack Query Mutation
-        // TODO: Backend muss noch das `mgrs` Property im CreatePoiDto unterstützen
-        // Aktuell wird nur latitude/longitude gesendet
         await createPoiMutation.mutateAsync({
           lagekarteId,
           type: validated.type, // Backend validates POI type via DTO
@@ -208,6 +213,10 @@ export const usePoiForm = ({ einsatzId, lagekarteId, initialType, initialCoordin
         onError: (error) => {
           console.warn('Geocoding fehlgeschlagen:', error);
           // Koordinaten bleiben bei Fehler unverändert
+          // User-Feedback via Toast
+          toast.error('Geocoding fehlgeschlagen', {
+            description: 'Die Adresse konnte nicht gefunden werden. Bitte Koordinaten manuell eingeben.',
+          });
         },
       });
     },

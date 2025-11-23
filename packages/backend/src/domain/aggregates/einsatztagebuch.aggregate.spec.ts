@@ -4,16 +4,20 @@ import { UserId } from '@domain/value-objects/user-id';
 import { EtbStatus } from '@domain/value-objects/etb-status';
 import { EintragId } from '@domain/value-objects/eintrag-id';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock cuid2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -56,6 +60,7 @@ describe('EinsatztagebuchAggregate', () => {
     });
 
     it('should reject null/undefined einsatzId', () => {
+      // biome-ignore lint/suspicious/noExplicitAny: Test verifies null/undefined handling
       const result = EinsatztagebuchAggregate.create(null as any);
       expect(result.isFailure).toBe(true);
       expect(result.error).toContain('EinsatzId');
@@ -97,6 +102,7 @@ describe('EinsatztagebuchAggregate', () => {
       // Sequence number is readonly via ValueObject immutability
       expect(entry.sequenceNumber.value).toBe(1);
       expect(() => {
+        // biome-ignore lint/suspicious/noExplicitAny: Test verifies immutability
         (entry.sequenceNumber as any).props.value = 999;
       }).toThrow();
     });

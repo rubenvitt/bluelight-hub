@@ -1,15 +1,20 @@
 import { DomainEvent } from '@domain/common/domain-event';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock CUID2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    // Generate valid CUID2 format: starts with lowercase letter, ~25 chars
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -49,17 +54,18 @@ class TestUpdatedEvent extends DomainEvent {
 
 describe('DomainEvent', () => {
   describe('Auto-Generation', () => {
-    it('should auto-generate eventId with valid nanoid (21 chars)', () => {
+    it('should auto-generate eventId with valid CUID format', () => {
       // Given: Event creation
       const event = new TestCreatedEvent('test-123', 'Test Name');
 
       // When: Checking eventId
       const eventId = event.eventId;
 
-      // Then: eventId is valid nanoid (exactly 21 URL-safe chars)
+      // Then: eventId is valid CUID2 (starts with lowercase letter, ~25 chars)
       expect(eventId).toBeDefined();
-      expect(eventId).toHaveLength(21);
-      expect(eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(eventId.length).toBeGreaterThanOrEqual(20);
+      expect(eventId.length).toBeLessThanOrEqual(30);
+      expect(eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should auto-generate occurredAt with recent timestamp', () => {

@@ -1,49 +1,78 @@
 import { registerDecorator, type ValidationArguments, type ValidationOptions } from 'class-validator';
 
 /**
- * Validiert, dass ein String im NanoID-Format ist.
- * Standardmäßig wird eine Länge von 21 Zeichen erwartet (Standard für nanoid),
- * aber die Länge kann angepasst werden.
+ * CUID2 format regex: 20-30 chars, lowercase a-z0-9, starts with lowercase letter.
+ */
+const CUID2_REGEX = /^[a-z][a-z0-9]{19,29}$/;
+
+/**
+ * Validiert, dass ein String im CUID2-Format ist.
+ *
+ * CUID2-Format: 20-30 Zeichen, nur lowercase (a-z, 0-9), startet mit Kleinbuchstabe.
+ * Wird für alle Domain-generierten IDs verwendet (z.B. POI-IDs, Lagekarte-IDs).
  *
  * @param validationOptions Optionale Validierungsoptionen für class-validator
- * @param length Erwartete Länge der NanoID. Standard ist 21 Zeichen.
  * @returns PropertyDecorator für class-validator
  */
-export function IsNanoId(validationOptions?: ValidationOptions, length: number = 21) {
+export function IsCuid2(validationOptions?: ValidationOptions) {
   return (object: object, propertyName: string) => {
     registerDecorator({
-      name: 'isNanoId',
+      name: 'isCuid2',
       target: object.constructor,
       propertyName: propertyName,
       options: validationOptions,
-      constraints: [length],
       validator: {
-        validate(value: unknown, args: ValidationArguments) {
-          if (value === undefined || value === null) {
-            return true; // Optional-Validierung überlassen wir @IsOptional
-          }
-
-          const [expectedLength] = args.constraints;
-
-          // Überprüfen, ob es ein String ist
-          if (typeof value !== 'string') {
-            return false;
-          }
-
-          // Überprüfen, ob die Länge korrekt ist
-          if (value.length !== expectedLength) {
-            return false;
-          }
-
-          // Überprüfen, ob nur gültige Zeichen enthalten sind (A-Za-z0-9_-)
-          // Dies ist das Standard-Alphabet von NanoID
-          return /^[A-Za-z0-9_-]+$/.test(value);
+        validate(value: unknown) {
+          return validateCuid2Format(value);
         },
         defaultMessage(args: ValidationArguments) {
-          const [expectedLength] = args.constraints;
-          return `${args.property} muss eine gültige NanoID sein (${expectedLength} Zeichen, nur A-Za-z0-9_-)`;
+          return `${args.property} muss eine gültige CUID2 sein (20-30 Zeichen, nur lowercase a-z0-9, startet mit Buchstabe)`;
         },
       },
     });
   };
+}
+
+/**
+ * @deprecated Use IsCuid2 instead. Kept for backwards compatibility.
+ */
+export function IsNanoId(validationOptions?: ValidationOptions, _length: number = 21) {
+  return IsCuid2(validationOptions);
+}
+
+/**
+ * Validiert das CUID2-Format.
+ *
+ * CUID2s sind kollisionssichere, eindeutige IDs mit folgendem Format:
+ * - Länge: 20-30 Zeichen
+ * - Zeichensatz: nur lowercase a-z und 0-9
+ * - Startet mit einem Kleinbuchstaben
+ *
+ * @example
+ * validateCuid2Format('clw3h8x9y0000qwertyui00001') // true
+ * validateCuid2Format('ABC123') // false - uppercase und zu kurz
+ *
+ * @param value Der zu validierende Wert
+ * @returns true wenn der Wert ein gültiges CUID2-Format hat, false sonst
+ */
+export function validateCuid2Format(value: unknown): boolean {
+  // Null/undefined sind erlaubt (Handling durch @IsOptional)
+  if (value === undefined || value === null) {
+    return true;
+  }
+
+  // Muss ein String sein
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  // CUID2-Format prüfen
+  return CUID2_REGEX.test(value);
+}
+
+/**
+ * @deprecated Use validateCuid2Format instead. Kept for backwards compatibility.
+ */
+export function validateNanoidFormat(value: unknown, _expectedLength: number = 21): boolean {
+  return validateCuid2Format(value);
 }

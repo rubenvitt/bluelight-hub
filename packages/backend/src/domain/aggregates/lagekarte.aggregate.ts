@@ -8,6 +8,7 @@ import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { GeoCoordinate } from '@domain/value-objects/geo-coordinate';
 import type { PoiCategory } from '@domain/value-objects/poi-category';
 import { Poi } from '@domain/entities/poi.entity';
+import { LagekarteCreatedEvent } from '@domain/events/lagekarte-created.event';
 import { PoiAddedEvent } from '@domain/events/poi-added.event';
 import { PoiRemovedEvent } from '@domain/events/poi-removed.event';
 import { PoiPositionUpdatedEvent } from '@domain/events/poi-position-updated.event';
@@ -150,9 +151,15 @@ export class LagekarteAggregate extends AggregateRoot<LagekarteId> {
    *
    * **Business Rules:**
    * - EinsatzId ist required (Lagekarte muss zu Einsatz gehören)
+   * - CreatedBy (UserId) ist required (für Audit-Trail)
    * - LagekarteId wird auto-generiert (Type-Safe EntityId)
    * - Initial kann optional ein POI übergeben werden (atomare Erstellung)
-   * - Bei initialPoi wird sofort PoiAddedEvent emittiert
+   * - LagekarteCreatedEvent wird emittiert
+   * - Bei initialPoi wird zusätzlich PoiAddedEvent emittiert
+   *
+   * **Event Flow:**
+   * - create() → LagekarteCreatedEvent (immer)
+   * - create(einsatzId, createdBy, initialPoi) → LagekarteCreatedEvent + PoiAddedEvent
    *
    * **Warum Lazy Creation:**
    * - Verhindert leere Lagekarten in DB (Storage-Optimierung)
@@ -160,32 +167,38 @@ export class LagekarteAggregate extends AggregateRoot<LagekarteId> {
    * - Simplizität: Keine separaten "Lagekarte anlegen" und "POI hinzufügen" Operationen
    *
    * @param einsatzId - Referenz zum übergeordneten Einsatz
+   * @param createdBy - UserId des Erstellers (für Audit-Trail und LagekarteCreatedEvent)
    * @param initialPoi - Optionaler erster POI (für atomare Erstellung)
    * @returns Result mit Lagekarte-Aggregat oder Fehler
    *
    * @example
    * ```typescript
    * // Ohne initialPoi (nur Lagekarte)
-   * const result = LagekarteAggregate.create(einsatzId);
+   * const result = LagekarteAggregate.create(einsatzId, userId);
    * // result.getValue().pois.length === 0
-   * // result.getValue().getDomainEvents().length === 0
+   * // result.getValue().getDomainEvents().length === 1 (LagekarteCreatedEvent)
    *
    * // Mit initialPoi (atomare Erstellung)
    * const poi = Poi.create('Einsatzstelle', berlinMgrs, category, userId);
-   * const result2 = LagekarteAggregate.create(einsatzId, poi);
+   * const result2 = LagekarteAggregate.create(einsatzId, userId, poi);
    * // result2.getValue().pois.length === 1
-   * // result2.getValue().getDomainEvents().length === 1 (PoiAddedEvent)
+   * // result2.getValue().getDomainEvents().length === 2 (LagekarteCreatedEvent + PoiAddedEvent)
    *
    * // Validation Fehler
-   * const failResult = LagekarteAggregate.create(null as any);
+   * const failResult = LagekarteAggregate.create(null as any, userId);
    * // failResult.isFailure === true
    * // failResult.error === "EinsatzId is required"
    * ```
    */
-  public static create(einsatzId: EinsatzId, initialPoi?: Poi): Result<LagekarteAggregate> {
+  public static create(einsatzId: EinsatzId, createdBy: UserId, initialPoi?: Poi): Result<LagekarteAggregate> {
     // Validation: einsatzId required
     if (!einsatzId) {
       return Result.fail('EinsatzId is required');
+    }
+
+    // Validation: createdBy required
+    if (!createdBy) {
+      return Result.fail('CreatedBy (UserId) is required');
     }
 
     // Auto-generate LagekarteId
@@ -198,7 +211,10 @@ export class LagekarteAggregate extends AggregateRoot<LagekarteId> {
     const pois = initialPoi ? [initialPoi] : [];
     const lagekarte = new LagekarteAggregate(id, einsatzId, pois);
 
-    // If initialPoi provided, emit PoiAddedEvent
+    // Emit LagekarteCreatedEvent (always)
+    lagekarte.addDomainEvent(new LagekarteCreatedEvent(lagekarte.id, einsatzId, createdBy, initialPoi !== undefined));
+
+    // If initialPoi provided, also emit PoiAddedEvent
     if (initialPoi) {
       lagekarte.addDomainEvent(new PoiAddedEvent(lagekarte.id, initialPoi.id, initialPoi.name, initialPoi.coordinate, initialPoi.category, initialPoi.createdBy));
     }

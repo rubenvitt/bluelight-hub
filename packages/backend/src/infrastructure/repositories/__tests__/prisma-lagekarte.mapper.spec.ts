@@ -1,3 +1,20 @@
+// Mock @paralleldrive/cuid2 BEFORE any imports (hoisting workaround for Jest + ESM)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
+}));
+
 /**
  * Unit Tests für PrismaLagekarteMapper (Infrastructure Layer).
  *
@@ -22,27 +39,13 @@ import { PoiCategory } from '@domain/value-objects/poi-category';
 import { UserId } from '@domain/value-objects/user-id';
 import type { Lagekarte, LagekartePoi } from '@prisma/client';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    // Generate valid nanoid format with specified length
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const len = length ?? 21;
-    let result = '';
-    for (let i = 0; i < len; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  }),
-}));
-
 describe('PrismaLagekarteMapper', () => {
-  // Test Data Setup (use valid nanoid format - 21 characters)
-  const testEinsatzIdResult = EinsatzId.create('test-einsatz-12345678');
+  // Test Data Setup (use valid CUID2 format - 25 characters, lowercase a-z0-9, starts with letter)
+  const testEinsatzIdResult = EinsatzId.create('clw3h8x9y0000qwertyuieins');
   if (testEinsatzIdResult.isFailure) throw new Error('Failed to create test EinsatzId');
   const testEinsatzId = testEinsatzIdResult.value as EinsatzId;
 
-  const testUserIdResult = UserId.create('test-user-id-12345678');
+  const testUserIdResult = UserId.create('clw3h8x9y0000qwertyuiuser');
   if (testUserIdResult.isFailure) throw new Error('Failed to create test UserId');
   const testUserId = testUserIdResult.value as UserId;
 
@@ -58,15 +61,15 @@ describe('PrismaLagekarteMapper', () => {
     it('should convert Prisma Lagekarte to Domain Aggregate with POIs', () => {
       // Given: Prisma Lagekarte with 2 POIs
       const prismaLagekarte: Lagekarte & { pois: LagekartePoi[] } = {
-        id: 'lk-id-123456789012345',
+        id: 'clw3h8x9y0000qwertyuilagek',
         einsatzId: testEinsatzId.value,
         state: {},
         createdAt: new Date('2024-01-01T10:00:00Z'),
         updatedAt: new Date('2024-01-01T10:00:00Z'),
         pois: [
           {
-            id: 'A1B2C3D4E5F6G7H8I9J0K', // Valid 21-char nanoid
-            lagekarteId: 'lk-id-123456789012345',
+            id: 'clw3h8x9y0000qwertyuipoi01', // Valid CUID2
+            lagekarteId: 'clw3h8x9y0000qwertyuilagek',
             type: 'EINSATZORT',
             name: 'Brandenburger Tor',
             adresse: 'Haupteinsatzort',
@@ -79,8 +82,8 @@ describe('PrismaLagekarteMapper', () => {
             updatedAt: new Date('2024-01-01T10:00:00Z'),
           },
           {
-            id: 'X1Y2Z3A4B5C6D7E8F9G0H', // Valid 21-char nanoid
-            lagekarteId: 'lk-id-123456789012345',
+            id: 'clw3h8x9y0000qwertyuipoi02', // Valid CUID2
+            lagekarteId: 'clw3h8x9y0000qwertyuilagek',
             type: 'BEREITSTELLUNGSRAUM',
             name: 'Rathaus Hamburg',
             adresse: null,
@@ -99,7 +102,7 @@ describe('PrismaLagekarteMapper', () => {
       const aggregate = PrismaLagekarteMapper.toAggregate(prismaLagekarte);
 
       // Then: Aggregate properties correct
-      expect(aggregate.id.value).toBe('lk-id-123456789012345');
+      expect(aggregate.id.value).toBe('clw3h8x9y0000qwertyuilagek');
       expect(aggregate.einsatzId.value).toBe(testEinsatzId.value);
       expect(aggregate.pois.length).toBe(2);
 
@@ -119,7 +122,7 @@ describe('PrismaLagekarteMapper', () => {
     it('should convert Prisma Lagekarte with empty POI list', () => {
       // Given: Prisma Lagekarte without POIs
       const prismaLagekarte: Lagekarte & { pois: LagekartePoi[] } = {
-        id: 'lk-id-123456789012345',
+        id: 'clw3h8x9y0000qwertyuilagek',
         einsatzId: testEinsatzId.value,
         state: {},
         createdAt: new Date('2024-01-01T10:00:00Z'),
@@ -140,7 +143,7 @@ describe('PrismaLagekarteMapper', () => {
       const updatedAt = new Date('2024-01-02T15:30:00Z');
 
       const prismaLagekarte: Lagekarte & { pois: LagekartePoi[] } = {
-        id: 'lk-id-123456789012345',
+        id: 'clw3h8x9y0000qwertyuilagek',
         einsatzId: testEinsatzId.value,
         state: {},
         createdAt,
@@ -159,7 +162,7 @@ describe('PrismaLagekarteMapper', () => {
     it('should clear Domain Events after reconstruction', () => {
       // Given: Prisma Lagekarte
       const prismaLagekarte: Lagekarte & { pois: LagekartePoi[] } = {
-        id: 'lk-id-123456789012345',
+        id: 'clw3h8x9y0000qwertyuilagek',
         einsatzId: testEinsatzId.value,
         state: {},
         createdAt: new Date(),
@@ -178,7 +181,7 @@ describe('PrismaLagekarteMapper', () => {
   describe('toPersistence', () => {
     it('should convert Domain Aggregate to Prisma CreateInput with POIs', () => {
       // Given: Domain Aggregate with 2 POIs
-      const aggregateResult = LagekarteAggregate.create(testEinsatzId);
+      const aggregateResult = LagekarteAggregate.create(testEinsatzId, testUserId);
       expect(aggregateResult.isSuccess).toBe(true);
 
       const aggregate = aggregateResult.value as LagekarteAggregate;
@@ -210,7 +213,7 @@ describe('PrismaLagekarteMapper', () => {
 
     it('should convert Aggregate with empty POI list', () => {
       // Given: Domain Aggregate without POIs
-      const aggregateResult = LagekarteAggregate.create(testEinsatzId);
+      const aggregateResult = LagekarteAggregate.create(testEinsatzId, testUserId);
       const aggregate = aggregateResult.value as LagekarteAggregate;
 
       // When: Convert to Prisma
@@ -222,7 +225,7 @@ describe('PrismaLagekarteMapper', () => {
 
     it('should preserve POI order in array', () => {
       // Given: Aggregate with 3 POIs added in specific order
-      const aggregateResult = LagekarteAggregate.create(testEinsatzId);
+      const aggregateResult = LagekarteAggregate.create(testEinsatzId, testUserId);
       const aggregate = aggregateResult.value as LagekarteAggregate;
 
       aggregate.addPoi('POI 1', berlinMgrs, PoiCategory.EINSATZSTELLE(), testUserId);
@@ -242,7 +245,7 @@ describe('PrismaLagekarteMapper', () => {
   describe('Round-Trip Tests', () => {
     it('should preserve Aggregate data in Domain → Prisma → Domain conversion', () => {
       // Given: Original Domain Aggregate with POIs
-      const originalResult = LagekarteAggregate.create(testEinsatzId);
+      const originalResult = LagekarteAggregate.create(testEinsatzId, testUserId);
       expect(originalResult.isSuccess).toBe(true);
       const original = originalResult.value as LagekarteAggregate;
       original.addPoi('Brandenburger Tor', berlinMgrs, PoiCategory.EINSATZSTELLE(), testUserId, 'Haupteinsatzort');
@@ -292,7 +295,7 @@ describe('PrismaLagekarteMapper', () => {
 
     it('should handle round-trip with empty POI list', () => {
       // Given: Aggregate without POIs
-      const originalResult = LagekarteAggregate.create(testEinsatzId);
+      const originalResult = LagekarteAggregate.create(testEinsatzId, testUserId);
       expect(originalResult.isSuccess).toBe(true);
       const original = originalResult.value as LagekarteAggregate;
 
@@ -314,7 +317,7 @@ describe('PrismaLagekarteMapper', () => {
 
     it('should handle round-trip with multiple POI categories', () => {
       // Given: Aggregate with all POI categories
-      const originalResult = LagekarteAggregate.create(testEinsatzId);
+      const originalResult = LagekarteAggregate.create(testEinsatzId, testUserId);
       expect(originalResult.isSuccess).toBe(true);
       const original = originalResult.value as LagekarteAggregate;
 

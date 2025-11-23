@@ -8,6 +8,7 @@ import { GetPoisQueryHandler } from './queries/get-pois.handler';
 import { GetLagekarteExistsQueryHandler } from './queries/get-lagekarte-exists.handler';
 import { LagekarteMapper } from './mappers/lagekarte.mapper';
 import { PoiMapper } from './mappers/poi.mapper';
+import { LagekarteEventsModule } from '@infrastructure/events/lagekarte-events.module';
 
 /**
  * NestJS-Modul für Application Layer - Lagekarte Bounded Context.
@@ -29,6 +30,10 @@ import { PoiMapper } from './mappers/poi.mapper';
  * - Dependency Injection Scope pro Context
  */
 @Module({
+  imports: [
+    // Event Infrastructure (IEventPublisher, Event Handlers)
+    LagekarteEventsModule,
+  ],
   providers: [
     // Command Handlers (State Mutation)
     CreateLagekarteCommandHandler,

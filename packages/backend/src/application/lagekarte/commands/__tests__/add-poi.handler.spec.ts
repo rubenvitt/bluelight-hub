@@ -1,38 +1,39 @@
 import { AddPoiCommandHandler } from '../add-poi.handler';
 import { AddPoiCommand } from '../add-poi.command';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
+import { UserId } from '@domain/value-objects/user-id';
 
-// Mock nanoid for deterministic test IDs
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    // Generate valid nanoid format: URL-safe characters only (A-Za-z0-9_-)
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const targetLength = length || 21;
-    let result = '';
-    for (let i = 0; i < targetLength; i++) {
+// Mock CUID2 for deterministic test IDs
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
   }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
 }));
 
 /**
- * Helper function: Generates valid 21-character nanoid for testing.
- * Uses URL-safe characters (A-Za-z0-9_-) as per nanoid format.
+ * Helper function: Generates valid CUID2-format IDs for testing.
+ * CUID2 format: lowercase alphanumeric, starts with 'c', 25 chars total.
  */
-function createValidTestId(prefix = 'test'): string {
-  // Create exactly 21 characters (padded with valid chars)
-  const validChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-  let id = prefix;
-  while (id.length < 21) {
-    id += validChars.charAt(Math.floor(Math.random() * validChars.length));
-  }
-  return id.substring(0, 21); // Ensure exactly 21 chars
+function generateTestCuid(suffix = ''): string {
+  const base = 'clw3h8x9y0000qwertyu';
+  const padding = suffix.padEnd(5, '0').slice(0, 5);
+  return base + padding;
 }
 
 /**
@@ -47,6 +48,7 @@ function createValidTestId(prefix = 'test'): string {
 describe('AddPoiCommandHandler', () => {
   let handler: AddPoiCommandHandler;
   let mockLagekarteRepo: jest.Mocked<ILagekarteRepository>;
+  let mockEventPublisher: jest.Mocked<IEventPublisher>;
 
   beforeEach(() => {
     // Create mock repository with all required methods
@@ -55,10 +57,17 @@ describe('AddPoiCommandHandler', () => {
       findById: jest.fn(),
       findByEinsatzId: jest.fn(),
       exists: jest.fn(),
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
+    // Create mock event publisher
+    mockEventPublisher = {
+      publish: jest.fn().mockResolvedValue(undefined),
+      publishAll: jest.fn().mockResolvedValue(undefined),
+    };
+
     // Instantiate handler with mocks (Direct Instantiation Pattern)
-    handler = new AddPoiCommandHandler(mockLagekarteRepo);
+    handler = new AddPoiCommandHandler(mockLagekarteRepo, mockEventPublisher);
   });
 
   afterEach(() => {
@@ -68,12 +77,13 @@ describe('AddPoiCommandHandler', () => {
   describe('Success Cases', () => {
     it('should add POI with Lat/Lng coordinate and convert to MGRS', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkart');
       const command = AddPoiCommand.create(lagekarteId, 'Brandenburger Tor', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('einsz')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -97,12 +107,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should add POI with MGRS string used directly', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkrt2');
       const command = AddPoiCommand.create(lagekarteId, 'Rathaus Hamburg', { mgrs: '32UNE8934004990' }, 'BEREITSTELLUNGSRAUM').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('eins2')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -124,12 +135,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should add POI with optional beschreibung', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkrt3');
       const command = AddPoiCommand.create(lagekarteId, 'Gefahrenstelle', { lat: 52.5163, lng: 13.3777 }, 'GEFAHRENSTELLE', 'Überflutete Straße, nicht befahrbar').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('eins3')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -150,12 +162,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should add POI without beschreibung when omitted', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkrt4');
       const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('eins4')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -175,12 +188,16 @@ describe('AddPoiCommandHandler', () => {
 
     it('should emit PoiAddedEvent when POI is added', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkrt5');
       const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('eins5')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
+
+      // Clear initial LagekarteCreatedEvent (aggregate creation emits event)
+      aggregate.clearDomainEvents();
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -192,12 +209,12 @@ describe('AddPoiCommandHandler', () => {
       // Then
       expect(result.isSuccess).toBe(true);
 
-      // Verify domain event emitted
-      const savedAggregate = mockLagekarteRepo.save.mock.calls[0][0];
-      const events = savedAggregate.getDomainEvents();
-      expect(events.length).toBe(1);
-      expect(events[0].constructor.name).toBe('PoiAddedEvent');
-      expect(events[0]).toMatchObject({
+      // Verify domain event was published via eventPublisher
+      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
+      expect(publishedEvents.length).toBe(1);
+      expect(publishedEvents[0].constructor.name).toBe('PoiAddedEvent');
+      expect(publishedEvents[0]).toMatchObject({
         name: 'Test POI',
       });
     });
@@ -206,7 +223,7 @@ describe('AddPoiCommandHandler', () => {
   describe('Failure Cases - LagekarteId validation', () => {
     it('should fail when LagekarteId format is invalid', async () => {
       // Given
-      const invalidLagekarteId = 'invalid-id-too-short'; // Less than 21 chars
+      const invalidLagekarteId = 'INVALID-ID-SHORT'; // Invalid: uppercase and too short
       const command = AddPoiCommand.create(invalidLagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // When
@@ -214,7 +231,7 @@ describe('AddPoiCommandHandler', () => {
 
       // Then
       expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Invalid nanoid format'); // LagekarteId validation error
+      expect(result.error).toContain('Invalid CUID format'); // LagekarteId validation error
 
       // Verify save was NOT called
       expect(mockLagekarteRepo.save).not.toHaveBeenCalled();
@@ -222,7 +239,7 @@ describe('AddPoiCommandHandler', () => {
 
     it('should fail when Lagekarte not found', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkrt6');
       const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Mock: Lagekarte does NOT exist
@@ -243,12 +260,13 @@ describe('AddPoiCommandHandler', () => {
   describe('Failure Cases - Invalid coordinates', () => {
     it('should fail when MGRS string is invalid', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkrt7');
       const command = AddPoiCommand.create(lagekarteId, 'Invalid POI', { mgrs: 'INVALID_MGRS_STRING' }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('eins7')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -266,12 +284,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should fail when latitude is out of range (> 90)', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkrt8');
       const command = AddPoiCommand.create(lagekarteId, 'Invalid Latitude', { lat: 91, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('eins8')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -289,12 +308,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should fail when latitude is out of range (< -90)', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkrt9');
       const command = AddPoiCommand.create(lagekarteId, 'Invalid Latitude', { lat: -91, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('eins9')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -312,12 +332,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should fail when longitude is out of range (> 180)', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr10');
       const command = AddPoiCommand.create(lagekarteId, 'Invalid Longitude', { lat: 52.5163, lng: 181 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein10')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -335,12 +356,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should fail when longitude is out of range (< -180)', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr11');
       const command = AddPoiCommand.create(lagekarteId, 'Invalid Longitude', { lat: 52.5163, lng: -181 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein11')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -360,12 +382,13 @@ describe('AddPoiCommandHandler', () => {
   describe('Failure Cases - Invalid POI category', () => {
     it('should fail when category is invalid', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr12');
       const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'INVALID_CATEGORY').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein12')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -385,12 +408,13 @@ describe('AddPoiCommandHandler', () => {
   describe('Failure Cases - Aggregate business rule violations', () => {
     it('should fail when duplicate POI name exists in aggregate', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr13');
       const command = AddPoiCommand.create(lagekarteId, 'Duplicate POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create aggregate with existing POI
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein13')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Add POI with same name
       const berlinMgrs = MgrsCoordinate.fromLatLng(52.5163, 13.3777).value!;
@@ -398,6 +422,7 @@ describe('AddPoiCommandHandler', () => {
       const existingLagekarteId = LagekarteId.create(lagekarteId).value!;
 
       // Add initial POI
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing - LagekarteId used as UserId
       aggregate.addPoi('Duplicate POI', berlinMgrs, category, existingLagekarteId as any);
 
       // Mock: Lagekarte exists with POI
@@ -418,12 +443,13 @@ describe('AddPoiCommandHandler', () => {
   describe('Failure Cases - Repository save errors', () => {
     it('should fail when repository.save() throws error', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr14');
       const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein14')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -442,12 +468,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should fail when repository.save() throws non-Error object', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr15');
       const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein15')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -468,13 +495,14 @@ describe('AddPoiCommandHandler', () => {
   describe('Orchestration Verification', () => {
     it('should call repository methods in correct order', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr16');
       const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
       const callOrder: string[] = [];
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein16')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Track call order
       mockLagekarteRepo.findById.mockImplementation(async () => {
@@ -495,12 +523,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should verify LagekarteId value object equality', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr17');
       const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein17')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -518,12 +547,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should verify aggregate.save() called with updated aggregate', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr18');
       const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein18')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -538,14 +568,15 @@ describe('AddPoiCommandHandler', () => {
       expect(savedAggregate.pois.length).toBe(1); // POI was added
     });
 
-    it('should verify NO event publishing yet (Epic 2.7 deferred)', async () => {
+    it('should verify event publishing happens after successful save', async () => {
       // Given
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr19');
       const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein19')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -554,28 +585,105 @@ describe('AddPoiCommandHandler', () => {
       // When
       await handler.execute(command);
 
-      // Then: Verify events are NOT published (only stored in aggregate)
-      const savedAggregate = mockLagekarteRepo.save.mock.calls[0][0];
-      const events = savedAggregate.getDomainEvents();
+      // Then: Verify events are published via eventPublisher
+      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
+      expect(publishedEvents.length).toBeGreaterThan(0);
+    });
+  });
 
-      // Events should exist in aggregate but NOT published yet
-      expect(events.length).toBeGreaterThan(0);
+  describe('Event Publishing', () => {
+    it('should publish PoiAddedEvent after successful save', async () => {
+      // Given
+      const lagekarteId = generateTestCuid('lkr20');
+      const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
-      // Verify NO eventPublisher injected/called (TODO Epic 2.7)
-      // This test documents current behavior - will change in Epic 2.7
-      expect(true).toBe(true); // Placeholder assertion
+      const einsatzId = EinsatzId.create(generateTestCuid('ein20')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
+
+      // Clear initial LagekarteCreatedEvent
+      aggregate.clearDomainEvents();
+
+      mockLagekarteRepo.findById.mockResolvedValue(aggregate);
+      mockLagekarteRepo.save.mockResolvedValue(undefined);
+
+      // When
+      await handler.execute(command);
+
+      // Then
+      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
+      expect(publishedEvents.length).toBe(1);
+      expect(publishedEvents[0].constructor.name).toBe('PoiAddedEvent');
+    });
+
+    it('should NOT publish events when Lagekarte not found', async () => {
+      // Given
+      const lagekarteId = generateTestCuid('lkr21');
+      const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
+
+      mockLagekarteRepo.findById.mockResolvedValue(null);
+
+      // When
+      const result = await handler.execute(command);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+    });
+
+    it('should NOT publish events when save fails', async () => {
+      // Given
+      const lagekarteId = generateTestCuid('lkr22');
+      const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
+
+      const einsatzId = EinsatzId.create(generateTestCuid('ein22')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
+
+      mockLagekarteRepo.findById.mockResolvedValue(aggregate);
+      mockLagekarteRepo.save.mockRejectedValue(new Error('DB Error'));
+
+      // When
+      const result = await handler.execute(command);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+    });
+
+    it('should clear domain events after publishing', async () => {
+      // Given
+      const lagekarteId = generateTestCuid('lkr23');
+      const command = AddPoiCommand.create(lagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
+
+      const einsatzId = EinsatzId.create(generateTestCuid('ein23')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
+
+      mockLagekarteRepo.findById.mockResolvedValue(aggregate);
+      mockLagekarteRepo.save.mockResolvedValue(undefined);
+
+      // When
+      await handler.execute(command);
+
+      // Then: Events are cleared after publishing (aggregate is modified)
+      // We verify publishAll was called, which is followed by clearDomainEvents
+      expect(mockEventPublisher.publishAll).toHaveBeenCalled();
     });
   });
 
   describe('Edge Cases', () => {
-    it('should handle lagekarteId with all valid nanoid characters', async () => {
-      // Given: Test with all types of valid nanoid characters (A-Za-z0-9_-)
-      const complexLagekarteId = 'AZaz09_-0123456789XYZ'; // Exactly 21 chars with all valid types
+    it('should handle lagekarteId with all valid CUID2 characters', async () => {
+      // Given: Test with valid CUID2 format (lowercase alphanumeric, starts with letter)
+      const complexLagekarteId = 'clw3h8x9y0000qwertyu12345'; // Exactly 25 chars, valid CUID2
       const command = AddPoiCommand.create(complexLagekarteId, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein24')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -592,12 +700,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should handle POI at northern Germany boundary (Flensburg)', async () => {
       // Given: Northern Germany boundary coordinates (Flensburg)
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr25');
       const command = AddPoiCommand.create(lagekarteId, 'Flensburg North', { lat: 54.78, lng: 9.44 }, 'SONSTIGES').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein25')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);
@@ -615,12 +724,13 @@ describe('AddPoiCommandHandler', () => {
 
     it('should handle POI at southern Germany boundary (Munich)', async () => {
       // Given: Southern Germany coordinates (Munich - Zone 33U)
-      const lagekarteId = createValidTestId('lagekarte');
+      const lagekarteId = generateTestCuid('lkr26');
       const command = AddPoiCommand.create(lagekarteId, 'Munich Marienplatz', { lat: 48.1371, lng: 11.5754 }, 'SONSTIGES').value!;
 
       // Create existing aggregate
-      const einsatzId = EinsatzId.create(createValidTestId('einsatz')).value!;
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const einsatzId = EinsatzId.create(generateTestCuid('ein26')).value!;
+      const createdBy = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
 
       // Mock: Lagekarte exists
       mockLagekarteRepo.findById.mockResolvedValue(aggregate);

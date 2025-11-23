@@ -77,6 +77,7 @@ describe('UpdatePoiPositionCommand', () => {
   describe('Invalid Commands - lagekarteId validation', () => {
     it('should return failure when lagekarteId is undefined', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = UpdatePoiPositionCommand.create(undefined as any, 'poi-456', { lat: 52.5163, lng: 13.3777 });
 
       // Then
@@ -86,6 +87,7 @@ describe('UpdatePoiPositionCommand', () => {
 
     it('should return failure when lagekarteId is null', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = UpdatePoiPositionCommand.create(null as any, 'poi-456', { lat: 52.5163, lng: 13.3777 });
 
       // Then
@@ -115,6 +117,7 @@ describe('UpdatePoiPositionCommand', () => {
   describe('Invalid Commands - poiId validation', () => {
     it('should return failure when poiId is undefined', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = UpdatePoiPositionCommand.create('lagekarte-123', undefined as any, { lat: 52.5163, lng: 13.3777 });
 
       // Then
@@ -124,6 +127,7 @@ describe('UpdatePoiPositionCommand', () => {
 
     it('should return failure when poiId is null', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = UpdatePoiPositionCommand.create('lagekarte-123', null as any, { lat: 52.5163, lng: 13.3777 });
 
       // Then
@@ -153,6 +157,7 @@ describe('UpdatePoiPositionCommand', () => {
   describe('Invalid Commands - newCoordinate validation', () => {
     it('should return failure when newCoordinate is undefined', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = UpdatePoiPositionCommand.create('lagekarte-123', 'poi-456', undefined as any);
 
       // Then
@@ -162,6 +167,7 @@ describe('UpdatePoiPositionCommand', () => {
 
     it('should return failure when newCoordinate is null', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = UpdatePoiPositionCommand.create('lagekarte-123', 'poi-456', null as any);
 
       // Then

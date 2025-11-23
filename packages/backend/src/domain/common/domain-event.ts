@@ -1,6 +1,6 @@
-// Use non-secure nanoid for Jest compatibility (CommonJS)
-// Note: In production, the secure version will be used via tree-shaking
-import { nanoid } from 'nanoid/non-secure';
+// CUID2 für sichere, kollisionsresistente Event-ID-Generierung
+// Konsistent mit EntityId und Prisma-generierten IDs
+import { createId } from '@paralleldrive/cuid2';
 
 /**
  * Abstract Base Class für immutable Domain Events mit auto-generierter eventId und occurredAt timestamp.
@@ -8,7 +8,7 @@ import { nanoid } from 'nanoid/non-secure';
  *
  * Charakteristika:
  * - Readonly Properties: Alle Felder sind immutabel (readonly)
- * - Auto-Generation: eventId (nanoid) und occurredAt (Date) werden im Constructor generiert
+ * - Auto-Generation: eventId (CUID2) und occurredAt (Date) werden im Constructor generiert
  * - Past Tense: Event Namen wie "EinsatzCreatedEvent", NICHT "CreateEinsatzEvent"
  * - Rich Data: Events enthalten alle relevanten Daten für Event Handler (vermeidet DB-Queries)
  * - Versioning: eventVersion() ermöglicht Schema Evolution
@@ -42,7 +42,7 @@ import { nanoid } from 'nanoid/non-secure';
  *   'aggregate-123'
  * );
  *
- * console.log(event.eventId);     // "X1Y2Z3A4B5C6D7E8F9G0H" (auto-generated nanoid)
+ * console.log(event.eventId);     // "clw3h8x9y0000qwertyuiopas" (auto-generated CUID2)
  * console.log(event.occurredAt);  // 2024-11-14T12:34:56.789Z (auto-generated)
  * console.log(event.aggregateId); // "aggregate-123"
  * console.log(EinsatzCreatedEvent.eventName()); // "EinsatzCreated"
@@ -51,8 +51,8 @@ import { nanoid } from 'nanoid/non-secure';
  */
 export abstract class DomainEvent {
   /**
-   * Eindeutige Event ID (auto-generiert via nanoid).
-   * Format: 21 URL-safe Zeichen [A-Za-z0-9_-]
+   * Eindeutige Event ID (auto-generiert via CUID2).
+   * Konsistent mit EntityId und Prisma-generierten IDs.
    * Readonly: Events sind immutabel (historische Fakten)
    */
   public readonly eventId: string;
@@ -73,7 +73,7 @@ export abstract class DomainEvent {
 
   /**
    * Protected Constructor erzwingt Subclass-Implementierung.
-   * Auto-generiert eventId (nanoid) und occurredAt (Date).
+   * Auto-generiert eventId (CUID2) und occurredAt (Date).
    *
    * Warum auto-generation?
    * - eventId: Garantiert Uniqueness ohne externe Dependency (z.B. Database Sequence)
@@ -82,7 +82,7 @@ export abstract class DomainEvent {
    * @param aggregateId - Optional: ID der zugehörigen Aggregate Root (für Event Store Context)
    */
   protected constructor(aggregateId?: string) {
-    this.eventId = nanoid();
+    this.eventId = createId();
     this.occurredAt = new Date();
     this.aggregateId = aggregateId;
   }

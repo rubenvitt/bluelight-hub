@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, ValidateNested, MinLength, MaxLength, IsEnum, IsObject } from 'class-validator';
+import { IsNotEmpty, IsOptional, ValidateNested, MinLength, MaxLength, IsEnum, IsObject, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsCuid } from '@/common/decorators/is-cuid.decorator';
 
 export class InitialPoiDto {
   @ApiProperty({ description: 'POI-Name', example: 'Einsatzstelle' })
@@ -22,8 +23,8 @@ export class InitialPoiDto {
 }
 
 export class CreateLagekarteDto {
-  @ApiProperty({ description: 'Einsatz-ID', example: 'e-123' })
-  @IsString()
+  @ApiProperty({ description: 'Einsatz-ID (CUID)', example: 'clw3h8x9y0000qwertyuiopas' })
+  @IsCuid()
   @IsNotEmpty()
   einsatzId!: string;
 

@@ -2,24 +2,26 @@ import { GetLagekarteQueryHandler } from '../get-lagekarte.handler';
 import { GetLagekarteQuery } from '../get-lagekarte.query';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
-import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
-import { Poi } from '@domain/entities/poi.entity';
 import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import { UserId } from '@domain/value-objects/user-id';
 import { createValidTestId } from './helpers/test-id.helper';
 
-// Mock nanoid for deterministic test IDs
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const targetLength = length || 21;
-    let result = '';
-    for (let i = 0; i < targetLength; i++) {
+// Mock cuid2 for deterministic test IDs
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -42,6 +44,7 @@ describe('GetLagekarteQueryHandler', () => {
       save: jest.fn(),
       findById: jest.fn(),
       exists: jest.fn(),
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
     // Instantiate handler with mock (Direct Instantiation Pattern)
@@ -58,7 +61,8 @@ describe('GetLagekarteQueryHandler', () => {
       const einsatzId = createValidTestId('einsatz');
       const einsatzIdVo = EinsatzId.create(einsatzId).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       mockRepo.findByEinsatzId.mockResolvedValue(aggregate);
 
@@ -108,12 +112,12 @@ describe('GetLagekarteQueryHandler', () => {
       const einsatzIdVo = EinsatzId.create(einsatzId).value!;
 
       // Create Lagekarte
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       // Add POI via domain method
       const mgrs = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!; // Berlin
       const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = UserId.create().value!;
 
       const poiResult = aggregate.addPoi('Brandenburger Tor', mgrs, category, userId);
       expect(poiResult.isSuccess).toBe(true);
@@ -153,13 +157,13 @@ describe('GetLagekarteQueryHandler', () => {
       const einsatzId = createValidTestId('einsatz');
       const einsatzIdVo = EinsatzId.create(einsatzId).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       // Add multiple POIs with different coordinates
       const berlin = MgrsCoordinate.fromLatLng(52.5163, 13.3777, 5).value!;
       const hamburg = MgrsCoordinate.fromString('32UNE8934004990').value!; // Hamburg MGRS
       const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = UserId.create().value!;
 
       aggregate.addPoi('Berlin', berlin, category, userId);
       aggregate.addPoi('Hamburg', hamburg, category, userId);
@@ -262,7 +266,8 @@ describe('GetLagekarteQueryHandler', () => {
       const einsatzId = createValidTestId('einsatz');
       const einsatzIdVo = EinsatzId.create(einsatzId).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       mockRepo.findByEinsatzId.mockResolvedValue(aggregate);
 
@@ -282,7 +287,8 @@ describe('GetLagekarteQueryHandler', () => {
       const einsatzId = createValidTestId('einsatz');
       const einsatzIdVo = EinsatzId.create(einsatzId).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       mockRepo.findByEinsatzId.mockResolvedValue(aggregate);
 
@@ -302,11 +308,11 @@ describe('GetLagekarteQueryHandler', () => {
       const einsatzId = createValidTestId('einsatz');
       const einsatzIdVo = EinsatzId.create(einsatzId).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       // Add 10 POIs
       const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = UserId.create().value!;
 
       for (let i = 0; i < 10; i++) {
         const lat = 52.5 + i * 0.01;
@@ -335,12 +341,13 @@ describe('GetLagekarteQueryHandler', () => {
       });
     });
 
-    it('should handle einsatzId with all valid nanoid characters', async () => {
+    it('should handle einsatzId with all valid cuid2 characters', async () => {
       // Given
-      const complexEinsatzId = 'AZaz09_-0123456789XYZ'; // All valid chars
+      const complexEinsatzId = 'clw3h8x9y0000qwertyuiazaz0'; // Valid CUID2 format
       const einsatzIdVo = EinsatzId.create(complexEinsatzId).value!;
 
-      const aggregate = LagekarteAggregate.create(einsatzIdVo).value!;
+      const userId = UserId.create().value!;
+      const aggregate = LagekarteAggregate.create(einsatzIdVo, userId).value!;
 
       mockRepo.findByEinsatzId.mockResolvedValue(aggregate);
 

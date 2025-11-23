@@ -219,10 +219,10 @@ export class UserAggregate extends AggregateRoot<UserId> {
   static create(username: Username, role: UserRole, permissions?: Permission[]): Result<UserAggregate> {
     // Generate type-safe UserId
     const idResult = UserId.create();
-    if (idResult.isFailure) {
+    if (idResult.isFailure || !idResult.value) {
       return Result.fail<UserAggregate>(idResult.error ?? 'Failed to create UserId');
     }
-    const id = idResult.value!;
+    const id = idResult.value;
 
     // Create aggregate
     const user = new UserAggregate(
@@ -296,10 +296,10 @@ export class UserAggregate extends AggregateRoot<UserId> {
     // Prüfe ob User aktuell SUPER_ADMIN ist UND zu anderer Role demoted werden soll
     if (this._role.equals(UserRole.SUPER_ADMIN())) {
       const countResult = await repository.countSuperAdmins();
-      if (countResult.isFailure) {
+      if (countResult.isFailure || countResult.value === undefined) {
         return Result.fail<void>(countResult.error ?? 'Failed to count SUPER_ADMINs');
       }
-      if (countResult.value! <= 1) {
+      if (countResult.value <= 1) {
         return Result.fail<void>('Cannot demote last SUPER_ADMIN');
       }
     }
@@ -476,10 +476,10 @@ export class UserAggregate extends AggregateRoot<UserId> {
     // Prüfe ob User SUPER_ADMIN ist UND letzter SUPER_ADMIN im System
     if (this._role.equals(UserRole.SUPER_ADMIN())) {
       const countResult = await repository.countSuperAdmins();
-      if (countResult.isFailure) {
+      if (countResult.isFailure || countResult.value === undefined) {
         return Result.fail<void>(countResult.error ?? 'Failed to count SUPER_ADMINs');
       }
-      if (countResult.value! <= 1) {
+      if (countResult.value <= 1) {
         return Result.fail<void>('Cannot lock last SUPER_ADMIN');
       }
     }
@@ -588,10 +588,10 @@ export class UserAggregate extends AggregateRoot<UserId> {
     // Prüfe ob User SUPER_ADMIN ist UND letzter SUPER_ADMIN im System
     if (this._role.equals(UserRole.SUPER_ADMIN())) {
       const countResult = await repository.countSuperAdmins();
-      if (countResult.isFailure) {
+      if (countResult.isFailure || countResult.value === undefined) {
         return Result.fail<void>(countResult.error ?? 'Failed to count SUPER_ADMINs');
       }
-      if (countResult.value! <= 1) {
+      if (countResult.value <= 1) {
         return Result.fail<void>('Cannot delete last SUPER_ADMIN');
       }
     }

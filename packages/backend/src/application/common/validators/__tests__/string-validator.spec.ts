@@ -1,9 +1,9 @@
-import { validateRequiredString, validateNanoidFormat, NANOID_REGEX } from '../string-validator';
+import { validateRequiredString, validateNanoidFormat, validateCuid2Format, NANOID_REGEX, CUID2_REGEX } from '../string-validator';
 
 /**
  * Unit Tests für String Validation Helpers.
  *
- * Testet validateRequiredString() und validateNanoidFormat()
+ * Testet validateRequiredString() und validateCuid2Format()
  * gemäß BDD Given-When-Then Pattern.
  * Coverage Target: >90%
  */
@@ -64,59 +64,77 @@ describe('String Validator', () => {
     });
   });
 
-  describe('validateNanoidFormat', () => {
-    it('should not throw for valid 21-character nanoid', () => {
+  describe('validateCuid2Format', () => {
+    it('should not throw for valid CUID2 (25 characters, starts with lowercase letter)', () => {
       // Given
-      const validNanoid = 'V1StGXR8_Z5jdHi6B-myT'; // 21 chars
+      const validCuid2 = 'clw3h8x9y0000qwertyui00001'; // 26 chars, starts with 'c'
       const fieldName = 'testId';
 
       // When/Then
-      expect(() => validateNanoidFormat(validNanoid, fieldName)).not.toThrow();
+      expect(() => validateCuid2Format(validCuid2, fieldName)).not.toThrow();
     });
 
-    it('should not throw for nanoid with all valid characters (A-Z, a-z, 0-9, _, -)', () => {
+    it('should not throw for CUID2 with all valid characters (a-z, 0-9)', () => {
       // Given
-      const validNanoid = 'AZaz09_-0123456789XYZ'; // 21 chars with all valid chars
+      const validCuid2 = 'cm1234567890abcdefghij'; // 22 chars, lowercase only
       const fieldName = 'testId';
 
       // When/Then
-      expect(() => validateNanoidFormat(validNanoid, fieldName)).not.toThrow();
+      expect(() => validateCuid2Format(validCuid2, fieldName)).not.toThrow();
     });
 
-    it('should throw error for nanoid that is too short', () => {
+    it('should throw error for CUID2 that is too short (less than 20 chars)', () => {
       // Given
       const shortId = 'invalid'; // Only 7 chars
       const fieldName = 'einsatzId';
 
       // When/Then
-      expect(() => validateNanoidFormat(shortId, fieldName)).toThrow('einsatzId must be a valid nanoid format (21 alphanumeric characters)');
+      expect(() => validateCuid2Format(shortId, fieldName)).toThrow('einsatzId must be a valid CUID2 format');
     });
 
-    it('should throw error for nanoid that is too long', () => {
+    it('should throw error for CUID2 that is too long (more than 30 chars)', () => {
       // Given
-      const longId = 'toolongnanoidexceedstwentyonecharacters'; // 42 chars
+      const longId = 'clw3h8x9y0000qwertyui000012345678901'; // 36 chars
       const fieldName = 'lagekarteId';
 
       // When/Then
-      expect(() => validateNanoidFormat(longId, fieldName)).toThrow('lagekarteId must be a valid nanoid format (21 alphanumeric characters)');
+      expect(() => validateCuid2Format(longId, fieldName)).toThrow('lagekarteId must be a valid CUID2 format');
     });
 
-    it('should throw error for nanoid with invalid characters', () => {
+    it('should throw error for CUID2 with uppercase characters', () => {
       // Given
-      const invalidId = 'invalid@chars#!21char'; // 21 chars but invalid symbols
+      const uppercaseId = 'CLW3H8X9Y0000QWERTYUI'; // 21 chars but uppercase
       const fieldName = 'poiId';
 
       // When/Then
-      expect(() => validateNanoidFormat(invalidId, fieldName)).toThrow('poiId must be a valid nanoid format (21 alphanumeric characters)');
+      expect(() => validateCuid2Format(uppercaseId, fieldName)).toThrow('poiId must be a valid CUID2 format');
     });
 
-    it('should throw error for nanoid with spaces', () => {
+    it('should throw error for CUID2 with invalid characters (underscore, hyphen)', () => {
       // Given
-      const idWithSpaces = 'einsatz 123 456 7890'; // 20 chars but has spaces
+      const invalidId = 'clw3h8x9y_000-qwertyui'; // Has underscore and hyphen
+      const fieldName = 'poiId';
+
+      // When/Then
+      expect(() => validateCuid2Format(invalidId, fieldName)).toThrow('poiId must be a valid CUID2 format');
+    });
+
+    it('should throw error for CUID2 starting with number', () => {
+      // Given
+      const startsWithNumber = '1lw3h8x9y0000qwertyui'; // 21 chars but starts with number
       const fieldName = 'einsatzId';
 
       // When/Then
-      expect(() => validateNanoidFormat(idWithSpaces, fieldName)).toThrow('einsatzId must be a valid nanoid format (21 alphanumeric characters)');
+      expect(() => validateCuid2Format(startsWithNumber, fieldName)).toThrow('einsatzId must be a valid CUID2 format');
+    });
+
+    it('should throw error for CUID2 with spaces', () => {
+      // Given
+      const idWithSpaces = 'einsatz 123 456 7890abc'; // Has spaces
+      const fieldName = 'einsatzId';
+
+      // When/Then
+      expect(() => validateCuid2Format(idWithSpaces, fieldName)).toThrow('einsatzId must be a valid CUID2 format');
     });
 
     it('should use custom field name in error message', () => {
@@ -125,39 +143,114 @@ describe('String Validator', () => {
       const customFieldName = 'customIdField';
 
       // When/Then
-      expect(() => validateNanoidFormat(invalidId, customFieldName)).toThrow('customIdField must be a valid nanoid format');
+      expect(() => validateCuid2Format(invalidId, customFieldName)).toThrow('customIdField must be a valid CUID2 format');
     });
 
-    it('should accept numeric-only nanoid (21 digits)', () => {
+    it('should accept 20-character CUID2 (minimum length)', () => {
       // Given
-      const numericNanoid = '123456789012345678901'; // 21 digits
+      const minLengthCuid2 = 'cm1234567890abcdefgh'; // 20 chars exactly
       const fieldName = 'testId';
 
       // When/Then
-      expect(() => validateNanoidFormat(numericNanoid, fieldName)).not.toThrow();
+      expect(() => validateCuid2Format(minLengthCuid2, fieldName)).not.toThrow();
+    });
+
+    it('should accept 30-character CUID2 (maximum length)', () => {
+      // Given
+      const maxLengthCuid2 = 'cm1234567890abcdefghijklmnop12'; // 30 chars exactly
+      const fieldName = 'testId';
+
+      // When/Then
+      expect(() => validateCuid2Format(maxLengthCuid2, fieldName)).not.toThrow();
+    });
+
+    it('should reject numeric-only CUID2 (must start with letter)', () => {
+      // Given
+      const numericCuid2 = '12345678901234567890123'; // 23 digits, but starts with number
+      const fieldName = 'testId';
+
+      // When/Then
+      expect(() => validateCuid2Format(numericCuid2, fieldName)).toThrow('testId must be a valid CUID2 format');
     });
   });
 
-  describe('NANOID_REGEX constant', () => {
-    it('should match valid 21-character nanoid', () => {
+  describe('validateNanoidFormat (deprecated, delegates to validateCuid2Format)', () => {
+    it('should accept valid CUID2 format (backwards compatibility)', () => {
       // Given
-      const validNanoid = 'V1StGXR8_Z5jdHi6B-myT';
+      const validCuid2 = 'clw3h8x9y0000qwertyui00001';
+      const fieldName = 'testId';
+
+      // When/Then
+      expect(() => validateNanoidFormat(validCuid2, fieldName)).not.toThrow();
+    });
+
+    it('should reject old nanoid format (uppercase not allowed in CUID2)', () => {
+      // Given
+      const oldNanoid = 'V1StGXR8_Z5jdHi6B-myT'; // Old nanoid format with uppercase
+      const fieldName = 'testId';
+
+      // When/Then
+      expect(() => validateNanoidFormat(oldNanoid, fieldName)).toThrow();
+    });
+  });
+
+  describe('CUID2_REGEX constant', () => {
+    it('should match valid CUID2 (25 characters)', () => {
+      // Given
+      const validCuid2 = 'clw3h8x9y0000qwertyui00001';
 
       // When
-      const result = NANOID_REGEX.test(validNanoid);
+      const result = CUID2_REGEX.test(validCuid2);
 
       // Then
       expect(result).toBe(true);
     });
 
-    it('should not match invalid nanoid formats', () => {
+    it('should match valid CUID2 (20 characters - minimum)', () => {
       // Given
-      const invalidIds = ['short', 'toolongnanoidexceedstwentyonecharacters', 'invalid@chars#!21char', 'einsatz 123 456 7890', ''];
+      const validCuid2 = 'cm1234567890abcdefgh';
+
+      // When
+      const result = CUID2_REGEX.test(validCuid2);
+
+      // Then
+      expect(result).toBe(true);
+    });
+
+    it('should match valid CUID2 (30 characters - maximum)', () => {
+      // Given
+      const validCuid2 = 'cm1234567890abcdefghijklmnop12';
+
+      // When
+      const result = CUID2_REGEX.test(validCuid2);
+
+      // Then
+      expect(result).toBe(true);
+    });
+
+    it('should not match invalid CUID2 formats', () => {
+      // Given
+      const invalidIds = [
+        'short', // Too short
+        'clw3h8x9y0000qwertyui000012345678901', // Too long (36 chars)
+        'CLW3H8X9Y0000QWERTYUI', // Uppercase
+        'clw3h8x9y_000-qwertyui', // Invalid chars
+        '1lw3h8x9y0000qwertyui', // Starts with number
+        'V1StGXR8_Z5jdHi6B-myT', // Old nanoid format
+        '',
+      ];
 
       // When/Then
       for (const id of invalidIds) {
-        expect(NANOID_REGEX.test(id)).toBe(false);
+        expect(CUID2_REGEX.test(id)).toBe(false);
       }
+    });
+  });
+
+  describe('NANOID_REGEX constant (deprecated, alias for CUID2_REGEX)', () => {
+    it('should be equal to CUID2_REGEX', () => {
+      // Then
+      expect(NANOID_REGEX).toBe(CUID2_REGEX);
     });
   });
 });

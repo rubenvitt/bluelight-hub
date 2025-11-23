@@ -1,17 +1,21 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
-
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock cuid2 for Jest compatibility (ESM module issue) - MUST be before imports
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
   }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
 }));
+
+import { describe, it, expect, beforeEach } from '@jest/globals';
 
 import { AggregateRoot } from './aggregate-root';
 import { EntityId } from './entity-id';
@@ -80,10 +84,10 @@ describe('AggregateRoot<TId>', () => {
   describe('Constructor & Properties', () => {
     it('Given valid parameters, When creating aggregate, Then should initialize id, createdAt, updatedAt', () => {
       // Given
-      const idResult = TestId.create();
-      const id = idResult.value!;
-      const createdAt = new Date('2024-01-01');
-      const updatedAt = new Date('2024-01-02');
+      const _idResult = TestId.create();
+      const _id = _idResult.value;
+      const _createdAt = new Date('2024-01-01');
+      const _updatedAt = new Date('2024-01-02');
 
       // When
       const aggregate = TestAggregate.create('test').value!;
@@ -117,7 +121,7 @@ describe('AggregateRoot<TId>', () => {
 
       // Then
       expect(id).toBeInstanceOf(TestId);
-      expect(id.value).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(id.value).toMatch(/^[a-z][a-z0-9]{19,29}$/);
     });
   });
 

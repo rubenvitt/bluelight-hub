@@ -6,16 +6,21 @@ import { EtbId } from '@domain/value-objects/etb-id';
 import { EintragId } from '@domain/value-objects/eintrag-id';
 import { UserId } from '@domain/value-objects/user-id';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock CUID2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    // Generate valid CUID2 format: starts with lowercase letter, ~25 chars
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -36,11 +41,13 @@ describe('ETB Domain Events', () => {
       expect(event.eventName).toBe('etb.eintrag_added');
     });
 
-    it('should auto-generate eventId (nanoid)', () => {
+    it('should auto-generate eventId (CUID)', () => {
       const event = new EintragAddedEvent(etbId, eintragId, 1, 'Test', userId);
       expect(event.eventId).toBeDefined();
-      expect(event.eventId).toHaveLength(21);
-      expect(event.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      // CUID2 format: starts with lowercase letter, ~25 chars
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should auto-generate occurredAt timestamp', () => {
@@ -79,7 +86,8 @@ describe('ETB Domain Events', () => {
     it('should auto-generate event metadata', () => {
       const event = new EintragUpdatedEvent(etbId, eintragId, 'Old', 'New', userId);
       expect(event.eventId).toBeDefined();
-      expect(event.eventId).toHaveLength(21);
+      // CUID2 format validation
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
       expect(event.occurredAt).toBeInstanceOf(Date);
     });
   });

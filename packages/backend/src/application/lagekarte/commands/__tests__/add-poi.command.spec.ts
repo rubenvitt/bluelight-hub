@@ -91,6 +91,7 @@ describe('AddPoiCommand', () => {
   describe('Invalid Commands - lagekarteId validation', () => {
     it('should return failure when lagekarteId is undefined', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = AddPoiCommand.create(undefined as any, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE');
 
       // Then
@@ -100,6 +101,7 @@ describe('AddPoiCommand', () => {
 
     it('should return failure when lagekarteId is null', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = AddPoiCommand.create(null as any, 'Test POI', { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE');
 
       // Then
@@ -129,6 +131,7 @@ describe('AddPoiCommand', () => {
   describe('Invalid Commands - name validation', () => {
     it('should return failure when name is undefined', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = AddPoiCommand.create('lagekarte-123', undefined as any, { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE');
 
       // Then
@@ -138,6 +141,7 @@ describe('AddPoiCommand', () => {
 
     it('should return failure when name is null', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = AddPoiCommand.create('lagekarte-123', null as any, { lat: 52.5163, lng: 13.3777 }, 'EINSATZSTELLE');
 
       // Then
@@ -167,6 +171,7 @@ describe('AddPoiCommand', () => {
   describe('Invalid Commands - coordinate validation', () => {
     it('should return failure when coordinate is undefined', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = AddPoiCommand.create('lagekarte-123', 'Test POI', undefined as any, 'EINSATZSTELLE');
 
       // Then
@@ -176,6 +181,7 @@ describe('AddPoiCommand', () => {
 
     it('should return failure when coordinate is null', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = AddPoiCommand.create('lagekarte-123', 'Test POI', null as any, 'EINSATZSTELLE');
 
       // Then
@@ -187,6 +193,7 @@ describe('AddPoiCommand', () => {
   describe('Invalid Commands - category validation', () => {
     it('should return failure when category is undefined', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = AddPoiCommand.create('lagekarte-123', 'Test POI', { lat: 52.5163, lng: 13.3777 }, undefined as any);
 
       // Then
@@ -196,6 +203,7 @@ describe('AddPoiCommand', () => {
 
     it('should return failure when category is null', () => {
       // Given/When
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       const result = AddPoiCommand.create('lagekarte-123', 'Test POI', { lat: 52.5163, lng: 13.3777 }, null as any);
 
       // Then

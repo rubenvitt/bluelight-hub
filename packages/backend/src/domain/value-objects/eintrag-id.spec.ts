@@ -1,34 +1,46 @@
 import { EintragId } from './eintrag-id';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock CUID2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    // Generate valid CUID2 format: starts with 'c', 20-30 lowercase alphanumeric characters
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
   }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
 }));
+
+function generateTestCuid(suffix = ''): string {
+  const base = 'clw3h8x9y0000qwertyu';
+  const padding = suffix.padEnd(5, '0').slice(0, 5);
+  return base + padding;
+}
 
 describe('EintragId', () => {
   describe('create', () => {
-    it('should auto-generate a valid nanoid when no parameter provided', () => {
+    it('should auto-generate a valid CUID when no parameter provided', () => {
       // Given: No ID parameter
       // When: Creating EintragId via create()
       const result = EintragId.create();
 
-      // Then: Success with 21-character nanoid
+      // Then: Success with valid CUID format
       expect(result.isSuccess).toBe(true);
-      expect(result.value?.value).toHaveLength(21);
-      expect(result.value?.value).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(result.value?.value).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(result.value?.value.length).toBeGreaterThanOrEqual(20);
+      expect(result.value?.value.length).toBeLessThanOrEqual(30);
     });
 
-    it('should accept a valid nanoid string', () => {
-      // Given: Valid 21-character nanoid
-      const validId = 'X1Y2Z3A4B5C6D7E8F9G0H';
+    it('should accept a valid CUID string', () => {
+      // Given: Valid CUID
+      const validId = generateTestCuid('test1');
 
       // When: Creating EintragId with valid ID
       const result = EintragId.create(validId);
@@ -38,7 +50,7 @@ describe('EintragId', () => {
       expect(result.value?.value).toBe(validId);
     });
 
-    it('should reject invalid nanoid format', () => {
+    it('should reject invalid CUID format', () => {
       // Given: Invalid ID (contains invalid characters)
       const invalidId = 'invalid@id#with$special';
 
@@ -47,15 +59,15 @@ describe('EintragId', () => {
 
       // Then: Failure with error message
       expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Invalid nanoid format');
+      expect(result.error).toContain('Invalid CUID format');
     });
 
     it('should support equals() method for identity comparison', () => {
-      // Given: Two EintragIds with same nanoid
-      const id = 'X1Y2Z3A4B5C6D7E8F9G0H';
+      // Given: Two EintragIds with same CUID
+      const id = generateTestCuid('equal');
       const id1 = EintragId.create(id).value!;
       const id2 = EintragId.create(id).value!;
-      const id3 = EintragId.create('A1B2C3D4E5F6G7H8I9J0K').value!;
+      const id3 = EintragId.create(generateTestCuid('other')).value!;
 
       // When: Comparing equality
       // Then: Structural equality (same value)

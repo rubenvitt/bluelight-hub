@@ -10,6 +10,28 @@ import type {
 import { api } from '../api';
 import type * as GeoJSON from 'geojson';
 import { LAGEKARTE_QUERY_KEYS } from '../../queryKeys';
+import { z } from 'zod';
+
+/**
+ * Zod-Schema für GeoJSON FeatureCollection Validierung
+ *
+ * @remarks
+ * Validiert die Grundstruktur einer GeoJSON FeatureCollection für Lagekarte-State.
+ * Tiefe Validierung der Features wird nicht durchgeführt, da das Format variabel ist.
+ */
+const geoJsonFeatureCollectionSchema = z.object({
+  type: z.literal('FeatureCollection'),
+  features: z.array(
+    z.object({
+      type: z.literal('Feature'),
+      geometry: z.object({
+        type: z.string(),
+        coordinates: z.unknown(),
+      }),
+      properties: z.record(z.unknown()).nullable(),
+    }),
+  ),
+});
 
 /**
  * TanStack Query Hook zum Abrufen aller POIs einer Lagekarte
@@ -211,9 +233,10 @@ export const useSaveLagekarteState = (einsatzId: string): UseMutationResult<Lage
 
   return useMutation({
     mutationFn: async (state: GeoJSON.FeatureCollection) => {
-      // Validate GeoJSON structure
-      if (!state || state.type !== 'FeatureCollection' || !Array.isArray(state.features)) {
-        throw new Error('Invalid GeoJSON FeatureCollection');
+      // Validate GeoJSON structure with Zod schema
+      const parseResult = geoJsonFeatureCollectionSchema.safeParse(state);
+      if (!parseResult.success) {
+        throw new Error(`Invalid GeoJSON FeatureCollection: ${parseResult.error.message}`);
       }
 
       // Validate payload size (max 2MB)
@@ -223,10 +246,10 @@ export const useSaveLagekarteState = (einsatzId: string): UseMutationResult<Lage
         throw new Error(`Payload zu groß: ${Math.round(payloadSize / 1024)}KB (max 2MB)`);
       }
 
-      // Call API
+      // Call API - parseResult.data ist bereits validiert und typsicher
       const dto: SaveLagekarteStateDto = {
         einsatzId,
-        state: state as unknown as object, // Type assertion (API erwartet object)
+        state: parseResult.data as object, // Sicher durch Zod-Validierung
       };
 
       return await api.lagekarte().lagekarteControllerSaveLagekarteStateVAlpha({

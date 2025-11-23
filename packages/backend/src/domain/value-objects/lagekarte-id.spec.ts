@@ -1,54 +1,62 @@
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
-import { Result } from '@domain/common/result';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock CUID2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    // Generate valid CUID2 format: starts with 'c', 20-30 lowercase alphanumeric characters
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
   }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
 }));
 
-// Import after mock setup
-const { nanoid } = require('nanoid/non-secure');
+function generateTestCuid(suffix = ''): string {
+  const base = 'clw3h8x9y0000qwertyu';
+  const padding = suffix.padEnd(5, '0').slice(0, 5);
+  return base + padding;
+}
 
 describe('LagekarteId', () => {
   describe('create() - Factory Method', () => {
-    it('should auto-generate valid nanoid when no id parameter provided', () => {
+    it('should auto-generate valid CUID when no id parameter provided', () => {
       // Given: No ID parameter
       const noIdParameter = undefined;
 
       // When: Creating LagekarteId without parameter
       const result = LagekarteId.create(noIdParameter);
 
-      // Then: Success with auto-generated nanoid
+      // Then: Success with auto-generated CUID
       expect(result.isSuccess).toBe(true);
       expect(result.value).toBeDefined();
-      expect(result.value?.value).toMatch(/^[A-Za-z0-9_-]{21}$/);
-      expect(result.value?.value).toHaveLength(21);
+      expect(result.value?.value).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(result.value?.value.length).toBeGreaterThanOrEqual(20);
+      expect(result.value?.value.length).toBeLessThanOrEqual(30);
     });
 
-    it('should create LagekarteId with valid nanoid string', () => {
-      // Given: Valid nanoid format
-      const validNanoid = nanoid(); // Generates 21-char nanoid
+    it('should create LagekarteId with valid CUID string', () => {
+      // Given: Valid CUID format
+      const validCuid = generateTestCuid('test1');
 
-      // When: Creating LagekarteId with valid nanoid
-      const result = LagekarteId.create(validNanoid);
+      // When: Creating LagekarteId with valid CUID
+      const result = LagekarteId.create(validCuid);
 
-      // Then: Success with provided nanoid
+      // Then: Success with provided CUID
       expect(result.isSuccess).toBe(true);
       expect(result.value).toBeDefined();
-      expect(result.value?.value).toBe(validNanoid);
+      expect(result.value?.value).toBe(validCuid);
       expect(result.error).toBeUndefined();
     });
 
-    it('should fail with invalid nanoid format (too short)', () => {
-      // Given: Invalid nanoid (too short)
+    it('should fail with invalid CUID format (too short)', () => {
+      // Given: Invalid CUID (too short)
       const tooShortId = 'abc123';
 
       // When: Creating LagekarteId with invalid format
@@ -58,28 +66,28 @@ describe('LagekarteId', () => {
       expect(result.isFailure).toBe(true);
       expect(result.isSuccess).toBe(false);
       expect(result.value).toBeUndefined();
-      expect(result.error).toBe('Invalid nanoid format: must be 21 URL-safe characters');
+      expect(result.error).toBe('Invalid CUID format');
     });
 
-    it('should fail with invalid nanoid format (invalid characters)', () => {
-      // Given: Invalid characters (special chars not allowed)
-      const invalidChars = 'A1B2C3D4E5F6G7H8I9J@!'; // '@' and '!' not allowed
+    it('should fail with invalid CUID format (invalid characters)', () => {
+      // Given: Invalid characters (uppercase and special chars not allowed)
+      const invalidChars = 'cABCDEFGHIJKLMNOPQRSTU'; // Uppercase not allowed
 
       // When: Creating LagekarteId with invalid characters
       const result = LagekarteId.create(invalidChars);
 
       // Then: Failure with error message
       expect(result.isFailure).toBe(true);
-      expect(result.error).toBe('Invalid nanoid format: must be 21 URL-safe characters');
+      expect(result.error).toBe('Invalid CUID format');
     });
   });
 
   describe('equals() - Equality', () => {
-    it('should return true for LagekarteIds with same nanoid value', () => {
-      // Given: Two LagekarteIds with same nanoid
-      const sharedNanoid = nanoid();
-      const id1 = LagekarteId.create(sharedNanoid).value as LagekarteId;
-      const id2 = LagekarteId.create(sharedNanoid).value as LagekarteId;
+    it('should return true for LagekarteIds with same CUID value', () => {
+      // Given: Two LagekarteIds with same CUID
+      const sharedCuid = generateTestCuid('equal');
+      const id1 = LagekarteId.create(sharedCuid).value as LagekarteId;
+      const id2 = LagekarteId.create(sharedCuid).value as LagekarteId;
 
       // When: Comparing for equality
       const areEqual = id1.equals(id2);
@@ -89,10 +97,10 @@ describe('LagekarteId', () => {
       expect(id1).not.toBe(id2); // Different object instances
     });
 
-    it('should return false for LagekarteIds with different nanoid values', () => {
-      // Given: Two LagekarteIds with different nanoids
-      const id1 = LagekarteId.create(nanoid()).value as LagekarteId;
-      const id2 = LagekarteId.create(nanoid()).value as LagekarteId;
+    it('should return false for LagekarteIds with different CUID values', () => {
+      // Given: Two LagekarteIds with different CUIDs
+      const id1 = LagekarteId.create(generateTestCuid('diff1')).value as LagekarteId;
+      const id2 = LagekarteId.create(generateTestCuid('diff2')).value as LagekarteId;
 
       // When: Comparing for equality
       const areEqual = id1.equals(id2);
@@ -105,7 +113,7 @@ describe('LagekarteId', () => {
   describe('ValueObject Integration', () => {
     it('should inherit from ValueObject with immutable props', () => {
       // Given: LagekarteId instance
-      const id = LagekarteId.create(nanoid()).value as LagekarteId;
+      const id = LagekarteId.create(generateTestCuid('immut')).value as LagekarteId;
 
       // When: Accessing props
       const props = id.props;
@@ -120,16 +128,16 @@ describe('LagekarteId', () => {
   });
 
   describe('toString() - String Representation', () => {
-    it('should return nanoid string for logging', () => {
-      // Given: LagekarteId with known nanoid
-      const knownNanoid = nanoid();
-      const id = LagekarteId.create(knownNanoid).value as LagekarteId;
+    it('should return CUID string for logging', () => {
+      // Given: LagekarteId with known CUID
+      const knownCuid = generateTestCuid('logme');
+      const id = LagekarteId.create(knownCuid).value as LagekarteId;
 
       // When: Converting to string
       const stringRepresentation = id.toString();
 
-      // Then: Returns nanoid value
-      expect(stringRepresentation).toBe(knownNanoid);
+      // Then: Returns CUID value
+      expect(stringRepresentation).toBe(knownCuid);
     });
   });
 });

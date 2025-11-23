@@ -21,6 +21,7 @@ import { PoiPlacementControl } from '../controls/PoiPlacementControl';
 import { FullscreenCloseButton } from '../FullscreenCloseButton/FullscreenCloseButton';
 import { ClusteredPoiLayer } from '../layers/ClusteredPoiLayer';
 import { DrawingLayer } from '../layers/DrawingLayer';
+import { LayerErrorBoundary } from '../layers/LayerErrorBoundary';
 import { OfflineTileLayer } from '../layers/OfflineTileLayer';
 import { OfflineRegionModal } from '../modals/OfflineRegionModal';
 import { PoiPlacementModal } from '../modals/PoiPlacementModal';
@@ -670,7 +671,11 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
           <MapClickHandler isPlacementActive={isPlacementActive} selectedType={selectedType} onMapClick={handleMapClick} />
 
           {/* POI-Layer (conditionally rendered based on layer visibility) */}
-          {layers.find((l) => l.name === 'poi')?.visible && <ClusteredPoiLayer einsatzId={einsatzId} />}
+          {layers.find((l) => l.name === 'poi')?.visible && (
+            <LayerErrorBoundary layerName="POI-Layer">
+              <ClusteredPoiLayer einsatzId={einsatzId} />
+            </LayerErrorBoundary>
+          )}
 
           {/* Drawing-Layer (conditionally rendered based on layer visibility) */}
           {(() => {

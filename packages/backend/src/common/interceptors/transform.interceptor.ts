@@ -1,7 +1,7 @@
 import { type CallHandler, type ExecutionContext, Injectable, type NestInterceptor } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { nanoid } from 'nanoid';
+import { createId } from '@paralleldrive/cuid2';
 import type { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
@@ -84,7 +84,7 @@ export class TransformInterceptor<T = unknown> implements NestInterceptor<T, Tra
     }
 
     const request = context.switchToHttp().getRequest<Request>();
-    const requestId = (request.headers['x-request-id'] as string) || nanoid();
+    const requestId = (request.headers['x-request-id'] as string) || createId();
 
     return next.handle().pipe(
       map((responseData): TransformedResponse<T> => {

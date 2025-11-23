@@ -1,4 +1,4 @@
-import { nanoid } from 'nanoid/non-secure';
+import { createId } from '@paralleldrive/cuid2';
 import { AggregateRoot } from '@domain/common/aggregate-root';
 import { Result } from '@domain/common/result';
 import type { Address } from '@domain/value-objects/address';
@@ -108,8 +108,8 @@ interface CreateEinsatzProps {
  */
 export class Einsatz extends AggregateRoot<EinsatzId> {
   /**
-   * Auto-generierte Einsatznummer im Format "E{YEAR}-{NANOID-6}".
-   * Beispiel: "E2024-A1B2C3"
+   * Auto-generierte Einsatznummer im Format "E{YEAR}-{CUID-8}".
+   * Beispiel: "E2024-clw3h8x9"
    */
   private _nummer: string;
 
@@ -254,19 +254,21 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
   }
 
   /**
-   * Auto-generiert Einsatznummer im Format "E{YEAR}-{NANOID-6}".
+   * Auto-generiert Einsatznummer im Format "E{YEAR}-{CUID-8}".
    *
    * Warum dieses Format:
    * - "E" Prefix: Kennzeichnung als Einsatz (Emergency)
    * - Jahr: Ermöglicht jahresbasierte Sortierung und Archivierung
-   * - NANOID-6: Kurz genug für menschliche Lesbarkeit, dennoch ausreichend unique (62^6 = 56 Milliarden Kombinationen)
+   * - CUID-8: Kurz genug für menschliche Lesbarkeit, dennoch ausreichend unique
    * - Keine Sequenznummern: Vermeidet Race Conditions bei paralleler Erstellung
+   * - Konsistent mit anderen CUIDs im System
    *
-   * @returns Einsatznummer im Format "E{YEAR}-{NANOID-6}" (z.B. "E2024-A1B2C3")
+   * @returns Einsatznummer im Format "E{YEAR}-{CUID-8}" (z.B. "E2024-clw3h8x9")
    */
   private static generateNummer(): string {
     const year = new Date().getFullYear();
-    const randomPart = nanoid(6); // 6 chars für Lesbarkeit (62^6 Kombinationen)
+    // Nutze die ersten 8 Zeichen des CUID für Lesbarkeit
+    const randomPart = createId().substring(0, 8);
     return `E${year}-${randomPart}`;
   }
 

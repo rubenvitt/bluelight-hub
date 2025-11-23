@@ -5,16 +5,19 @@ import { Address } from '@domain/value-objects/address';
 import { UserId } from '@domain/value-objects/user-id';
 
 // Mock nanoid to prevent ESM issues in Jest
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    // Generate valid nanoid format with specified length
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const targetLength = length || 21;
-    let result = '';
-    for (let i = 0; i < targetLength; i++) {
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -45,6 +48,7 @@ describe('EinsatzArchivalPolicy', () => {
 
     // HACK: Manually set abgeschlossenAt to test date
     // This is necessary for testing time-based policies with fixed dates
+    // biome-ignore lint/suspicious/noExplicitAny: Test bypasses factory for date simulation
     (einsatz as any)._abgeschlossenAt = completedAt;
 
     return einsatz;

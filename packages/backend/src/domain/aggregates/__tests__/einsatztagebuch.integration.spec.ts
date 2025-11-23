@@ -3,16 +3,20 @@ import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { UserId } from '@domain/value-objects/user-id';
 import { EtbStatus } from '@domain/value-objects/etb-status';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock cuid2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -132,7 +136,7 @@ describe('EinsatztagebuchAggregate Integration Tests', () => {
       // Add → Update → Add → Delete → Add
       const e1 = etb.addEintrag('Entry 1', userId).value!;
       etb.updateEintrag(e1.id, 'Entry 1 Updated', userId);
-      const e2 = etb.addEintrag('Entry 2', userId).value!;
+      const _e2 = etb.addEintrag('Entry 2', userId).value!;
       etb.deleteEintrag(e1.id, userId);
       etb.addEintrag('Entry 3', userId);
 

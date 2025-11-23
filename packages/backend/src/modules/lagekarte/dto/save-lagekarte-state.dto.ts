@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsObject } from 'class-validator';
+import { IsObject } from 'class-validator';
+import { IsCuid } from '@/common/decorators/is-cuid.decorator';
 
 /**
  * DTO für Lagekarte-State-Speicherung
@@ -32,10 +33,10 @@ import { IsString, IsObject } from 'class-validator';
  */
 export class SaveLagekarteStateDto {
   @ApiProperty({
-    description: 'ID des zugehörigen Einsatzes',
+    description: 'ID des zugehörigen Einsatzes (CUID)',
     example: 'clw3h8x9y0000qwertyuiopas',
   })
-  @IsString()
+  @IsCuid()
   einsatzId!: string;
 
   @ApiProperty({

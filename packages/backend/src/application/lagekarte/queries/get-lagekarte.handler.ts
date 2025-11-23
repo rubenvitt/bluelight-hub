@@ -99,7 +99,7 @@ export class GetLagekarteQueryHandler {
       const dto = LagekarteMapper.toDto(aggregate);
 
       return Result.ok(dto);
-    } catch (error) {
+    } catch (_error) {
       // Step 5: Catch unexpected errors (e.g., database connection failure)
       return Result.fail('Failed to load Lagekarte');
     }

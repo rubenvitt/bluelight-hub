@@ -148,6 +148,11 @@ model Einsatztagebuch {
   lockedAt  DateTime? // Zeitpunkt der Sperrung
   lockedBy  String?   @db.VarChar(100) // User ID der Sperrung
 
+  // Versionierung (für Optimistic Locking und Snapshot-Strategie)
+  version            Int      @default(1) // Aktuelle Versionsnummer
+  versionTimestamp   DateTime @default(now()) // Zeitpunkt der letzten Version
+  nextSequenceNumber Int      @default(1) // Counter für Auto-Increment Sequenznummern
+
   // Zeitstempel
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -163,10 +168,14 @@ model Einsatztagebuch {
   // ETB Einträge
   eintraege EtbEintrag[]
 
+  // ETB Snapshots (Audit-Trail und Versionierung)
+  snapshots EtbSnapshot[]
+
   // Indexes
   @@index([status, createdAt])
   @@index([createdBy])
   @@index([lockedAt])
+  @@index([version])
   @@map("einsatztagebuecher")
 }
 
@@ -291,6 +300,24 @@ model EtbTextbaustein {
   @@index([kategorie, isActive, sortOrder])
   @@index([createdBy])
   @@map("etb_textbausteine")
+}
+
+// ETB Snapshot Model (für Versionierung und Audit-Trail)
+// Speichert einen kompletten Snapshot des ETB-Zustands VOR jeder Mutation
+model EtbSnapshot {
+  id            String   @id @default(cuid())
+  etbId         String // FK zu Einsatztagebuch
+  versionNumber Int // Versionsnummer die dieser Snapshot repräsentiert
+  snapshotAt    DateTime @default(now()) // Zeitpunkt der Snapshot-Erstellung
+  eintraege     Json     @db.JsonB // Array von EtbEintragSnapshot (kompletter State)
+
+  // Relations
+  einsatztagebuch Einsatztagebuch @relation(fields: [etbId], references: [id], onDelete: Cascade)
+
+  // Indexes (Unique: Ein Snapshot pro Version pro ETB)
+  @@unique([etbId, versionNumber])
+  @@index([etbId, versionNumber])
+  @@map("etb_snapshots")
 }
 
 // ETB Archiv Model (für 10-Jahre Aufbewahrung)

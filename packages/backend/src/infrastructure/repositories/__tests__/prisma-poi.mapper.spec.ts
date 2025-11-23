@@ -1,3 +1,20 @@
+// Mock @paralleldrive/cuid2 BEFORE any imports (hoisting workaround for Jest + ESM)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
+}));
+
 /**
  * Unit Tests für PrismaPoiMapper (Infrastructure Layer).
  *
@@ -21,26 +38,12 @@ import { PoiCategory } from '@domain/value-objects/poi-category';
 import { UserId } from '@domain/value-objects/user-id';
 import type { LagekartePoi, PoiType } from '@prisma/client';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    // Generate valid nanoid format with specified length
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const len = length ?? 21;
-    let result = '';
-    for (let i = 0; i < len; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  }),
-}));
-
 describe('PrismaPoiMapper', () => {
-  // Test Data Setup (use valid nanoid format - 21 characters)
-  const testUserId = UserId.create('test-user-id-12345678').value as UserId;
+  // Test Data Setup (use valid CUID2 format - 25 characters, lowercase a-z0-9, starts with letter)
+  const testUserId = UserId.create('clw3h8x9y0000qwertyuiuser').value as UserId;
   const berlinMgrs = MgrsCoordinate.fromLatLng(52.52, 13.4, 5).value as MgrsCoordinate; // Berlin Brandenburger Tor
-  const validPoiId = 'poi-test-id-123456789'; // Exactly 21 characters
-  const validLagekarteId = 'lk-id-123456789012345'; // Exactly 21 characters
+  const validPoiId = 'clw3h8x9y0000qwertyuipoi01'; // Valid CUID2
+  const validLagekarteId = 'clw3h8x9y0000qwertyuilagek'; // Valid CUID2
 
   describe('toEntity', () => {
     it('should convert Prisma POI to Domain Entity with MGRS', () => {
@@ -216,7 +219,7 @@ describe('PrismaPoiMapper', () => {
       const prismaData = PrismaPoiMapper.toPersistence(originalPoi);
       const prismaPoi: LagekartePoi = {
         id: prismaData.id,
-        lagekarteId: 'lk-id-123456789012345',
+        lagekarteId: 'clw3h8x9y0000qwertyuilagek',
         type: prismaData.type,
         name: prismaData.name ?? 'Unnamed',
         adresse: prismaData.adresse,
@@ -246,7 +249,7 @@ describe('PrismaPoiMapper', () => {
       const prismaData = PrismaPoiMapper.toPersistence(originalPoi);
       const prismaPoi: LagekartePoi = {
         id: prismaData.id,
-        lagekarteId: 'lk-id-123456789012345',
+        lagekarteId: 'clw3h8x9y0000qwertyuilagek',
         type: prismaData.type,
         name: prismaData.name ?? 'Unnamed',
         adresse: prismaData.adresse,
@@ -267,8 +270,8 @@ describe('PrismaPoiMapper', () => {
     it('should handle round-trip with NULL MGRS (Legacy Fallback)', () => {
       // Given: Prisma POI with NULL MGRS
       const prismaPoi: LagekartePoi = {
-        id: 'test-poi-id-123456789',
-        lagekarteId: 'lk-id-123456789012345',
+        id: 'clw3h8x9y0000qwertyuipoi03',
+        lagekarteId: 'clw3h8x9y0000qwertyuilagek',
         type: 'EINSATZORT',
         name: 'Einsatzstelle',
         adresse: null,

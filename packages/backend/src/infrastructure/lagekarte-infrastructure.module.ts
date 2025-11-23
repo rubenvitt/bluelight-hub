@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaLagekarteRepository } from './repositories/prisma-lagekarte.repository';
+import { PrismaEinsatzRepositoryAdapter } from './repositories/prisma-einsatz.repository';
 import { NominatimGeocodingAdapter } from './geocoding/nominatim-geocoding.adapter';
 import { PrismaModule } from '@/prisma/prisma.module';
 
@@ -56,10 +57,14 @@ import { PrismaModule } from '@/prisma/prisma.module';
       useClass: PrismaLagekarteRepository, // Konkrete Implementation
     },
     {
+      provide: 'IEinsatzRepository', // String Token (Interface-Name)
+      useClass: PrismaEinsatzRepositoryAdapter, // Minimal-Implementation für Lagekarte-Abhängigkeit
+    },
+    {
       provide: 'IGeocodingPort', // String Token (Interface-Name)
       useClass: NominatimGeocodingAdapter, // Konkrete Implementation
     },
   ],
-  exports: ['ILagekarteRepository', 'IGeocodingPort'], // Export für andere Module
+  exports: ['ILagekarteRepository', 'IEinsatzRepository', 'IGeocodingPort'], // Export für andere Module
 })
 export class LagekarteInfrastructureModule {}

@@ -4,6 +4,7 @@ import { Spinner } from '@/components/atoms/spinner.atom';
 import { getPoiIcon } from '@/utils/poi-icons';
 import { createClusterIcon } from '@/utils/cluster-icons';
 import { getApiErrorMessage } from '@/utils/apiErrorHandler';
+import { formatMgrs } from '@/utils/lagekarte/mgrs';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import React, { useMemo, useState } from 'react';
 import { PiTrash, PiWarning, PiXCircle } from 'react-icons/pi';
@@ -132,8 +133,8 @@ export const ClusteredPoiLayer: React.FC<ClusteredPoiLayerProps> = React.memo(({
             description: 'Die Position wurde aktualisiert.',
           });
         },
-        onError: async (error) => {
-          const message = await getApiErrorMessage(error, 'Der POI konnte nicht verschoben werden.');
+        onError: async (mutationError) => {
+          const message = await getApiErrorMessage(mutationError, 'Der POI konnte nicht verschoben werden.');
           toast.error('Fehler beim Verschieben', {
             description: message,
           });
@@ -170,8 +171,8 @@ export const ClusteredPoiLayer: React.FC<ClusteredPoiLayerProps> = React.memo(({
             description: 'Der POI wurde erfolgreich entfernt.',
           });
         },
-        onError: async (error) => {
-          const message = await getApiErrorMessage(error, 'Der POI konnte nicht gelöscht werden.');
+        onError: async (mutationError) => {
+          const message = await getApiErrorMessage(mutationError, 'Der POI konnte nicht gelöscht werden.');
           toast.error('Fehler beim Löschen', {
             description: message,
           });
@@ -233,6 +234,9 @@ export const ClusteredPoiLayer: React.FC<ClusteredPoiLayerProps> = React.memo(({
 
                   {/* POI-Type */}
                   <p className="mb-1 text-gray-600 text-sm dark:text-gray-400">{poi.type}</p>
+
+                  {/* MGRS-Koordinaten (optional) */}
+                  {poi.mgrs && <p className="mb-1 font-mono text-gray-500 text-xs dark:text-gray-400">{formatMgrs(poi.mgrs)}</p>}
 
                   {/* Adresse (optional) */}
                   {poi.adresse && <p className="text-gray-700 text-sm dark:text-gray-300">{poi.adresse}</p>}

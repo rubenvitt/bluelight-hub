@@ -2,23 +2,26 @@ import { GetLagekarteExistsQueryHandler } from '../../get-lagekarte-exists.handl
 import { GetLagekarteExistsQuery } from '../../get-lagekarte-exists.query';
 import { InMemoryLagekarteRepository } from './in-memory-lagekarte.repository';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
-import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { Poi } from '@domain/entities/poi.entity';
 import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import { UserId } from '@domain/value-objects/user-id';
 
-// Mock nanoid for deterministic test IDs
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const targetLength = length || 21;
-    let result = '';
-    for (let i = 0; i < targetLength; i++) {
+// Mock cuid2 for deterministic test IDs (CUID2 format: 20-30 chars, lowercase a-z0-9, starts with letter)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c'; // CUID2 always starts with a letter
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -54,12 +57,12 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
   describe('Full Application → Repository Flow', () => {
     it('should return true when Lagekarte exists in repository', async () => {
       // Given: Aggregate stored in repository
-      const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
+      const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
       const userId = UserId.create().value!;
 
       const poi = Poi.create('Einsatzstelle', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.EINSATZSTELLE(), userId);
 
-      const aggregate = LagekarteAggregate.create(einsatzId, poi).value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId, poi).value!;
       await repository.save(aggregate);
 
       // When: Check existence
@@ -74,7 +77,7 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
       // Given: Empty repository
 
       // When: Check existence
-      const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
+      const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
       const query = new GetLagekarteExistsQuery(einsatzId.value);
       const result = await handler.execute(query);
 
@@ -84,8 +87,8 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
 
     it('should distinguish between multiple Lagekarten by EinsatzId', async () => {
       // Given: Two Lagekarten with different EinsatzIds
-      const einsatzId1 = EinsatzId.create('V1StGXR8_Z5jdHi6B-my1').value!;
-      const einsatzId2 = EinsatzId.create('V1StGXR8_Z5jdHi6B-my2').value!;
+      const einsatzId1 = EinsatzId.create('clw3h8x9y0000qwertyuiein01').value!;
+      const einsatzId2 = EinsatzId.create('clw3h8x9y0000qwertyuiein02').value!;
       const userId = UserId.create().value!;
 
       const poi1 = Poi.create('Einsatzstelle 1', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.EINSATZSTELLE(), userId);
@@ -97,8 +100,8 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
         userId,
       );
 
-      const aggregate1 = LagekarteAggregate.create(einsatzId1, poi1).value!;
-      const aggregate2 = LagekarteAggregate.create(einsatzId2, poi2).value!;
+      const aggregate1 = LagekarteAggregate.create(einsatzId1, userId, poi1).value!;
+      const aggregate2 = LagekarteAggregate.create(einsatzId2, userId, poi2).value!;
 
       await repository.save(aggregate1);
       await repository.save(aggregate2);
@@ -118,7 +121,7 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
       expect(result2).toBe(true);
 
       // When: Check existence for non-existent einsatz-3
-      const einsatzId3 = EinsatzId.create('V1StGXR8_Z5jdHi6B-my3').value!;
+      const einsatzId3 = EinsatzId.create('clw3h8x9y0000qwertyuiein03').value!;
       const query3 = new GetLagekarteExistsQuery(einsatzId3.value);
       const result3 = await handler.execute(query3);
 
@@ -128,10 +131,11 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
 
     it('should return true even when Lagekarte has no POIs', async () => {
       // Given: Lagekarte WITHOUT POIs
-      const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
+      const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
+      const userId = UserId.create().value!;
 
       // Create Lagekarte without initial POI
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId).value!;
       await repository.save(aggregate);
 
       // When: Check existence
@@ -153,12 +157,12 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
 
     it('should use repository.exists() method (not findByEinsatzId)', async () => {
       // Given: Aggregate stored in repository
-      const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
+      const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
       const userId = UserId.create().value!;
 
       const poi = Poi.create('Einsatzstelle', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.EINSATZSTELLE(), userId);
 
-      const aggregate = LagekarteAggregate.create(einsatzId, poi).value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId, poi).value!;
       await repository.save(aggregate);
 
       // Spy on repository.exists() to verify it's called

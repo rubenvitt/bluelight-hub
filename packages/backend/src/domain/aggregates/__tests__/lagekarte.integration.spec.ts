@@ -10,16 +10,20 @@ import { PoiAddedEvent } from '@domain/events/poi-added.event';
 import { PoiRemovedEvent } from '@domain/events/poi-removed.event';
 import { PoiPositionUpdatedEvent } from '@domain/events/poi-position-updated.event';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock cuid2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -56,7 +60,7 @@ describe('LagekarteAggregate Integration Tests', () => {
     const userId = UserId.create().value as UserId;
 
     // When: Create Lagekarte
-    const lagekarteResult = LagekarteAggregate.create(einsatzId);
+    const lagekarteResult = LagekarteAggregate.create(einsatzId, userId);
     expect(lagekarteResult.isSuccess).toBe(true);
     const lagekarte = lagekarteResult.value as LagekarteAggregate;
 
@@ -93,25 +97,26 @@ describe('LagekarteAggregate Integration Tests', () => {
     expect(removeResult.isSuccess).toBe(true);
     expect(lagekarte.pois).toHaveLength(2);
 
-    // Then: Verify event accumulation (3 added + 1 updated + 1 removed = 5 events)
+    // Then: Verify event accumulation (1 created + 3 added + 1 updated + 1 removed = 6 events)
     const events = lagekarte.getDomainEvents();
-    expect(events).toHaveLength(5);
-    expect(events[0]).toBeInstanceOf(PoiAddedEvent);
+    expect(events).toHaveLength(6);
+    expect(events[0].constructor.name).toBe('LagekarteCreatedEvent');
     expect(events[1]).toBeInstanceOf(PoiAddedEvent);
     expect(events[2]).toBeInstanceOf(PoiAddedEvent);
-    expect(events[3]).toBeInstanceOf(PoiPositionUpdatedEvent);
-    expect(events[4]).toBeInstanceOf(PoiRemovedEvent);
+    expect(events[3]).toBeInstanceOf(PoiAddedEvent);
+    expect(events[4]).toBeInstanceOf(PoiPositionUpdatedEvent);
+    expect(events[5]).toBeInstanceOf(PoiRemovedEvent);
 
     // Verify event data
-    const addedEvent = events[0] as PoiAddedEvent;
+    const addedEvent = events[1] as PoiAddedEvent;
     expect(addedEvent.name).toBe('Einsatzstelle Berlin');
     expect(addedEvent.coordinate).toBe(berlinMgrs);
 
-    const updatedEvent = events[3] as PoiPositionUpdatedEvent;
+    const updatedEvent = events[4] as PoiPositionUpdatedEvent;
     expect(updatedEvent.oldCoordinate.gridZone).toBe('33U');
     expect(updatedEvent.newCoordinate.gridZone).toBe('32U');
 
-    const removedEvent = events[4] as PoiRemovedEvent;
+    const removedEvent = events[5] as PoiRemovedEvent;
     expect(removedEvent.poiId).toEqual(poi2.id);
   });
 
@@ -123,7 +128,7 @@ describe('LagekarteAggregate Integration Tests', () => {
     // Given: Lagekarte with POI in Zone 33U (Berlin)
     const einsatzId = EinsatzId.create().value as EinsatzId;
     const userId = UserId.create().value as UserId;
-    const lagekarte = LagekarteAggregate.create(einsatzId).value as LagekarteAggregate;
+    const lagekarte = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
 
     const berlinMgrs = MgrsCoordinate.fromLatLng(52.52, 13.4, 5).value as MgrsCoordinate;
     const poiResult = lagekarte.addPoi('Mobile POI', berlinMgrs, PoiCategory.SONSTIGES(), userId);
@@ -169,7 +174,7 @@ describe('LagekarteAggregate Integration Tests', () => {
     // Given: Lagekarte and Lat/Lng coordinate
     const einsatzId = EinsatzId.create().value as EinsatzId;
     const userId = UserId.create().value as UserId;
-    const lagekarte = LagekarteAggregate.create(einsatzId).value as LagekarteAggregate;
+    const lagekarte = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
 
     const berlinGeo = GeoCoordinate.create(52.52, 13.4).value as GeoCoordinate;
 
@@ -183,8 +188,10 @@ describe('LagekarteAggregate Integration Tests', () => {
     expect(poi.coordinate.gridZone).toBe('33U');
 
     // Then: Event contains MGRS (not Lat/Lng)
+    // events[0] is LagekarteCreatedEvent, events[1] is PoiAddedEvent
     const events = lagekarte.getDomainEvents();
-    const addedEvent = events[0] as PoiAddedEvent;
+    expect(events[0].constructor.name).toBe('LagekarteCreatedEvent');
+    const addedEvent = events[1] as PoiAddedEvent;
     expect(addedEvent.coordinate).toBeInstanceOf(MgrsCoordinate);
     expect(addedEvent.coordinate.gridZone).toBe('33U');
   });
@@ -197,7 +204,7 @@ describe('LagekarteAggregate Integration Tests', () => {
     // Given: Lagekarte with POI in Berlin
     const einsatzId = EinsatzId.create().value as EinsatzId;
     const userId = UserId.create().value as UserId;
-    const lagekarte = LagekarteAggregate.create(einsatzId).value as LagekarteAggregate;
+    const lagekarte = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
 
     const berlinMgrs = MgrsCoordinate.fromLatLng(52.52, 13.4, 5).value as MgrsCoordinate;
     const poiResult = lagekarte.addPoi('POI', berlinMgrs, PoiCategory.EINSATZSTELLE(), userId);
@@ -229,7 +236,7 @@ describe('LagekarteAggregate Integration Tests', () => {
     // Given: Lagekarte with multiple POIs of different categories
     const einsatzId = EinsatzId.create().value as EinsatzId;
     const userId = UserId.create().value as UserId;
-    const lagekarte = LagekarteAggregate.create(einsatzId).value as LagekarteAggregate;
+    const lagekarte = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
 
     const berlinMgrs = MgrsCoordinate.fromLatLng(52.52, 13.4, 5).value as MgrsCoordinate;
 
@@ -270,7 +277,7 @@ describe('LagekarteAggregate Integration Tests', () => {
     // Given: Lagekarte with POI
     const einsatzId = EinsatzId.create().value as EinsatzId;
     const userId = UserId.create().value as UserId;
-    const lagekarte = LagekarteAggregate.create(einsatzId).value as LagekarteAggregate;
+    const lagekarte = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
 
     const berlinMgrs = MgrsCoordinate.fromLatLng(52.52, 13.4, 5).value as MgrsCoordinate;
     const hamburgMgrs = MgrsCoordinate.fromLatLng(53.55, 10.0, 5).value as MgrsCoordinate;
@@ -327,7 +334,7 @@ describe('LagekarteAggregate Integration Tests', () => {
     const initialPoi = Poi.create('Initial POI', berlinMgrs, PoiCategory.EINSATZSTELLE(), userId);
 
     // When: Create with initialPoi
-    const result = LagekarteAggregate.create(einsatzId, initialPoi);
+    const result = LagekarteAggregate.create(einsatzId, userId, initialPoi);
     expect(result.isSuccess).toBe(true);
     const lagekarte = result.value as LagekarteAggregate;
 
@@ -335,12 +342,13 @@ describe('LagekarteAggregate Integration Tests', () => {
     expect(lagekarte.pois).toHaveLength(1);
     expect(lagekarte.pois[0]).toBe(initialPoi);
 
-    // Then: Only one PoiAddedEvent (from factory, not from addPoi)
+    // Then: LagekarteCreatedEvent + PoiAddedEvent (from factory)
     const events = lagekarte.getDomainEvents();
-    expect(events).toHaveLength(1);
-    expect(events[0]).toBeInstanceOf(PoiAddedEvent);
+    expect(events).toHaveLength(2);
+    expect(events[0].constructor.name).toBe('LagekarteCreatedEvent');
+    expect(events[1]).toBeInstanceOf(PoiAddedEvent);
 
-    const addedEvent = events[0] as PoiAddedEvent;
+    const addedEvent = events[1] as PoiAddedEvent;
     expect(addedEvent.name).toBe('Initial POI');
     expect(addedEvent.coordinate).toBe(berlinMgrs);
     expect(addedEvent.category.value).toBe('EINSATZSTELLE');
@@ -354,7 +362,7 @@ describe('LagekarteAggregate Integration Tests', () => {
     // Given: Lagekarte
     const einsatzId = EinsatzId.create().value as EinsatzId;
     const userId = UserId.create().value as UserId;
-    const lagekarte = LagekarteAggregate.create(einsatzId).value as LagekarteAggregate;
+    const lagekarte = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
     const berlinMgrs = MgrsCoordinate.fromLatLng(52.52, 13.4, 5).value as MgrsCoordinate;
 
     // When: Try to add POI with empty name
@@ -383,7 +391,7 @@ describe('LagekarteAggregate Integration Tests', () => {
     // Given: Lagekarte with one POI
     const einsatzId = EinsatzId.create().value as EinsatzId;
     const userId = UserId.create().value as UserId;
-    const lagekarte = LagekarteAggregate.create(einsatzId).value as LagekarteAggregate;
+    const lagekarte = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
 
     const berlinMgrs = MgrsCoordinate.fromLatLng(52.52, 13.4, 5).value as MgrsCoordinate;
     const hamburgMgrs = MgrsCoordinate.fromLatLng(53.55, 10.0, 5).value as MgrsCoordinate;

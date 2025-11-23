@@ -1,13 +1,17 @@
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock cuid2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -34,7 +38,9 @@ describe('Einsatz Domain Events', () => {
       expect(event.einsatzId).toBe(einsatzId);
       expect(event.createdBy).toBe(createdBy);
       expect(event.alarmstichwort).toBe(alarmstichwort);
-      expect(event.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
       expect(event.occurredAt).toBeInstanceOf(Date);
     });
 
@@ -60,8 +66,8 @@ describe('Einsatz Domain Events', () => {
       // When: Comparing eventIds
       // Then: Different IDs (uniqueness)
       expect(event1.eventId).not.toBe(event2.eventId);
-      expect(event1.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
-      expect(event2.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event1.eventId).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(event2.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should generate recent timestamp', () => {
@@ -134,7 +140,9 @@ describe('Einsatz Domain Events', () => {
       expect(event.einsatzId).toBe(einsatzId);
       expect(event.completedBy).toBe(completedBy);
       expect(event.completedAt).toBe(completedAt);
-      expect(event.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
       expect(event.occurredAt).toBeInstanceOf(Date);
     });
 
@@ -161,8 +169,8 @@ describe('Einsatz Domain Events', () => {
       // When: Comparing eventIds
       // Then: Different IDs (uniqueness)
       expect(event1.eventId).not.toBe(event2.eventId);
-      expect(event1.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
-      expect(event2.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event1.eventId).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(event2.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should generate recent timestamp', () => {
@@ -241,7 +249,9 @@ describe('Einsatz Domain Events', () => {
       // Then: Properties correct
       expect(event.einsatzId).toBe(einsatzId);
       expect(event.archivedBy).toBe(archivedBy);
-      expect(event.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
       expect(event.occurredAt).toBeInstanceOf(Date);
     });
 
@@ -267,8 +277,8 @@ describe('Einsatz Domain Events', () => {
       // When: Comparing eventIds
       // Then: Different IDs (uniqueness)
       expect(event1.eventId).not.toBe(event2.eventId);
-      expect(event1.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
-      expect(event2.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event1.eventId).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(event2.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should generate recent timestamp', () => {
@@ -338,7 +348,9 @@ describe('Einsatz Domain Events', () => {
       expect(event.einsatzId).toBe(einsatzId);
       expect(event.oldStatus).toBe(oldStatus);
       expect(event.newStatus).toBe(newStatus);
-      expect(event.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event.eventId.length).toBeGreaterThanOrEqual(20);
+      expect(event.eventId.length).toBeLessThanOrEqual(30);
+      expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
       expect(event.occurredAt).toBeInstanceOf(Date);
     });
 
@@ -365,8 +377,8 @@ describe('Einsatz Domain Events', () => {
       // When: Comparing eventIds
       // Then: Different IDs (uniqueness)
       expect(event1.eventId).not.toBe(event2.eventId);
-      expect(event1.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
-      expect(event2.eventId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(event1.eventId).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(event2.eventId).toMatch(/^[a-z][a-z0-9]+$/);
     });
 
     it('should generate recent timestamp', () => {

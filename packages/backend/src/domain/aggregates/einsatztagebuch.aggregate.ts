@@ -9,6 +9,7 @@ import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EintragId } from '@domain/value-objects/eintrag-id';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { EtbSequenceNumber } from '@domain/value-objects/etb-sequence-number';
+import { EtbSnapshot, type EtbEintragSnapshot } from '@domain/value-objects/etb-snapshot';
 import { EtbStatus } from '@domain/value-objects/etb-status';
 import { EtbVersion } from '@domain/value-objects/etb-version';
 import type { UserId } from '@domain/value-objects/user-id';
@@ -109,6 +110,21 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
    * Startet bei 1, inkrementiert bei jedem addEintrag().
    */
   private _nextSequenceNumber: number;
+
+  /**
+   * Uncommitted Snapshots Akkumulator.
+   *
+   * Snapshots werden VOR jeder mutierenden Operation erstellt und hier gesammelt.
+   * Nach erfolgreicher Persistierung durch das Repository werden sie geloescht.
+   * Analog zu _domainEvents fuer Domain Events.
+   *
+   * Lifecycle:
+   * 1. Business Method aufrufen → createSnapshot() VOR Mutation
+   * 2. State aendern + Version inkrementieren
+   * 3. Repository.save() → Snapshots persistieren
+   * 4. clearSnapshots() → Uncommitted Snapshots loeschen
+   */
+  private _uncommittedSnapshots: EtbSnapshot[] = [];
 
   /**
    * Protected Constructor verhindert direkte Instanziierung.
@@ -226,6 +242,96 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
     return this._status.equals(EtbStatus.LOCKED());
   }
 
+  // ============================================================================
+  // SNAPSHOT MANAGEMENT METHODS
+  // ============================================================================
+
+  /**
+   * Prueft ob uncommittierte Snapshots existieren.
+   *
+   * Analog zu getDomainEvents().length > 0 fuer Domain Events.
+   * Wird vom Repository verwendet um zu pruefen ob Snapshots persistiert werden muessen.
+   *
+   * @returns true wenn mindestens ein uncommittierter Snapshot existiert
+   */
+  public hasUncommittedSnapshots(): boolean {
+    return this._uncommittedSnapshots.length > 0;
+  }
+
+  /**
+   * Gibt alle uncommittierten Snapshots zurueck.
+   *
+   * Repository verwendet diese fuer Persistierung in der etb_snapshots Tabelle.
+   * CRITICAL: Shallow Copy fuer Mutation-Safety (wie bei getDomainEvents()).
+   *
+   * @returns Shallow Copy der uncommittierten Snapshot-Liste
+   */
+  public getUncommittedSnapshots(): EtbSnapshot[] {
+    return [...this._uncommittedSnapshots];
+  }
+
+  /**
+   * Loescht alle uncommittierten Snapshots nach erfolgreicher Persistierung.
+   *
+   * Wird vom Repository nach save() aufgerufen, analog zu clearDomainEvents().
+   * Verhindert dass Snapshots mehrfach persistiert werden.
+   */
+  public clearSnapshots(): void {
+    this._uncommittedSnapshots = [];
+  }
+
+  /**
+   * Erstellt JSON-serialisierbare Snapshot-Daten fuer den aktuellen Zustand.
+   *
+   * Mappt alle EtbEintrag Entities auf ihr serialisierbares EtbEintragSnapshot Format.
+   * Verwendet fuer createSnapshot() und kann auch extern fuer Debugging/Logging verwendet werden.
+   *
+   * **Warum eigenes Snapshot-Format?**
+   * - EtbEintrag enthaelt Value Objects die nicht direkt JSON-serialisierbar sind
+   * - Snapshot-Format enthaelt nur primitive Typen (string, number, boolean)
+   * - Ermoeglicht Speicherung in JSONB-Spalten der Datenbank
+   *
+   * @returns Array von EtbEintragSnapshot mit allen aktuellen Eintraegen
+   */
+  public getSnapshotData(): EtbEintragSnapshot[] {
+    return this._eintraege.map((e) => ({
+      id: e.id.value,
+      sequenceNumber: e.sequenceNumber.value,
+      text: e.text,
+      createdBy: e.createdBy.value,
+      createdAt: e.createdAt.toISOString(),
+      updatedAt: e.updatedAt?.toISOString(),
+      isDeleted: e.isDeleted,
+    }));
+  }
+
+  /**
+   * Erstellt einen Snapshot des aktuellen Zustands VOR einer Mutation.
+   *
+   * Diese Methode wird zu Beginn jeder mutierenden Operation aufgerufen:
+   * - addEintrag(): Snapshot BEVOR neuer Eintrag hinzugefuegt wird
+   * - updateEintrag(): Snapshot BEVOR Eintrag geaendert wird
+   * - deleteEintrag(): Snapshot BEVOR Eintrag als geloescht markiert wird
+   *
+   * **Warum VOR der Mutation?**
+   * - Rollback: Snapshot enthaelt exakten Pre-Mutation State
+   * - Audit-Trail: "Wie sah es aus bevor diese Aenderung erfolgte?"
+   * - DRK-Compliance: Lueckenloser Aenderungsnachweis
+   *
+   * **Warum protected?**
+   * - Nur Business Methods des Aggregates sollen Snapshots erstellen
+   * - Externe Caller koennen nicht beliebig Snapshots erstellen
+   * - Analog zu addDomainEvent() in AggregateRoot
+   */
+  protected createSnapshot(): void {
+    const snapshot = new EtbSnapshot(this._version, this.getSnapshotData(), new Date());
+    this._uncommittedSnapshots.push(snapshot);
+  }
+
+  // ============================================================================
+  // BUSINESS METHODS
+  // ============================================================================
+
   /**
    * Fügt einen neuen Eintrag zum ETB hinzu.
    *
@@ -255,6 +361,9 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
     if (!text?.trim()) {
       return Result.fail<EtbEintrag>('Text darf nicht leer sein');
     }
+
+    // === SNAPSHOT VOR MUTATION (DRK-Compliance) ===
+    this.createSnapshot();
 
     // Create entry ID
     const idResult = EintragId.create();
@@ -335,6 +444,9 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
       return Result.fail<void>('Gelöschte Einträge können nicht bearbeitet werden');
     }
 
+    // === SNAPSHOT VOR MUTATION (DRK-Compliance) ===
+    this.createSnapshot();
+
     // Save old text for event (change tracking)
     const oldText = eintrag.text;
 
@@ -386,6 +498,9 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
     if (!eintrag) {
       return Result.fail<void>('Eintrag nicht gefunden');
     }
+
+    // === SNAPSHOT VOR MUTATION (DRK-Compliance) ===
+    this.createSnapshot();
 
     // Soft-delete: Mark as deleted (stays in array!)
     eintrag.markAsDeleted();

@@ -1,6 +1,6 @@
 import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { nanoid } from 'nanoid';
+import { createId } from '@paralleldrive/cuid2';
 import * as util from 'node:util';
 import { PerformanceLogger } from '../utils/performance-logger.util';
 
@@ -18,7 +18,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<RequestWithStartTime>();
 
     // Generate or retrieve request ID for correlation
-    const requestId = (request.headers['x-request-id'] as string) || nanoid();
+    const requestId = (request.headers['x-request-id'] as string) || createId();
 
     const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 

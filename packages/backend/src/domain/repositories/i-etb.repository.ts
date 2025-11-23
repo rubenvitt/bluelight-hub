@@ -159,7 +159,7 @@ export interface IEtbRepository {
    * Lädt die Versions-Historie eines ETBs.
    *
    * Diese Methode lädt alle gespeicherten Snapshots für ein ETB:
-   * - Sortierung: Neueste Version zuerst (descending)
+   * - Sortierung: Älteste Version zuerst (ascending) für chronologischen Audit-Trail
    * - Verwendung: Audit-Trail UI, Rollback-Funktionalität
    * - Snapshots werden von Repository automatisch erstellt (Epic 4)
    *
@@ -183,7 +183,7 @@ export interface IEtbRepository {
    * - Separate Query außerhalb von Aggregate-Lifecycle
    *
    * @param id - ETB Aggregate ID
-   * @returns Promise<EtbSnapshot[]> - Array von Snapshots (neueste zuerst)
+   * @returns Promise<EtbSnapshot[]> - Array von Snapshots (älteste zuerst)
    */
   getHistory(id: EtbId): Promise<EtbSnapshot[]>;
 }

@@ -1,6 +1,6 @@
-// Use non-secure nanoid for Jest compatibility (CommonJS)
-// Note: In production, the secure version will be used via tree-shaking
-import { nanoid } from 'nanoid/non-secure';
+// CUID2 für sichere, kollisionsresistente ID-Generierung
+// Ersetzt nanoid für Konsistenz mit Prisma-generierten IDs
+import { createId, isCuid } from '@paralleldrive/cuid2';
 import { Result } from '@domain/common/result';
 import { ValueObject } from '@domain/common/value-object';
 
@@ -14,15 +14,16 @@ interface EntityIdProps extends Record<string, unknown> {
 }
 
 /**
- * Abstract Base Class für Type-Safe Entity IDs mit Nanoid validation.
+ * Abstract Base Class für Type-Safe Entity IDs mit CUID2 validation.
  * Verhindert Primitive Obsession durch typed IDs mit compile-time type safety.
  *
  * Charakteristika:
  * - Generic Wrapper für typed IDs (z.B. EinsatzId extends EntityId<'Einsatz'>)
- * - Nanoid Validation: Regex `/^[A-Za-z0-9_-]{21}$/` (21 URL-safe Zeichen)
- * - Auto-Generation via nanoid() wenn kein ID-Parameter übergeben wird
+ * - CUID2 Validation: Beginnt mit Kleinbuchstabe, nur [a-z0-9]
+ * - Auto-Generation via createId() wenn kein ID-Parameter übergeben wird
  * - Type-Safety: EinsatzId ≠ UserId at compile-time
  * - Result<T> Pattern: Factory Method enforces validation
+ * - Konsistent mit Prisma-generierten IDs (@default(cuid()))
  *
  * @template TAggregateType - String Literal zur compile-time Typ-Differenzierung (z.B. 'Einsatz', 'User')
  *
@@ -34,19 +35,19 @@ interface EntityIdProps extends Record<string, unknown> {
  * // Auto-Generation (kein Parameter)
  * const id1 = EinsatzId.create();
  * if (id1.isSuccess) {
- *   console.log(id1.value.toString()); // "A1B2C3D4E5F6G7H8I9J0K" (Nanoid)
+ *   console.log(id1.value.toString()); // "clw3h8x9y0000qwertyuiopas" (CUID2)
  * }
  *
- * // Mit existierendem Nanoid
- * const id2 = EinsatzId.create('A1B2C3D4E5F6G7H8I9J0K');
+ * // Mit existierendem CUID
+ * const id2 = EinsatzId.create('clw3h8x9y0000qwertyuiopas');
  * if (id2.isSuccess) {
- *   console.log(id2.value.value); // "A1B2C3D4E5F6G7H8I9J0K"
+ *   console.log(id2.value.value); // "clw3h8x9y0000qwertyuiopas"
  * }
  *
  * // Validation Fehler
  * const id3 = EinsatzId.create('invalid-id');
  * if (id3.isFailure) {
- *   console.log(id3.error); // "Invalid nanoid format: must be 21 URL-safe characters"
+ *   console.log(id3.error); // "Invalid CUID format"
  * }
  *
  * // Type-Safety at compile-time
@@ -59,17 +60,10 @@ interface EntityIdProps extends Record<string, unknown> {
  */
 export abstract class EntityId<TAggregateType extends string> extends ValueObject<EntityIdProps> {
   /**
-   * Regex für Nanoid Validation.
-   * Nanoid Format: Genau 21 Zeichen aus [A-Za-z0-9_-]
-   * URL-safe, collision-resistant, shorter als UUID (21 vs 36 chars)
-   */
-  private static readonly NANOID_REGEX = /^[A-Za-z0-9_-]{21}$/;
-
-  /**
    * Protected Constructor erzwingt Factory Method Nutzung.
    * Verhindert direkte Instanziierung ohne Validation.
    *
-   * @param id - Der Nanoid String
+   * @param id - Der CUID String
    */
   protected constructor(id: string) {
     super({ value: id });
@@ -77,33 +71,22 @@ export abstract class EntityId<TAggregateType extends string> extends ValueObjec
 
   /**
    * Readonly getter für den ID-Wert.
-   * @returns Der Nanoid String
+   * @returns Der CUID String
    */
   get value(): string {
     return this.props.value;
   }
 
   /**
-   * Validiert ob ein String ein gültiges Nanoid Format hat.
-   * Format: Genau 21 Zeichen aus [A-Za-z0-9_-]
-   *
-   * @param id - Der zu validierende String
-   * @returns true wenn gültiges Nanoid, sonst false
-   */
-  private static isValidNanoid(id: string): boolean {
-    return EntityId.NANOID_REGEX.test(id);
-  }
-
-  /**
-   * Factory Method mit Nanoid Validation und Auto-Generation.
+   * Factory Method mit CUID Validation und Auto-Generation.
    * Verwendet Result<T> Pattern zur expliziten Fehlerbehandlung.
    *
    * Logik:
-   * - Ohne Parameter: Generiert neues Nanoid via nanoid()
-   * - Mit Parameter: Validiert Format via Regex
+   * - Ohne Parameter: Generiert neues CUID via createId()
+   * - Mit Parameter: Validiert Format via isCuid()
    * - Bei Fehler: Result.fail mit beschreibender Fehlermeldung
    *
-   * @param id - Optional: Existierendes Nanoid. Falls undefined → auto-generate
+   * @param id - Optional: Existierendes CUID. Falls undefined → auto-generate
    * @returns Result<EntityId<TAggregateType>> - Success mit ID oder Failure mit Error
    *
    * @example
@@ -111,26 +94,26 @@ export abstract class EntityId<TAggregateType extends string> extends ValueObjec
    * // Auto-Generation
    * const result1 = EinsatzId.create();
    * // result1.isSuccess === true
-   * // result1.value.value === "A1B2C3D4E5F6G7H8I9J0K" (generated)
+   * // result1.value.value === "clw3h8x9y0000qwertyuiopas" (generated)
    *
-   * // Mit validem Nanoid
-   * const result2 = EinsatzId.create('A1B2C3D4E5F6G7H8I9J0K');
+   * // Mit validem CUID
+   * const result2 = EinsatzId.create('clw3h8x9y0000qwertyuiopas');
    * // result2.isSuccess === true
    *
    * // Mit ungültigem Format
    * const result3 = EinsatzId.create('too-short');
    * // result3.isFailure === true
-   * // result3.error === "Invalid nanoid format: must be 21 URL-safe characters"
+   * // result3.error === "Invalid CUID format"
    * ```
    */
   // biome-ignore lint/suspicious/noExplicitAny: `this` parameter requires `any` type for subclass polymorphism
   static create<T extends string>(this: any, id?: string): Result<EntityId<T>> {
-    // Auto-Generation via nanoid() wenn kein Parameter
-    const actualId = id ?? nanoid();
+    // Auto-Generation via createId() wenn kein Parameter
+    const actualId = id ?? createId();
 
-    // Validation via Regex
-    if (!EntityId.isValidNanoid(actualId)) {
-      return Result.fail<EntityId<T>>('Invalid nanoid format: must be 21 URL-safe characters');
+    // Validation via isCuid() - nutzt die offizielle CUID2-Validierung
+    if (!isCuid(actualId)) {
+      return Result.fail<EntityId<T>>('Invalid CUID format');
     }
 
     // Success: Erstelle neue EntityId Instanz
@@ -167,13 +150,13 @@ export abstract class EntityId<TAggregateType extends string> extends ValueObjec
    * String-Repräsentation der EntityId.
    * Nützlich für Logging und Debugging.
    *
-   * @returns Der Nanoid String
+   * @returns Der CUID String
    *
    * @example
    * ```typescript
-   * const id = EinsatzId.create('A1B2C3D4E5F6G7H8I9J0K').value;
+   * const id = EinsatzId.create('clw3h8x9y0000qwertyuiopas').value;
    * console.log(`Einsatz ID: ${id.toString()}`);
-   * // Output: "Einsatz ID: A1B2C3D4E5F6G7H8I9J0K"
+   * // Output: "Einsatz ID: clw3h8x9y0000qwertyuiopas"
    * ```
    */
   public toString(): string {

@@ -21,15 +21,20 @@ import { Address } from '@domain/value-objects/address';
 import { Result } from '@domain/common/result';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 
-// Mock für nanoid (für deterministische Tests)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock cuid2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -46,7 +51,7 @@ class InMemoryEinsatzRepository implements IEinsatzRepository {
     try {
       this.storage.set(aggregate.id.value, aggregate);
       return Result.ok<void>();
-    } catch (error) {
+    } catch (_error) {
       return Result.fail<void>('Speichern fehlgeschlagen');
     }
   }
@@ -55,7 +60,7 @@ class InMemoryEinsatzRepository implements IEinsatzRepository {
     try {
       const einsatz = this.storage.get(id.value) || null;
       return Result.ok<Einsatz | null>(einsatz);
-    } catch (error) {
+    } catch (_error) {
       return Result.fail<Einsatz | null>('Suche fehlgeschlagen');
     }
   }
@@ -64,7 +69,7 @@ class InMemoryEinsatzRepository implements IEinsatzRepository {
     try {
       const activeEinsaetze = Array.from(this.storage.values()).filter((e) => e.status.value !== 'ARCHIVIERT');
       return Result.ok<Einsatz[]>(activeEinsaetze);
-    } catch (error) {
+    } catch (_error) {
       return Result.fail<Einsatz[]>('Suche fehlgeschlagen');
     }
   }
@@ -73,7 +78,7 @@ class InMemoryEinsatzRepository implements IEinsatzRepository {
     try {
       const einsatz = Array.from(this.storage.values()).find((e) => e.nummer === nummer) || null;
       return Result.ok<Einsatz | null>(einsatz);
-    } catch (error) {
+    } catch (_error) {
       return Result.fail<Einsatz | null>('Suche fehlgeschlagen');
     }
   }
@@ -82,7 +87,7 @@ class InMemoryEinsatzRepository implements IEinsatzRepository {
     try {
       const exists = this.storage.has(id.value);
       return Result.ok<boolean>(exists);
-    } catch (error) {
+    } catch (_error) {
       return Result.fail<boolean>('Prüfung fehlgeschlagen');
     }
   }
@@ -163,7 +168,7 @@ describe('Einsatz Integration Tests', () => {
 
     it('should validate Address PLZ when creating Einsatz', () => {
       // Given: Invalid Address (PLZ too short)
-      const createdBy = UserId.create().value!;
+      const _createdBy = UserId.create().value!;
       const invalidAddress = Address.create({
         plz: '123', // Invalid: must be 5 digits
         ort: 'Berlin',
@@ -461,7 +466,7 @@ describe('Einsatz Integration Tests', () => {
 
     it('should enforce type safety in repository methods', async () => {
       // Given: A UserId (wrong type)
-      const userId = UserId.create().value!;
+      const _userId = UserId.create().value!;
 
       // Then: TypeScript prevents passing UserId to methods expecting EinsatzId
       // This is a compile-time check - the following line would NOT compile:

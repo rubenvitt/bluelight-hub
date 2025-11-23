@@ -20,9 +20,21 @@
  * Epic 2 Story 2.3 | Task 4 (Integration Tests)
  */
 
-// Mock nanoid BEFORE any imports (hoisting workaround for Jest + ESM)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: () => crypto.randomUUID().replace(/-/g, '').slice(0, 21),
+// Mock @paralleldrive/cuid2 BEFORE any imports (hoisting workaround for Jest + ESM)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
 }));
 
 import { PrismaClient } from '@prisma/client';
@@ -35,8 +47,15 @@ import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import type { PrismaService } from '@/prisma/prisma.service';
 
-// Use crypto.randomUUID() instead of nanoid for test IDs (Jest compatibility)
-const generateTestId = () => crypto.randomUUID().replace(/-/g, '').slice(0, 21);
+// Generate CUID2-compliant test IDs (20-30 chars, lowercase a-z0-9, starts with letter)
+const generateTestId = () => {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = 'c';
+  for (let i = 0; i < 24; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
 
 const prisma = new PrismaClient();
 
@@ -177,7 +196,8 @@ describe('PrismaLagekarteRepository - Integration Tests', () => {
     it('should create new Lagekarte (INSERT operation)', async () => {
       // Given: Fresh aggregate with no POIs
       const einsatzId = EinsatzId.create(testEinsatzId).value as EinsatzId;
-      const aggregateResult = LagekarteAggregate.create(einsatzId);
+      const userId = UserId.create(testUserId).value as UserId;
+      const aggregateResult = LagekarteAggregate.create(einsatzId, userId);
       expect(aggregateResult.isSuccess).toBe(true);
       const aggregate = aggregateResult.value as LagekarteAggregate;
 
@@ -202,7 +222,8 @@ describe('PrismaLagekarteRepository - Integration Tests', () => {
     it('should update existing Lagekarte (UPSERT idempotency)', async () => {
       // Given: Aggregate saved once
       const einsatzId = EinsatzId.create(testEinsatzId).value as EinsatzId;
-      const aggregate = (LagekarteAggregate.create(einsatzId).value as LagekarteAggregate)!;
+      const userId = UserId.create(testUserId).value as UserId;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
       await repository.save(aggregate);
 
       // When: Save same aggregate again
@@ -223,7 +244,7 @@ describe('PrismaLagekarteRepository - Integration Tests', () => {
       // Given: Aggregate with 3 POIs
       const einsatzId = EinsatzId.create(testEinsatzId).value as EinsatzId;
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = (LagekarteAggregate.create(einsatzId).value as LagekarteAggregate)!;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
 
       const mgrs1 = (MgrsCoordinate.fromLatLng(52.52, 13.4, 5).value as MgrsCoordinate)!;
       const mgrs2 = (MgrsCoordinate.fromLatLng(52.53, 13.41, 5).value as MgrsCoordinate)!;
@@ -260,7 +281,7 @@ describe('PrismaLagekarteRepository - Integration Tests', () => {
       // Given: Aggregate with 2 POIs
       const einsatzId = EinsatzId.create(testEinsatzId).value as EinsatzId;
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = (LagekarteAggregate.create(einsatzId).value as LagekarteAggregate)!;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
 
       const mgrs1 = (MgrsCoordinate.fromLatLng(52.52, 13.4, 5).value as MgrsCoordinate)!;
       const mgrs2 = (MgrsCoordinate.fromLatLng(52.53, 13.41, 5).value as MgrsCoordinate)!;
@@ -299,7 +320,7 @@ describe('PrismaLagekarteRepository - Integration Tests', () => {
       // Given: Saved aggregate with 2 POIs
       const einsatzId = EinsatzId.create(testEinsatzId).value as EinsatzId;
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = (LagekarteAggregate.create(einsatzId).value as LagekarteAggregate)!;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
 
       const mgrs1 = (MgrsCoordinate.fromLatLng(52.52, 13.4, 5).value as MgrsCoordinate)!;
       const mgrs2 = (MgrsCoordinate.fromLatLng(52.53, 13.41, 5).value as MgrsCoordinate)!;
@@ -353,7 +374,8 @@ describe('PrismaLagekarteRepository - Integration Tests', () => {
     it('should find Lagekarte by Einsatz relation', async () => {
       // Given: Saved aggregate
       const einsatzId = EinsatzId.create(testEinsatzId).value as EinsatzId;
-      const aggregate = (LagekarteAggregate.create(einsatzId).value as LagekarteAggregate)!;
+      const userId = UserId.create(testUserId).value as UserId;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
       await repository.save(aggregate);
 
       // When: Find by EinsatzId
@@ -414,7 +436,8 @@ describe('PrismaLagekarteRepository - Integration Tests', () => {
     it('should return true when Lagekarte exists', async () => {
       // Given: Saved aggregate
       const einsatzId = EinsatzId.create(testEinsatzId).value as EinsatzId;
-      const aggregate = (LagekarteAggregate.create(einsatzId).value as LagekarteAggregate)!;
+      const userId = UserId.create(testUserId).value as UserId;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
       await repository.save(aggregate);
 
       // When: Check exists
@@ -473,7 +496,7 @@ describe('PrismaLagekarteRepository - Integration Tests', () => {
       // Given: Aggregate with POIs + MGRS coordinates
       const einsatzId = EinsatzId.create(testEinsatzId).value as EinsatzId;
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = (LagekarteAggregate.create(einsatzId).value as LagekarteAggregate)!;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
 
       const berlinMgrs = (MgrsCoordinate.fromLatLng(52.52, 13.405, 5).value as MgrsCoordinate)!;
       aggregate.addPoi('Brandenburger Tor', berlinMgrs, PoiCategory.EINSATZSTELLE(), userId, 'Haupteinsatzort');
@@ -505,8 +528,9 @@ describe('PrismaLagekarteRepository - Integration Tests', () => {
     it('should throw on unique constraint violation (duplicate einsatzId)', async () => {
       // Given: Two aggregates with SAME einsatzId
       const einsatzId = EinsatzId.create(testEinsatzId).value as EinsatzId;
-      const aggregate1 = (LagekarteAggregate.create(einsatzId).value as LagekarteAggregate)!;
-      const aggregate2 = (LagekarteAggregate.create(einsatzId).value as LagekarteAggregate)!;
+      const userId = UserId.create(testUserId).value as UserId;
+      const aggregate1 = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
+      const aggregate2 = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
 
       await repository.save(aggregate1);
 
@@ -533,7 +557,8 @@ describe('PrismaLagekarteRepository - Integration Tests', () => {
     it('should throw on foreign key violation (non-existing einsatzId)', async () => {
       // Given: Aggregate with non-existing einsatzId
       const fakeEinsatzId = (EinsatzId.create(generateTestId()).value as EinsatzId)!;
-      const aggregate = (LagekarteAggregate.create(fakeEinsatzId).value as LagekarteAggregate)!;
+      const fakeUserId = UserId.create(testUserId).value as UserId;
+      const aggregate = (LagekarteAggregate.create(fakeEinsatzId, fakeUserId).value as LagekarteAggregate)!;
 
       // When/Then: Save throws PrismaClientKnownRequestError (P2003 FK Violation)
       await expect(repository.save(aggregate)).rejects.toThrow();
@@ -548,7 +573,8 @@ describe('PrismaLagekarteRepository - Integration Tests', () => {
     it('should handle invalid MGRS format (mapper validation)', async () => {
       // Given: Invalid MGRS string (direkt in DB geschrieben)
       const einsatzId = EinsatzId.create(testEinsatzId).value as EinsatzId;
-      const aggregate = (LagekarteAggregate.create(einsatzId).value as LagekarteAggregate)!;
+      const userId = UserId.create(testUserId).value as UserId;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId).value as LagekarteAggregate;
       await repository.save(aggregate);
 
       // Inject invalid MGRS POI direkt in DB (bypass Domain Layer Validation)

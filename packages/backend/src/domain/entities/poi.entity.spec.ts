@@ -6,22 +6,36 @@ import { PoiCategory } from '@domain/value-objects/poi-category';
 import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { GeoCoordinate } from '@domain/value-objects/geo-coordinate';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    // Generate valid nanoid format: 21 URL-safe characters
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
+// Mock CUID2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    // Generate valid CUID2 format: starts with lowercase letter, 20-30 lowercase alphanumeric chars
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
   }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
+  }),
 }));
 
-// Import after mock setup (unused, but required for mock to work)
-// biome-ignore lint/correctness/noUnusedVariables: Required for Jest mock setup
-const { nanoid } = require('nanoid/non-secure');
+/**
+ * Helper function: Erstellt eine deterministische Test-CUID.
+ * Nützlich für Tests, die vorhersagbare IDs benötigen.
+ *
+ * @param suffix - Optionaler Suffix für Eindeutigkeit zwischen Tests
+ * @returns Gültige CUID2-formatierte Test-ID
+ */
+function _generateTestCuid(suffix = ''): string {
+  const base = 'clw3h8x9y0000qwertyu';
+  const padding = suffix.padEnd(5, '0').slice(0, 5);
+  return base + padding;
+}
 
 describe('Poi Entity', () => {
   let testUserId: UserId;

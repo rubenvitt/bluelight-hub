@@ -11,17 +11,20 @@ import { PoiAddedEvent } from '@domain/events/poi-added.event';
 import { PoiRemovedEvent } from '@domain/events/poi-removed.event';
 import { PoiPositionUpdatedEvent } from '@domain/events/poi-position-updated.event';
 
-// Mock nanoid for Jest compatibility (ESM module issue)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    // Generate valid nanoid format with specified length
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const len = length ?? 21;
+// Mock CUID2 for Jest compatibility (ESM module issue)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    // Generate valid CUID2 format: lowercase alphanumeric
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
-    for (let i = 0; i < len; i++) {
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((value: string) => {
+    // Simple CUID2 validation for tests
+    return typeof value === 'string' && value.length >= 20 && /^[a-z0-9]+$/.test(value);
   }),
 }));
 
@@ -56,9 +59,9 @@ describe('LagekarteAggregate', () => {
 
   describe('Factory Tests', () => {
     describe('create', () => {
-      it('should create Lagekarte with valid einsatzId', () => {
+      it('should create Lagekarte with valid einsatzId and createdBy', () => {
         // When: Create Lagekarte
-        const result = LagekarteAggregate.create(testEinsatzId);
+        const result = LagekarteAggregate.create(testEinsatzId, testUserId);
 
         // Then: Success
         expect(result.isSuccess).toBe(true);
@@ -74,17 +77,27 @@ describe('LagekarteAggregate', () => {
       it('should reject missing einsatzId', () => {
         // When: Create without einsatzId
         // biome-ignore lint/suspicious/noExplicitAny: Testing validation with intentionally invalid input
-        const result = LagekarteAggregate.create(null as any);
+        const result = LagekarteAggregate.create(null as any, testUserId);
 
         // Then: Failure
         expect(result.isFailure).toBe(true);
         expect(result.error).toContain('EinsatzId is required');
       });
 
+      it('should reject missing createdBy', () => {
+        // When: Create without createdBy
+        // biome-ignore lint/suspicious/noExplicitAny: Testing validation with intentionally invalid input
+        const result = LagekarteAggregate.create(testEinsatzId, null as any);
+
+        // Then: Failure
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toContain('CreatedBy (UserId) is required');
+      });
+
       it('should auto-generate LagekarteId', () => {
         // When: Create two Lagekarten
-        const result1 = LagekarteAggregate.create(testEinsatzId);
-        const result2 = LagekarteAggregate.create(testEinsatzId);
+        const result1 = LagekarteAggregate.create(testEinsatzId, testUserId);
+        const result2 = LagekarteAggregate.create(testEinsatzId, testUserId);
 
         // Then: Different IDs
         const lagekarte1 = result1.value as LagekarteAggregate;
@@ -92,39 +105,44 @@ describe('LagekarteAggregate', () => {
         expect(lagekarte1.id.equals(lagekarte2.id)).toBe(false);
       });
 
-      it('should create with initialPoi and emit PoiAddedEvent', () => {
+      it('should create with initialPoi and emit LagekarteCreatedEvent and PoiAddedEvent', () => {
         // Given: Initial POI
         const poi = Poi.create('Einsatzstelle', berlinMgrs, testCategory, testUserId);
 
         // When: Create with initialPoi
-        const result = LagekarteAggregate.create(testEinsatzId, poi);
+        const result = LagekarteAggregate.create(testEinsatzId, testUserId, poi);
 
-        // Then: POI in array and event emitted
+        // Then: POI in array and events emitted
         const lagekarte = result.value as LagekarteAggregate;
         expect(lagekarte.pois).toHaveLength(1);
         expect(lagekarte.pois[0]).toBe(poi);
 
         const events = lagekarte.getDomainEvents();
-        expect(events).toHaveLength(1);
-        expect(events[0]).toBeInstanceOf(PoiAddedEvent);
+        expect(events).toHaveLength(2);
+        // First event is LagekarteCreatedEvent
+        expect(events[0].constructor.name).toBe('LagekarteCreatedEvent');
+        // Second event is PoiAddedEvent
+        expect(events[1]).toBeInstanceOf(PoiAddedEvent);
 
-        const event = events[0] as PoiAddedEvent;
-        expect(event.lagekarteId).toBe(lagekarte.id);
-        expect(event.poiId).toBe(poi.id);
-        expect(event.name).toBe('Einsatzstelle');
-        expect(event.coordinate).toBe(berlinMgrs);
-        expect(event.category).toBe(testCategory);
-        expect(event.createdBy).toBe(testUserId);
+        const poiEvent = events[1] as PoiAddedEvent;
+        expect(poiEvent.lagekarteId).toBe(lagekarte.id);
+        expect(poiEvent.poiId).toBe(poi.id);
+        expect(poiEvent.name).toBe('Einsatzstelle');
+        expect(poiEvent.coordinate).toBe(berlinMgrs);
+        expect(poiEvent.category).toBe(testCategory);
+        expect(poiEvent.createdBy).toBe(testUserId);
       });
 
       it('should create without initialPoi and have empty pois array', () => {
         // When: Create without initialPoi
-        const result = LagekarteAggregate.create(testEinsatzId);
+        const result = LagekarteAggregate.create(testEinsatzId, testUserId);
 
-        // Then: Empty pois array and no events
+        // Then: Empty pois array and LagekarteCreatedEvent emitted
         const lagekarte = result.value as LagekarteAggregate;
         expect(lagekarte.pois).toHaveLength(0);
-        expect(lagekarte.getDomainEvents()).toHaveLength(0);
+        // LagekarteCreatedEvent is always emitted on create
+        expect(lagekarte.getDomainEvents()).toHaveLength(1);
+        expect(lagekarte.getDomainEvents()[0].constructor.name).toBe('LagekarteCreatedEvent');
       });
     });
   });
@@ -133,7 +151,8 @@ describe('LagekarteAggregate', () => {
     let lagekarte: LagekarteAggregate;
 
     beforeEach(() => {
-      lagekarte = LagekarteAggregate.create(testEinsatzId).value as LagekarteAggregate;
+      lagekarte = LagekarteAggregate.create(testEinsatzId, testUserId).value as LagekarteAggregate;
+      lagekarte.clearDomainEvents(); // Clear LagekarteCreatedEvent for cleaner tests
     });
 
     it('should add POI with MGRS coordinate', () => {
@@ -300,9 +319,9 @@ describe('LagekarteAggregate', () => {
     let poi: Poi;
 
     beforeEach(() => {
-      lagekarte = LagekarteAggregate.create(testEinsatzId).value as LagekarteAggregate;
+      lagekarte = LagekarteAggregate.create(testEinsatzId, testUserId).value as LagekarteAggregate;
       poi = lagekarte.addPoi('Einsatzstelle', berlinMgrs, testCategory, testUserId).value as Poi;
-      lagekarte.clearDomainEvents(); // Clear PoiAddedEvent
+      lagekarte.clearDomainEvents(); // Clear LagekarteCreatedEvent + PoiAddedEvent
     });
 
     it('should remove existing POI', () => {
@@ -383,9 +402,9 @@ describe('LagekarteAggregate', () => {
     let poi: Poi;
 
     beforeEach(() => {
-      lagekarte = LagekarteAggregate.create(testEinsatzId).value as LagekarteAggregate;
+      lagekarte = LagekarteAggregate.create(testEinsatzId, testUserId).value as LagekarteAggregate;
       poi = lagekarte.addPoi('Einsatzstelle', berlinMgrs, testCategory, testUserId).value as Poi;
-      lagekarte.clearDomainEvents(); // Clear PoiAddedEvent
+      lagekarte.clearDomainEvents(); // Clear LagekarteCreatedEvent + PoiAddedEvent
     });
 
     it('should update position with MGRS coordinate', () => {
@@ -490,7 +509,8 @@ describe('LagekarteAggregate', () => {
     let lagekarte: LagekarteAggregate;
 
     beforeEach(() => {
-      lagekarte = LagekarteAggregate.create(testEinsatzId).value as LagekarteAggregate;
+      lagekarte = LagekarteAggregate.create(testEinsatzId, testUserId).value as LagekarteAggregate;
+      lagekarte.clearDomainEvents(); // Clear LagekarteCreatedEvent for cleaner tests
     });
 
     it('should filter POIs by category correctly', () => {
@@ -575,7 +595,8 @@ describe('LagekarteAggregate', () => {
     let lagekarte: LagekarteAggregate;
 
     beforeEach(() => {
-      lagekarte = LagekarteAggregate.create(testEinsatzId).value as LagekarteAggregate;
+      lagekarte = LagekarteAggregate.create(testEinsatzId, testUserId).value as LagekarteAggregate;
+      lagekarte.clearDomainEvents(); // Clear LagekarteCreatedEvent for cleaner event counting
     });
 
     it('should accumulate events from multiple operations', () => {

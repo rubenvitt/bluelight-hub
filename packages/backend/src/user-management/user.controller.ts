@@ -1,6 +1,6 @@
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { ApiWrappedResponse } from '@/common/decorators/api-wrapped-response.decorator';
-import { ParseNanoIdPipe } from '@/common/pipes/parse-nanoid.pipe';
+import { ParseCuidPipe } from '@/common/pipes/parse-cuid.pipe';
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserBasicDto, UserBasicListResponse } from './dto/user-basic-response.dto';
@@ -21,7 +21,7 @@ export class UserController {
   @ApiOperation({ summary: 'Benutzerinformationen abrufen' })
   @ApiWrappedResponse(UserResponse, { description: 'Benutzerinformationen' })
   @ApiResponse({ status: 404, description: 'Benutzer nicht gefunden' })
-  async findOne(@Param('id', new ParseNanoIdPipe()) id: string): Promise<UserDto> {
+  async findOne(@Param('id', ParseCuidPipe) id: string): Promise<UserDto> {
     return await this.userManagementService.findOne(id);
   }
 

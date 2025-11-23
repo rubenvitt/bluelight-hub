@@ -3,16 +3,20 @@ import { GetLagekarteExistsQuery } from '../get-lagekarte-exists.query';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { createValidTestId } from './helpers/test-id.helper';
 
-// Mock nanoid for deterministic test IDs
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const targetLength = length || 21;
-    let result = '';
-    for (let i = 0; i < targetLength; i++) {
+// Mock cuid2 for deterministic test IDs
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c';
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -35,6 +39,7 @@ describe('GetLagekarteExistsQueryHandler', () => {
       save: jest.fn(),
       findById: jest.fn(),
       exists: jest.fn(),
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
     // Instantiate handler with mock (Direct Instantiation Pattern)
@@ -140,7 +145,7 @@ describe('GetLagekarteExistsQueryHandler', () => {
     it('should throw error when EinsatzId creation fails', async () => {
       // Given: Invalid EinsatzId (empty string)
       const invalidId = '';
-      const query = new GetLagekarteExistsQuery('AZaz09_-0123456789XYZ'); // Valid 21-char nanoid
+      const query = new GetLagekarteExistsQuery('clw3h8x9y0000qwertyui00001'); // Valid CUID2 format
 
       // Override query.einsatzId to trigger EinsatzId.create() failure
       Object.defineProperty(query, 'einsatzId', {
@@ -213,9 +218,9 @@ describe('GetLagekarteExistsQueryHandler', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle einsatzId with all valid nanoid characters', async () => {
+    it('should handle einsatzId with all valid cuid2 characters', async () => {
       // Given
-      const complexEinsatzId = 'AZaz09_-0123456789XYZ'; // All valid chars
+      const complexEinsatzId = 'clw3h8x9y0000qwertyuiazaz0'; // Valid CUID2 format
       const query = new GetLagekarteExistsQuery(complexEinsatzId);
       mockRepo.exists.mockResolvedValue(true);
 
@@ -233,6 +238,7 @@ describe('GetLagekarteExistsQueryHandler', () => {
       const query = new GetLagekarteExistsQuery(einsatzId);
 
       // Mock: Repository returns undefined (type mismatch, but testing runtime)
+      // biome-ignore lint/suspicious/noExplicitAny: Testing null/undefined handling
       mockRepo.exists.mockResolvedValue(undefined as any);
 
       // When

@@ -2,23 +2,26 @@ import { GetPoisQueryHandler } from '../../get-pois.handler';
 import { GetPoisQuery } from '../../get-pois.query';
 import { InMemoryLagekarteRepository } from './in-memory-lagekarte.repository';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
-import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { Poi } from '@domain/entities/poi.entity';
 import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import { UserId } from '@domain/value-objects/user-id';
 
-// Mock nanoid for deterministic test IDs
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn((length?: number) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    const targetLength = length || 21;
-    let result = '';
-    for (let i = 0; i < targetLength; i++) {
+// Mock cuid2 for deterministic test IDs (CUID2 format: 20-30 chars, lowercase a-z0-9, starts with letter)
+jest.mock('@paralleldrive/cuid2', () => ({
+  createId: jest.fn(() => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'c'; // CUID2 always starts with a letter
+    for (let i = 0; i < 24; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }),
+  isCuid: jest.fn((id: string) => {
+    if (typeof id !== 'string') return false;
+    if (id.length < 20 || id.length > 30) return false;
+    return /^[a-z][a-z0-9]+$/.test(id);
   }),
 }));
 
@@ -65,7 +68,7 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
     // POI 1: EINSATZSTELLE (Berlin)
     const poi1 = Poi.create('Einsatzstelle 1', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.EINSATZSTELLE(), userId);
 
-    const aggregate = LagekarteAggregate.create(einsatzId, poi1).value!;
+    const aggregate = LagekarteAggregate.create(einsatzId, userId, poi1).value!;
 
     // POI 2: EINSATZSTELLE (Hamburg - using valid 32U zone)
     const poi2Result = aggregate.addPoi('Einsatzstelle 2', MgrsCoordinate.fromString('32UPU1234567890').value!, PoiCategory.EINSATZSTELLE(), userId);
@@ -85,7 +88,7 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
   describe('Full Application → Domain → Repository Flow', () => {
     it('should load aggregate and filter POIs by category', async () => {
       // Given: Aggregate with 3 POIs (2 EINSATZSTELLE, 1 BEREITSTELLUNGSRAUM)
-      const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
+      const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
 
       const aggregate = createAggregateWithMixedPois(einsatzId);
       await repository.save(aggregate);
@@ -108,7 +111,7 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
 
     it('should return all POIs when no category filter specified', async () => {
       // Given: Aggregate with 3 POIs of different categories
-      const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
+      const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
 
       const aggregate = createAggregateWithMixedPois(einsatzId);
       await repository.save(aggregate);
@@ -131,7 +134,7 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
       // Given: Empty repository
 
       // When: Query non-existent Lagekarte
-      const query = new GetPoisQuery('non-existent-id-00001', 'EINSATZSTELLE');
+      const query = new GetPoisQuery('clw3h8x9y0000nonexistent01', 'EINSATZSTELLE');
       const result = await handler.execute(query);
 
       // Then: Should return Result.fail() (NOT null!)
@@ -141,7 +144,7 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
 
     it('should validate category and return error for invalid category', async () => {
       // Given: Aggregate stored in repository
-      const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
+      const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
 
       const aggregate = createAggregateWithMixedPois(einsatzId);
       await repository.save(aggregate);
@@ -157,12 +160,12 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
 
     it('should return empty array when category filter matches no POIs', async () => {
       // Given: Aggregate with only EINSATZSTELLE POIs
-      const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
+      const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
       const userId = UserId.create().value!;
 
       const poi = Poi.create('Einsatzstelle', MgrsCoordinate.fromString('33UUU8990317936').value!, PoiCategory.EINSATZSTELLE(), userId);
 
-      const aggregate = LagekarteAggregate.create(einsatzId, poi).value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId, poi).value!;
       await repository.save(aggregate);
 
       // When: Query with category GEFAHRENSTELLE (no POIs have this category)
@@ -176,10 +179,11 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
 
     it('should return empty array when Lagekarte has no POIs', async () => {
       // Given: Lagekarte WITHOUT POIs
-      const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
+      const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
+      const userId = UserId.create().value!;
 
       // Create Lagekarte without initial POI
-      const aggregate = LagekarteAggregate.create(einsatzId).value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId).value!;
       await repository.save(aggregate);
 
       // When: Query all POIs
@@ -193,7 +197,7 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
 
     it('should map POI coordinates (MGRS + Lat/Lng) correctly', async () => {
       // Given: Aggregate with POI in Berlin
-      const einsatzId = EinsatzId.create('V1StGXR8_Z5jdHi6B-myT').value!;
+      const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
       const userId = UserId.create().value!;
 
       const poi = Poi.create(
@@ -204,7 +208,7 @@ describe('GetPoisQueryHandler - Integration Tests', () => {
         'Historisches Wahrzeichen',
       );
 
-      const aggregate = LagekarteAggregate.create(einsatzId, poi).value!;
+      const aggregate = LagekarteAggregate.create(einsatzId, userId, poi).value!;
       await repository.save(aggregate);
 
       // When: Query POIs

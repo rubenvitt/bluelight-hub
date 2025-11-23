@@ -78,8 +78,8 @@ console.log('   Different instances:', id1 !== id2); // true (reference inequali
 console.log('\n=== 6. RESULT PATTERN ===');
 
 const result = UserId.create();
-if (result.isSuccess) {
-  const id = result.value!; // Safe because isSuccess === true
+if (result.isSuccess && result.value) {
+  const id = result.value; // Safe because isSuccess === true
   console.log('✅ Success:', id.toString());
   console.log('   isSuccess:', result.isSuccess);
   console.log('   value defined:', result.value !== undefined);
@@ -110,7 +110,7 @@ try {
   // @ts-expect-error - Testing runtime immutability
   immutableId.props.value = 'should-fail';
   console.log('❌ Immutability FAILED - props were modified!');
-} catch (error) {
+} catch (_error) {
   console.log('✅ Immutability enforced - cannot modify props');
 }
 

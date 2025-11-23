@@ -126,7 +126,7 @@ export class GetPoisQueryHandler {
         if (categoryResult.isFailure) {
           return Result.fail(`Invalid category: ${query.category}`);
         }
-        pois = pois.filter((poi) => poi.category.value === categoryResult.value!.value);
+        pois = pois.filter((poi) => poi.category.value === categoryResult.value?.value);
       }
 
       // Step 5: Map POIs to DTOs

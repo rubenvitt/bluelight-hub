@@ -1,5 +1,5 @@
 import { AdminJwtAuthGuard } from '@/auth/guards/admin-jwt-auth.guard';
-import { ParseNanoIdPipe } from '@/common/pipes/parse-nanoid.pipe';
+import { ParseCuidPipe } from '@/common/pipes/parse-cuid.pipe';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards, ValidationPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -72,7 +72,7 @@ export class UserManagementController {
   @ApiResponse({ status: 404, description: 'Benutzer nicht gefunden' })
   @ApiResponse({ status: 409, description: 'Benutzername bereits vergeben' })
   async update(
-    @Param('id', new ParseNanoIdPipe()) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body(
       new ValidationPipe({
         whitelist: true,
@@ -102,7 +102,7 @@ export class UserManagementController {
     description: 'Letzter SUPER_ADMIN kann nicht gelöscht werden',
   })
   async remove(
-    @Param('id', new ParseNanoIdPipe()) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body(
       new ValidationPipe({
         whitelist: true,
@@ -134,7 +134,7 @@ export class UserManagementController {
     description: 'Benutzer ist bereits gesperrt oder letzter SUPER_ADMIN kann nicht gesperrt werden',
   })
   async lock(
-    @Param('id', new ParseNanoIdPipe()) id: string,
+    @Param('id', ParseCuidPipe) id: string,
     @Body(
       new ValidationPipe({
         whitelist: true,
@@ -160,7 +160,7 @@ export class UserManagementController {
     status: 400,
     description: 'Benutzer ist nicht gesperrt',
   })
-  async unlock(@Param('id', new ParseNanoIdPipe()) id: string) {
+  async unlock(@Param('id', new ParseCuidPipe()) id: string) {
     return await this.userManagementService.unlock(id);
   }
 }

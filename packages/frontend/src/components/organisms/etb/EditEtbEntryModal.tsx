@@ -52,6 +52,7 @@ export function EditEtbEntryModal({ entry, isOpen, onClose }: EditEtbEntryModalP
 
       try {
         await updateEintrag.mutateAsync({
+          etbId: entry.etbId,
           eintragId: entry.id,
           data: {
             kategorie: value.kategorie,

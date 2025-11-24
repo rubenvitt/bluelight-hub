@@ -1,63 +1,70 @@
 import { UserId } from '@domain/value-objects/user-id';
 import { Result } from '@domain/common/result';
 
-// Mock CUID2 for Jest compatibility (ESM module issue)
-jest.mock('@paralleldrive/cuid2', () => ({
-  createId: jest.fn(() => {
-    // Generate valid CUID2 format: starts with 'c', 20-30 lowercase alphanumeric characters
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let result = 'c';
-    for (let i = 0; i < 24; i++) {
+// Mock nanoid for consistent test IDs
+jest.mock('nanoid', () => ({
+  nanoid: jest.fn(() => {
+    // Generate valid Nanoid format: 21 characters, alphanumeric with mixed case
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+    let result = '';
+    for (let i = 0; i < 21; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
   }),
-  isCuid: jest.fn((id: string) => {
-    if (typeof id !== 'string') return false;
-    if (id.length < 20 || id.length > 30) return false;
-    return /^[a-z][a-z0-9]+$/.test(id);
-  }),
 }));
 
-function generateTestCuid(suffix = ''): string {
-  const base = 'clw3h8x9y0000qwertyu';
-  const padding = suffix.padEnd(5, '0').slice(0, 5);
+function generateTestNanoid(suffix = ''): string {
+  // Generate a valid 21-character Nanoid
+  const base = 'WvmYHlIYRWUhVZTt';
+  const padding = suffix.padEnd(5, 'X').slice(0, 5);
   return base + padding;
 }
 
 describe('UserId', () => {
   describe('create() - Factory Method', () => {
-    it('should auto-generate valid CUID when no id parameter provided', () => {
+    it('should auto-generate valid Nanoid when no id parameter provided', () => {
       // Given: No ID parameter
       const noIdParameter = undefined;
 
       // When: Creating UserId without parameter
       const result = UserId.create(noIdParameter);
 
-      // Then: Success with auto-generated CUID
+      // Then: Success with auto-generated Nanoid
       expect(result.isSuccess).toBe(true);
       expect(result.value).toBeDefined();
-      expect(result.value?.value).toMatch(/^[a-z][a-z0-9]+$/);
-      expect(result.value?.value.length).toBeGreaterThanOrEqual(20);
-      expect(result.value?.value.length).toBeLessThanOrEqual(30);
+      expect(result.value?.value).toMatch(/^[A-Za-z0-9_-]{21}$/);
+      expect(result.value?.value.length).toBe(21);
     });
 
-    it('should create UserId with valid CUID string', () => {
-      // Given: Valid CUID format
-      const validCuid = generateTestCuid('test1');
+    it('should create UserId with valid Nanoid string', () => {
+      // Given: Valid Nanoid format (21 characters)
+      const validNanoid = generateTestNanoid('test1');
 
-      // When: Creating UserId with valid CUID
-      const result = UserId.create(validCuid);
+      // When: Creating UserId with valid Nanoid
+      const result = UserId.create(validNanoid);
 
-      // Then: Success with provided CUID
+      // Then: Success with provided Nanoid
       expect(result.isSuccess).toBe(true);
       expect(result.value).toBeDefined();
-      expect(result.value?.value).toBe(validCuid);
+      expect(result.value?.value).toBe(validNanoid);
       expect(result.error).toBeUndefined();
     });
 
-    it('should fail with invalid CUID format (too short)', () => {
-      // Given: Invalid CUID (too short)
+    it('should create UserId with actual User ID from database', () => {
+      // Given: Real User ID from Prisma (Nanoid format)
+      const realUserId = 'WvmYHlIYRWUhVZTt1aRng';
+
+      // When: Creating UserId
+      const result = UserId.create(realUserId);
+
+      // Then: Success
+      expect(result.isSuccess).toBe(true);
+      expect(result.value?.value).toBe(realUserId);
+    });
+
+    it('should fail with invalid Nanoid format (too short)', () => {
+      // Given: Invalid Nanoid (too short)
       const tooShortId = 'abc123';
 
       // When: Creating UserId with invalid format
@@ -67,68 +74,68 @@ describe('UserId', () => {
       expect(result.isFailure).toBe(true);
       expect(result.isSuccess).toBe(false);
       expect(result.value).toBeUndefined();
-      expect(result.error).toBe('Invalid CUID format');
+      expect(result.error).toBe('Invalid Nanoid format for UserId');
     });
 
-    it('should fail with invalid CUID format (too long)', () => {
-      // Given: Invalid CUID (too long)
-      const tooLongId = 'cabcdefghijklmnopqrstuvwxyz12345678';
+    it('should fail with invalid Nanoid format (too long)', () => {
+      // Given: Invalid Nanoid (too long - 25 chars)
+      const tooLongId = 'WvmYHlIYRWUhVZTt1aRngXXXX';
 
       // When: Creating UserId with invalid format
       const result = UserId.create(tooLongId);
 
       // Then: Failure with error message
       expect(result.isFailure).toBe(true);
-      expect(result.error).toBe('Invalid CUID format');
+      expect(result.error).toBe('Invalid Nanoid format for UserId');
     });
 
-    it('should fail with invalid characters in CUID', () => {
-      // Given: Invalid characters (uppercase and special chars not allowed)
-      const invalidChars = 'cABCDEFGHIJKLMNOPQRSTU'; // Uppercase not allowed
+    it('should accept all valid Nanoid characters (A-Za-z0-9_-)', () => {
+      // Given: Nanoid with all valid character types
+      const validMixedChars = 'ABCabc123_-XYZxyz789';
+
+      // When: Creating UserId with valid mixed characters
+      const result = UserId.create(validMixedChars);
+
+      // Then: Success (21 chars)
+      expect(result.isSuccess).toBe(true);
+      expect(result.value?.value).toBe(validMixedChars);
+    });
+
+    it('should fail with invalid characters in Nanoid', () => {
+      // Given: Invalid characters (special chars not in _-)
+      const invalidChars = 'WvmYHlIYRWUhV!@#$%^&*';
 
       // When: Creating UserId with invalid characters
       const result = UserId.create(invalidChars);
 
       // Then: Failure with error message
       expect(result.isFailure).toBe(true);
-      expect(result.error).toBe('Invalid CUID format');
-    });
-
-    it('should accept all valid CUID characters (a-z0-9, starting with letter)', () => {
-      // Given: CUID with all valid character types
-      const validMixedChars = generateTestCuid('valid');
-
-      // When: Creating UserId with valid mixed characters
-      const result = UserId.create(validMixedChars);
-
-      // Then: Success
-      expect(result.isSuccess).toBe(true);
-      expect(result.value?.value).toBe(validMixedChars);
+      expect(result.error).toBe('Invalid Nanoid format for UserId');
     });
   });
 
   describe('value - Getter', () => {
-    it('should return the CUID string via value getter', () => {
-      // Given: UserId with known CUID
-      const knownCuid = generateTestCuid('getvl');
-      const result = UserId.create(knownCuid);
+    it('should return the Nanoid string via value getter', () => {
+      // Given: UserId with known Nanoid
+      const knownNanoid = generateTestNanoid('getvl');
+      const result = UserId.create(knownNanoid);
 
       // When: Accessing value getter
       const userId = result.value as UserId;
       const idValue = userId.value;
 
-      // Then: Returns CUID string
-      expect(idValue).toBe(knownCuid);
+      // Then: Returns Nanoid string
+      expect(idValue).toBe(knownNanoid);
       expect(typeof idValue).toBe('string');
     });
   });
 
   describe('equals() - Equality', () => {
-    it('should return true for UserIds with same CUID value', () => {
-      // Given: Two UserIds with same CUID
-      const sharedCuid = generateTestCuid('equal');
-      const id1 = UserId.create(sharedCuid).value as UserId;
-      const id2 = UserId.create(sharedCuid).value as UserId;
+    it('should return true for UserIds with same Nanoid value', () => {
+      // Given: Two UserIds with same Nanoid
+      const sharedNanoid = generateTestNanoid('equal');
+      const id1 = UserId.create(sharedNanoid).value as UserId;
+      const id2 = UserId.create(sharedNanoid).value as UserId;
 
       // When: Comparing for equality
       const areEqual = id1.equals(id2);
@@ -138,10 +145,10 @@ describe('UserId', () => {
       expect(id1).not.toBe(id2); // Different object instances
     });
 
-    it('should return false for UserIds with different CUID values', () => {
-      // Given: Two UserIds with different CUIDs
-      const id1 = UserId.create(generateTestCuid('diff1')).value as UserId;
-      const id2 = UserId.create(generateTestCuid('diff2')).value as UserId;
+    it('should return false for UserIds with different Nanoid values', () => {
+      // Given: Two UserIds with different Nanoids
+      const id1 = UserId.create(generateTestNanoid('diff1')).value as UserId;
+      const id2 = UserId.create(generateTestNanoid('diff2')).value as UserId;
 
       // When: Comparing for equality
       const areEqual = id1.equals(id2);
@@ -152,7 +159,7 @@ describe('UserId', () => {
 
     it('should return true when comparing same instance', () => {
       // Given: Same UserId instance
-      const id = UserId.create(generateTestCuid('same0')).value as UserId;
+      const id = UserId.create(generateTestNanoid('same0')).value as UserId;
 
       // When: Comparing with itself
       const areEqual = id.equals(id);
@@ -163,7 +170,7 @@ describe('UserId', () => {
 
     it('should return false when comparing with undefined', () => {
       // Given: UserId and undefined
-      const id = UserId.create(generateTestCuid('undef')).value as UserId;
+      const id = UserId.create(generateTestNanoid('undef')).value as UserId;
       const undefinedId = undefined;
 
       // When: Comparing with undefined
@@ -175,7 +182,7 @@ describe('UserId', () => {
 
     it('should return false when comparing with null', () => {
       // Given: UserId and null
-      const id = UserId.create(generateTestCuid('nullv')).value as UserId;
+      const id = UserId.create(generateTestNanoid('nullv')).value as UserId;
       const nullId = null as unknown as UserId;
 
       // When: Comparing with null
@@ -187,46 +194,34 @@ describe('UserId', () => {
   });
 
   describe('toString() - String Representation', () => {
-    it('should return CUID string for logging', () => {
-      // Given: UserId with known CUID
-      const knownCuid = generateTestCuid('logme');
-      const id = UserId.create(knownCuid).value as UserId;
+    it('should return Nanoid string for logging', () => {
+      // Given: UserId with known Nanoid
+      const knownNanoid = generateTestNanoid('logme');
+      const id = UserId.create(knownNanoid).value as UserId;
 
       // When: Converting to string
       const stringRepresentation = id.toString();
 
-      // Then: Returns CUID value
-      expect(stringRepresentation).toBe(knownCuid);
+      // Then: Returns Nanoid value
+      expect(stringRepresentation).toBe(knownNanoid);
     });
 
     it('should work in template literals for logging', () => {
       // Given: UserId
-      const id = UserId.create(generateTestCuid('templ')).value as UserId;
+      const id = UserId.create(generateTestNanoid('templ')).value as UserId;
 
       // When: Using in template literal
       const logMessage = `User ID: ${id}`;
 
-      // Then: Contains CUID value
+      // Then: Contains Nanoid value
       expect(logMessage).toContain('User ID: ');
-      expect(logMessage.replace('User ID: ', '')).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(logMessage.replace('User ID: ', '')).toMatch(/^[A-Za-z0-9_-]{21}$/);
     });
   });
 
   describe('Type-Safety (compile-time)', () => {
-    /**
-     * Type-Safety Demonstration: Compile-time type checking.
-     * Diese Tests demonstrieren, dass TypeScript verhindert,
-     * dass UserId und EinsatzId vertauscht werden können.
-     *
-     * Hinweis: Diese Tests prüfen Runtime-Verhalten, aber die
-     * eigentliche Type-Safety wird durch TypeScript zur Compile-Time erzwungen.
-     */
-
-    // Mock EinsatzId for type-safety demonstration
-    class _EinsatzId extends UserId.prototype.constructor<'Einsatz'> {}
-
     it('should create UserId type distinct from other EntityId types', () => {
-      // Given: Different aggregate types
+      // Given: UserId
       const userId = UserId.create().value as UserId;
 
       // When: Checking types at runtime
@@ -248,20 +243,16 @@ describe('UserId', () => {
 
       // Then: Function executes successfully
       expect(result).toContain('Processing User:');
-
-      // Note: The following would cause a TypeScript compile error:
-      // const einsatzId = EinsatzId.create().value as EinsatzId;
-      // processUser(einsatzId); // Compile Error: Argument of type 'EinsatzId' is not assignable to parameter of type 'UserId'
     });
   });
 
   describe('Result<T> Pattern Integration', () => {
     it('should return Result<UserId> with success state', () => {
-      // Given: Valid CUID
-      const validCuid = generateTestCuid('reslt');
+      // Given: Valid Nanoid
+      const validNanoid = generateTestNanoid('reslt');
 
       // When: Creating UserId
-      const result = UserId.create(validCuid);
+      const result = UserId.create(validNanoid);
 
       // Then: Result object with success state
       expect(result).toBeInstanceOf(Result);
@@ -272,11 +263,11 @@ describe('UserId', () => {
     });
 
     it('should return Result<UserId> with failure state', () => {
-      // Given: Invalid CUID
-      const invalidCuid = 'invalid';
+      // Given: Invalid Nanoid
+      const invalidNanoid = 'invalid';
 
       // When: Creating UserId
-      const result = UserId.create(invalidCuid);
+      const result = UserId.create(invalidNanoid);
 
       // Then: Result object with failure state
       expect(result).toBeInstanceOf(Result);
@@ -284,7 +275,7 @@ describe('UserId', () => {
       expect(result.isFailure).toBe(true);
       expect(result.value).toBeUndefined();
       expect(result.error).toBeDefined();
-      expect(result.error).toBe('Invalid CUID format');
+      expect(result.error).toBe('Invalid Nanoid format for UserId');
     });
 
     it('should allow safe access via isSuccess check', () => {
@@ -297,7 +288,7 @@ describe('UserId', () => {
 
         // Then: Safe access to value
         expect(id).toBeDefined();
-        expect(id?.value).toMatch(/^[a-z][a-z0-9]+$/);
+        expect(id?.value).toMatch(/^[A-Za-z0-9_-]{21}$/);
       } else {
         // This branch should not execute for auto-generated IDs
         fail('Auto-generated ID should always succeed');
@@ -308,7 +299,7 @@ describe('UserId', () => {
   describe('ValueObject Integration', () => {
     it('should inherit from ValueObject with immutable props', () => {
       // Given: UserId instance
-      const id = UserId.create(generateTestCuid('immut')).value as UserId;
+      const id = UserId.create(generateTestNanoid('immut')).value as UserId;
 
       // When: Accessing props
       const props = id.props;
@@ -323,7 +314,7 @@ describe('UserId', () => {
 
     it('should have hashCode for Set/Map compatibility', () => {
       // Given: UserId instance
-      const id = UserId.create(generateTestCuid('hashc')).value as UserId;
+      const id = UserId.create(generateTestNanoid('hashc')).value as UserId;
 
       // When: Generating hashCode
       const hash = id.hashCode();
@@ -334,10 +325,10 @@ describe('UserId', () => {
     });
 
     it('should produce same hashCode for equal UserIds', () => {
-      // Given: Two UserIds with same CUID
-      const sharedCuid = generateTestCuid('shash');
-      const id1 = UserId.create(sharedCuid).value as UserId;
-      const id2 = UserId.create(sharedCuid).value as UserId;
+      // Given: Two UserIds with same Nanoid
+      const sharedNanoid = generateTestNanoid('shash');
+      const id1 = UserId.create(sharedNanoid).value as UserId;
+      const id2 = UserId.create(sharedNanoid).value as UserId;
 
       // When: Generating hashCodes
       const hash1 = id1.hashCode();
@@ -361,29 +352,29 @@ describe('UserId', () => {
     });
 
     it('should handle whitespace-only string as invalid', () => {
-      // Given: Whitespace string (25 spaces)
-      const whitespace = '                         '; // 25 spaces
+      // Given: Whitespace string (21 spaces)
+      const whitespace = '                     '; // 21 spaces
 
       // When: Creating UserId
       const result = UserId.create(whitespace);
 
-      // Then: Failure (spaces not allowed in CUID)
+      // Then: Failure (spaces not allowed in Nanoid)
       expect(result.isFailure).toBe(true);
     });
 
-    it('should handle valid length CUID with valid chars', () => {
-      // Given: Valid CUID
-      const validCuid = generateTestCuid('exact');
+    it('should handle valid length Nanoid with valid chars', () => {
+      // Given: Valid Nanoid
+      const validNanoid = generateTestNanoid('exact');
 
       // When: Creating UserId
-      const result = UserId.create(validCuid);
+      const result = UserId.create(validNanoid);
 
       // Then: Success
       expect(result.isSuccess).toBe(true);
-      expect(result.value?.value).toBe(validCuid);
+      expect(result.value?.value).toBe(validNanoid);
     });
 
-    it('should consistently generate different CUIDs on each call', () => {
+    it('should consistently generate different Nanoids on each call', () => {
       // Given: Multiple auto-generations
       const id1 = UserId.create().value as UserId;
       const id2 = UserId.create().value as UserId;
@@ -392,7 +383,7 @@ describe('UserId', () => {
       // When: Comparing generated values
       const allUnique = id1.value !== id2.value && id2.value !== id3.value && id1.value !== id3.value;
 
-      // Then: All different (extremely high probability with CUID)
+      // Then: All different (extremely high probability with Nanoid)
       expect(allUnique).toBe(true);
     });
   });
@@ -409,7 +400,7 @@ describe('UserId', () => {
       const result = assignUserRole(userId, 'Admin');
 
       // Then: Correctly generates role assignment
-      expect(result).toMatch(/^User [a-z][a-z0-9]+ assigned role: Admin$/);
+      expect(result).toMatch(/^User [A-Za-z0-9_-]{21} assigned role: Admin$/);
       expect(result).toContain('assigned role: Admin');
     });
 
@@ -447,15 +438,15 @@ describe('UserId', () => {
 
     it('should maintain immutability for User aggregate consistency', () => {
       // Given: UserId instance
-      const originalCuid = generateTestCuid('immut');
-      const userId = UserId.create(originalCuid).value as UserId;
+      const originalNanoid = generateTestNanoid('immut');
+      const userId = UserId.create(originalNanoid).value as UserId;
 
       // When: Attempting to access internal value
       const retrievedValue = userId.value;
 
       // Then: Value remains unchanged and immutable
-      expect(retrievedValue).toBe(originalCuid);
-      expect(userId.value).toBe(originalCuid); // Still the same
+      expect(retrievedValue).toBe(originalNanoid);
+      expect(userId.value).toBe(originalNanoid); // Still the same
     });
 
     it('should support User authentication scenarios', () => {
@@ -470,7 +461,7 @@ describe('UserId', () => {
 
       // Then: Authentication context uses correct type
       expect(authResult).toContain('Authenticated:');
-      expect(authResult.replace('Authenticated: ', '')).toMatch(/^[a-z][a-z0-9]+$/);
+      expect(authResult.replace('Authenticated: ', '')).toMatch(/^[A-Za-z0-9_-]{21}$/);
     });
 
     it('should support User permission checks', () => {

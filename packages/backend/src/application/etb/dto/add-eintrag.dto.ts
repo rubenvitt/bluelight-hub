@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { EtbKategorie } from '@prisma/client';
+import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 /**
  * DTO für AddEintrag-Request.
@@ -31,4 +32,20 @@ export class AddEintragDto {
   @MinLength(1, { message: 'text darf nicht leer sein' })
   @MaxLength(65535, { message: 'Text darf maximal 65535 Zeichen lang sein' })
   text!: string;
+
+  /**
+   * Kategorie des ETB-Eintrags.
+   *
+   * Optional mit Default LAGE. Ermöglicht Kategorisierung von Einträgen
+   * für bessere Filterung und Übersichtlichkeit im Einsatztagebuch.
+   */
+  @ApiPropertyOptional({
+    description: 'Kategorie des ETB-Eintrags',
+    enum: EtbKategorie,
+    default: EtbKategorie.LAGE,
+    example: EtbKategorie.LAGE,
+  })
+  @IsOptional()
+  @IsEnum(EtbKategorie, { message: 'kategorie muss ein gültiger EtbKategorie-Wert sein' })
+  kategorie?: EtbKategorie;
 }

@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, Logger, NotFoundException } fr
 import { Result } from '@domain/common/result';
 import type { EtbEintrag } from '@domain/entities/etb-eintrag.entity';
 import { EtbId } from '@domain/value-objects/etb-id';
+import { EtbKategorie } from '@domain/value-objects/etb-kategorie';
 import { UserId } from '@domain/value-objects/user-id';
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
@@ -75,7 +76,19 @@ export class AddEintragHandler {
       throw new NotFoundException('ETB nicht gefunden');
     }
 
-    // Step 4: Delegate to domain method (validates business rules, creates snapshot)
+    // Step 4: Convert Prisma enum to Domain Value Object
+    // Application Layer verwendet Prisma Enum (fuer API-Validierung),
+    // Domain Layer erwartet Value Object (Hexagonale Architektur)
+    let kategorieVo: EtbKategorie | undefined;
+    if (command.kategorie) {
+      const kategorieResult = EtbKategorie.create(command.kategorie);
+      if (kategorieResult.isFailure) {
+        return Result.fail<EtbEintrag>(kategorieResult.error ?? 'Invalid Kategorie');
+      }
+      kategorieVo = kategorieResult.value as EtbKategorie;
+    }
+
+    // Step 5: Delegate to domain method (validates business rules, creates snapshot)
     // Business rules checked by aggregate:
     // - ETB must not be locked (status !== LOCKED)
     // - Text must not be empty
@@ -83,7 +96,7 @@ export class AddEintragHandler {
     // - Creates snapshot BEFORE mutation (DRK-Compliance)
     // - Auto-increments sequence number
     // - Creates EintragAddedEvent
-    const addResult = aggregate.addEintrag(command.text, userId);
+    const addResult = aggregate.addEintrag(command.text, userId, kategorieVo);
     if (addResult.isFailure) {
       // Domain-level validation failure
       throw new BadRequestException(addResult.error);
@@ -96,7 +109,7 @@ export class AddEintragHandler {
       return Result.fail<EtbEintrag>('Invalid Eintrag result');
     }
 
-    // Step 5: Save aggregate (repository handles snapshot persistence)
+    // Step 6: Save aggregate (repository handles snapshot persistence)
     try {
       await this.etbRepository.save(aggregate);
     } catch (error) {
@@ -108,7 +121,7 @@ export class AddEintragHandler {
       return Result.fail<EtbEintrag>('Eintrag konnte nicht gespeichert werden');
     }
 
-    // Step 6: Publish domain events (AFTER successful save - transactional consistency)
+    // Step 7: Publish domain events (AFTER successful save - transactional consistency)
     // EintragAddedEvent was added by aggregate.addEintrag()
     await this.eventPublisher.publishAll(aggregate.getDomainEvents());
     aggregate.clearDomainEvents();

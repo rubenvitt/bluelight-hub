@@ -1,4 +1,5 @@
 import { Result } from '@domain/common/result';
+import { EtbKategorie } from '@prisma/client';
 
 /**
  * Command zum Hinzufügen eines neuen Eintrags zum Einsatztagebuch.
@@ -7,6 +8,7 @@ import { Result } from '@domain/common/result';
  * - etbId: ID des Ziel-ETBs
  * - text: Textinhalt des Eintrags
  * - userId: ID des erstellenden Users (für Audit-Trail)
+ * - kategorie: Kategorie des Eintrags (optional, Default: LAGE)
  *
  * Die Sequenznummer wird automatisch vom Aggregate vergeben (auto-increment).
  *
@@ -15,7 +17,8 @@ import { Result } from '@domain/common/result';
  * const commandResult = AddEintragCommand.create(
  *   'clx1234567890abcdefghijk', // ETB-ID
  *   'Fahrzeug W1 am Einsatzort eingetroffen',
- *   'clx_user_abc123def456' // User-ID
+ *   'clx_user_abc123def456', // User-ID
+ *   EtbKategorie.ANKUNFT // Optional: Kategorie
  * );
  * if (commandResult.isSuccess) {
  *   const eintrag = await commandBus.execute(commandResult.value);
@@ -29,11 +32,13 @@ export class AddEintragCommand {
    * @param etbId - ID des Einsatztagebuchs (CUID2-Format)
    * @param text - Textinhalt des neuen Eintrags
    * @param userId - ID des erstellenden Users (CUID2-Format)
+   * @param kategorie - Kategorie des Eintrags (Default: LAGE)
    */
   private constructor(
     public readonly etbId: string,
     public readonly text: string,
     public readonly userId: string,
+    public readonly kategorie: EtbKategorie = EtbKategorie.LAGE,
   ) {}
 
   /**
@@ -45,9 +50,10 @@ export class AddEintragCommand {
    * @param etbId - ID des ETBs, zu dem der Eintrag hinzugefügt wird
    * @param text - Textinhalt des Eintrags (darf nicht leer sein)
    * @param userId - ID des Users, der den Eintrag erstellt
+   * @param kategorie - Kategorie des Eintrags (optional, Default: LAGE)
    * @returns Result mit validiertem Command oder Fehlermeldung
    */
-  public static create(etbId: string, text: string, userId: string): Result<AddEintragCommand> {
+  public static create(etbId: string, text: string, userId: string, kategorie?: EtbKategorie): Result<AddEintragCommand> {
     // Validation: etbId required
     if (!etbId || etbId.trim().length === 0) {
       return Result.fail('etbId is required');
@@ -63,6 +69,6 @@ export class AddEintragCommand {
       return Result.fail('userId is required');
     }
 
-    return Result.ok(new AddEintragCommand(etbId, text, userId));
+    return Result.ok(new AddEintragCommand(etbId, text, userId, kategorie ?? EtbKategorie.LAGE));
   }
 }

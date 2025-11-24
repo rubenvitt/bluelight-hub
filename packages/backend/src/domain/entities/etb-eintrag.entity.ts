@@ -1,4 +1,5 @@
 import type { EintragId } from '@domain/value-objects/eintrag-id';
+import { EtbKategorie } from '@domain/value-objects/etb-kategorie';
 import type { EtbSequenceNumber } from '@domain/value-objects/etb-sequence-number';
 import type { UserId } from '@domain/value-objects/user-id';
 
@@ -90,6 +91,13 @@ export class EtbEintrag {
   private _isDeleted: boolean;
 
   /**
+   * Kategorie des Eintrags (DRK-spezifisch).
+   * Ermöglicht Filterung und Sortierung nach Eintragstyp.
+   * Default: LAGE (Lagemeldungen sind der häufigste Eintragstyp).
+   */
+  private readonly _kategorie: EtbKategorie;
+
+  /**
    * Public Constructor für Verwendung durch EinsatztagebuchAggregate.
    * Nur EinsatztagebuchAggregate sollte Einträge erstellen (Aggregate Boundary).
    *
@@ -98,14 +106,16 @@ export class EtbEintrag {
    * @param text - Textinhalt des Eintrags
    * @param createdBy - User ID des Erstellers
    * @param createdAt - Optional: Creation timestamp (default: new Date())
+   * @param kategorie - Optional: Kategorie des Eintrags (default: EtbKategorie.LAGE())
    */
-  public constructor(id: EintragId, sequenceNumber: EtbSequenceNumber, text: string, createdBy: UserId, createdAt?: Date) {
+  public constructor(id: EintragId, sequenceNumber: EtbSequenceNumber, text: string, createdBy: UserId, createdAt?: Date, kategorie?: EtbKategorie) {
     this._id = id;
     this._sequenceNumber = sequenceNumber;
     this._text = text;
     this._createdBy = createdBy;
     this._createdAt = createdAt ?? new Date();
     this._isDeleted = false;
+    this._kategorie = kategorie ?? EtbKategorie.LAGE();
   }
 
   /**
@@ -156,6 +166,14 @@ export class EtbEintrag {
    */
   get isDeleted(): boolean {
     return this._isDeleted;
+  }
+
+  /**
+   * Readonly getter für Eintrags-Kategorie.
+   * Ermöglicht DRK-spezifische Filterung nach Eintragstyp.
+   */
+  get kategorie(): EtbKategorie {
+    return this._kategorie;
   }
 
   /**

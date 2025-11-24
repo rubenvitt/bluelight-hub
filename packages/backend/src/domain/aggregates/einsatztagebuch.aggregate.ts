@@ -8,6 +8,7 @@ import { EtbLockedEvent } from '@domain/events/etb-locked.event';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EintragId } from '@domain/value-objects/eintrag-id';
 import { EtbId } from '@domain/value-objects/etb-id';
+import { EtbKategorie } from '@domain/value-objects/etb-kategorie';
 import { EtbSequenceNumber } from '@domain/value-objects/etb-sequence-number';
 import { EtbSnapshot, type EtbEintragSnapshot } from '@domain/value-objects/etb-snapshot';
 import { EtbStatus } from '@domain/value-objects/etb-status';
@@ -349,9 +350,10 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
    *
    * @param text - Textinhalt des Eintrags (darf nicht leer sein)
    * @param userId - User ID des Erstellers (für Audit-Trail)
+   * @param kategorie - Optional: Kategorie des Eintrags (default: EtbKategorie.LAGE())
    * @returns Result<EtbEintrag> - Success mit erstelltem Eintrag oder Failure mit Error
    */
-  public addEintrag(text: string, userId: UserId): Result<EtbEintrag> {
+  public addEintrag(text: string, userId: UserId, kategorie?: EtbKategorie): Result<EtbEintrag> {
     // Validate: ETB must not be locked
     if (this.isLocked()) {
       return Result.fail<EtbEintrag>('ETB ist gesperrt und kann nicht mehr geändert werden');
@@ -381,7 +383,10 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
     const eintragId = idResult.value as EintragId;
     const sequenceNumber = seqResult.value as EtbSequenceNumber;
 
-    const eintrag = new EtbEintrag(eintragId, sequenceNumber, text, userId);
+    // Kategorie mit Default-Wert LAGE falls nicht angegeben
+    const eintragKategorie = kategorie ?? EtbKategorie.LAGE();
+
+    const eintrag = new EtbEintrag(eintragId, sequenceNumber, text, userId, undefined, eintragKategorie);
 
     // Add to entries list
     this._eintraege.push(eintrag);

@@ -3,11 +3,12 @@ import { EtbEintrag } from '@domain/entities/etb-eintrag.entity';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EintragId } from '@domain/value-objects/eintrag-id';
 import { EtbId } from '@domain/value-objects/etb-id';
+import { EtbKategorie } from '@domain/value-objects/etb-kategorie';
 import { EtbSequenceNumber } from '@domain/value-objects/etb-sequence-number';
 import { EtbStatus } from '@domain/value-objects/etb-status';
 import { EtbVersion } from '@domain/value-objects/etb-version';
 import { UserId } from '@domain/value-objects/user-id';
-import type { Einsatztagebuch, EtbEintrag as PrismaEtbEintrag, EtbStatus as PrismaEtbStatus } from '@prisma/client';
+import type { Einsatztagebuch, EtbEintrag as PrismaEtbEintrag, EtbKategorie as PrismaEtbKategorie, EtbStatus as PrismaEtbStatus } from '@prisma/client';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -41,8 +42,8 @@ export interface EtbEintragPersistenceData {
   updatedAt: Date;
   deletedAt: Date | null;
   deletedBy: string | null;
-  // Default values fuer Prisma-Schema
-  kategorie: 'LAGE'; // Default Kategorie (muss vom Repository gesetzt werden)
+  // Kategorie als Prisma Enum fuer DB Persistence
+  kategorie: PrismaEtbKategorie;
   timestamp: Date;
   version: number;
   isAutomatic: boolean;
@@ -145,8 +146,15 @@ export class PrismaEintragMapper {
     }
     const createdBy = userIdResult.value as UserId;
 
-    // Create EtbEintrag via Public Constructor
-    const eintrag = new EtbEintrag(eintragId, sequenceNumber, prismaEintrag.text, createdBy, prismaEintrag.createdAt);
+    // EtbKategorie Reconstruction (Prisma Enum -> Domain Value Object)
+    const kategorieResult = EtbKategorie.create(prismaEintrag.kategorie);
+    if (kategorieResult.isFailure) {
+      throw new Error(`Invalid EtbKategorie: ${kategorieResult.error}`);
+    }
+    const kategorie = kategorieResult.value as EtbKategorie;
+
+    // Create EtbEintrag via Public Constructor (inkl. Kategorie aus DB)
+    const eintrag = new EtbEintrag(eintragId, sequenceNumber, prismaEintrag.text, createdBy, prismaEintrag.createdAt, kategorie);
 
     // Override private _updatedAt (Entity Constructor setzt dies nicht)
     if (prismaEintrag.updatedAt) {
@@ -181,8 +189,10 @@ export class PrismaEintragMapper {
    * - Domain isDeleted=true -> Prisma deletedAt=new Date()
    * - Domain isDeleted=false -> Prisma deletedAt=null
    *
+   * **Kategorie Mapping:**
+   * - kategorie wird aus dem Domain Entity uebernommen
+   *
    * **Default Values:**
-   * - kategorie: 'LAGE' (Standard-Kategorie fuer ETB Eintraege)
    * - timestamp: createdAt (Default falls nicht explizit gesetzt)
    * - version: 1 (Initial Version fuer neue Eintraege)
    * - isAutomatic: false (Manuelle Eintraege)
@@ -193,7 +203,7 @@ export class PrismaEintragMapper {
    *
    * @example
    * ```typescript
-   * const eintrag = new EtbEintrag(id, seqNum, 'Text', userId);
+   * const eintrag = new EtbEintrag(id, seqNum, 'Text', userId, createdAt, 'LAGE');
    * const persistData = PrismaEintragMapper.toPersistence(eintrag, 'etb-123');
    * await prisma.etbEintrag.createMany({ data: [persistData] });
    * ```
@@ -210,8 +220,8 @@ export class PrismaEintragMapper {
       // Soft-Delete Mapping: isDeleted -> deletedAt
       deletedAt: eintrag.isDeleted ? new Date() : null,
       deletedBy: null, // TODO: Track deletedBy in Domain Entity (Epic 4)
-      // Default values fuer Prisma-Schema
-      kategorie: 'LAGE', // Default Kategorie (Business Rule: alle Domain-Eintraege sind 'LAGE')
+      // Kategorie: Domain Value Object -> Prisma Enum String
+      kategorie: eintrag.kategorie.value as PrismaEtbKategorie,
       timestamp: eintrag.createdAt, // timestamp = createdAt fuer konsistente Sortierung
       version: 1, // Initial version (Historie wird separat verwaltet)
       isAutomatic: false, // Domain-Eintraege sind manuell

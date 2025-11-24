@@ -60,6 +60,7 @@ export function EtbEntryForm({ etbId, editingEntry, onSuccess, onCancel, classNa
         if (editingEntry) {
           // Update existing entry
           await updateEintrag.mutateAsync({
+            etbId,
             eintragId: editingEntry.id,
             data: {
               kategorie: value.kategorie,

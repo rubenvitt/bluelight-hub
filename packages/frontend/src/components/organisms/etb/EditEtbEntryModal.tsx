@@ -55,9 +55,8 @@ export function EditEtbEntryModal({ entry, isOpen, onClose }: EditEtbEntryModalP
           etbId: entry.etbId,
           eintragId: entry.id,
           data: {
-            kategorie: value.kategorie,
-            text: value.text.trim(),
-            timestamp: new Date(value.timestamp),
+            // Backend erwartet nur newText (UpdateEintragDto)
+            newText: value.text.trim(),
           },
         });
 

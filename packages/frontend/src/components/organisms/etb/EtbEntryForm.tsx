@@ -59,13 +59,12 @@ export function EtbEntryForm({ etbId, editingEntry, onSuccess, onCancel, classNa
       try {
         if (editingEntry) {
           // Update existing entry
+          // Backend erwartet nur newText (UpdateEintragDto)
           await updateEintrag.mutateAsync({
             etbId,
             eintragId: editingEntry.id,
             data: {
-              kategorie: value.kategorie,
-              text: value.text.trim(),
-              timestamp: value.timestamp,
+              newText: value.text.trim(),
             },
           });
         } else {

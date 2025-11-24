@@ -1,26 +1,49 @@
 /**
  * E2E Test Module Setup fuer ETB Infrastructure.
  *
- * Diese Datei stellt die Grundstruktur fuer E2E Tests bereit:
- * - NestJS Test Module Pattern
- * - Database Setup/Cleanup Utilities
+ * Diese Datei stellt die vollständige E2E Test-Infrastruktur bereit:
+ * - Database Setup/Cleanup Utilities mit Trigger-Management
  * - SpyEventPublisher fuer Event Verification
  * - Test User/Einsatz Creation Helpers
+ * - ID-Generator Funktionen (CUID und Nanoid Format)
+ * - Transaction-sichere Cleanup-Logik
  *
- * **HINWEIS:** Dies ist ein PLACEHOLDER/TEMPLATE.
- * Die vollstaendige Implementierung erfolgt nach:
- * - Epic 3: ETB Application Layer (Handlers)
- * - Epic 4: ETB Infrastructure Layer (PrismaEtbRepository)
+ * **ID-FORMAT-KONVENTIONEN:**
+ * - **CUID** (EtbId, EinsatzId, EintragId): 25 Zeichen, lowercase a-z0-9, starts mit 'c'
+ * - **Nanoid** (UserId): 21 Zeichen, alphanumerisch Mixed-Case + `_-`
  *
- * **Test Strategy:**
+ * **TEST STRATEGY:**
  * - Real PostgreSQL Database (NICHT mocked)
  * - Direct Handler Invocation (oder full HTTP wenn Controller existiert)
  * - Given-When-Then BDD Style
  * - Cleanup mit Triggers disabled (SET session_replication_role = replica)
  */
 
+import { PrismaClient } from '@prisma/client';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
+import { PrismaEtbRepository } from '../repositories/prisma-etb.repository';
+
+// ============================================
+// TEST PRISMA SERVICE
+// ============================================
+
+/**
+ * Test-kompatible PrismaService fuer E2E Tests.
+ *
+ * Diese Klasse erweitert PrismaClient und implementiert die NestJS
+ * Lifecycle Hooks (OnModuleInit, OnModuleDestroy) um mit PrismaEtbRepository
+ * kompatibel zu sein, der einen PrismaService erwartet.
+ */
+class TestPrismaService extends PrismaClient {
+  async onModuleInit(): Promise<void> {
+    await this.$connect();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.$disconnect();
+  }
+}
 
 // ============================================
 // SPY EVENT PUBLISHER (RE-EXPORT)
@@ -55,6 +78,54 @@ export class SpyEventPublisher implements IEventPublisher {
 }
 
 // ============================================
+// ID GENERATION UTILITIES
+// ============================================
+
+/**
+ * Generiert eine Test-ID im CUID-Format.
+ *
+ * Format: 25 Zeichen, lowercase a-z0-9, startet mit 'c'
+ * Verwendet fuer: EtbId, EinsatzId, EintragId
+ *
+ * @returns 25-Zeichen CUID-kompatible ID
+ *
+ * @example
+ * ```typescript
+ * const einsatzId = generateTestId(); // "c1a2b3c4d5e6f7g8h9i0j1k2l3m"
+ * ```
+ */
+export function generateTestId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = 'c';
+  for (let i = 0; i < 24; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+/**
+ * Generiert eine Test-ID im Nanoid-Format.
+ *
+ * Format: 21 Zeichen, alphanumerisch Mixed-Case + `_-`
+ * Verwendet fuer: UserId
+ *
+ * @returns 21-Zeichen Nanoid-kompatible ID
+ *
+ * @example
+ * ```typescript
+ * const userId = generateNanoidTestId(); // "V1StGXR8_Z5jdHi6B-myT"
+ * ```
+ */
+export function generateNanoidTestId(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+  let result = '';
+  for (let i = 0; i < 21; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// ============================================
 // DATABASE UTILITIES
 // ============================================
 
@@ -73,18 +144,30 @@ export const DISABLE_TRIGGERS_SQL = 'SET session_replication_role = replica;';
 export const ENABLE_TRIGGERS_SQL = 'SET session_replication_role = DEFAULT;';
 
 /**
- * Generiert eine Test-ID im nanoid-Format.
+ * Helper: Loescht alte Test-Daten aus einer Tabelle (aelter als 1 Stunde).
  *
- * Nutzt crypto.randomUUID() als Basis fuer Jest-Kompatibilitaet.
+ * Diese Funktion wird verwendet um Daten von vorherigen fehlgeschlagenen
+ * Test-Runs aufzuraeumen. Sie ist idempotent und behandelt nicht-existente
+ * Tabellen gracefully.
  *
- * @returns 21-Zeichen ID (nanoid-kompatibel)
+ * @param prisma - PrismaClient Instanz
+ * @param table - Tabellenname (inkl. Quotes wenn reserved word)
+ * @param timestampCol - Spaltenname fuer Timestamp-Vergleich (inkl. Quotes)
  */
-export function generateTestId(): string {
-  return crypto.randomUUID().replace(/-/g, '').slice(0, 21);
+async function safeDeleteOld(prisma: TestPrismaService, table: string, timestampCol: string): Promise<void> {
+  try {
+    await prisma.$executeRawUnsafe(`DELETE FROM ${table} WHERE ${timestampCol} < NOW() - INTERVAL '1 hour'`);
+  } catch (error: unknown) {
+    // Table might not exist - ignore error
+    const msg = error instanceof Error ? error.message : String(error);
+    if (!msg.includes('does not exist') && !msg.includes('42P01')) {
+      throw error;
+    }
+  }
 }
 
 // ============================================
-// NESTJS TEST MODULE PATTERN
+// E2E TEST MODULE PATTERN
 // ============================================
 
 /**
@@ -93,34 +176,38 @@ export function generateTestId(): string {
  * Definiert die Struktur des Test-Kontexts der von createEtbE2eModule() zurueckgegeben wird.
  */
 export interface EtbE2eTestContext {
-  /** NestJS Testing Module - wird nach Epic 4 typisiert */
-  // module: TestingModule;
-
   /** PrismaClient fuer direkte DB-Zugriffe in Tests */
-  // prisma: PrismaClient;
+  prisma: TestPrismaService;
 
   /** ETB Repository (real Prisma Implementation) */
-  // repository: PrismaEtbRepository;
+  repository: PrismaEtbRepository;
 
-  /** Event Publisher (Spy oder real) */
+  /** Event Publisher (Spy fuer Event Verification) */
   eventPublisher: SpyEventPublisher;
 
-  /** Test User ID (erstellt in beforeAll) */
+  /** Test User ID (erstellt in beforeAll) - Nanoid Format */
   testUserId: string;
 
-  /** Test Einsatz ID (erstellt in beforeAll) */
+  /** Test Einsatz ID (erstellt in beforeAll) - CUID Format */
   testEinsatzId: string;
 
-  /** Unique Test Run ID fuer Isolation */
+  /** Unique Test Run ID fuer Isolation (Timestamp) */
   testRunId: string;
 }
 
 /**
  * Factory fuer ETB E2E Test Module.
  *
- * **PLACEHOLDER:** Vollstaendige Implementierung nach Epic 4.
+ * Erstellt vollstaendigen Test-Kontext mit:
+ * - PrismaClient fuer DB-Zugriffe
+ * - Test User (Nanoid ID)
+ * - Test Einsatz (CUID ID)
+ * - PrismaEtbRepository
+ * - SpyEventPublisher
  *
- * @returns E2E Test Context mit Module, Repository, Helpers
+ * Fuehrt automatisch Cleanup von alten Test-Daten aus (aelter als 1 Stunde).
+ *
+ * @returns E2E Test Context mit Repository, Prisma, Helpers
  *
  * @example
  * ```typescript
@@ -132,7 +219,6 @@ export interface EtbE2eTestContext {
  *   });
  *
  *   afterEach(async () => {
- *     ctx.eventPublisher.clear();
  *     await cleanupTestData(ctx);
  *   });
  *
@@ -140,126 +226,120 @@ export interface EtbE2eTestContext {
  *     await teardownE2eModule(ctx);
  *   });
  *
- *   // ... tests
+ *   it('should create ETB', async () => {
+ *     // ... test
+ *   });
  * });
  * ```
  */
 export async function createEtbE2eModule(): Promise<EtbE2eTestContext> {
-  // PLACEHOLDER: Implementierung nach Epic 4
-  //
-  // const prisma = new PrismaClient();
-  //
-  // // Cleanup from previous failed test runs
-  // await prisma.$executeRawUnsafe(DISABLE_TRIGGERS_SQL);
-  // try {
-  //   await prisma.$executeRawUnsafe(`DELETE FROM etb_eintraege WHERE "createdAt" >= NOW() - INTERVAL '1 hour'`);
-  //   await prisma.$executeRawUnsafe(`DELETE FROM etb WHERE "createdAt" >= NOW() - INTERVAL '1 hour'`);
-  //   await prisma.$executeRawUnsafe(`DELETE FROM einsaetze WHERE "createdAt" >= NOW() - INTERVAL '1 hour'`);
-  //   await prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE username LIKE 'test-etb-e2e-%'`);
-  // } finally {
-  //   await prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
-  // }
-  //
-  // const testRunId = Date.now().toString();
-  // const testUserId = generateTestId();
-  //
-  // // Create test user
-  // await prisma.$queryRaw`
-  //   INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")
-  //   VALUES (
-  //     ${testUserId},
-  //     ${`test-etb-e2e-user-${testRunId}`},
-  //     'dummy-hash',
-  //     'USER',
-  //     true,
-  //     NOW(),
-  //     NOW()
-  //   )
-  // `;
-  //
-  // // Create test Einsatz
-  // const testEinsatzId = generateTestId();
-  // await prisma.einsatz.create({
-  //   data: {
-  //     id: testEinsatzId,
-  //     alarmstichwort: `TEST - ETB E2E ${testRunId}`,
-  //     einsatzort: 'Test-Einsatzort fuer ETB E2E Tests',
-  //     status: 'ANGELEGT',
-  //     createdBy: testUserId,
-  //     updatedBy: testUserId,
-  //   },
-  // });
-  //
-  // // Initialize Repository
-  // const repository = new PrismaEtbRepository(prisma);
-  //
-  // // Create Event Publisher
-  // const eventPublisher = new SpyEventPublisher();
-  //
-  // return {
-  //   prisma,
-  //   repository,
-  //   eventPublisher,
-  //   testUserId,
-  //   testEinsatzId,
-  //   testRunId,
-  // };
+  // 1. PrismaClient erstellen (TestPrismaService fuer Repository-Kompatibilitaet)
+  const prisma = new TestPrismaService();
 
-  throw new Error('createEtbE2eModule() is a placeholder. ' + 'Implement after Epic 4 when PrismaEtbRepository is available.');
+  // 2. Cleanup von vorherigen Test-Runs (älter als 1 Stunde)
+  await prisma.$executeRawUnsafe(DISABLE_TRIGGERS_SQL);
+  try {
+    // Reihenfolge wichtig (FK Constraints!):
+    // Snapshots -> Eintraege -> Einsatztagebuecher -> Einsaetze -> User
+    await safeDeleteOld(prisma, 'etb_snapshots', '"snapshotAt"');
+    await safeDeleteOld(prisma, 'etb_eintraege', '"createdAt"');
+    await safeDeleteOld(prisma, 'einsatztagebuecher', '"createdAt"');
+    await safeDeleteOld(prisma, 'einsaetze', '"createdAt"');
+    await prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE username LIKE 'test-etb-e2e-%'`);
+  } finally {
+    await prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
+  }
+
+  // 3. Test User erstellen (Nanoid Format!)
+  const testRunId = Date.now().toString();
+  const testUserId = generateNanoidTestId();
+  await prisma.$executeRaw`
+    INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")
+    VALUES (
+      ${testUserId},
+      ${`test-etb-e2e-user-${testRunId}`},
+      'dummy-hash',
+      'USER'::"UserRole",
+      true,
+      NOW(),
+      NOW()
+    )
+  `;
+
+  // 4. Test Einsatz erstellen (CUID Format!)
+  const testEinsatzId = generateTestId();
+  await prisma.$executeRaw`
+    INSERT INTO einsaetze (id, alarmstichwort, einsatzort, status, "createdBy", "updatedBy", "createdAt", "updatedAt")
+    VALUES (
+      ${testEinsatzId},
+      ${`TEST - ETB E2E ${testRunId}`},
+      'Test-Einsatzort fuer ETB E2E Tests',
+      'ANGELEGT'::"EinsatzStatus",
+      ${testUserId},
+      ${testUserId},
+      NOW(),
+      NOW()
+    )
+  `;
+
+  // 5. Repository und EventPublisher
+  const repository = new PrismaEtbRepository(prisma);
+  const eventPublisher = new SpyEventPublisher();
+
+  return {
+    prisma,
+    repository,
+    eventPublisher,
+    testUserId,
+    testEinsatzId,
+    testRunId,
+  };
 }
 
 /**
  * Teardown fuer E2E Test Module.
  *
  * Loescht alle Test-Daten und schliesst DB-Verbindung.
+ * Verwendet Trigger-Deaktivierung fuer sichere Loeschung.
  *
  * @param ctx - E2E Test Context
  */
-export async function teardownE2eModule(_ctx: EtbE2eTestContext): Promise<void> {
-  // PLACEHOLDER: Implementierung nach Epic 4
-  //
-  // await ctx.prisma.$executeRawUnsafe(DISABLE_TRIGGERS_SQL);
-  // try {
-  //   await ctx.prisma.$executeRawUnsafe(
-  //     `DELETE FROM etb_eintraege WHERE "lagekarteId" IN (
-  //       SELECT id FROM etb WHERE "einsatzId" = $1
-  //     )`,
-  //     ctx.testEinsatzId,
-  //   );
-  //   await ctx.prisma.$executeRawUnsafe('DELETE FROM etb WHERE "einsatzId" = $1', ctx.testEinsatzId);
-  //   await ctx.prisma.$executeRawUnsafe('DELETE FROM einsaetze WHERE id = $1', ctx.testEinsatzId);
-  //   await ctx.prisma.$executeRawUnsafe('DELETE FROM "User" WHERE id = $1', ctx.testUserId);
-  // } finally {
-  //   await ctx.prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
-  //   await ctx.prisma.$disconnect();
-  // }
-
-  throw new Error('teardownE2eModule() is a placeholder. ' + 'Implement after Epic 4.');
+export async function teardownE2eModule(ctx: EtbE2eTestContext): Promise<void> {
+  await ctx.prisma.$executeRawUnsafe(DISABLE_TRIGGERS_SQL);
+  try {
+    // Reihenfolge (FK-Reverse Order!):
+    // Snapshots -> Eintraege -> Einsatztagebuecher -> Einsaetze -> User
+    await ctx.prisma.$executeRawUnsafe(`DELETE FROM etb_snapshots WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = $1)`, ctx.testEinsatzId);
+    await ctx.prisma.$executeRawUnsafe(`DELETE FROM etb_eintraege WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = $1)`, ctx.testEinsatzId);
+    await ctx.prisma.$executeRawUnsafe(`DELETE FROM einsatztagebuecher WHERE "einsatzId" = $1`, ctx.testEinsatzId);
+    await ctx.prisma.$executeRawUnsafe(`DELETE FROM einsaetze WHERE id = $1`, ctx.testEinsatzId);
+    await ctx.prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE id = $1`, ctx.testUserId);
+  } finally {
+    await ctx.prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
+    await ctx.prisma.$disconnect();
+  }
 }
 
 /**
  * Cleanup fuer einzelnen Test (afterEach).
  *
  * Loescht ETB-Daten aber behaelt User/Einsatz.
+ * Cleard auch den Event Publisher Spy.
  *
  * @param ctx - E2E Test Context
  */
-export async function cleanupTestData(_ctx: EtbE2eTestContext): Promise<void> {
-  // PLACEHOLDER: Implementierung nach Epic 4
-  //
-  // ctx.eventPublisher.clear();
-  // await ctx.prisma.$executeRawUnsafe(DISABLE_TRIGGERS_SQL);
-  // try {
-  //   await ctx.prisma.$executeRawUnsafe(
-  //     `DELETE FROM etb_eintraege WHERE "etbId" IN (
-  //       SELECT id FROM etb WHERE "einsatzId" = $1
-  //     )`,
-  //     ctx.testEinsatzId,
-  //   );
-  //   await ctx.prisma.$executeRawUnsafe('DELETE FROM etb WHERE "einsatzId" = $1', ctx.testEinsatzId);
-  // } finally {
-  //   await ctx.prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
-  // }
+export async function cleanupTestData(ctx: EtbE2eTestContext): Promise<void> {
+  ctx.eventPublisher.clear();
+
+  await ctx.prisma.$executeRawUnsafe(DISABLE_TRIGGERS_SQL);
+  try {
+    // Reihenfolge (FK Order!): Snapshots -> Eintraege -> Einsatztagebuecher
+    await ctx.prisma.$executeRawUnsafe(`DELETE FROM etb_snapshots WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = $1)`, ctx.testEinsatzId);
+    await ctx.prisma.$executeRawUnsafe(`DELETE FROM etb_eintraege WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = $1)`, ctx.testEinsatzId);
+    await ctx.prisma.$executeRawUnsafe(`DELETE FROM einsatztagebuecher WHERE "einsatzId" = $1`, ctx.testEinsatzId);
+  } finally {
+    await ctx.prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
+  }
 }
 
 // ============================================
@@ -270,38 +350,92 @@ export async function cleanupTestData(_ctx: EtbE2eTestContext): Promise<void> {
  * Helper: Erstellt einen neuen Test-Einsatz.
  *
  * Nuetzlich wenn ein Test einen separaten Einsatz benoetigt.
+ * Verwendet den testUserId aus dem Context fuer createdBy/updatedBy.
  *
  * @param ctx - E2E Test Context
- * @returns ID des erstellten Einsatzes
+ * @returns ID des erstellten Einsatzes (CUID Format)
+ *
+ * @example
+ * ```typescript
+ * it('should work with separate Einsatz', async () => {
+ *   const separateEinsatzId = await createTestEinsatz(ctx);
+ *   // ... test logic
+ * });
+ * ```
  */
-export async function createTestEinsatz(_ctx: EtbE2eTestContext): Promise<string> {
-  // PLACEHOLDER: Implementierung nach Epic 4
-  //
-  // const einsatzId = generateTestId();
-  // await ctx.prisma.einsatz.create({
-  //   data: {
-  //     id: einsatzId,
-  //     alarmstichwort: `TEST - ETB E2E ${ctx.testRunId}-${Date.now()}`,
-  //     einsatzort: 'Test-Einsatzort',
-  //     status: 'ANGELEGT',
-  //     createdBy: ctx.testUserId,
-  //     updatedBy: ctx.testUserId,
-  //   },
-  // });
-  // return einsatzId;
+export async function createTestEinsatz(ctx: EtbE2eTestContext): Promise<string> {
+  const einsatzId = generateTestId();
+  await ctx.prisma.$executeRaw`
+    INSERT INTO einsaetze (id, alarmstichwort, einsatzort, status, "createdBy", "updatedBy", "createdAt", "updatedAt")
+    VALUES (
+      ${einsatzId},
+      ${`TEST - ETB E2E ${ctx.testRunId}-${Date.now()}`},
+      'Test-Einsatzort',
+      'ANGELEGT'::"EinsatzStatus",
+      ${ctx.testUserId},
+      ${ctx.testUserId},
+      NOW(),
+      NOW()
+    )
+  `;
+  return einsatzId;
+}
 
-  throw new Error('createTestEinsatz() is a placeholder.');
+/**
+ * Helper: Wartet bis eine asynchrone Assertion erfolgreich ist.
+ *
+ * Nuetzlich fuer Event-Handler Tests die async sind und Zeit benoetigen.
+ * Pollt die Assertion in Intervallen bis timeout erreicht ist.
+ *
+ * @param assertion - Async Funktion die eine Assertion ausfuehrt
+ * @param timeout - Maximale Wartezeit in Millisekunden (default: 500ms)
+ * @param interval - Poll-Intervall in Millisekunden (default: 50ms)
+ *
+ * @throws Der letzte Assertion-Error wenn Timeout erreicht wird
+ *
+ * @example
+ * ```typescript
+ * it('should emit event', async () => {
+ *   await createHandler.execute(command);
+ *
+ *   await waitFor(async () => {
+ *     const events = ctx.eventPublisher.getEventsByName('etb.created');
+ *     expect(events).toHaveLength(1);
+ *   });
+ * });
+ * ```
+ */
+export async function waitFor(assertion: () => Promise<void>, timeout = 500, interval = 50): Promise<void> {
+  const start = Date.now();
+  let lastError: Error | undefined;
+  while (Date.now() - start < timeout) {
+    try {
+      await assertion();
+      return;
+    } catch (e) {
+      lastError = e as Error;
+      await new Promise((r) => setTimeout(r, interval));
+    }
+  }
+  throw lastError ?? new Error('Timeout waiting for assertion');
 }
 
 // ============================================
-// E2E TEST TEMPLATE
+// E2E TEST TEMPLATE DOCUMENTATION
 // ============================================
 
 /**
  * Template fuer ETB E2E Tests.
  *
- * Dieses Template zeigt die erwartete Struktur von E2E Tests nach Epic 4.
+ * Dieses Template zeigt die erwartete Struktur von E2E Tests.
  * Es dient als Referenz fuer Entwickler die neue E2E Tests schreiben.
+ *
+ * **BEST PRACTICES:**
+ * - Given-When-Then BDD Style
+ * - Event Publisher nach jedem Test clearen
+ * - Test-Daten nach jedem Test aufräumen
+ * - Alle DB-Ressourcen in afterAll schließen
+ * - Async Event Handler mit waitFor() testen
  *
  * @example
  * ```typescript
@@ -343,8 +477,10 @@ export async function createTestEinsatz(_ctx: EtbE2eTestContext): Promise<string
  *       await createHandler.execute(command);
  *
  *       // Then
- *       const events = ctx.eventPublisher.getEventsByName('etb.created');
- *       expect(events).toHaveLength(1);
+ *       await waitFor(async () => {
+ *         const events = ctx.eventPublisher.getEventsByName('etb.created');
+ *         expect(events).toHaveLength(1);
+ *       });
  *     });
  *   });
  *

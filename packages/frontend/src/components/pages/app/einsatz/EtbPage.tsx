@@ -1,11 +1,11 @@
 import { ErrorState } from '@/components/atoms/ErrorState';
 import { LoadingState } from '@/components/atoms/LoadingState';
 import { EtbLockButton, EtbStatusBadge } from '@/components/molecules/etb';
+import { EtbSnapshotHistoryModal } from '@/components/organisms/etb/components/EtbSnapshotHistoryModal';
+import { EditEtbEntryModal } from '@/components/organisms/etb/EditEtbEntryModal';
 import { EtbEntryForm } from '@/components/organisms/etb/EtbEntryForm';
 import { EtbEntryList } from '@/components/organisms/etb/EtbEntryList';
-import { EditEtbEntryModal } from '@/components/organisms/etb/EditEtbEntryModal';
 import { EtbFullscreenView } from '@/components/organisms/etb/EtbFullscreenView/EtbFullscreenView';
-import { EtbSnapshotHistoryModal } from '@/components/organisms/etb/components/EtbSnapshotHistoryModal';
 import { useEtbInfinite } from '@/hooks/useEtb';
 import type { EtbEintragDto, EtbStatus } from '@bluelight-hub/shared/client';
 import { useMemo, useState } from 'react';
@@ -28,9 +28,11 @@ export function EtbPage({ einsatzId, mode }: EtbPageProps) {
 
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useEtbInfinite(einsatzId, 30, sortBy, sortOrder, showDeleted); // 30 Einträge pro Seite
 
-  const [editingEntry, setEditingEntry] = useState<EtbEintragDto | null>(null);
+  const [editingEntry, setEditingEntry] = useState<(EtbEintragDto & { etbId: string }) | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
+  const etb = data?.pages?.[0]?.data;
 
   // Handler für Sortierungsänderung
   const handleSortChange = (field: string, order: 'asc' | 'desc') => {
@@ -40,7 +42,8 @@ export function EtbPage({ einsatzId, mode }: EtbPageProps) {
 
   // Handler für Edit-Button
   const handleEditEntry = (entry: EtbEintragDto) => {
-    setEditingEntry(entry);
+    if (!etb?.id) return;
+    setEditingEntry({ ...entry, etbId: etb.id });
     setIsEditModalOpen(true);
   };
 
@@ -54,8 +57,6 @@ export function EtbPage({ einsatzId, mode }: EtbPageProps) {
     if (!data?.pages) return [];
     return data.pages.flatMap((page) => page.data?.eintraege || []);
   }, [data]);
-
-  const etb = data?.pages?.[0]?.data;
 
   // Fullscreen Mode
   if (mode === 'fullscreen') {
@@ -115,7 +116,7 @@ export function EtbPage({ einsatzId, mode }: EtbPageProps) {
             <div className="mb-4">
               <h2 className="font-medium text-gray-900 text-lg dark:text-gray-100">Neuer Eintrag</h2>
             </div>
-            <EtbEntryForm etbId={etb.id} />
+            <EtbEntryForm etbId={etb.id} einsatzId={einsatzId} />
           </div>
         )}
 
@@ -137,6 +138,7 @@ export function EtbPage({ einsatzId, mode }: EtbPageProps) {
             <EtbEntryList
               entries={allEntries}
               einsatzId={einsatzId}
+              etbId={etb.id}
               isLoading={isLoading}
               hasNextPage={hasNextPage}
               fetchNextPage={fetchNextPage}

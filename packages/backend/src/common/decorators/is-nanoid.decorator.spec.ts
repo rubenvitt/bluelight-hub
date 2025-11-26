@@ -1,5 +1,5 @@
 import { validate } from 'class-validator';
-import { IsCuid2, IsNanoId, validateCuid2Format, validateNanoidFormat } from './is-nanoid.decorator';
+import { IsCuid2, validateCuid2Format } from './is-nanoid.decorator';
 
 /**
  * Tests für IsCuid2 Decorator und validateCuid2Format Funktion.
@@ -17,12 +17,6 @@ describe('IsCuid2 Decorator', () => {
   class TestDtoWithOptional {
     @IsCuid2()
     id?: string;
-  }
-
-  // Test-DTO für legacy IsNanoId (deprecated, delegates to IsCuid2)
-  class TestDtoLegacy {
-    @IsNanoId()
-    id!: string;
   }
 
   describe('validateCuid2Format', () => {
@@ -241,61 +235,6 @@ describe('IsCuid2 Decorator', () => {
         // Then
         expect(errors).toHaveLength(0);
       });
-    });
-  });
-
-  describe('IsNanoId Decorator (deprecated, delegates to IsCuid2)', () => {
-    it('should pass validation for valid CUID2 via legacy decorator', async () => {
-      // Given
-      const dto = new TestDtoLegacy();
-      dto.id = 'clw3h8x9y0000qwertyui00001';
-
-      // When
-      const errors = await validate(dto);
-
-      // Then
-      expect(errors).toHaveLength(0);
-    });
-
-    it('should fail validation for old NanoID format via legacy decorator', async () => {
-      // Given
-      const dto = new TestDtoLegacy();
-      dto.id = 'V1StGXR8_Z5jdHi6B-myT';
-
-      // When
-      const errors = await validate(dto);
-
-      // Then
-      expect(errors).toHaveLength(1);
-    });
-  });
-
-  describe('validateNanoidFormat (deprecated, delegates to validateCuid2Format)', () => {
-    it('should return true for valid CUID2', () => {
-      // When
-      const result = validateNanoidFormat('clw3h8x9y0000qwertyui00001');
-
-      // Then
-      expect(result).toBe(true);
-    });
-
-    it('should return false for old NanoID format', () => {
-      // When
-      const result = validateNanoidFormat('V1StGXR8_Z5jdHi6B-myT');
-
-      // Then
-      expect(result).toBe(false);
-    });
-
-    it('should ignore length parameter (CUID2 has variable length)', () => {
-      // Given - CUID2 with 26 chars, even when length=16 is passed
-      const cuid2 = 'clw3h8x9y0000qwertyui00001';
-
-      // When
-      const result = validateNanoidFormat(cuid2, 16);
-
-      // Then - Should still pass because it's valid CUID2
-      expect(result).toBe(true);
     });
   });
 

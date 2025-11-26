@@ -1,4 +1,5 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
+import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Result } from '@domain/common/result';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiId } from '@domain/value-objects/poi-id';
@@ -6,7 +7,7 @@ import { UserId } from '@domain/value-objects/user-id';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { CoordinateConverter } from '@application/common/coordinate-converter';
-import type { UpdatePoiPositionCommand } from './update-poi-position.command';
+import { UpdatePoiPositionCommand } from './update-poi-position.command';
 
 /**
  * Handler für UpdatePoiPositionCommand.
@@ -27,7 +28,8 @@ import type { UpdatePoiPositionCommand } from './update-poi-position.command';
  * (transaktionale Konsistenz: Events nur nach erfolgreicher Persistenz).
  */
 @Injectable()
-export class UpdatePoiPositionCommandHandler {
+@CommandHandler(UpdatePoiPositionCommand)
+export class UpdatePoiPositionCommandHandler implements ICommandHandler<UpdatePoiPositionCommand, Result<void>> {
   private readonly logger = new Logger(UpdatePoiPositionCommandHandler.name);
 
   constructor(

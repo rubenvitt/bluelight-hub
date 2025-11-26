@@ -20,7 +20,7 @@ import { mapValues } from '../runtime';
  */
 export interface CreateEtbDto {
   /**
-   * ID of the Einsatz for which to create the ETB
+   * ID des Einsatzes, für den das ETB erstellt werden soll (CUID)
    * @type {string}
    * @memberof CreateEtbDto
    */

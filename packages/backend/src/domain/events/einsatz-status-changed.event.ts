@@ -29,7 +29,7 @@ import type { EinsatzStatus } from '@domain/value-objects/einsatz-status';
  * );
  *
  * // Event Properties (readonly, immutabel)
- * console.log(event.eventId);      // Auto-generated nanoid
+ * console.log(event.eventId);      // Auto-generated cuid
  * console.log(event.occurredAt);   // Auto-generated timestamp
  * console.log(event.einsatzId);    // EinsatzId instance
  * console.log(event.oldStatus);    // EinsatzStatus instance (ANGELEGT)

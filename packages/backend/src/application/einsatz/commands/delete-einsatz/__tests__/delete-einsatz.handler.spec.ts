@@ -5,7 +5,6 @@ import { Result } from '@domain/common/result';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
-import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 
 describe('DeleteEinsatzHandler', () => {
   let handler: DeleteEinsatzHandler;
@@ -90,7 +89,7 @@ describe('DeleteEinsatzHandler', () => {
       // Arrange - Test all statuses
       const statuses = ['ANGELEGT', 'IN_BEARBEITUNG', 'ABGESCHLOSSEN', 'ARCHIVIERT'];
 
-      for (const statusValue of statuses) {
+      for (const _statusValue of statuses) {
         const einsatz = createTestEinsatz();
 
         // canBeDeleted() should always return false regardless of status

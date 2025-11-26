@@ -7,7 +7,7 @@
  */
 
 // const fs = require('fs'); // Uncomment when implementing file operations
-const path = require('path');
+const path = require('node:path');
 
 /**
  * Main installation function

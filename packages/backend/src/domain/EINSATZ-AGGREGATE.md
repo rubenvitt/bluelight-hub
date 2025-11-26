@@ -45,7 +45,7 @@ Transitions:
 2. **NO-DELETE Policy** - Einsätze können NIEMALS gelöscht werden (DRK 10-Jahres-Aufbewahrungspflicht)
 3. **Archival Immutability** - Archivierte Einsätze sind komplett immutable
 4. **Event Emission** - Jede State-Änderung emittiert Domain Events
-5. **Auto-Generated Nummer** - Format `E{YEAR}-{NANOID-6}` (z.B. "E2025-A1B2C3")
+5. **Auto-Generated Nummer** - Format `E{YEAR}-{CUID-6}` (z.B. "E2025-A1B2C3")
 
 ---
 
@@ -159,7 +159,7 @@ const einsatz = Einsatz.create({
 const events = einsatz.getDomainEvents();
 console.log(events.length); // 1
 console.log(events[0].constructor.name); // "EinsatzCreatedEvent"
-console.log(events[0].eventId);          // "X1Y2Z3..." (Nanoid)
+console.log(events[0].eventId);          // "X1Y2Z3..." (cuid)
 console.log(events[0].occurredAt);       // Date
 
 // Business Operations emittieren weitere Events
@@ -380,7 +380,7 @@ describe('Einsatz Integration Tests', () => {
 
 ### Value Objects
 - **EinsatzId** (packages/backend/src/domain/value-objects/einsatz-id.ts:1-84)
-  - Type-safe Nanoid-based ID
+  - Type-safe Cuid-based ID
   - 30 Unit Tests
 
 - **UserId** (packages/backend/src/domain/value-objects/user-id.ts:1-84)

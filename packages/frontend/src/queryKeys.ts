@@ -47,9 +47,35 @@ export const EINSATZ_QUERY_KEYS = {
 
 export const ETB_QUERY_KEYS = {
   all: ['etb'] as const,
-  byEinsatz: (einsatzId?: string, page?: number, limit?: number) => [...ETB_QUERY_KEYS.all, 'einsatz', einsatzId, { page, limit }] as const,
+
+  // ============================================
+  // CQRS Query Keys (neue API)
+  // ============================================
+  /**
+   * Query Key fuer ETB-Abfrage via CQRS API (nach Einsatz-ID)
+   *
+   * @param einsatzId - Die ID des Einsatzes
+   * @param includeDeleted - Optional: Soft-geloeschte Eintraege einschliessen
+   */
+  byEinsatz: (einsatzId?: string, includeDeleted?: boolean) => [...ETB_QUERY_KEYS.all, 'einsatz', einsatzId, { includeDeleted }] as const,
+
+  /**
+   * Query Key fuer ETB-Versionshistorie (Snapshots)
+   *
+   * @param etbId - Die ID des ETB
+   */
+  history: (etbId: string) => [...ETB_QUERY_KEYS.all, etbId, 'history'] as const,
+
+  // ============================================
+  // Legacy Query Keys (Backward Compatibility)
+  // ============================================
+  /** @deprecated Verwende byEinsatz(einsatzId, includeDeleted) stattdessen */
+  byEinsatzLegacy: (einsatzId?: string, page?: number, limit?: number) => [...ETB_QUERY_KEYS.all, 'einsatz-legacy', einsatzId, { page, limit }] as const,
+
+  /** @deprecated Wird durch CQRS API ersetzt */
   infinite: (einsatzId?: string, limit?: number, sortBy?: string, sortOrder?: 'asc' | 'desc', includeDeleted?: boolean) =>
     [...ETB_QUERY_KEYS.all, 'infinite', einsatzId, { limit, sortBy, sortOrder, includeDeleted }] as const,
+
   eintraege: (etbId: string) => [...ETB_QUERY_KEYS.all, etbId, 'eintraege'] as const,
   eintrag: (eintragId: string) => [...ETB_QUERY_KEYS.all, 'eintrag', eintragId] as const,
   eintragHistory: (eintragId: string, page?: number, limit?: number) => [...ETB_QUERY_KEYS.all, 'eintrag', eintragId, 'history', { page, limit }] as const,

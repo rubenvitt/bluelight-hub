@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { LagekarteEventsModule } from '@infrastructure/events/lagekarte-events.module';
+import { EtbInfrastructureModule } from '@infrastructure/etb/etb-infrastructure.module';
+import { LagekarteInfrastructureModule } from '@infrastructure/lagekarte-infrastructure.module';
 import { CreateEtbHandler } from './commands/create-etb/create-etb.handler';
 import { AddEintragHandler } from './commands/add-eintrag/add-eintrag.handler';
 import { UpdateEintragHandler } from './commands/update-eintrag/update-eintrag.handler';
@@ -43,6 +45,10 @@ import { EtbAutoCreationHandler } from './event-handlers';
     // Event Infrastructure (IEventPublisher)
     // Verwendet LagekarteEventsModule bis dediziertes EtbEventsModule erstellt wird (Story 3.6)
     LagekarteEventsModule,
+    // Repository Infrastructure (IEtbRepository)
+    EtbInfrastructureModule,
+    // Repository Infrastructure (IEinsatzRepository) - für Einsatz-Existenz-Prüfung in CreateEtbHandler
+    LagekarteInfrastructureModule,
   ],
   providers: [
     // Command Handlers (Story 3.1 + 3.2)

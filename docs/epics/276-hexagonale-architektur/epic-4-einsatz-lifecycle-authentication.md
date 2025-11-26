@@ -806,7 +806,7 @@ class EmailAlertService implements IAlertService {
       });
 
       await transporter.sendMail({
-        from: '"Bluelight Hub" <alerts@bluelight-hub.de>',
+        from: '"Bluelight Hub" <alerts@bluelight-hub.app>',
         to: recipients.join(', '),
         subject: `🚨 CRITICAL: ${subject}`,
         text: message,
@@ -893,7 +893,7 @@ describe('Outbox Alerting', () => {
 # SMTP Configuration for Alerts
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=alerts@bluelight-hub.de
+SMTP_USER=alerts@bluelight-hub.app
 SMTP_PASS=<app-password>
 ```
 

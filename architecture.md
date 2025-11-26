@@ -393,7 +393,7 @@ packages/backend/src/
 - **ORM:** Prisma 6.19.0
 - **Database:** PostgreSQL 17
 - **Migration Strategy:** Prisma Migrate with SQL migrations
-- **ID Generation:** `cuid()` (primary), `nanoid()` (User IDs)
+- **ID Generation:** `cuid()` (primary), `cuid()` (User IDs)
 
 #### Data Models (9 Models)
 
@@ -991,7 +991,7 @@ const useCreateEinsatz = () => {
 **Purpose:** Zentrale Benutzerverwaltung
 
 **Key Fields:**
-- `id` (String, nanoid) - Primary Key
+- `id` (String, cuid) - Primary Key
 - `username` (String, unique) - Username
 - `passwordHash` (String, optional) - Nur für Admin-User
 - `role` (UserRole) - USER, ADMIN, SUPER_ADMIN

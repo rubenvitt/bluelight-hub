@@ -20,9 +20,17 @@ import { useShapeHighlighting } from '@/hooks/lagekarte/useShapeHighlighting';
 import { useToolbarPositioning } from '@/hooks/lagekarte/useToolbarPositioning';
 import { useKeyboardShortcuts } from '@/hooks/lagekarte/useKeyboardShortcuts';
 import { useShapeEventHandlers } from '@/hooks/lagekarte/useShapeEventHandlers';
-import type { OriginalStyle } from '@/utils/lagekarte/types';
+import type { LayerWithGeoJSON, LayerWithPM, OriginalStyle } from '@/utils/lagekarte/types';
 import { useTextMarkerHandling } from '@/hooks/lagekarte/useTextMarkerHandling';
 import { useShapeStyleUpdates } from '@/hooks/lagekarte/useShapeStyleUpdates';
+
+const isPmLayer = (layer: L.Layer): layer is LayerWithPM => {
+  return 'pm' in layer && typeof (layer as LayerWithPM).pm?.enable === 'function';
+};
+
+const isGeoJsonLayer = (layer: L.Layer): layer is LayerWithGeoJSON => {
+  return 'toGeoJSON' in layer && typeof (layer as LayerWithGeoJSON).toGeoJSON === 'function';
+};
 
 interface DrawingLayerProps {
   /**
@@ -228,7 +236,6 @@ const DrawingLayerComponent: React.FC<DrawingLayerProps> = ({
     layersRef,
     shapesRef,
     setShapes,
-    setSelectedShapeId,
     onShapesChange,
     onShapeLimitReached,
     onShapeCreated,
@@ -260,8 +267,8 @@ const DrawingLayerComponent: React.FC<DrawingLayerProps> = ({
     if (!contextMenu) return;
     const layer = layersRef.current.get(contextMenu.shapeId);
     // Defensive check: Verify pm.enable method exists before calling
-    if (layer && (layer as any).pm?.enable) {
-      (layer as any).pm.enable();
+    if (layer && isPmLayer(layer)) {
+      layer.pm.enable();
       toast.info('Bearbeitungsmodus aktiviert');
     }
     setContextMenu(null);
@@ -270,8 +277,8 @@ const DrawingLayerComponent: React.FC<DrawingLayerProps> = ({
   const handleContextMenuDelete = useCallback(() => {
     if (!contextMenu) return;
     const layer = layersRef.current.get(contextMenu.shapeId);
-    if (layer) {
-      const geoJson = (layer as any).toGeoJSON() as GeoJSON.Feature;
+    if (layer && isGeoJsonLayer(layer)) {
+      const geoJson = layer.toGeoJSON() as GeoJSON.Feature;
       const shapeId = geoJson.properties?.id;
 
       if (shapeId) {
@@ -309,8 +316,8 @@ const DrawingLayerComponent: React.FC<DrawingLayerProps> = ({
 
     const layer = layersRef.current.get(selectedShapeId);
     // Defensive check: Verify pm.enable method exists before calling
-    if (layer && (layer as any).pm?.enable) {
-      (layer as any).pm.enable();
+    if (layer && isPmLayer(layer)) {
+      layer.pm.enable();
       toast.info('Bearbeitungsmodus aktiviert');
     }
   }, [selectedShapeId]);

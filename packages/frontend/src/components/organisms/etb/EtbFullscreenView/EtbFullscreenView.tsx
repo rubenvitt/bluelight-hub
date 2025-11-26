@@ -58,7 +58,9 @@ const EtbFullscreenEntry: React.FC<EtbFullscreenEntryProps> = ({ entry, getUserN
 
       {/* Text-Content */}
       <div className="mb-4">
-        <p className="whitespace-pre-wrap break-words text-gray-900 text-xl leading-relaxed dark:text-gray-100">{entry.text}</p>
+        <p className={cn('whitespace-pre-wrap break-words text-xl leading-relaxed', entry.deletedAt ? 'text-gray-500 line-through dark:text-gray-400' : 'text-gray-900 dark:text-gray-100')}>
+          {entry.text}
+        </p>
       </div>
 
       {/* Screenshot Preview (if exists) */}
@@ -145,7 +147,7 @@ export function EtbFullscreenView({ einsatzId, sortOrder = 'desc', showDeleted =
 
   // Hooks müssen immer aufgerufen werden (React Rules of Hooks)
   // Bei ungültiger ID wird der Hook mit einem Dummy-Wert aufgerufen (disabled mode)
-  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useEtbInfinite(isValidEinsatzId ? einsatzId : '__invalid__', 20, 'timestamp', sortOrder, showDeleted, {
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useEtbInfinite(isValidEinsatzId ? einsatzId : '__invalid__', 20, 'sequenceNumber', sortOrder, showDeleted, {
     refetchInterval: 5000, // Auto-Refresh alle 5 Sekunden
     enabled: isValidEinsatzId, // Nur aktivieren wenn einsatzId gültig
   });

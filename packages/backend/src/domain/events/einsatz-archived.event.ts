@@ -26,7 +26,7 @@ import type { UserId } from '@domain/value-objects/user-id';
  * );
  *
  * // Event Properties (readonly, immutabel)
- * console.log(event.eventId);      // Auto-generated nanoid
+ * console.log(event.eventId);      // Auto-generated cuid
  * console.log(event.occurredAt);   // Auto-generated timestamp
  * console.log(event.einsatzId);    // EinsatzId instance
  * console.log(event.archivedBy);   // UserId instance

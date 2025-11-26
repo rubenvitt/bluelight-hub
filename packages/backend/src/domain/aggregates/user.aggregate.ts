@@ -1,15 +1,15 @@
 import { AggregateRoot } from '@domain/common/aggregate-root';
 import { Result } from '@domain/common/result';
-import { UserId } from '@domain/value-objects/user-id';
-import type { Username } from '@domain/value-objects/username';
-import { UserRole } from '@domain/value-objects/user-role';
-import type { Permission } from '@domain/value-objects/permission';
-import type { IUserRepository } from '@domain/repositories/i-user.repository';
-import { UserCreatedEvent } from '@domain/events/user-created.event';
-import { UserRoleChangedEvent } from '@domain/events/user-role-changed.event';
 import { PermissionGrantedEvent } from '@domain/events/permission-granted.event';
 import { PermissionRevokedEvent } from '@domain/events/permission-revoked.event';
+import { UserCreatedEvent } from '@domain/events/user-created.event';
 import { UserDeletedEvent } from '@domain/events/user-deleted.event';
+import { UserRoleChangedEvent } from '@domain/events/user-role-changed.event';
+import type { IUserRepository } from '@domain/repositories/i-user.repository';
+import type { Permission } from '@domain/value-objects/permission';
+import { UserId } from '@domain/value-objects/user-id';
+import { UserRole } from '@domain/value-objects/user-role';
+import type { Username } from '@domain/value-objects/username';
 
 /**
  * User Aggregate Root für RBAC (Role-Based Access Control) Management.
@@ -102,29 +102,6 @@ import { UserDeletedEvent } from '@domain/events/user-deleted.event';
  */
 export class UserAggregate extends AggregateRoot<UserId> {
   /**
-   * Username Value Object (normalisiert zu lowercase).
-   */
-  private _username: Username;
-
-  /**
-   * UserRole Value Object mit RBAC Permission Mappings.
-   */
-  private _role: UserRole;
-
-  /**
-   * Custom Permissions (zusätzlich zu Role-Default-Permissions).
-   * Array von Permission Value Objects.
-   */
-  private _permissions: Permission[];
-
-  /**
-   * Account-Sperr-Status.
-   * true = Account ist gesperrt (Login disabled)
-   * false = Account ist aktiv
-   */
-  private _isLocked: boolean;
-
-  /**
    * Private Constructor erzwingt Factory Method Nutzung.
    * Verhindert direkte Instanziierung ohne Validation.
    *
@@ -145,12 +122,22 @@ export class UserAggregate extends AggregateRoot<UserId> {
   }
 
   /**
+   * Username Value Object (normalisiert zu lowercase).
+   */
+  private _username: Username;
+
+  /**
    * Readonly getter für Username.
    * @returns Username Value Object
    */
   get username(): Username {
     return this._username;
   }
+
+  /**
+   * UserRole Value Object mit RBAC Permission Mappings.
+   */
+  private _role: UserRole;
 
   /**
    * Readonly getter für UserRole.
@@ -161,12 +148,25 @@ export class UserAggregate extends AggregateRoot<UserId> {
   }
 
   /**
+   * Custom Permissions (zusätzlich zu Role-Default-Permissions).
+   * Array von Permission Value Objects.
+   */
+  private _permissions: Permission[];
+
+  /**
    * Readonly getter für Custom Permissions.
    * @returns Array von Permission Value Objects (shallow copy für Immutability)
    */
   get permissions(): Permission[] {
     return [...this._permissions]; // Shallow copy (mutation-safe)
   }
+
+  /**
+   * Account-Sperr-Status.
+   * true = Account ist gesperrt (Login disabled)
+   * false = Account ist aktiv
+   */
+  private _isLocked: boolean;
 
   /**
    * Readonly getter für Account-Sperr-Status.
@@ -213,7 +213,7 @@ export class UserAggregate extends AggregateRoot<UserId> {
    * const result2 = UserAggregate.create(username, role, customPerms);
    *
    * // Failure: UserId Generation Failed
-   * // (kann nur passieren wenn nanoid() fehlschlägt - sehr unwahrscheinlich)
+   * // (kann nur passieren wenn cuid() fehlschlägt - sehr unwahrscheinlich)
    * ```
    */
   static create(username: Username, role: UserRole, permissions?: Permission[]): Result<UserAggregate> {

@@ -2,12 +2,17 @@ import { useState } from 'react';
 import type { EtbEintragDto } from '@bluelight-hub/shared/client';
 import { ScreenshotLightbox } from './ScreenshotLightbox';
 import { safeValidateScreenshotUrl } from '@/utils/validateScreenshotUrl';
+import { cn } from '@/utils/cn';
 
 interface EtbTextCellProps {
   /**
    * ETB-Eintrag
    */
   entry: EtbEintragDto;
+  /**
+   * Zeigt an, ob der Eintrag gelöscht wurde (für line-through Styling)
+   */
+  isDeleted?: boolean;
 }
 
 /**
@@ -24,12 +29,17 @@ interface EtbTextCellProps {
  *
  * @param entry - ETB-Eintrag
  */
-export function EtbTextCell({ entry }: EtbTextCellProps) {
+export function EtbTextCell({ entry, isDeleted }: EtbTextCellProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // Check if screenshot exists in metadata
-  const hasScreenshot = entry.metadata && typeof entry.metadata === 'object' && 'screenshot' in entry.metadata;
-  const screenshotUrl = hasScreenshot ? (entry.metadata as any).screenshot?.url : null;
+  const screenshotUrl =
+    entry.metadata && typeof entry.metadata === 'object' && 'screenshot' in entry.metadata && entry.metadata.screenshot && typeof entry.metadata.screenshot === 'object'
+      ? (() => {
+          const { url } = entry.metadata.screenshot as { url?: unknown };
+          return typeof url === 'string' ? url : null;
+        })()
+      : null;
 
   // Validate URL (XSS prevention via Whitelist) - returns null if invalid
   const validatedUrl = safeValidateScreenshotUrl(screenshotUrl);
@@ -37,7 +47,7 @@ export function EtbTextCell({ entry }: EtbTextCellProps) {
   return (
     <div className="space-y-2">
       {/* ETB-Eintrag Text */}
-      <p className="whitespace-pre-wrap break-words text-gray-900 text-sm leading-relaxed dark:text-gray-100">{entry.text}</p>
+      <p className={cn('whitespace-pre-wrap break-words text-gray-900 text-sm leading-relaxed dark:text-gray-100', isDeleted && 'text-gray-500 line-through dark:text-gray-400')}>{entry.text}</p>
 
       {/* Screenshot Thumbnail */}
       {validatedUrl && (

@@ -1,11 +1,12 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { CreateEtbCommand, type CreateEtbHandler } from '@application/etb/commands';
 import { Result } from '@domain/common/result';
 import type { EtbEintrag } from '@domain/entities/etb-eintrag.entity';
+import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
+import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { EtbKategorie } from '@domain/value-objects/etb-kategorie';
 import { UserId } from '@domain/value-objects/user-id';
-import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
+import { BadRequestException, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { AddEintragCommand } from './add-eintrag.command';
 
 /**
@@ -34,6 +35,8 @@ export class AddEintragHandler {
     private readonly etbRepository: IEtbRepository,
     @Inject('IEventPublisher')
     private readonly eventPublisher: IEventPublisher,
+    @Optional()
+    private readonly createEtbHandler?: CreateEtbHandler,
   ) {}
 
   async execute(command: AddEintragCommand): Promise<Result<EtbEintrag>> {
@@ -64,7 +67,7 @@ export class AddEintragHandler {
     }
 
     // Step 3: Load ETB Aggregate
-    const aggregate = await this.etbRepository.findById(etbId);
+    let aggregate = await this.etbRepository.findById(etbId);
     if (aggregate === null) {
       // Server-side logging with full diagnostic context
       this.logger.warn('ETB not found during AddEintrag', {
@@ -72,8 +75,47 @@ export class AddEintragHandler {
         timestamp: new Date().toISOString(),
       });
 
+      // Try to auto-create ETB if einsatzId is provided (active Einsatz context)
+      const einsatzId = command.einsatzId?.trim();
+
+      if (!einsatzId) {
+        this.logger.warn('Missing einsatzId for auto-creation after ETB miss', {
+          etbId: etbId.value,
+        });
+        return Result.fail<EtbEintrag>('ETB nicht gefunden');
+      }
+
+      if (!this.createEtbHandler) {
+        this.logger.error('CreateEtbHandler unavailable for ETB auto-creation', {
+          etbId: etbId.value,
+          einsatzId,
+        });
+        return Result.fail<EtbEintrag>('ETB konnte nicht automatisch erstellt werden');
+      }
+
       // User-facing sanitized message (NO internal IDs)
-      throw new NotFoundException('ETB nicht gefunden');
+      const newIdResult = CreateEtbCommand.create(einsatzId);
+      if (newIdResult.isFailure || !newIdResult.value) {
+        return Result.fail<EtbEintrag>(newIdResult.error ?? 'ETB konnte nicht erstellt werden');
+      }
+
+      const idResult = await this.createEtbHandler.execute(newIdResult.value);
+      if (idResult.isFailure || !idResult.value) {
+        this.logger.warn('ETB creation failed during addEintrag', {
+          einsatzId,
+          error: idResult.error,
+        });
+        return Result.fail<EtbEintrag>(idResult.error ?? 'ETB konnte nicht erstellt werden');
+      }
+
+      aggregate = await this.etbRepository.findById(idResult.value);
+      if (!aggregate) {
+        this.logger.error('ETB created but not found when reloading after addEintrag', {
+          etbId: idResult.value.value,
+          einsatzId,
+        });
+        return Result.fail<EtbEintrag>('ETB nicht gefunden');
+      }
     }
 
     // Step 4: Convert Prisma enum to Domain Value Object

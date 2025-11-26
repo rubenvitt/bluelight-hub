@@ -1,11 +1,12 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
+import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Result } from '@domain/common/result';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiId } from '@domain/value-objects/poi-id';
 import { UserId } from '@domain/value-objects/user-id';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import type { RemovePoiCommand } from './remove-poi.command';
+import { RemovePoiCommand } from './remove-poi.command';
 
 /**
  * Handler für RemovePoiCommand.
@@ -25,7 +26,8 @@ import type { RemovePoiCommand } from './remove-poi.command';
  * (transaktionale Konsistenz: Events nur nach erfolgreicher Persistenz).
  */
 @Injectable()
-export class RemovePoiCommandHandler {
+@CommandHandler(RemovePoiCommand)
+export class RemovePoiCommandHandler implements ICommandHandler<RemovePoiCommand, Result<void>> {
   private readonly logger = new Logger(RemovePoiCommandHandler.name);
 
   constructor(

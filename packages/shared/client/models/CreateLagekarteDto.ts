@@ -23,7 +23,7 @@ import { InitialPoiDtoFromJSON, InitialPoiDtoFromJSONTyped, InitialPoiDtoToJSON,
  */
 export interface CreateLagekarteDto {
   /**
-   * Einsatz-ID
+   * Einsatz-ID (CUID)
    * @type {string}
    * @memberof CreateLagekarteDto
    */

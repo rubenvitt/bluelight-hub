@@ -5,7 +5,8 @@
 
 import { EntityId } from '@domain/common/entity-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
-import { UserId } from '@domain/value-objects/user-id';
+import { UserId } from '@domain/value-objects/user-id'; // ============================================
+import { createId } from '@paralleldrive/cuid2'; // ============================================
 
 // ============================================
 // 1. AUTO-GENERATION (kein Parameter)
@@ -22,8 +23,8 @@ if (autoId.isSuccess) {
 // 2. VALIDATION - Success Case
 // ============================================
 console.log('\n=== 2. VALIDATION - Success ===');
-const validNanoid = 'A1B2C3D4E5F6G7H8I9J0K'; // Valid 21-char nanoid
-const validId = EinsatzId.create(validNanoid);
+const validCuid = createId(); // Valid cuid
+const validId = EinsatzId.create(validCuid);
 if (validId.isSuccess) {
   console.log('✅ Valid Einsatz ID:', validId.value?.toString());
 }
@@ -63,9 +64,9 @@ console.log('   Different types at runtime:', userId.constructor !== einsatzId.c
 // 5. EQUALITY (Value-based comparison)
 // ============================================
 console.log('\n=== 5. EQUALITY ===');
-const sharedNanoid = 'X1Y2Z3A4B5C6D7E8F9G0H';
-const id1 = EinsatzId.create(sharedNanoid).value as EinsatzId;
-const id2 = EinsatzId.create(sharedNanoid).value as EinsatzId;
+const sharedCuid = createId();
+const id1 = EinsatzId.create(sharedCuid).value as EinsatzId;
+const id2 = EinsatzId.create(sharedCuid).value as EinsatzId;
 const id3 = EinsatzId.create('A1B2C3D4E5F6G7H8I9J0K').value as EinsatzId;
 
 console.log('✅ Same value → equals():', id1.equals(id2)); // true

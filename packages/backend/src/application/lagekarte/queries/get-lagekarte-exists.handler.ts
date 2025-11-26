@@ -98,7 +98,7 @@ export class GetLagekarteExistsQueryHandler {
     // Step 1: Validate EinsatzId via Value Object
     const einsatzIdResult = EinsatzId.create(query.einsatzId);
     if (einsatzIdResult.isFailure) {
-      throw new Error(einsatzIdResult.error!);
+      throw new Error(einsatzIdResult.error ?? 'Invalid Einsatz ID');
     }
 
     const einsatzId = einsatzIdResult.value;

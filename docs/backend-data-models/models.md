@@ -8,25 +8,25 @@
 
 **Felder:**
 
-| Field            | Type       | Required | Default       | Description                                    |
-|------------------|------------|----------|---------------|------------------------------------------------|
-| id               | String     | Ja       | nanoid()      | Primary Key                                    |
-| username         | String     | Ja       | -             | Unique Username (max. 100 Zeichen)             |
-| passwordHash     | String     | Nein     | null          | Nur für Admin-User (TEXT)                      |
-| role             | UserRole   | Ja       | USER          | Benutzerrolle (Enum)                           |
-| isActive         | Boolean    | Ja       | true          | Account aktiv/inaktiv                          |
-| lastLoginAt      | DateTime   | Nein     | null          | Letzter Login-Zeitpunkt                        |
-| failedLoginCount | Int        | Ja       | 0             | Anzahl fehlgeschlagener Login-Versuche         |
-| lockedUntil      | DateTime   | Nein     | null          | Auto-Lock nach fehlgeschlagenen Logins         |
-| createdAt        | DateTime   | Ja       | now()         | Erstellungszeitpunkt                           |
-| updatedAt        | DateTime   | Ja       | (auto)        | Aktualisierungszeitpunkt                       |
-| isDeleted        | Boolean    | Ja       | false         | Soft-Delete Flag                               |
-| deletedAt        | DateTime   | Nein     | null          | Soft-Delete Zeitstempel                        |
-| deletedBy        | String     | Nein     | null          | User ID der Löschung                           |
-| isLocked         | Boolean    | Ja       | false         | Manueller Lock (Admin-initiiert)               |
-| lockedManuallyAt | DateTime   | Nein     | null          | Zeitpunkt des manuellen Locks                  |
-| lockedManuallyBy | String     | Nein     | null          | User ID des Lock-Initiators                    |
-| lockReason       | String     | Nein     | null          | Grund des manuellen Locks (TEXT)               |
+| Field            | Type       | Required | Default | Description                                    |
+|------------------|------------|----------|---------|------------------------------------------------|
+| id               | String     | Ja       | cuid()  | Primary Key                                    |
+| username         | String     | Ja       | -       | Unique Username (max. 100 Zeichen)             |
+| passwordHash     | String     | Nein     | null    | Nur für Admin-User (TEXT)                      |
+| role             | UserRole   | Ja       | USER    | Benutzerrolle (Enum)                           |
+| isActive         | Boolean    | Ja       | true    | Account aktiv/inaktiv                          |
+| lastLoginAt      | DateTime   | Nein     | null    | Letzter Login-Zeitpunkt                        |
+| failedLoginCount | Int        | Ja       | 0       | Anzahl fehlgeschlagener Login-Versuche         |
+| lockedUntil      | DateTime   | Nein     | null    | Auto-Lock nach fehlgeschlagenen Logins         |
+| createdAt        | DateTime   | Ja       | now()   | Erstellungszeitpunkt                           |
+| updatedAt        | DateTime   | Ja       | (auto)  | Aktualisierungszeitpunkt                       |
+| isDeleted        | Boolean    | Ja       | false   | Soft-Delete Flag                               |
+| deletedAt        | DateTime   | Nein     | null    | Soft-Delete Zeitstempel                        |
+| deletedBy        | String     | Nein     | null    | User ID der Löschung                           |
+| isLocked         | Boolean    | Ja       | false   | Manueller Lock (Admin-initiiert)               |
+| lockedManuallyAt | DateTime   | Nein     | null    | Zeitpunkt des manuellen Locks                  |
+| lockedManuallyBy | String     | Nein     | null    | User ID des Lock-Initiators                    |
+| lockReason       | String     | Nein     | null    | Grund des manuellen Locks (TEXT)               |
 
 **Beziehungen:**
 

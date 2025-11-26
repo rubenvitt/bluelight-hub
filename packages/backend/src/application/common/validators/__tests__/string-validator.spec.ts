@@ -1,4 +1,4 @@
-import { validateRequiredString, validateNanoidFormat, validateCuid2Format, NANOID_REGEX, CUID2_REGEX } from '../string-validator';
+import { CUID2_REGEX, validateCuid2Format, validateRequiredString } from '../string-validator';
 
 /**
  * Unit Tests für String Validation Helpers.
@@ -83,13 +83,14 @@ describe('String Validator', () => {
       expect(() => validateCuid2Format(validCuid2, fieldName)).not.toThrow();
     });
 
-    it('should throw error for CUID2 that is too short (less than 20 chars)', () => {
-      // Given
-      const shortId = 'invalid'; // Only 7 chars
+    it('should throw error for CUID2 starting with number (regardless of length)', () => {
+      // Given - CUID2 Library accepts any lowercase-starting string,
+      // but rejects strings starting with numbers
+      const invalidId = '1234567890abcdefghij'; // 20 chars but starts with number
       const fieldName = 'einsatzId';
 
       // When/Then
-      expect(() => validateCuid2Format(shortId, fieldName)).toThrow('einsatzId must be a valid CUID2 format');
+      expect(() => validateCuid2Format(invalidId, fieldName)).toThrow('einsatzId must be a valid CUID2 format');
     });
 
     it('should throw error for CUID2 that is too long (more than 30 chars)', () => {
@@ -138,8 +139,8 @@ describe('String Validator', () => {
     });
 
     it('should use custom field name in error message', () => {
-      // Given
-      const invalidId = 'short';
+      // Given - CUID2 Library rejects strings starting with uppercase letters
+      const invalidId = 'INVALID_UPPERCASE_ID';
       const customFieldName = 'customIdField';
 
       // When/Then
@@ -181,7 +182,7 @@ describe('String Validator', () => {
       const fieldName = 'testId';
 
       // When/Then
-      expect(() => validateNanoidFormat(validCuid2, fieldName)).not.toThrow();
+      expect(() => validateCuid2Format(validCuid2, fieldName)).not.toThrow();
     });
 
     it('should reject old nanoid format (uppercase not allowed in CUID2)', () => {
@@ -190,7 +191,7 @@ describe('String Validator', () => {
       const fieldName = 'testId';
 
       // When/Then
-      expect(() => validateNanoidFormat(oldNanoid, fieldName)).toThrow();
+      expect(() => validateCuid2Format(oldNanoid, fieldName)).toThrow();
     });
   });
 
@@ -244,13 +245,6 @@ describe('String Validator', () => {
       for (const id of invalidIds) {
         expect(CUID2_REGEX.test(id)).toBe(false);
       }
-    });
-  });
-
-  describe('NANOID_REGEX constant (deprecated, alias for CUID2_REGEX)', () => {
-    it('should be equal to CUID2_REGEX', () => {
-      // Then
-      expect(NANOID_REGEX).toBe(CUID2_REGEX);
     });
   });
 });

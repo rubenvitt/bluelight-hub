@@ -1,12 +1,6 @@
-import { nanoid } from 'nanoid';
 import { Result } from '@domain/common/result';
 import { ValueObject } from '@domain/common/value-object';
-
-/**
- * Nanoid format: 21 characters, alphanumeric with mixed case.
- * This is the format used by Prisma's @default(nanoid()) for User IDs.
- */
-const NANOID_REGEX = /^[A-Za-z0-9_-]{21}$/;
+import { createId, isCuid } from '@paralleldrive/cuid2';
 
 /**
  * Interface für die Props eines UserId Value Objects.
@@ -18,9 +12,9 @@ interface UserIdProps extends Record<string, unknown> {
 /**
  * Type-Safe ID für User Aggregates.
  *
- * WICHTIG: UserId verwendet Nanoid-Format (21 Zeichen, gemischte Gross-/Kleinbuchstaben),
+ * WICHTIG: UserId verwendet cuid-Format (21 Zeichen, gemischte Gross-/Kleinbuchstaben),
  * NICHT CUID2-Format wie andere Entity IDs. Dies ist konsistent mit dem Prisma-Schema
- * (model User { id String @id @default(nanoid()) }).
+ * (model User { id String @id @default(cuid()) }).
  *
  * Verhindert Primitive Obsession und ermöglicht compile-time type safety.
  *
@@ -33,7 +27,7 @@ interface UserIdProps extends Record<string, unknown> {
  *   console.log(id.toString()); // "X1Y2Z3A4B5C6D7E8F9G0H" (21 Zeichen)
  * }
  *
- * // Mit existierendem Nanoid
+ * // Mit existierendem cuid
  * const result2 = UserId.create('WvmYHlIYRWUhVZTt1aRng');
  *
  * // Type-Safety: UserId ≠ EinsatzId
@@ -58,18 +52,18 @@ export class UserId extends ValueObject<UserIdProps> {
   }
 
   /**
-   * Factory Method mit Nanoid Validation und Auto-Generation.
+   * Factory Method mit cuid Validation und Auto-Generation.
    *
-   * @param id - Optional: Existierendes Nanoid. Falls undefined → auto-generate
+   * @param id - Optional: Existierendes cuid. Falls undefined → auto-generate
    * @returns Result<UserId> - Success mit ID oder Failure mit Error
    */
   static create(id?: string): Result<UserId> {
-    // Auto-Generation via nanoid() wenn kein Parameter
-    const actualId = id ?? nanoid();
+    // Auto-Generation via cuid() wenn kein Parameter
+    const actualId = id ?? createId();
 
-    // Validation via Regex für Nanoid-Format (21 Zeichen, alphanumeric mit Gross-/Kleinbuchstaben)
-    if (!NANOID_REGEX.test(actualId)) {
-      return Result.fail<UserId>('Invalid Nanoid format for UserId');
+    // Validation via Regex für cuid-Format (21 Zeichen, alphanumeric mit Gross-/Kleinbuchstaben)
+    if (!isCuid(actualId)) {
+      return Result.fail<UserId>(`Invalid Cuid format for UserId ${id}`);
     }
 
     return Result.ok<UserId>(new UserId(actualId));

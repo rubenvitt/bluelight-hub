@@ -43,7 +43,7 @@
 ```json
 {
   "user": {
-    "id": "string (nanoid)",
+    "id": "string (cuid)",
     "username": "string",
     "fullName": "string | null",
     "role": "USER | ADMIN | SUPER_ADMIN"
@@ -265,7 +265,7 @@ Content-Type: application/json
 {
   "data": [
     {
-      "id": "string (nanoid)",
+      "id": "string (cuid)",
       "username": "string"
     }
   ]
@@ -494,7 +494,7 @@ Content-Type: application/json
 ```json
 {
   "data": {
-    "id": "string (nanoid)",
+    "id": "string (cuid)",
     "name": "string (auto-generated, z.B. 'Einsatz #1')",
     "einsatzort": "string | null",
     "keyword": "string | null",
@@ -738,7 +738,7 @@ Content-Type: application/json
 - Body:
 ```json
 {
-  "einsatzId": "string (required, nanoid)"
+  "einsatzId": "string (required, cuid)"
 }
 ```
 
@@ -746,7 +746,7 @@ Content-Type: application/json
 - Success (201):
 ```json
 {
-  "id": "string (nanoid)",
+  "id": "string (cuid)",
   "einsatzId": "string",
   "createdAt": "string (ISO 8601)",
   "createdBy": "string (user ID)"
@@ -817,7 +817,7 @@ Content-Type: application/json
   "zeitpunkt": "string (ISO 8601, optional, default: now)",
   "kategorie": "ALARMIERUNG | ANFAHRT | LAGEERKUNDUNG | MASSNAHMEN | SONSTIGES (required)",
   "inhalt": "string (required)",
-  "textbausteinId": "string (optional, nanoid - alternative zu inhalt)"
+  "textbausteinId": "string (optional, cuid - alternative zu inhalt)"
 }
 ```
 
@@ -944,7 +944,7 @@ Content-Type: application/json
 {
   "textbausteine": [
     {
-      "id": "string (nanoid)",
+      "id": "string (cuid)",
       "kategorie": "ALARMIERUNG | ANFAHRT | LAGEERKUNDUNG | MASSNAHMEN | SONSTIGES",
       "text": "string",
       "aktiv": "boolean"
@@ -967,7 +967,7 @@ Content-Type: application/json
 ```json
 {
   "data": {
-    "id": "string (nanoid)",
+    "id": "string (cuid)",
     "einsatzId": "string",
     "state": "object (GeoJSON FeatureCollection) | null",
     "createdAt": "string (ISO 8601)",
@@ -1092,7 +1092,7 @@ Content-Type: application/json
 {
   "data": [
     {
-      "id": "string (nanoid)",
+      "id": "string (cuid)",
       "lagekarteId": "string",
       "type": "EINSATZORT | EINSATZABSCHNITT | EINSATZLEITUNG | FAHRZEUG | EINHEIT | GEFAHRENQUELLE | SPERRBEREICH | VERSORGUNGSPUNKT | BEREITSTELLUNGSRAUM | BEHANDLUNGSPLATZ | SAMMELSTELLE | UNTERKUNFT | SONSTIGES",
       "name": "string",
@@ -1120,7 +1120,7 @@ Content-Type: application/json
 - Body:
 ```json
 {
-  "lagekarteId": "string (required, nanoid)",
+  "lagekarteId": "string (required, cuid)",
   "type": "EINSATZORT | EINSATZABSCHNITT | ... (required)",
   "name": "string (required)",
   "beschreibung": "string (optional)",

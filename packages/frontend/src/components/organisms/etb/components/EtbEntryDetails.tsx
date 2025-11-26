@@ -1,9 +1,9 @@
 import { formatDisplayDateTime } from '@/utils/dateFormatter';
 import type { EtbEintragDto } from '@bluelight-hub/shared/client';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useState } from 'react';
-import { PiPencil, PiUser } from 'react-icons/pi';
+import { PiPencil, PiTrashSimple, PiUser } from 'react-icons/pi';
 import { ScreenshotLightbox } from './ScreenshotLightbox';
 
 interface EtbEntryDetailsProps {
@@ -18,11 +18,22 @@ export function EtbEntryDetails({ entry, getUserName }: EtbEntryDetailsProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // Check if screenshot exists in metadata
-  const hasScreenshot = entry.metadata && typeof entry.metadata === 'object' && 'screenshot' in entry.metadata;
-  const screenshotUrl = hasScreenshot ? (entry.metadata as any).screenshot?.url : null;
+  const screenshotUrl =
+    entry.metadata && typeof entry.metadata === 'object' && 'screenshot' in entry.metadata && entry.metadata.screenshot && typeof entry.metadata.screenshot === 'object'
+      ? (() => {
+          const { url } = entry.metadata.screenshot as { url?: unknown };
+          return typeof url === 'string' ? url : null;
+        })()
+      : null;
 
   // Sanitize URL (XSS prevention)
   const sanitizedUrl = screenshotUrl ? encodeURI(screenshotUrl) : null;
+
+  const updatedAtDate = entry.updatedAt ? new Date(entry.updatedAt) : null;
+  const updatedAtDisplay = updatedAtDate && isValid(updatedAtDate) ? format(updatedAtDate, 'HH:mm', { locale: de }) : null;
+
+  const deletedAtDate = entry.deletedAt ? new Date(entry.deletedAt as unknown as string) : null;
+  const deletedAtDisplay = deletedAtDate && isValid(deletedAtDate) ? format(deletedAtDate, 'HH:mm', { locale: de }) : null;
 
   return (
     <div className="space-y-4">
@@ -57,6 +68,11 @@ export function EtbEntryDetails({ entry, getUserName }: EtbEntryDetailsProps) {
       {/* Meta-Informationen */}
       <div className="grid grid-cols-2 gap-4 text-xs md:grid-cols-3">
         <div>
+          <span className="font-medium text-gray-500 dark:text-gray-400">Lfd. Nr.:</span>
+          <p className="mt-1 font-mono text-gray-900 dark:text-gray-100">#{entry.sequenceNumber}</p>
+        </div>
+
+        <div>
           <span className="font-medium text-gray-500 dark:text-gray-400">Erstellt von:</span>
           <p className="mt-1 flex items-center gap-1 text-gray-900 dark:text-gray-100">
             <PiUser className="h-3 w-3" />
@@ -89,7 +105,7 @@ export function EtbEntryDetails({ entry, getUserName }: EtbEntryDetailsProps) {
             <p className="mt-1 flex items-center gap-1 text-gray-900 dark:text-gray-100">
               <PiPencil className="h-3 w-3" />
               {getUserName(entry.updatedBy) ?? 'Unbekannt'}
-              <span className="text-gray-500 dark:text-gray-400">({format(new Date(entry.updatedAt), 'HH:mm', { locale: de })})</span>
+              {updatedAtDisplay && <span className="text-gray-500 dark:text-gray-400">({updatedAtDisplay})</span>}
             </p>
           </div>
         )}
@@ -104,6 +120,17 @@ export function EtbEntryDetails({ entry, getUserName }: EtbEntryDetailsProps) {
         {entry.isAutomatic && (
           <div>
             <span className="inline-flex items-center rounded bg-blue-100 px-2 py-1 text-blue-700 text-xs dark:bg-blue-900 dark:text-blue-300">🤖 Automatisch generiert</span>
+          </div>
+        )}
+
+        {entry.deletedAt && (
+          <div>
+            <span className="font-medium text-gray-500 dark:text-gray-400">Gelöscht:</span>
+            <p className="mt-1 flex items-center gap-1 text-red-600 dark:text-red-400">
+              <PiTrashSimple className="h-3 w-3" />
+              {entry.deleterUsername ?? 'Unbekannt'}
+              {deletedAtDisplay && <span className="text-gray-500 dark:text-gray-400">({deletedAtDisplay})</span>}
+            </p>
           </div>
         )}
       </div>

@@ -5,12 +5,11 @@
  * - Database Setup/Cleanup Utilities mit Trigger-Management
  * - SpyEventPublisher fuer Event Verification
  * - Test User/Einsatz Creation Helpers
- * - ID-Generator Funktionen (CUID und Nanoid Format)
+ * - ID-Generator Funktionen (CUID2 Format via @paralleldrive/cuid2)
  * - Transaction-sichere Cleanup-Logik
  *
  * **ID-FORMAT-KONVENTIONEN:**
- * - **CUID** (EtbId, EinsatzId, EintragId): 25 Zeichen, lowercase a-z0-9, starts mit 'c'
- * - **Nanoid** (UserId): 21 Zeichen, alphanumerisch Mixed-Case + `_-`
+ * - **CUID2** (alle Entity IDs: EtbId, EinsatzId, EintragId, UserId): Format von @paralleldrive/cuid2
  *
  * **TEST STRATEGY:**
  * - Real PostgreSQL Database (NICHT mocked)
@@ -23,6 +22,7 @@ import { PrismaClient } from '@prisma/client';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { PrismaEtbRepository } from '../repositories/prisma-etb.repository';
+import { createId } from '@paralleldrive/cuid2';
 
 // ============================================
 // TEST PRISMA SERVICE
@@ -82,47 +82,22 @@ export class SpyEventPublisher implements IEventPublisher {
 // ============================================
 
 /**
- * Generiert eine Test-ID im CUID-Format.
+ * Generiert eine Test-ID im CUID2-Format.
  *
- * Format: 25 Zeichen, lowercase a-z0-9, startet mit 'c'
- * Verwendet fuer: EtbId, EinsatzId, EintragId
+ * Verwendet @paralleldrive/cuid2 - das echte Format das auch
+ * im Domain Layer zur Validierung verwendet wird (isCuid()).
+ * Verwendet fuer: EtbId, EinsatzId, EintragId, UserId - ALLE Entity IDs!
  *
- * @returns 25-Zeichen CUID-kompatible ID
+ * @returns CUID2-kompatible ID
  *
  * @example
  * ```typescript
- * const einsatzId = generateTestId(); // "c1a2b3c4d5e6f7g8h9i0j1k2l3m"
+ * const einsatzId = generateTestId(); // "clocq1tpv0000..."
+ * const userId = generateTestId();     // Gleiches Format!
  * ```
  */
 export function generateTestId(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let result = 'c';
-  for (let i = 0; i < 24; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
-
-/**
- * Generiert eine Test-ID im Nanoid-Format.
- *
- * Format: 21 Zeichen, alphanumerisch Mixed-Case + `_-`
- * Verwendet fuer: UserId
- *
- * @returns 21-Zeichen Nanoid-kompatible ID
- *
- * @example
- * ```typescript
- * const userId = generateNanoidTestId(); // "V1StGXR8_Z5jdHi6B-myT"
- * ```
- */
-export function generateNanoidTestId(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-  let result = '';
-  for (let i = 0; i < 21; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+  return createId();
 }
 
 // ============================================
@@ -250,9 +225,9 @@ export async function createEtbE2eModule(): Promise<EtbE2eTestContext> {
     await prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
   }
 
-  // 3. Test User erstellen (Nanoid Format!)
+  // 3. Test User erstellen (CUID2 Format!)
   const testRunId = Date.now().toString();
-  const testUserId = generateNanoidTestId();
+  const testUserId = generateTestId();
   await prisma.$executeRaw`
     INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")
     VALUES (
@@ -266,7 +241,7 @@ export async function createEtbE2eModule(): Promise<EtbE2eTestContext> {
     )
   `;
 
-  // 4. Test Einsatz erstellen (CUID Format!)
+  // 4. Test Einsatz erstellen (CUID2 Format!)
   const testEinsatzId = generateTestId();
   await prisma.$executeRaw`
     INSERT INTO einsaetze (id, alarmstichwort, einsatzort, status, "createdBy", "updatedBy", "createdAt", "updatedAt")
@@ -353,7 +328,7 @@ export async function cleanupTestData(ctx: EtbE2eTestContext): Promise<void> {
  * Verwendet den testUserId aus dem Context fuer createdBy/updatedBy.
  *
  * @param ctx - E2E Test Context
- * @returns ID des erstellten Einsatzes (CUID Format)
+ * @returns ID des erstellten Einsatzes (CUID2 Format)
  *
  * @example
  * ```typescript

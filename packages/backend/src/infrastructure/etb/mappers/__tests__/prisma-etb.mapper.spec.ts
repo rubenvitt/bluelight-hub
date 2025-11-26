@@ -648,6 +648,24 @@ describe('PrismaEtbMapper', () => {
       expect(persistData.etb.nextSequenceNumber).toBe(3);
     });
 
+    it('sollte veraltete nextSequenceNumber basierend auf Eintraegen korrigieren', () => {
+      // Given: Prisma ETB mit veraltetem nextSequenceNumber Wert
+      const eintrag1 = createMockPrismaEintrag({ sequenceNumber: 1 });
+      const eintrag2 = createMockPrismaEintrag({
+        id: createValidTestId('ein02'),
+        sequenceNumber: 2,
+      });
+      const prismaEtb = createMockPrismaEtb({ nextSequenceNumber: 1 }, [eintrag1, eintrag2]);
+
+      // When: Aggregate wird rekonstruiert und neuer Eintrag hinzugefügt
+      const aggregate = PrismaEtbMapper.toAggregate(prismaEtb);
+      const addResult = aggregate.addEintrag('Neuer Eintrag', UserId.create(createValidTestId('user2')).value as UserId);
+
+      // Then: Sequenznummer richtet sich nach vorhandenen Eintraegen (max + 1)
+      expect(addResult.isSuccess).toBe(true);
+      expect(addResult.value?.sequenceNumber.value).toBe(3);
+    });
+
     it('sollte Version und Timestamp zusammen korrekt handhaben', () => {
       // Given: Prisma ETB mit spezifischer Version und Timestamp
       const versionTimestamp = new Date('2024-06-15T09:30:00Z');

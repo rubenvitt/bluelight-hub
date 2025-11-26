@@ -1,4 +1,4 @@
-import { useEtbEntryHistory } from '@/hooks/useEtb';
+import { useEtbHistory } from '@/hooks/useEtb';
 import { Button } from '@atoms/button.atom';
 import type { EtbEintragDto } from '@bluelight-hub/shared/client';
 import { Dialog } from '@molecules/dialog.molecule';
@@ -9,8 +9,100 @@ import { EtbHistoryCard } from './EtbHistoryCard';
 
 interface EtbHistoryModalProps {
   entry: EtbEintragDto | null;
+  etbId: string | null;
   isOpen: boolean;
   onClose: () => void;
+}
+
+type SnapshotEntry = {
+  id?: string;
+  text?: string;
+  kategorie?: string;
+  sequenceNumber?: number;
+  updatedAt?: string;
+  createdAt?: string;
+  isDeleted?: boolean;
+};
+
+type HistoryItem = {
+  version: number;
+  timestamp: Date;
+  text?: string;
+  kategorie?: string;
+  username?: string;
+  isCurrent?: boolean;
+  changeReason?: string;
+};
+
+function parseSnapshotEntry(raw: unknown): SnapshotEntry | null {
+  if (!raw) return null;
+
+  if (Array.isArray(raw)) {
+    const [id, sequenceNumber, text] = raw as Array<unknown>;
+    return {
+      id: typeof id === 'string' ? id : undefined,
+      sequenceNumber: typeof sequenceNumber === 'number' ? sequenceNumber : Number(sequenceNumber) || undefined,
+      text: typeof text === 'string' ? text : undefined,
+    };
+  }
+
+  if (typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    return {
+      id: typeof obj.id === 'string' ? obj.id : undefined,
+      text: typeof obj.text === 'string' ? obj.text : undefined,
+      kategorie: typeof obj.kategorie === 'string' ? obj.kategorie : undefined,
+      sequenceNumber: typeof obj.sequenceNumber === 'number' ? obj.sequenceNumber : Number(obj.sequenceNumber) || undefined,
+      updatedAt: typeof obj.updatedAt === 'string' ? obj.updatedAt : undefined,
+      createdAt: typeof obj.createdAt === 'string' ? obj.createdAt : undefined,
+      isDeleted: typeof obj.isDeleted === 'boolean' ? obj.isDeleted : undefined,
+    };
+  }
+
+  return null;
+}
+
+function buildHistory(entry: EtbEintragDto | null, snapshots?: Array<{ version: number; snapshotAt: Date; eintraege?: unknown[] }>): HistoryItem[] {
+  if (!entry) return [];
+
+  const sortedSnapshots = (snapshots ?? []).slice().sort((a, b) => b.version - a.version);
+  const history: HistoryItem[] = [];
+
+  const currentVersion = sortedSnapshots.length > 0 ? sortedSnapshots[0].version + 1 : (entry.version ?? 1);
+  const currentTimestamp = entry.updatedAt ? new Date(entry.updatedAt) : new Date(entry.createdAt);
+
+  history.push({
+    version: currentVersion,
+    timestamp: currentTimestamp,
+    text: entry.text,
+    kategorie: entry.kategorie,
+    username: entry.updatedBy ?? entry.createdBy,
+    isCurrent: true,
+  });
+
+  for (const snapshot of sortedSnapshots) {
+    const rawSnapshotEntry = snapshot.eintraege?.map(parseSnapshotEntry).find((snap) => snap?.id === entry.id);
+    if (!rawSnapshotEntry) continue;
+
+    const text = rawSnapshotEntry.text;
+    const last = history[history.length - 1];
+
+    // Avoid duplicate consecutive entries with identical text
+    if (last && last.text === text) {
+      continue;
+    }
+
+    history.push({
+      version: snapshot.version,
+      timestamp: new Date(snapshot.snapshotAt),
+      text,
+      kategorie: rawSnapshotEntry.kategorie ?? entry.kategorie,
+      username: undefined,
+      changeReason: rawSnapshotEntry.isDeleted ? 'Gelöscht' : undefined,
+    });
+  }
+
+  return history;
 }
 
 /**
@@ -19,18 +111,26 @@ interface EtbHistoryModalProps {
  * Zeigt alle Versionen eines Eintrags in einer Timeline-Ansicht an.
  * Verwendet einen Ref um Flackern beim Schließen zu vermeiden.
  */
-export function EtbHistoryModal({ entry, isOpen, onClose }: EtbHistoryModalProps) {
+export function EtbHistoryModal({ entry, etbId, isOpen, onClose }: EtbHistoryModalProps) {
   // Speichere die letzte gültige entry, um Flackern beim Schließen zu vermeiden
   const lastValidEntry = useRef<EtbEintragDto | null>(null);
+  const lastValidEtbId = useRef<string | null>(null);
 
   useEffect(() => {
     if (isOpen && entry) {
       lastValidEntry.current = entry;
     }
-  }, [isOpen, entry]);
+    if (isOpen && etbId) {
+      lastValidEtbId.current = etbId;
+    }
+  }, [isOpen, entry, etbId]);
 
   const activeEntry = isOpen ? entry : lastValidEntry.current;
-  const { data, isLoading } = useEtbEntryHistory(activeEntry?.id, 1, 50);
+  const activeEtbId = isOpen ? etbId : lastValidEtbId.current;
+  const { data: snapshots, isLoading } = useEtbHistory(activeEtbId ?? undefined);
+
+  const historyItems = buildHistory(activeEntry, snapshots);
+  const hasHistory = historyItems.length > 1;
 
   return (
     <Dialog isOpen={isOpen} onClose={onClose} size="xl">
@@ -44,34 +144,19 @@ export function EtbHistoryModal({ entry, isOpen, onClose }: EtbHistoryModalProps
           <div className="flex h-64 items-center justify-center">
             <PiCircleNotch className="h-8 w-8 animate-spin text-primary-500" />
           </div>
-        ) : data?.data && data.data.length > 0 ? (
+        ) : hasHistory ? (
           <Timeline>
-            {/* Current Version */}
-            {activeEntry && (
-              <TimelineItem showLine={data.data.length > 0}>
-                <TimelineDot variant="primary" />
-                <EtbHistoryCard
-                  version={activeEntry.version}
-                  timestamp={new Date(activeEntry.updatedAt)}
-                  text={activeEntry.text}
-                  kategorie={activeEntry.kategorie}
-                  isCurrent
-                  username={activeEntry.updatedBy}
-                />
-              </TimelineItem>
-            )}
-
-            {/* History Timeline */}
-            {data.data.map((historyEntry, index) => (
-              <TimelineItem key={historyEntry.id} showLine={index < data.data.length - 1}>
-                <TimelineDot variant="secondary" />
+            {historyItems.map((historyEntry, index) => (
+              <TimelineItem key={`${historyEntry.version}-${historyEntry.timestamp.toISOString()}`} showLine={index < historyItems.length - 1}>
+                <TimelineDot variant={historyEntry.isCurrent ? 'primary' : 'secondary'} />
                 <EtbHistoryCard
                   version={historyEntry.version}
-                  timestamp={new Date(historyEntry.changedAt)}
-                  text={historyEntry.text}
+                  timestamp={historyEntry.timestamp}
+                  text={historyEntry.text ?? ''}
                   kategorie={historyEntry.kategorie}
-                  username={historyEntry.changedByUsername}
+                  username={historyEntry.username}
                   changeReason={historyEntry.changeReason}
+                  isCurrent={historyEntry.isCurrent}
                 />
               </TimelineItem>
             ))}

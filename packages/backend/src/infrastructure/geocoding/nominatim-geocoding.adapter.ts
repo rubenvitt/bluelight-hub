@@ -1,10 +1,10 @@
 import type { Result } from '@domain/common/result';
 import { Result as ResultImpl } from '@domain/common/result';
 import type { IGeocodingPort } from '@domain/services/ports/i-geocoding.port';
-import type { GeoCoordinate } from '@domain/value-objects/geo-coordinate';
-import { GeoCoordinate as GeoCoordinateImpl } from '@domain/value-objects/geo-coordinate';
 import type { Address } from '@domain/value-objects/address';
 import { Address as AddressImpl } from '@domain/value-objects/address';
+import type { GeoCoordinate } from '@domain/value-objects/geo-coordinate';
+import { GeoCoordinate as GeoCoordinateImpl } from '@domain/value-objects/geo-coordinate';
 
 /**
  * Nominatim API Response für Geocoding (Forward).
@@ -70,7 +70,7 @@ export class NominatimGeocodingAdapter implements IGeocodingPort {
    * User-Agent Header (PFLICHT für Nominatim Usage Policy).
    * Format: ApplicationName/Version (Contact)
    */
-  private static readonly USER_AGENT = 'Bluelight-Hub/1.0 (contact@bluelight-hub.de)';
+  private static readonly USER_AGENT = 'Bluelight-Hub/1.0 (contact@bluelight-hub.app)';
 
   /**
    * Rate-Limit: 1 Request pro Sekunde (1000ms).

@@ -36,8 +36,12 @@ import type { UserId } from '@domain/value-objects/user-id';
 export class EintragAddedEvent extends DomainEvent {
   /**
    * Event Name für Event Router (Past Tense).
+   *
+   * @returns Event Name in past tense
    */
-  public readonly eventName = 'etb.eintrag_added';
+  public static eventName(): string {
+    return 'etb.eintrag_added';
+  }
 
   /**
    * @param etbId - ID des parent ETB Aggregates

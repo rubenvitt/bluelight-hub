@@ -46,8 +46,7 @@ export class EtbDto {
 
   @ApiProperty({
     description: 'Liste aller Einträge im ETB (sortiert nach sequenceNumber)',
-    type: [EintragDto],
-    isArray: true,
+    type: () => [EintragDto],
   })
   eintraege!: EintragDto[];
 

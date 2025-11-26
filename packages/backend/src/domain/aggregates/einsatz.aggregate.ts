@@ -1,14 +1,15 @@
-import { createId } from '@paralleldrive/cuid2';
 import { AggregateRoot } from '@domain/common/aggregate-root';
 import { Result } from '@domain/common/result';
-import type { Address } from '@domain/value-objects/address';
-import { EinsatzId } from '@domain/value-objects/einsatz-id';
-import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
-import type { UserId } from '@domain/value-objects/user-id';
 import { EinsatzArchivedEvent } from '@domain/events/einsatz-archived.event';
 import { EinsatzCompletedEvent } from '@domain/events/einsatz-completed.event';
 import { EinsatzCreatedEvent } from '@domain/events/einsatz-created.event';
 import { EinsatzStatusChangedEvent } from '@domain/events/einsatz-status-changed.event';
+import { EinsatzUpdatedEvent } from '@domain/events/einsatz-updated.event';
+import type { Address } from '@domain/value-objects/address';
+import { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
+import type { UserId } from '@domain/value-objects/user-id';
+import { createId } from '@paralleldrive/cuid2';
 
 /**
  * Properties für die Einsatz Erstellung.
@@ -48,6 +49,7 @@ interface CreateEinsatzProps {
  *
  * **Event Flow:**
  * - create() → EinsatzCreatedEvent
+ * - update() → EinsatzUpdatedEvent
  * - complete() → EinsatzCompletedEvent + EinsatzStatusChangedEvent
  * - archive() → EinsatzArchivedEvent + EinsatzStatusChangedEvent
  * - updateStatus() → EinsatzStatusChangedEvent
@@ -108,54 +110,6 @@ interface CreateEinsatzProps {
  */
 export class Einsatz extends AggregateRoot<EinsatzId> {
   /**
-   * Auto-generierte Einsatznummer im Format "E{YEAR}-{CUID-8}".
-   * Beispiel: "E2024-clw3h8x9"
-   */
-  private _nummer: string;
-
-  /**
-   * Alarmstichwort des Einsatzes (z.B. "Wohnungsbrand", "Verkehrsunfall").
-   * Pflichtfeld, darf nicht leer sein.
-   */
-  private _alarmstichwort: string;
-
-  /**
-   * Status des Einsatzes als Value Object mit State Machine Logic.
-   * Erlaubt nur validierte Transitions (ANGELEGT → IN_BEARBEITUNG → ABGESCHLOSSEN → ARCHIVIERT).
-   */
-  private _status: EinsatzStatus;
-
-  /**
-   * Optional: Einsatzort als Address Value Object.
-   * Enthält Strasse, Hausnummer, PLZ, Ort.
-   */
-  private _einsatzort?: Address;
-
-  /**
-   * Optional: Freitext-Bemerkung zum Einsatz.
-   */
-  private _bemerkung?: string;
-
-  /**
-   * User-ID des Erstellers.
-   * Wichtig für Audit Trail und Verantwortlichkeits-Tracking.
-   */
-  private _createdBy: UserId;
-
-  /**
-   * Optional: Timestamp wann der Einsatz abgeschlossen wurde.
-   * Wird gesetzt durch complete() Business Method.
-   */
-  private _abgeschlossenAt?: Date;
-
-  /**
-   * Optional: Timestamp wann der Einsatz archiviert wurde.
-   * Wird gesetzt durch archive() Business Method.
-   * Markiert Einsatz als immutable (keine weiteren Änderungen erlaubt).
-   */
-  private _archivedAt?: Date;
-
-  /**
    * Private Constructor erzwingt Factory Method Nutzung.
    * Verhindert direkte Instanziierung ohne Validation.
    *
@@ -180,12 +134,24 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
   }
 
   /**
+   * Auto-generierte Einsatznummer im Format "E{YEAR}-{CUID-8}".
+   * Beispiel: "E2024-clw3h8x9"
+   */
+  private _nummer: string;
+
+  /**
    * Readonly getter für Einsatznummer.
    * @returns Auto-generierte Einsatznummer (z.B. "E2024-A1B2C3")
    */
   get nummer(): string {
     return this._nummer;
   }
+
+  /**
+   * Alarmstichwort des Einsatzes (z.B. "Wohnungsbrand", "Verkehrsunfall").
+   * Pflichtfeld, darf nicht leer sein.
+   */
+  private _alarmstichwort: string;
 
   /**
    * Readonly getter für Alarmstichwort.
@@ -196,12 +162,24 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
   }
 
   /**
+   * Status des Einsatzes als Value Object mit State Machine Logic.
+   * Erlaubt nur validierte Transitions (ANGELEGT → IN_BEARBEITUNG → ABGESCHLOSSEN → ARCHIVIERT).
+   */
+  private _status: EinsatzStatus;
+
+  /**
    * Readonly getter für Einsatz Status.
    * @returns EinsatzStatus Value Object
    */
   get status(): EinsatzStatus {
     return this._status;
   }
+
+  /**
+   * Optional: Einsatzort als Address Value Object.
+   * Enthält Strasse, Hausnummer, PLZ, Ort.
+   */
+  private _einsatzort?: Address;
 
   /**
    * Readonly getter für Einsatzort.
@@ -212,12 +190,23 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
   }
 
   /**
+   * Optional: Freitext-Bemerkung zum Einsatz.
+   */
+  private _bemerkung?: string;
+
+  /**
    * Readonly getter für Bemerkung.
    * @returns Optional: Freitext-Bemerkung
    */
   get bemerkung(): string | undefined {
     return this._bemerkung;
   }
+
+  /**
+   * User-ID des Erstellers.
+   * Wichtig für Audit Trail und Verantwortlichkeits-Tracking.
+   */
+  private _createdBy: UserId;
 
   /**
    * Readonly getter für Ersteller User-ID.
@@ -228,6 +217,12 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
   }
 
   /**
+   * Optional: Timestamp wann der Einsatz abgeschlossen wurde.
+   * Wird gesetzt durch complete() Business Method.
+   */
+  private _abgeschlossenAt?: Date;
+
+  /**
    * Readonly getter für Abschluss-Timestamp.
    * @returns Optional: Date wann Einsatz abgeschlossen wurde
    */
@@ -236,40 +231,18 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
   }
 
   /**
+   * Optional: Timestamp wann der Einsatz archiviert wurde.
+   * Wird gesetzt durch archive() Business Method.
+   * Markiert Einsatz als immutable (keine weiteren Änderungen erlaubt).
+   */
+  private _archivedAt?: Date;
+
+  /**
    * Readonly getter für Archivierungs-Timestamp.
    * @returns Optional: Date wann Einsatz archiviert wurde
    */
   get archivedAt(): Date | undefined {
     return this._archivedAt;
-  }
-
-  /**
-   * Helper Method: Prüft ob Einsatz archiviert ist.
-   * Archivierte Einsätze sind immutable (keine Änderungen erlaubt).
-   *
-   * @returns true wenn Einsatz archiviert ist (archivedAt gesetzt)
-   */
-  private isArchived(): boolean {
-    return this._archivedAt !== undefined;
-  }
-
-  /**
-   * Auto-generiert Einsatznummer im Format "E{YEAR}-{CUID-8}".
-   *
-   * Warum dieses Format:
-   * - "E" Prefix: Kennzeichnung als Einsatz (Emergency)
-   * - Jahr: Ermöglicht jahresbasierte Sortierung und Archivierung
-   * - CUID-8: Kurz genug für menschliche Lesbarkeit, dennoch ausreichend unique
-   * - Keine Sequenznummern: Vermeidet Race Conditions bei paralleler Erstellung
-   * - Konsistent mit anderen CUIDs im System
-   *
-   * @returns Einsatznummer im Format "E{YEAR}-{CUID-8}" (z.B. "E2024-clw3h8x9")
-   */
-  private static generateNummer(): string {
-    const year = new Date().getFullYear();
-    // Nutze die ersten 8 Zeichen des CUID für Lesbarkeit
-    const randomPart = createId().substring(0, 8);
-    return `E${year}-${randomPart}`;
   }
 
   /**
@@ -281,7 +254,7 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
    * - Einsatzort ist optional (Address Value Object)
    * - Bemerkung ist optional
    * - Initialer Status ist IMMER ANGELEGT (State Machine Start)
-   * - Einsatznummer wird auto-generiert (Format: "E{YEAR}-{NANOID-6}")
+   * - Einsatznummer wird auto-generiert (Format: "E{YEAR}-{cuid-6}")
    * - Bei Erfolg wird EinsatzCreatedEvent emittiert
    *
    * **Warum alarmstichwort required:**
@@ -335,10 +308,29 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
     // Create aggregate
     const einsatz = new Einsatz(id, nummer, props.alarmstichwort.trim(), initialStatus, props.createdBy, props.einsatzort, props.bemerkung?.trim());
 
-    // Emit EinsatzCreatedEvent
-    einsatz.addDomainEvent(new EinsatzCreatedEvent(id, props.createdBy, props.alarmstichwort.trim(), id.value));
+    // Emit EinsatzCreatedEvent (Rich Event mit nummer für Event Handler)
+    einsatz.addDomainEvent(new EinsatzCreatedEvent(id, props.createdBy, props.alarmstichwort.trim(), nummer, id.value));
 
     return Result.ok<Einsatz>(einsatz);
+  }
+
+  /**
+   * Auto-generiert Einsatznummer im Format "E{YEAR}-{CUID-8}".
+   *
+   * Warum dieses Format:
+   * - "E" Prefix: Kennzeichnung als Einsatz (Emergency)
+   * - Jahr: Ermöglicht jahresbasierte Sortierung und Archivierung
+   * - CUID-8: Kurz genug für menschliche Lesbarkeit, dennoch ausreichend unique
+   * - Keine Sequenznummern: Vermeidet Race Conditions bei paralleler Erstellung
+   * - Konsistent mit anderen CUIDs im System
+   *
+   * @returns Einsatznummer im Format "E{YEAR}-{CUID-8}" (z.B. "E2024-clw3h8x9")
+   */
+  private static generateNummer(): string {
+    const year = new Date().getFullYear();
+    // Nutze die ersten 8 Zeichen des CUID für Lesbarkeit
+    const randomPart = createId().substring(0, 8);
+    return `E${year}-${randomPart}`;
   }
 
   /**
@@ -535,6 +527,78 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
   }
 
   /**
+   * Business Method: Aktualisiert Einsatz-Felder (Partial Update Pattern).
+   *
+   * **Business Rules:**
+   * - Archivierte Einsätze können nicht aktualisiert werden
+   * - Nur übergebene Felder (nicht undefined) werden aktualisiert
+   * - Alarmstichwort darf nicht leer sein
+   * - Emittiert EinsatzUpdatedEvent mit geänderten Feldern
+   *
+   * @param updates - Partial Object mit zu aktualisierenden Feldern
+   * @returns Result<void> - Success oder Failure mit Error Message
+   *
+   * @example
+   * ```typescript
+   * const einsatz = Einsatz.create({ alarmstichwort: 'Wohnungsbrand', createdBy }).value!;
+   *
+   * // Success: Nur alarmstichwort ändern
+   * const result = einsatz.update({ alarmstichwort: 'Großbrand' });
+   * if (result.isSuccess) {
+   *   console.log(einsatz.alarmstichwort); // "Großbrand"
+   *   einsatz.getDomainEvents(); // [..., EinsatzUpdatedEvent]
+   * }
+   *
+   * // Success: Mehrere Felder ändern
+   * const address = Address.create({ strasse: 'Neue Str.', hausnummer: '1', plz: '80331', ort: 'München' }).value!;
+   * const result2 = einsatz.update({
+   *   einsatzort: address,
+   *   bemerkung: 'Aktualisierte Bemerkung'
+   * });
+   *
+   * // Failure: Archivierter Einsatz
+   * einsatz.archive(userId);
+   * const failResult = einsatz.update({ alarmstichwort: 'Änderung' });
+   * console.log(failResult.error); // "Archivierte Einsätze können nicht geändert werden"
+   * ```
+   */
+  public update(updates: { alarmstichwort?: string; einsatzort?: Address; bemerkung?: string }): Result<void> {
+    // Check if archived (immutable)
+    if (this.isArchived()) {
+      return Result.fail<void>('Archivierte Einsätze können nicht geändert werden');
+    }
+
+    // Track changes for event
+    const changes: { alarmstichwort?: string; einsatzort?: string; bemerkung?: string } = {};
+
+    // Partial Update: Only update fields that are provided
+    if (updates.alarmstichwort !== undefined) {
+      if (updates.alarmstichwort.trim().length === 0) {
+        return Result.fail<void>('Alarmstichwort darf nicht leer sein');
+      }
+      this._alarmstichwort = updates.alarmstichwort.trim();
+      changes.alarmstichwort = this._alarmstichwort;
+    }
+
+    if (updates.einsatzort !== undefined) {
+      this._einsatzort = updates.einsatzort;
+      changes.einsatzort = updates.einsatzort.toString();
+    }
+
+    if (updates.bemerkung !== undefined) {
+      this._bemerkung = updates.bemerkung.trim();
+      changes.bemerkung = this._bemerkung;
+    }
+
+    // Only emit event if something changed
+    if (Object.keys(changes).length > 0) {
+      this.addDomainEvent(new EinsatzUpdatedEvent(this.id, changes, this.id.value));
+    }
+
+    return Result.ok<void>(undefined);
+  }
+
+  /**
    * NO-DELETE Policy für DRK-Compliance.
    * Einsätze dürfen NIEMALS gelöscht werden - nur archiviert.
    *
@@ -566,5 +630,15 @@ export class Einsatz extends AggregateRoot<EinsatzId> {
    */
   public canBeDeleted(): boolean {
     return false; // 10-year retention requirement - NIEMALS löschen
+  }
+
+  /**
+   * Helper Method: Prüft ob Einsatz archiviert ist.
+   * Archivierte Einsätze sind immutable (keine Änderungen erlaubt).
+   *
+   * @returns true wenn Einsatz archiviert ist (archivedAt gesetzt)
+   */
+  private isArchived(): boolean {
+    return this._archivedAt !== undefined;
   }
 }

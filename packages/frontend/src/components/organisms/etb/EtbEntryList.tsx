@@ -1,5 +1,5 @@
-import { useDeleteEtbEintrag } from '@/hooks/useEtb';
 import { useConfirm } from '@/hooks/useConfirm';
+import { useDeleteEtbEintrag } from '@/hooks/useEtb';
 import { useUserNames } from '@/hooks/useUsers';
 import type { EtbEintragDto } from '@bluelight-hub/shared/client';
 import { type ExpandedState, getCoreRowModel, getExpandedRowModel, getFilteredRowModel, type SortingState, useReactTable } from '@tanstack/react-table';
@@ -17,7 +17,8 @@ import { useEtbColumns } from './hooks/useEtbColumns';
 
 interface EtbEntryListProps {
   entries: EtbEintragDto[];
-  einsatzId?: string;
+  einsatzId: string;
+  etbId: string;
   isLoading?: boolean;
   hasNextPage?: boolean;
   fetchNextPage?: () => void;
@@ -37,13 +38,14 @@ interface EtbEntryListProps {
 export function EtbEntryList({
   entries,
   einsatzId,
+  etbId,
   isLoading,
   hasNextPage,
   fetchNextPage,
   isFetchingNextPage,
   onEditEntry,
   onSortChange,
-  sortBy = 'timestamp',
+  sortBy = 'sequenceNumber',
   sortOrder = 'desc',
   enableInlineEdit = false,
   showDeleted = false,
@@ -130,11 +132,11 @@ export function EtbEntryList({
       if (confirmed) {
         deleteEintrag.mutate({
           eintragId: entry.id,
-          einsatzId,
+          etbId,
         });
       }
     },
-    [confirm, deleteEintrag, einsatzId],
+    [confirm, deleteEintrag, etbId],
   );
 
   // Column Definitions - Using extracted hook
@@ -256,7 +258,7 @@ export function EtbEntryList({
       <EtbResultsCount filteredCount={table.getFilteredRowModel().rows.length} totalCount={entries.length} hasGlobalFilter={!!globalFilter} hasNextPage={hasNextPage} />
 
       {/* History Modal */}
-      <EtbHistoryModal entry={historyEntry} isOpen={historyEntry !== null} onClose={() => setHistoryEntry(null)} />
+      <EtbHistoryModal entry={historyEntry} etbId={etbId} isOpen={historyEntry !== null} onClose={() => setHistoryEntry(null)} />
     </div>
   );
 }

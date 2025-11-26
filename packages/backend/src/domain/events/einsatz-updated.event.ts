@@ -1,4 +1,5 @@
 import { DomainEvent } from '@domain/common/domain-event';
+import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 
 /**
  * Domain Event das auftritt wenn ein existierender Einsatz aktualisiert wurde.
@@ -14,24 +15,12 @@ import { DomainEvent } from '@domain/common/domain-event';
  *
  * @example
  * ```typescript
- * // Event Creation nach Einsatz Update (nur name geändert)
+ * // Event Creation nach Einsatz Update (nur alarmstichwort geändert)
  * const event = new EinsatzUpdatedEvent(
- *   'A1B2C3D4E5F6G7H8I9J0K',
- *   { name: 'Großbrand' }, // Nur name geändert
+ *   einsatzId,
+ *   { alarmstichwort: 'Großbrand' },
  *   'aggregate-einsatz-123'
  * );
- *
- * // Event Properties (readonly, immutabel)
- * console.log(event.eventId);        // Auto-generated nanoid
- * console.log(event.occurredAt);     // Auto-generated timestamp
- * console.log(event.einsatzId);      // "A1B2C3D4E5F6G7H8I9J0K"
- * console.log(event.updates.name);   // "Großbrand" (changed)
- * console.log(event.updates.location); // undefined (not changed)
- * console.log(event.aggregateId);    // "aggregate-einsatz-123"
- *
- * // Event Routing
- * console.log(EinsatzUpdatedEvent.eventName()); // "EinsatzUpdated"
- * console.log(EinsatzUpdatedEvent.eventVersion()); // 1
  * ```
  */
 export class EinsatzUpdatedEvent extends DomainEvent {
@@ -39,16 +28,16 @@ export class EinsatzUpdatedEvent extends DomainEvent {
    * Constructor für EinsatzUpdatedEvent mit Partial Updates.
    * Base Class auto-generiert eventId und occurredAt.
    *
-   * @param einsatzId - Eindeutige ID des aktualisierten Einsatzes (nanoid)
-   * @param updates - Partial Object mit geänderten Feldern (z.B. { name: 'Neuer Name' })
+   * @param einsatzId - Type-Safe ID des aktualisierten Einsatzes
+   * @param updates - Partial Object mit geänderten Feldern
    * @param aggregateId - Optional: ID der Einsatz Aggregate Root (für Event Store)
    */
   constructor(
-    public readonly einsatzId: string,
+    public readonly einsatzId: EinsatzId,
     public readonly updates: {
-      name?: string;
-      location?: string;
-      status?: string;
+      alarmstichwort?: string;
+      einsatzort?: string; // Serialized Address string
+      bemerkung?: string;
     },
     aggregateId?: string,
   ) {
@@ -57,11 +46,11 @@ export class EinsatzUpdatedEvent extends DomainEvent {
 
   /**
    * Static Event Name für type-safe Event Routing.
-   * Wird von Event Dispatcher/Handler verwendet zur Event-Type Resolution.
+   * Format: Lowercase, dot-separated (konsistent mit einsatz.created)
    *
-   * @returns "EinsatzUpdated" (Past Tense!)
+   * @returns "einsatz.updated"
    */
   static eventName(): string {
-    return 'EinsatzUpdated';
+    return 'einsatz.updated';
   }
 }

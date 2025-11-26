@@ -34,13 +34,6 @@ export function IsCuid2(validationOptions?: ValidationOptions) {
 }
 
 /**
- * @deprecated Use IsCuid2 instead. Kept for backwards compatibility.
- */
-export function IsNanoId(validationOptions?: ValidationOptions, _length: number = 21) {
-  return IsCuid2(validationOptions);
-}
-
-/**
  * Validiert das CUID2-Format.
  *
  * CUID2s sind kollisionssichere, eindeutige IDs mit folgendem Format:
@@ -68,11 +61,4 @@ export function validateCuid2Format(value: unknown): boolean {
 
   // CUID2-Format prüfen
   return CUID2_REGEX.test(value);
-}
-
-/**
- * @deprecated Use validateCuid2Format instead. Kept for backwards compatibility.
- */
-export function validateNanoidFormat(value: unknown, _expectedLength: number = 21): boolean {
-  return validateCuid2Format(value);
 }

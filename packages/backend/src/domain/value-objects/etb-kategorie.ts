@@ -11,7 +11,22 @@ interface EtbKategorieProps extends Record<string, unknown> {
  * Definiert als const Array fuer Type-Safe Iteration und Validierung.
  * Wird sowohl intern als auch extern verwendet (z.B. fuer DTOs).
  */
-export const ETB_KATEGORIE_VALUES = ['ALARMIERUNG', 'ANKUNFT', 'BEFEHL', 'ERKUNDUNG', 'LAGE', 'MASSNAHME', 'PERSONAL', 'FAHRZEUG', 'MATERIAL', 'KOMMUNIKATION'] as const;
+export const ETB_KATEGORIE_VALUES = [
+  'ALARMIERUNG',
+  'ANKUNFT',
+  'BEFEHL',
+  'ERKUNDUNG',
+  'LAGE',
+  'MASSNAHME',
+  'PERSONAL',
+  'FAHRZEUG',
+  'MATERIAL',
+  'KOMMUNIKATION',
+  'WETTER',
+  'DOKUMENTATION',
+  'SONSTIGES',
+  'SYSTEM',
+] as const;
 
 /**
  * Union Type fuer EtbKategorie String-Werte.
@@ -42,6 +57,10 @@ export type EtbKategorieValue = (typeof ETB_KATEGORIE_VALUES)[number];
  * - FAHRZEUG: Fahrzeugbewegungen
  * - MATERIAL: Material- und Ausruestungseinsatz
  * - KOMMUNIKATION: Kommunikation mit anderen Stellen
+ * - WETTER: Wetteraenderungen
+ * - DOKUMENTATION: Dokumentarische Eintraege (Screenshots, Fotos, Anhaenge)
+ * - SONSTIGES: Sonstige Eintraege
+ * - SYSTEM: Systemeintraege (automatisch)
  *
  * @example
  * ```typescript
@@ -191,6 +210,34 @@ export class EtbKategorie extends ValueObject<EtbKategorieProps> {
    */
   static KOMMUNIKATION(): EtbKategorie {
     return new EtbKategorie('KOMMUNIKATION');
+  }
+
+  /**
+   * Erstellt Kategorie WETTER (Wetteraenderungen).
+   */
+  static WETTER(): EtbKategorie {
+    return new EtbKategorie('WETTER');
+  }
+
+  /**
+   * Erstellt Kategorie DOKUMENTATION (Dokumentarische Eintraege).
+   */
+  static DOKUMENTATION(): EtbKategorie {
+    return new EtbKategorie('DOKUMENTATION');
+  }
+
+  /**
+   * Erstellt Kategorie SONSTIGES (Sonstige Eintraege).
+   */
+  static SONSTIGES(): EtbKategorie {
+    return new EtbKategorie('SONSTIGES');
+  }
+
+  /**
+   * Erstellt Kategorie SYSTEM (Systemeintraege automatisch).
+   */
+  static SYSTEM(): EtbKategorie {
+    return new EtbKategorie('SYSTEM');
   }
 
   /**

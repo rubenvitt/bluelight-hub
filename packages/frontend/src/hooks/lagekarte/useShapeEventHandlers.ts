@@ -3,6 +3,7 @@ import type * as L from 'leaflet';
 import type * as GeoJSON from 'geojson';
 import { generateShapeId, extractTextContent } from '@/utils/lagekarte/shape-helpers';
 import { setShapeIdOnLayer } from '@/utils/lagekarte/layer-utils';
+import type { LayerWithGeoJSON } from '@/utils/lagekarte/types';
 
 /**
  * Maximum number of shapes per Lagekarte (Performance-Limit)
@@ -14,7 +15,6 @@ interface UseShapeEventHandlersProps {
   layersRef: React.MutableRefObject<Map<string, L.Layer>>;
   shapesRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
   setShapes: (shapes: GeoJSON.FeatureCollection) => void;
-  setSelectedShapeId: (id: string | null) => void;
   onShapesChange: (shapes: GeoJSON.FeatureCollection) => void;
   onShapeLimitReached?: () => void;
   onShapeCreated?: (shape: GeoJSON.Feature) => void;
@@ -22,22 +22,20 @@ interface UseShapeEventHandlersProps {
   onLayerContextMenu: (e: L.LeafletMouseEvent) => void;
 }
 
+type PmEvent = L.LeafletEvent & {
+  layer: L.Layer;
+  shape?: string;
+};
+
+const isGeoJsonLayer = (layer: L.Layer): layer is LayerWithGeoJSON => {
+  return 'toGeoJSON' in layer && typeof (layer as LayerWithGeoJSON).toGeoJSON === 'function';
+};
+
 /**
  * Event Handlers for Leaflet.PM shape creation, editing, and removal
  * Manages pm:create, pm:edit, pm:remove events
  */
-export const useShapeEventHandlers = ({
-  map,
-  layersRef,
-  shapesRef,
-  setShapes,
-  setSelectedShapeId,
-  onShapesChange,
-  onShapeLimitReached,
-  onShapeCreated,
-  onLayerClick,
-  onLayerContextMenu,
-}: UseShapeEventHandlersProps) => {
+export const useShapeEventHandlers = ({ map, layersRef, shapesRef, setShapes, onShapesChange, onShapeLimitReached, onShapeCreated, onLayerClick, onLayerContextMenu }: UseShapeEventHandlersProps) => {
   /**
    * Event Handler: pm:create
    * Called when user creates a new shape
@@ -49,8 +47,12 @@ export const useShapeEventHandlers = ({
       return;
     }
 
-    const handleCreate = (e: any) => {
+    const handleCreate = (e: PmEvent) => {
       const layer = e.layer;
+
+      if (!isGeoJsonLayer(layer)) {
+        return;
+      }
 
       // Check shape limit (use shapesRef.current for latest state)
       if (shapesRef.current.features.length >= MAX_SHAPES) {
@@ -119,8 +121,13 @@ export const useShapeEventHandlers = ({
       return;
     }
 
-    const handleEdit = (e: any) => {
+    const handleEdit = (e: PmEvent) => {
       const layer = e.layer;
+
+      if (!isGeoJsonLayer(layer)) {
+        return;
+      }
+
       const updatedGeoJson = layer.toGeoJSON() as GeoJSON.Feature;
 
       // Extract updated text content for Text markers
@@ -173,8 +180,13 @@ export const useShapeEventHandlers = ({
       return;
     }
 
-    const handleRemove = (e: any) => {
+    const handleRemove = (e: PmEvent) => {
       const layer = e.layer;
+
+      if (!isGeoJsonLayer(layer)) {
+        return;
+      }
+
       const geoJson = layer.toGeoJSON() as GeoJSON.Feature;
       const shapeId = geoJson.properties?.id;
 

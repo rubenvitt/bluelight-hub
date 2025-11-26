@@ -1,4 +1,4 @@
-import { validateRequiredString, validateNanoidFormat } from '@application/common/validators/string-validator';
+import { validateCuid2Format, validateRequiredString } from '@application/common/validators/string-validator';
 
 /**
  * Query zum Abrufen einer Lagekarte für einen Einsatz.
@@ -24,12 +24,12 @@ export class GetLagekarteQuery {
    * Konstruktor-Validierung stellt sicher, dass ungültige Queries
    * niemals im System existieren (Fail-Fast-Prinzip).
    *
-   * @param einsatzId - Eindeutige ID des Einsatzes (Nanoid, 21 Zeichen)
+   * @param einsatzId - Eindeutige ID des Einsatzes (cuid)
    * @throws Error wenn einsatzId leer oder undefined ist
-   * @throws Error wenn einsatzId kein gültiges nanoid Format hat
+   * @throws Error wenn einsatzId kein gültiges cuid Format hat
    */
   constructor(public readonly einsatzId: string) {
     validateRequiredString(einsatzId, 'einsatzId');
-    validateNanoidFormat(einsatzId, 'einsatzId');
+    validateCuid2Format(einsatzId, 'einsatzId');
   }
 }

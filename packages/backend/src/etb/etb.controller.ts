@@ -10,7 +10,7 @@ import { milliseconds } from 'date-fns';
 import { CreateEtbEintragDto } from './dto/create-etb-eintrag.dto';
 import { CreateEtbDto } from './dto/create-etb.dto';
 import { EtbPaginationDto } from './dto/etb-pagination.dto';
-import { CreateEtbEintragResponse, CreateEtbResponse, EtbHistoryEntryDto, GetEtbResponse, TextbausteinListResponse, UpdateEtbEintragResponse } from './dto/etb-response.dto';
+import { CreateEtbEintragResponse, CreateEtbResponse, EtbHistoryEntryDto, EtbHistoryListResponse, GetEtbResponse, TextbausteinListResponse, UpdateEtbEintragResponse } from './dto/etb-response.dto';
 import { UpdateEtbEintragDto } from './dto/update-etb-eintrag.dto';
 import { EtbService } from './etb.service';
 
@@ -144,7 +144,7 @@ export class EtbController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Historie erfolgreich abgerufen',
-    type: [EtbHistoryEntryDto],
+    type: EtbHistoryListResponse,
   })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Eintrag nicht gefunden' })
   async getEintragHistory(@Param('id') eintragId: string, @Query() paginationQuery: FilterPaginationDto): Promise<PaginatedData<EtbHistoryEntryDto>> {

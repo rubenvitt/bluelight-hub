@@ -13,8 +13,10 @@
  */
 
 import { mapValues } from '../runtime';
-import type { EtbEintragDto } from './EtbEintragDto';
-import { EtbEintragDtoFromJSON, EtbEintragDtoFromJSONTyped, EtbEintragDtoToJSON, EtbEintragDtoToJSONTyped } from './EtbEintragDto';
+import type { EintragDto } from './EintragDto';
+import { EintragDtoFromJSON, EintragDtoFromJSONTyped, EintragDtoToJSON, EintragDtoToJSONTyped } from './EintragDto';
+import type { EtbVersionDto } from './EtbVersionDto';
+import { EtbVersionDtoFromJSON, EtbVersionDtoFromJSONTyped, EtbVersionDtoToJSON, EtbVersionDtoToJSONTyped } from './EtbVersionDto';
 
 /**
  *
@@ -23,47 +25,53 @@ import { EtbEintragDtoFromJSON, EtbEintragDtoFromJSONTyped, EtbEintragDtoToJSON,
  */
 export interface EtbDto {
   /**
-   * Eindeutige ID des ETB
+   * Eindeutige ETB-ID (CUID)
    * @type {string}
    * @memberof EtbDto
    */
   id: string;
   /**
-   * ID des zugehörigen Einsatzes
+   * Referenz zum übergeordneten Einsatz
    * @type {string}
    * @memberof EtbDto
    */
   einsatzId: string;
   /**
-   * Status des ETB
+   * Aktueller Status des ETB im Lifecycle
    * @type {string}
    * @memberof EtbDto
    */
   status: EtbDtoStatusEnum;
   /**
-   * ID des Erstellers
-   * @type {string}
+   * Liste aller Einträge im ETB (sortiert nach sequenceNumber)
+   * @type {Array<EintragDto>}
    * @memberof EtbDto
    */
-  createdBy: string;
+  eintraege: Array<EintragDto>;
   /**
-   * Erstellungsdatum
+   * Aktuelle Versionsinformation für Optimistic Locking
+   * @type {EtbVersionDto}
+   * @memberof EtbDto
+   */
+  version: EtbVersionDto;
+  /**
+   * Erstellungszeitpunkt des ETB
    * @type {Date}
    * @memberof EtbDto
    */
   createdAt: Date;
   /**
-   * Datum der letzten Aktualisierung
+   * Zeitpunkt der Sperrung (nur bei Status LOCKED)
    * @type {Date}
    * @memberof EtbDto
    */
-  updatedAt: Date;
+  lockedAt?: Date | null;
   /**
-   * Einträge des ETB
-   * @type {Array<EtbEintragDto>}
+   * User-ID der sperrenden Person (nur bei Status LOCKED)
+   * @type {string}
    * @memberof EtbDto
    */
-  eintraege?: Array<EtbEintragDto>;
+  lockedBy?: string | null;
 }
 
 /**
@@ -83,9 +91,9 @@ export function instanceOfEtbDto(value: object): value is EtbDto {
   if (!('id' in value) || value['id'] === undefined) return false;
   if (!('einsatzId' in value) || value['einsatzId'] === undefined) return false;
   if (!('status' in value) || value['status'] === undefined) return false;
-  if (!('createdBy' in value) || value['createdBy'] === undefined) return false;
+  if (!('eintraege' in value) || value['eintraege'] === undefined) return false;
+  if (!('version' in value) || value['version'] === undefined) return false;
   if (!('createdAt' in value) || value['createdAt'] === undefined) return false;
-  if (!('updatedAt' in value) || value['updatedAt'] === undefined) return false;
   return true;
 }
 
@@ -101,10 +109,11 @@ export function EtbDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean): Et
     id: json['id'],
     einsatzId: json['einsatzId'],
     status: json['status'],
-    createdBy: json['createdBy'],
+    eintraege: (json['eintraege'] as Array<any>).map(EintragDtoFromJSON),
+    version: EtbVersionDtoFromJSON(json['version']),
     createdAt: new Date(json['createdAt']),
-    updatedAt: new Date(json['updatedAt']),
-    eintraege: json['eintraege'] == null ? undefined : (json['eintraege'] as Array<any>).map(EtbEintragDtoFromJSON),
+    lockedAt: json['lockedAt'] == null ? undefined : new Date(json['lockedAt']),
+    lockedBy: json['lockedBy'] == null ? undefined : json['lockedBy'],
   };
 }
 
@@ -121,9 +130,10 @@ export function EtbDtoToJSONTyped(value?: EtbDto | null, ignoreDiscriminator: bo
     id: value['id'],
     einsatzId: value['einsatzId'],
     status: value['status'],
-    createdBy: value['createdBy'],
+    eintraege: (value['eintraege'] as Array<any>).map(EintragDtoToJSON),
+    version: EtbVersionDtoToJSON(value['version']),
     createdAt: value['createdAt'].toISOString(),
-    updatedAt: value['updatedAt'].toISOString(),
-    eintraege: value['eintraege'] == null ? undefined : (value['eintraege'] as Array<any>).map(EtbEintragDtoToJSON),
+    lockedAt: value['lockedAt'] == null ? undefined : (value['lockedAt'] as any).toISOString(),
+    lockedBy: value['lockedBy'],
   };
 }

@@ -5,10 +5,10 @@ import { Label } from '@atoms/label.atom';
 import { Textarea } from '@atoms/textarea.atom';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { useUpdateEtbEintrag } from '@/hooks/useEtb';
-import { CreateEtbEintragDtoKategorieEnum as EtbKategorie, type EtbEintragDto } from '@bluelight-hub/shared/client';
+import { EintragDtoKategorieEnum as EtbKategorie, type EintragDto } from '@bluelight-hub/shared/client';
 import { EtbKategorieSelect } from '@organisms/etb/EtbKategorieSelect';
 import { useForm } from '@tanstack/react-form';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { useEffect } from 'react';
 import { PiX } from 'react-icons/pi';
 import { z } from 'zod';
@@ -22,9 +22,15 @@ const editEtbEntrySchema = z.object({
 type EditEtbEntryFormData = z.infer<typeof editEtbEntrySchema>;
 
 interface EditEtbEntryModalProps {
-  entry: EtbEintragDto | null;
+  entry: (EintragDto & { etbId: string }) | null;
   isOpen: boolean;
   onClose: () => void;
+}
+
+function formatTimestampInput(timestamp: string | Date | null | undefined) {
+  const parsedDate = timestamp ? new Date(timestamp) : new Date();
+  const safeDate = isValid(parsedDate) ? parsedDate : new Date();
+  return format(safeDate, "yyyy-MM-dd'T'HH:mm");
 }
 
 /**
@@ -42,7 +48,7 @@ export function EditEtbEntryModal({ entry, isOpen, onClose }: EditEtbEntryModalP
     defaultValues: {
       kategorie: entry?.kategorie || EtbKategorie.Lage,
       text: entry?.text || '',
-      timestamp: entry ? format(new Date(entry.timestamp), "yyyy-MM-dd'T'HH:mm") : format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+      timestamp: formatTimestampInput(entry?.timestamp),
     } as EditEtbEntryFormData,
     validators: {
       onSubmit: editEtbEntrySchema,
@@ -73,7 +79,7 @@ export function EditEtbEntryModal({ entry, isOpen, onClose }: EditEtbEntryModalP
       form.reset({
         kategorie: entry.kategorie,
         text: entry.text,
-        timestamp: format(new Date(entry.timestamp), "yyyy-MM-dd'T'HH:mm"),
+        timestamp: formatTimestampInput(entry.timestamp),
       });
     }
   }, [entry, form]);

@@ -60,6 +60,17 @@ const generateTestId = (): string => {
   return result;
 };
 
+// Generate Nanoid-compliant test IDs for User (21 chars, alphanumeric with mixed case)
+// This matches the User.id format defined in Prisma schema: @default(nanoid())
+const generateNanoidTestId = (): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+  let result = '';
+  for (let i = 0; i < 21; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
 const prisma = new PrismaClient();
 
 /**
@@ -150,10 +161,12 @@ describe('PrismaEtbRepository - Integration Tests', () => {
     }
 
     // Create test user for createdBy/updatedBy references
+    // WICHTIG: User IDs muessen Nanoid-Format haben (21 Zeichen, alphanumerisch mit Gross-/Kleinbuchstaben)
+    // um mit UserId Value Object kompatibel zu sein
     const userResult = await prisma.$queryRaw<{ id: string }[]>`
       INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")
       VALUES (
-        ${generateTestId()},
+        ${generateNanoidTestId()},
         ${`test-etb-repo-user-${testRunId}`},
         'dummy-hash',
         'USER',
@@ -168,10 +181,12 @@ describe('PrismaEtbRepository - Integration Tests', () => {
     // Create SYSTEM user for ETBs created without Eintraege (createdBy defaults to 'SYSTEM')
     // Uses upsert-pattern since SYSTEM user might already exist from other tests
     // Note: UserRole enum only has SUPER_ADMIN, ADMIN, USER - we use USER for SYSTEM
+    // WICHTIG: SYSTEM User ID muss auch Nanoid-Format haben (21 Zeichen)
+    const systemUserId = 'SYSTEM_USER_TEST_0001'; // 21 Zeichen, Nanoid-kompatibel
     await prisma.$executeRaw`
       INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")
       VALUES (
-        'SYSTEM',
+        ${systemUserId},
         'system',
         'no-login',
         'USER',
@@ -179,7 +194,7 @@ describe('PrismaEtbRepository - Integration Tests', () => {
         NOW(),
         NOW()
       )
-      ON CONFLICT (id) DO NOTHING
+      ON CONFLICT (username) DO UPDATE SET id = EXCLUDED.id
     `;
 
     // Create test Einsatz for ETB FK

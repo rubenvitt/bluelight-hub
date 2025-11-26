@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { EtbKategorie } from '@prisma/client';
 
 /**
  * Eintrag Response DTO für ETB-Queries.
@@ -31,6 +32,13 @@ export class EintragDto {
     minimum: 1,
   })
   sequenceNumber!: number;
+
+  @ApiProperty({
+    description: 'Kategorie des Eintrags',
+    enum: EtbKategorie,
+    example: 'LAGE',
+  })
+  kategorie!: EtbKategorie;
 
   @ApiProperty({
     description: 'Eintragungstext (Freitext)',
@@ -66,4 +74,17 @@ export class EintragDto {
     example: false,
   })
   isDeleted!: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Optionale Metadaten (z.B. Screenshots, Anhänge)',
+    example: {
+      screenshot: {
+        url: '/uploads/lagekarte/einsatz_123.png',
+        width: 1024,
+        height: 768,
+      },
+    },
+    nullable: true,
+  })
+  metadata?: Record<string, unknown>;
 }

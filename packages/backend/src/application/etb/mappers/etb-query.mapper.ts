@@ -151,6 +151,7 @@ export class EtbQueryMapper {
     const dto: EintragDto = {
       id: eintrag.id.value,
       sequenceNumber: eintrag.sequenceNumber.value,
+      kategorie: eintrag.kategorie.value,
       text: eintrag.text,
       createdBy: eintrag.createdBy.value,
       createdAt: eintrag.createdAt,
@@ -160,6 +161,11 @@ export class EtbQueryMapper {
     // Optional: updatedAt nur setzen wenn vorhanden
     if (eintrag.updatedAt !== undefined) {
       dto.updatedAt = eintrag.updatedAt;
+    }
+
+    // Optional: metadata nur setzen wenn vorhanden
+    if (eintrag.metadata !== undefined) {
+      dto.metadata = eintrag.metadata;
     }
 
     return dto;

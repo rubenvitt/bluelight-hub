@@ -17,8 +17,8 @@ export class UpdatePoiPositionCommand {
   /**
    * Privater Konstruktor - erzwingt Verwendung der Factory-Methode.
    *
-   * @param lagekarteId - Eindeutige ID der Lagekarte (Nanoid, 21 Zeichen)
-   * @param poiId - Eindeutige ID des POI (Nanoid, 21 Zeichen)
+   * @param lagekarteId - Eindeutige ID der Lagekarte (cuid)
+   * @param poiId - Eindeutige ID des POI (cuid)
    * @param newCoordinate - Neue Koordinaten als Lat/Lng (WGS84) ODER MGRS (DRK-Standard)
    */
   private constructor(

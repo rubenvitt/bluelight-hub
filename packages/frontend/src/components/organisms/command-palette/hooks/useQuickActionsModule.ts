@@ -1,8 +1,10 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useMatchRoute, useNavigate } from '@tanstack/react-router';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { PiArrowsOut, PiCaretRight, PiClipboard, PiGear, PiPalette, PiSignOut } from 'react-icons/pi';
 import { toast } from 'sonner';
+import type { LagekarteSearchParams } from '@organisms/lagekarte/LagekarteView/LagekarteView';
+import type { EtbSearchParams } from '@routes/app/einsatz/$einsatzId/führung/etb/';
 import type { ModuleConfig } from '../types';
 import { useThemeCommands } from './useThemeCommands';
 
@@ -11,6 +13,15 @@ export const useQuickActionsModule = (): ModuleConfig => {
   const matchRoute = useMatchRoute();
   const { logout } = useAuth();
   const { themeOptions, handleThemeChange } = useThemeCommands();
+  type FullscreenSearchParams = LagekarteSearchParams | EtbSearchParams;
+
+  const setFullscreenSearch = useCallback(
+    (prev: FullscreenSearchParams) => ({
+      ...prev,
+      mode: 'fullscreen' as const,
+    }),
+    [],
+  );
 
   // Prüfe ob wir auf der Karten-Route sind (Fullscreen-Unterstützung)
   const isOnKarteRoute = !!matchRoute({ to: '/app/einsatz/$einsatzId/übersicht/karte', fuzzy: false });
@@ -53,10 +64,7 @@ export const useQuickActionsModule = (): ModuleConfig => {
                 action: () => {
                   navigate({
                     to: '.',
-                    search: (prev: any) => ({
-                      ...prev,
-                      mode: 'fullscreen',
-                    }),
+                    search: setFullscreenSearch,
                   });
                 },
               },
@@ -72,10 +80,7 @@ export const useQuickActionsModule = (): ModuleConfig => {
                 action: () => {
                   navigate({
                     to: '.',
-                    search: (prev: any) => ({
-                      ...prev,
-                      mode: 'fullscreen',
-                    }),
+                    search: setFullscreenSearch,
                   });
                 },
               },
@@ -102,6 +107,6 @@ export const useQuickActionsModule = (): ModuleConfig => {
         },
       ],
     }),
-    [logout, navigate, handleThemeChange, themeOptions, isOnKarteRoute, isOnEtbRoute],
+    [logout, navigate, handleThemeChange, themeOptions, isOnKarteRoute, isOnEtbRoute, setFullscreenSearch],
   );
 };

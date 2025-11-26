@@ -15,7 +15,7 @@ export class AddPoiCommand {
   /**
    * Privater Konstruktor - erzwingt Verwendung der Factory-Methode.
    *
-   * @param lagekarteId - Eindeutige ID der Lagekarte (Nanoid, 21 Zeichen)
+   * @param lagekarteId - Eindeutige ID der Lagekarte (cuid)
    * @param name - Name des POI für Funkdurchsagen (muss eindeutig sein)
    * @param coordinate - Koordinaten als Lat/Lng (WGS84) ODER MGRS (DRK-Standard)
    * @param category - POI-Kategorie (z.B. EINSATZSTELLE, BEREITSTELLUNGSRAUM)

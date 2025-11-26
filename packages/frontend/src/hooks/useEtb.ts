@@ -1,52 +1,46 @@
 import { api } from '@/api';
+import { getBaseUrl } from '@/api/api';
+import { fetchWithRefresh } from '@/api/fetchWithRefresh';
 import { QUERY_KEYS } from '@/queryKeys';
 import { getApiErrorMessage } from '@/utils/apiErrorHandler';
 import { logger } from '@/utils/logger';
-import type {
-  CreateEtbDto,
-  CreateEtbEintragDto,
-  CreateEtbEintragResponse,
-  CreateEtbResponse,
-  GetEtbResponse,
-  ResponseError,
-  TextbausteinListResponse,
-  UpdateEtbEintragDto,
-  UpdateEtbEintragResponse,
-} from '@bluelight-hub/shared/client';
+import type { AddEintragDto, CreateEtbDto, CreateEtbResponse, EintragDto, EtbDto, EtbSnapshotDto, ResponseError, TextbausteinListResponse, UpdateEintragDto } from '@bluelight-hub/shared/client';
 import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 /**
- * Exponential Backoff Retry-Verzögerung berechnen
+ * Exponential Backoff Retry-Verzoegerung berechnen
  */
 function calculateRetryDelay(attemptIndex: number): number {
   return Math.min(1000 * 2 ** attemptIndex, 30000);
 }
 
+// ============================================
+// CQRS Hooks (neue API)
+// ============================================
+
 /**
- * Hook für ETB-Abfrage anhand der Einsatz-ID
+ * Hook fuer ETB-Abfrage anhand der Einsatz-ID (CQRS API)
  *
  * @param einsatzId - Die ID des Einsatzes
- * @param page - Seitenzahl für Paginierung (optional)
- * @param limit - Anzahl der Einträge pro Seite (optional)
- * @returns ETB-Daten mit Ladezustand und Fehler
+ * @param includeDeleted - Geloeschte Eintraege einschliessen (Standard: false)
+ * @returns ETB-Daten mit status, version, eintraege
  */
-export const useEtb = (einsatzId?: string, page?: number, limit?: number) => {
-  return useQuery<GetEtbResponse, ResponseError>({
+export const useEtb = (einsatzId?: string, includeDeleted?: boolean) => {
+  return useQuery<EtbDto, ResponseError>({
     enabled: !!einsatzId,
-    queryKey: QUERY_KEYS.etb.byEinsatz(einsatzId, page, limit),
+    queryKey: QUERY_KEYS.etb.byEinsatz(einsatzId, includeDeleted),
     queryFn: async () => {
       if (!einsatzId) {
         throw new Error('einsatzId must be provided');
       }
       try {
-        return await api.etb().etbControllerGetEtbByEinsatzIdVAlpha({
+        return await api.etb().etbCqrsControllerGetEtbByEinsatzIdVAlpha({
           einsatzId,
-          page,
-          limit,
+          includeDeleted,
         });
       } catch (error) {
-        logger.error('Failed to fetch ETB', error);
+        logger.error('Failed to fetch ETB via CQRS API', error);
         throw error;
       }
     },
@@ -57,14 +51,226 @@ export const useEtb = (einsatzId?: string, page?: number, limit?: number) => {
 };
 
 /**
- * Hook für ETB-Abfrage mit Infinite Scrolling
+ * Hook fuer ETB-Versionshistorie (Snapshots)
  *
+ * @param etbId - Die ID des ETB
+ * @returns EtbSnapshotDto[] sortiert nach Version absteigend
+ */
+export const useEtbHistory = (etbId?: string) => {
+  return useQuery<EtbSnapshotDto[], ResponseError>({
+    enabled: !!etbId,
+    queryKey: QUERY_KEYS.etb.history(etbId || ''),
+    queryFn: async () => {
+      if (!etbId) {
+        throw new Error('etbId must be provided');
+      }
+      try {
+        const response = await fetchWithRefresh(`${getBaseUrl()}/api/v-alpha/etb/${etbId}/history`, {
+          method: 'GET',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ETB history (${response.status})`);
+        }
+
+        const json = await response.json();
+        const snapshots = Array.isArray(json) ? json : Array.isArray(json?.data) ? json.data : [];
+
+        return (snapshots as Array<{ snapshotAt: string | Date }>).map((snapshot) => ({
+          ...snapshot,
+          snapshotAt: snapshot.snapshotAt instanceof Date ? snapshot.snapshotAt : new Date(snapshot.snapshotAt),
+        })) as EtbSnapshotDto[];
+      } catch (error) {
+        logger.error('Failed to fetch ETB history', error);
+        throw error;
+      }
+    },
+    staleTime: 60000, // History aendert sich selten, laengere stale time
+    retry: 3,
+    retryDelay: calculateRetryDelay,
+  });
+};
+
+/**
+ * Hook fuer ETB-Eintrag-Erstellung (CQRS API)
+ *
+ * @returns Mutation fuer ETB-Eintrag-Erstellung
+ */
+export const useCreateEtbEintrag = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<EintragDto, ResponseError, { etbId: string; data: AddEintragDto }>({
+    mutationFn: async ({ etbId, data }) => {
+      return await api.etb().etbCqrsControllerAddEintragVAlpha({
+        etbId,
+        addEintragDto: data,
+      });
+    },
+    onMutate: async ({ etbId }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: QUERY_KEYS.etb.all,
+      });
+
+      return { etbId };
+    },
+    onError: async (error: ResponseError) => {
+      const message = await getApiErrorMessage(error, 'Der ETB-Eintrag konnte nicht erstellt werden.', 'createEtbEintrag');
+      logger.error('Failed to create ETB entry', error);
+      toast.error('Fehler', { description: message });
+    },
+    onSuccess: () => {
+      toast.success('Eintrag hinzugefuegt', {
+        description: 'Der ETB-Eintrag wurde erfolgreich erstellt.',
+      });
+    },
+    onSettled: async () => {
+      // Invalidate all ETB queries to ensure consistency
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.etb.all });
+    },
+    retry: 3,
+    retryDelay: calculateRetryDelay,
+  });
+};
+
+/**
+ * Hook fuer ETB-Eintrag-Aktualisierung (CQRS API)
+ *
+ * @returns Mutation fuer ETB-Eintrag-Aktualisierung
+ */
+export const useUpdateEtbEintrag = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<EintragDto, ResponseError, { etbId: string; eintragId: string; data: UpdateEintragDto }>({
+    mutationFn: async ({ etbId, eintragId, data }) => {
+      return await api.etb().etbCqrsControllerUpdateEintragVAlpha({
+        etbId,
+        eintragId,
+        updateEintragDto: data,
+      });
+    },
+    onMutate: async ({ etbId, eintragId }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: QUERY_KEYS.etb.all,
+      });
+
+      return { etbId, eintragId };
+    },
+    onError: async (error: ResponseError) => {
+      const message = await getApiErrorMessage(error, 'Der ETB-Eintrag konnte nicht aktualisiert werden.', 'updateEtbEintrag');
+      logger.error('Failed to update ETB entry', error);
+      toast.error('Fehler', { description: message });
+    },
+    onSuccess: () => {
+      toast.success('Eintrag aktualisiert', {
+        description: 'Der ETB-Eintrag wurde erfolgreich aktualisiert.',
+      });
+    },
+    onSettled: async () => {
+      // Invalidate all ETB queries to ensure consistency
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.etb.all });
+    },
+    retry: 3,
+    retryDelay: calculateRetryDelay,
+  });
+};
+
+/**
+ * Hook fuer ETB-Eintrag-Loeschung (Soft Delete, CQRS API)
+ *
+ * @returns Mutation fuer ETB-Eintrag-Loeschung
+ */
+export const useDeleteEtbEintrag = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, ResponseError, { etbId: string; eintragId: string }>({
+    mutationFn: async ({ etbId, eintragId }) => {
+      await api.etb().etbCqrsControllerDeleteEintragVAlpha({
+        etbId,
+        eintragId,
+      });
+    },
+    onMutate: async ({ etbId, eintragId }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: QUERY_KEYS.etb.all,
+      });
+
+      return { etbId, eintragId };
+    },
+    onError: async (error: ResponseError) => {
+      const message = await getApiErrorMessage(error, 'Der ETB-Eintrag konnte nicht geloescht werden.', 'deleteEtbEintrag');
+      logger.error('Failed to delete ETB entry', error);
+      toast.error('Fehler', { description: message });
+    },
+    onSuccess: () => {
+      toast.success('Eintrag geloescht', {
+        description: 'Der ETB-Eintrag wurde erfolgreich geloescht.',
+      });
+    },
+    onSettled: async () => {
+      // Invalidate all ETB queries to ensure consistency
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.etb.all });
+    },
+    retry: 3,
+    retryDelay: calculateRetryDelay,
+  });
+};
+
+/**
+ * Hook fuer ETB-Sperrung (nur Admin, CQRS API)
+ *
+ * @returns Mutation fuer ETB-Sperrung
+ */
+export const useLockEtb = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, ResponseError, { etbId: string }>({
+    mutationFn: async ({ etbId }) => {
+      await api.etb().etbCqrsControllerLockEtbVAlpha({ etbId });
+    },
+    onMutate: async ({ etbId }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: QUERY_KEYS.etb.all,
+      });
+
+      return { etbId };
+    },
+    onError: async (error: ResponseError) => {
+      const message = await getApiErrorMessage(error, 'Das ETB konnte nicht gesperrt werden.', 'lockEtb');
+      logger.error('Failed to lock ETB', error);
+      toast.error('Fehler', { description: message });
+    },
+    onSuccess: () => {
+      toast.success('ETB gesperrt', {
+        description: 'Das Einsatztagebuch wurde erfolgreich gesperrt.',
+      });
+    },
+    onSettled: async () => {
+      // Invalidate all ETB queries to ensure consistency
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.etb.all });
+    },
+    retry: 3,
+    retryDelay: calculateRetryDelay,
+  });
+};
+
+// ============================================
+// Legacy Hooks (Backward Compatibility)
+// ============================================
+
+/**
+ * Hook fuer ETB-Abfrage mit Infinite Scrolling
+ *
+ * @deprecated Wird durch CQRS API ersetzt
  * @param einsatzId - Die ID des Einsatzes
- * @param limit - Anzahl der Einträge pro Seite (Standard: 20)
+ * @param limit - Anzahl der Eintraege pro Seite (Standard: 20)
  * @param sortBy - Feld nach dem sortiert wird (Standard: 'timestamp')
  * @param sortOrder - Sortierreihenfolge (Standard: 'desc' = neueste zuerst)
- * @param includeDeleted - Gelöschte Einträge einschließen (Standard: false)
- * @param options - Zusätzliche TanStack Query Optionen (z.B. refetchInterval)
+ * @param includeDeleted - Geloeschte Eintraege einschliessen (Standard: false)
+ * @param options - Zusaetzliche TanStack Query Optionen (z.B. refetchInterval)
  * @returns ETB-Daten mit Infinite Scrolling Support
  */
 export const useEtbInfinite = (
@@ -111,7 +317,7 @@ export const useEtbInfinite = (
     retry: 3,
     retryDelay: calculateRetryDelay,
     refetchOnWindowFocus: false,
-    // Behalte alte Daten während des Nachladens
+    // Behalte alte Daten waehrend des Nachladens
     placeholderData: (previousData) => previousData,
     // Merge additional options (e.g., refetchInterval)
     ...options,
@@ -119,7 +325,7 @@ export const useEtbInfinite = (
 };
 
 /**
- * Hook für Textbausteine-Abfrage
+ * Hook fuer Textbausteine-Abfrage
  *
  * @returns Textbausteine-Daten mit Ladezustand und Fehler
  */
@@ -134,16 +340,16 @@ export const useTextbausteine = () => {
         throw error;
       }
     },
-    staleTime: 60000, // Textbausteine ändern sich selten, längere stale time
+    staleTime: 60000, // Textbausteine aendern sich selten, laengere stale time
     retry: 3,
     retryDelay: calculateRetryDelay,
   });
 };
 
 /**
- * Hook für ETB-Erstellung
+ * Hook fuer ETB-Erstellung
  *
- * @returns Mutation für ETB-Erstellung
+ * @returns Mutation fuer ETB-Erstellung
  */
 export const useCreateEtb = () => {
   const queryClient = useQueryClient();
@@ -158,7 +364,7 @@ export const useCreateEtb = () => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.etb.all });
 
-      // Optimistic update könnte hier implementiert werden
+      // Optimistic update koennte hier implementiert werden
       return { newEtb };
     },
     onError: async (error: ResponseError) => {
@@ -186,170 +392,12 @@ export const useCreateEtb = () => {
 };
 
 /**
- * Hook für ETB-Eintrag-Erstellung
+ * Hook fuer ETB-Eintrag-Historie
  *
- * @returns Mutation für ETB-Eintrag-Erstellung
- */
-export const useCreateEtbEintrag = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation<CreateEtbEintragResponse, ResponseError, { etbId: string; data: CreateEtbEintragDto }>({
-    mutationFn: async ({ etbId, data }) => {
-      return await api.etb().etbControllerCreateEintragVAlpha({
-        id: etbId,
-        createEtbEintragDto: data,
-      });
-    },
-    onMutate: async ({ etbId, data }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: QUERY_KEYS.etb.eintraege(etbId),
-      });
-
-      // Optimistic update könnte hier implementiert werden
-      return { etbId, data };
-    },
-    onError: async (error: ResponseError) => {
-      const message = await getApiErrorMessage(error, 'Der ETB-Eintrag konnte nicht erstellt werden.', 'createEtbEintrag');
-      logger.error('Failed to create ETB entry', error);
-      toast.error('Fehler', { description: message });
-    },
-    onSuccess: (result, { etbId }) => {
-      toast.success('Eintrag hinzugefügt', {
-        description: 'Der ETB-Eintrag wurde erfolgreich erstellt.',
-      });
-      // Invalidate ETB queries
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.etb.eintraege(etbId),
-      });
-      // Invalidate the ETB by einsatz query to refresh the entries
-      if (result.data?.etbId) {
-        // We need to get the einsatzId from the ETB itself
-        // For now, invalidate all ETB queries to ensure consistency
-        queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.etb.all,
-        });
-      }
-    },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.etb.all });
-    },
-    retry: 3,
-    retryDelay: calculateRetryDelay,
-  });
-};
-
-/**
- * Hook für ETB-Eintrag-Aktualisierung
- *
- * @returns Mutation für ETB-Eintrag-Aktualisierung
- */
-export const useUpdateEtbEintrag = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation<UpdateEtbEintragResponse, ResponseError, { eintragId: string; data: UpdateEtbEintragDto }>({
-    mutationFn: async ({ eintragId, data }) => {
-      return await api.etb().etbControllerUpdateEintragVAlpha({
-        id: eintragId,
-        updateEtbEintragDto: data,
-      });
-    },
-    onMutate: async ({ eintragId, data }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: QUERY_KEYS.etb.eintrag(eintragId),
-      });
-
-      // Optimistic update könnte hier implementiert werden
-      return { eintragId, data };
-    },
-    onError: async (error: ResponseError) => {
-      const message = await getApiErrorMessage(error, 'Der ETB-Eintrag konnte nicht aktualisiert werden.', 'updateEtbEintrag');
-      logger.error('Failed to update ETB entry', error);
-      toast.error('Fehler', { description: message });
-    },
-    onSuccess: (result, { eintragId }) => {
-      toast.success('Eintrag aktualisiert', {
-        description: 'Der ETB-Eintrag wurde erfolgreich aktualisiert.',
-      });
-      // Invalidate specific entry query
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.etb.eintrag(eintragId),
-      });
-      // Invalidate the ETB by einsatz query to refresh the entries
-      if (result.data?.etbId) {
-        // We need to get the einsatzId from the ETB itself
-        // For now, invalidate all ETB queries to ensure consistency
-        queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.etb.all,
-        });
-      }
-    },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.etb.all });
-    },
-    retry: 3,
-    retryDelay: calculateRetryDelay,
-  });
-};
-
-/**
- * Hook für ETB-Eintrag-Löschung (Soft Delete)
- *
- * @returns Mutation für ETB-Eintrag-Löschung
- */
-export const useDeleteEtbEintrag = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation<void, ResponseError, { eintragId: string; einsatzId?: string }>({
-    mutationFn: async ({ eintragId }) => {
-      await api.etb().etbControllerDeleteEintragVAlpha({
-        id: eintragId,
-      });
-    },
-    onMutate: async ({ eintragId }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: QUERY_KEYS.etb.eintrag(eintragId),
-      });
-
-      // Optimistic update könnte hier implementiert werden
-      return { eintragId };
-    },
-    onError: async (error: ResponseError) => {
-      const message = await getApiErrorMessage(error, 'Der ETB-Eintrag konnte nicht gelöscht werden.', 'deleteEtbEintrag');
-      logger.error('Failed to delete ETB entry', error);
-      toast.error('Fehler', { description: message });
-    },
-    onSuccess: (_, { eintragId, einsatzId }) => {
-      toast.success('Eintrag gelöscht', {
-        description: 'Der ETB-Eintrag wurde erfolgreich gelöscht.',
-      });
-      // Invalidate specific entry query
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.etb.eintrag(eintragId),
-      });
-      // If we have the einsatzId, invalidate the ETB by einsatz query
-      if (einsatzId) {
-        queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.etb.byEinsatz(einsatzId),
-        });
-      }
-    },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.etb.all });
-    },
-    retry: 3,
-    retryDelay: calculateRetryDelay,
-  });
-};
-
-/**
- * Hook für ETB-Eintrag-Historie
- *
+ * @deprecated Verwende useEtbHistory fuer ETB-Level Historie stattdessen
  * @param eintragId - Die ID des ETB-Eintrags
- * @param page - Seitenzahl für Paginierung (optional)
- * @param limit - Anzahl der Historie-Einträge pro Seite (optional)
+ * @param page - Seitenzahl fuer Paginierung (optional)
+ * @param limit - Anzahl der Historie-Eintraege pro Seite (optional)
  * @returns Historie-Daten mit Ladezustand und Fehler
  */
 export const useEtbEntryHistory = (eintragId?: string, page?: number, limit?: number) => {
@@ -371,25 +419,31 @@ export const useEtbEntryHistory = (eintragId?: string, page?: number, limit?: nu
         throw error;
       }
     },
-    staleTime: 60000, // Historie ändert sich selten, längere stale time
+    staleTime: 60000, // Historie aendert sich selten, laengere stale time
     retry: 3,
     retryDelay: calculateRetryDelay,
   });
 };
 
+// ============================================
+// Combined Operations Hook
+// ============================================
+
 /**
- * Kombinierter Hook für alle ETB-Operationen
+ * Kombinierter Hook fuer alle ETB-Operationen (CQRS)
  *
- * @param einsatzId - Die ID des Einsatzes (optional für queries)
+ * @param einsatzId - Die ID des Einsatzes (optional fuer queries)
+ * @param includeDeleted - Geloeschte Eintraege einschliessen (Standard: false)
  * @returns Objekt mit allen ETB-bezogenen Hooks und Daten
  */
-export const useEtbOperations = (einsatzId?: string) => {
-  const etbQuery = useEtb(einsatzId);
+export const useEtbOperations = (einsatzId?: string, includeDeleted?: boolean) => {
+  const etbQuery = useEtb(einsatzId, includeDeleted);
   const textbausteineQuery = useTextbausteine();
   const createEtb = useCreateEtb();
   const createEintrag = useCreateEtbEintrag();
   const updateEintrag = useUpdateEtbEintrag();
   const deleteEintrag = useDeleteEtbEintrag();
+  const lockEtb = useLockEtb();
 
   return {
     // Query results
@@ -405,11 +459,19 @@ export const useEtbOperations = (einsatzId?: string) => {
     createEintrag: createEintrag.mutate,
     updateEintrag: updateEintrag.mutate,
     deleteEintrag: deleteEintrag.mutate,
+    lockEtb: lockEtb.mutate,
 
     // Mutation states
     isCreatingEtb: createEtb.isPending,
     isCreatingEintrag: createEintrag.isPending,
     isUpdatingEintrag: updateEintrag.isPending,
     isDeletingEintrag: deleteEintrag.isPending,
+    isLockingEtb: lockEtb.isPending,
+
+    // Full mutation objects for advanced usage
+    createEintragMutation: createEintrag,
+    updateEintragMutation: updateEintrag,
+    deleteEintragMutation: deleteEintrag,
+    lockEtbMutation: lockEtb,
   };
 };

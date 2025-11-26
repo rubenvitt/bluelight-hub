@@ -1,5 +1,7 @@
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useMatchRoute, useNavigate } from '@tanstack/react-router';
+import type { EtbSearchParams } from '@routes/app/einsatz/$einsatzId/führung/etb/';
+import type { LagekarteSearchParams } from '@organisms/lagekarte/LagekarteView/LagekarteView';
 
 /**
  * Globale Keyboard-Shortcuts für Fullscreen-Modi
@@ -17,6 +19,12 @@ import { useMatchRoute, useNavigate } from '@tanstack/react-router';
 export function useGlobalFullscreenHotkeys() {
   const navigate = useNavigate();
   const matchRoute = useMatchRoute();
+  type FullscreenSearchParams = LagekarteSearchParams | EtbSearchParams;
+
+  const setFullscreenSearch = (prev: FullscreenSearchParams) => ({
+    ...prev,
+    mode: 'fullscreen' as const,
+  });
 
   // Prüfe ob auf Karte-Route
   const isOnKarteRoute = !!matchRoute({
@@ -36,10 +44,7 @@ export function useGlobalFullscreenHotkeys() {
     () => {
       navigate({
         to: '.',
-        search: (prev: any) => ({
-          ...prev,
-          mode: 'fullscreen',
-        }),
+        search: setFullscreenSearch,
       });
     },
     {

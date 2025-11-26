@@ -98,6 +98,12 @@ export class EtbEintrag {
   private readonly _kategorie: EtbKategorie;
 
   /**
+   * Optionale Metadaten (z.B. Screenshots, Anhänge).
+   * Wird für Lagekarten-Screenshots und andere Medien verwendet.
+   */
+  private _metadata?: Record<string, unknown>;
+
+  /**
    * Public Constructor für Verwendung durch EinsatztagebuchAggregate.
    * Nur EinsatztagebuchAggregate sollte Einträge erstellen (Aggregate Boundary).
    *
@@ -107,8 +113,9 @@ export class EtbEintrag {
    * @param createdBy - User ID des Erstellers
    * @param createdAt - Optional: Creation timestamp (default: new Date())
    * @param kategorie - Optional: Kategorie des Eintrags (default: EtbKategorie.LAGE())
+   * @param metadata - Optional: Metadaten (z.B. Screenshots)
    */
-  public constructor(id: EintragId, sequenceNumber: EtbSequenceNumber, text: string, createdBy: UserId, createdAt?: Date, kategorie?: EtbKategorie) {
+  public constructor(id: EintragId, sequenceNumber: EtbSequenceNumber, text: string, createdBy: UserId, createdAt?: Date, kategorie?: EtbKategorie, metadata?: Record<string, unknown>) {
     this._id = id;
     this._sequenceNumber = sequenceNumber;
     this._text = text;
@@ -116,6 +123,7 @@ export class EtbEintrag {
     this._createdAt = createdAt ?? new Date();
     this._isDeleted = false;
     this._kategorie = kategorie ?? EtbKategorie.LAGE();
+    this._metadata = metadata;
   }
 
   /**
@@ -174,6 +182,14 @@ export class EtbEintrag {
    */
   get kategorie(): EtbKategorie {
     return this._kategorie;
+  }
+
+  /**
+   * Readonly getter für Metadaten.
+   * Enthält optionale Anhänge wie Screenshots.
+   */
+  get metadata(): Record<string, unknown> | undefined {
+    return this._metadata;
   }
 
   /**

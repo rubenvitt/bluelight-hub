@@ -14,7 +14,7 @@ import { getModuleActiveColor, getModuleColor } from '@/utils/module-colors';
 import { Button } from '@atoms/button.atom';
 import { UpdateEinsatzDtoStatusEnum } from '@bluelight-hub/shared/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, Outlet, useMatchRoute, useParams, useRouter, useNavigate } from '@tanstack/react-router';
+import { Link, Outlet, useMatchRoute, useNavigate, useParams, useRouter } from '@tanstack/react-router';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useMemo, useState } from 'react';

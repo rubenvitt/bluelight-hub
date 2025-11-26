@@ -1,4 +1,5 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
+import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Result } from '@domain/common/result';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { Poi } from '@domain/entities/poi.entity';
@@ -10,7 +11,7 @@ import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repositor
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { CoordinateConverter } from '@application/common/coordinate-converter';
-import type { CreateLagekarteCommand } from './create-lagekarte.command';
+import { CreateLagekarteCommand } from './create-lagekarte.command';
 
 /**
  * Handler für CreateLagekarteCommand.
@@ -27,7 +28,8 @@ import type { CreateLagekarteCommand } from './create-lagekarte.command';
  * (transaktionale Konsistenz: Events nur nach erfolgreicher Persistenz).
  */
 @Injectable()
-export class CreateLagekarteCommandHandler {
+@CommandHandler(CreateLagekarteCommand)
+export class CreateLagekarteCommandHandler implements ICommandHandler<CreateLagekarteCommand, Result<LagekarteId>> {
   private readonly logger = new Logger(CreateLagekarteCommandHandler.name);
 
   constructor(

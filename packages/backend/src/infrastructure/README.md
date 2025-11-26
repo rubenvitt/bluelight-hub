@@ -210,40 +210,18 @@ afterEach(() => {
 });
 ```
 
-### Fixed IDs via nanoid Mock
-
-**IMMER nanoid mocken für deterministische IDs:**
-
-```typescript
-// Mock für nanoid (für deterministische Tests)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  }),
-}));
-```
-
-**Für vollständig deterministische IDs (gleicher ID bei jedem Run):**
-
-```typescript
 let idCounter = 0;
 
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    idCounter++;
-    return `test-id-${idCounter.toString().padStart(21, '0')}`; // test-id-000000000000000000001
-  }),
+jest.mock('@paralleldrive/cuid2', () => ({
+createId: jest.fn(() => {
+idCounter++;
+return `test-id-${idCounter.toString().padStart(21, '0')}`; // test-id-000000000000000000001
+}),
 }));
 
 beforeEach(() => {
-  idCounter = 0; // Reset für jeden Test
+idCounter = 0; // Reset für jeden Test
 });
-```
 
 **Referenz:** [`packages/backend/src/domain/aggregates/__tests__/user.integration.spec.ts`](/Users/rubeen/dev/personal/bluelight-hub/packages/backend/src/domain/aggregates/__tests__/user.integration.spec.ts) (Zeilen 29-39)
 
@@ -472,23 +450,24 @@ describe('NO-DELETE Triggers Integration Tests', () => {
 **Pattern:**
 
 - **Fixed Dates** via `jest.setSystemTime()`
-- **nanoid gemockt** für deterministische IDs
+- **cuid gemockt** für deterministische IDs
 - **In-Memory Repository** für Domain Integration Tests (NO echte DB!)
 
 **Beispiel-Code:**
 
-```typescript
-// Mock für nanoid (für deterministische Tests)
-jest.mock('nanoid/non-secure', () => ({
-  nanoid: jest.fn(() => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-    let result = '';
-    for (let i = 0; i < 21; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  }),
+// Mock für cuid2 (für deterministische Tests)
+let idCounter = 0;
+
+jest.mock('@paralleldrive/cuid2', () => ({
+createId: jest.fn(() => {
+idCounter++;
+return `test-id-${idCounter.toString().padStart(21, '0')}`; // test-id-000000000000000000001
+}),
 }));
+
+beforeEach(() => {
+idCounter = 0; // Reset für jeden Test
+});
 
 describe('User Integration Tests', () => {
   let repository: InMemoryUserRepository;
@@ -529,7 +508,7 @@ describe('User Integration Tests', () => {
 
 **Learnings:**
 
-- nanoid Mock verhindert Flaky Tests (deterministische IDs)
+- cuid Mock verhindert Flaky Tests (deterministische IDs)
 - In-Memory Repository für Domain Integration Tests (NO Infrastructure Concern!)
 - Event Accumulation Tracking (mehrere Events über Operations hinweg)
 

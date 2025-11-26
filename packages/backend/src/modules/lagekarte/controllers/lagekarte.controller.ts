@@ -49,7 +49,6 @@ import { CreateLagekarteCommand, AddPoiCommand, RemovePoiCommand, UpdatePoiPosit
 import { GetLagekarteQuery, GetPoisQuery } from '@/application/lagekarte/queries';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { LagekarteDto, PoiDto } from '@/application/lagekarte/dtos';
-import { LagekarteMapper } from '@/application/lagekarte/mappers/lagekarte.mapper';
 import { PoiMapper } from '@/application/lagekarte/mappers/poi.mapper';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
@@ -430,27 +429,6 @@ export class LagekarteCqrsController {
     @Inject('ILagekarteRepository')
     private readonly lagekarteRepository: ILagekarteRepository,
   ) {}
-
-  /**
-   * Helper: Load Lagekarte aggregate by ID and map to DTO.
-   *
-   * @param lagekarteId - ID der Lagekarte
-   * @returns LagekarteDto
-   * @throws NotFoundException wenn Lagekarte nicht gefunden
-   */
-  private async loadAndMapLagekarte(lagekarteId: string): Promise<LagekarteDto> {
-    const idResult = LagekarteId.create(lagekarteId);
-    if (idResult.isFailure || !idResult.value) {
-      throw new BadRequestException('Invalid Lagekarte ID');
-    }
-
-    const aggregate = await this.lagekarteRepository.findById(idResult.value);
-    if (!aggregate) {
-      throw new NotFoundException(`Lagekarte ${lagekarteId} nicht gefunden`);
-    }
-
-    return LagekarteMapper.toDto(aggregate);
-  }
 
   /**
    * Helper: Load Lagekarte aggregate and map a specific POI to DTO.

@@ -2,10 +2,10 @@ import { cn } from '@/utils/cn';
 import { IconButton } from '@atoms/icon-button.atom';
 import type { EtbEintragDto, EtbEintragDtoKategorieEnum } from '@bluelight-hub/shared/client';
 import type { ColumnDef } from '@tanstack/react-table';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useMemo } from 'react';
-import { PiCaretDown, PiCaretRight, PiPencil, PiTrash } from 'react-icons/pi';
+import { PiCaretDown, PiCaretRight, PiPencil, PiTrash, PiTrashSimple } from 'react-icons/pi';
 import { EtbKategorieBadge } from '../components/EtbKategorieBadge';
 import { EtbVersionBadge } from '../components/EtbVersionBadge';
 import { EtbTextCell } from '../components/EtbTextCell';
@@ -46,21 +46,55 @@ export function useEtbColumns({ onEditEntry, handleDelete, onShowHistory }: UseE
         accessorKey: 'version',
         header: 'Ver.',
         cell: ({ getValue, row }) => {
-          const version = getValue<number>();
+          const rawVersion = getValue<number>();
+          const version = typeof rawVersion === 'number' && Number.isFinite(rawVersion) ? rawVersion : null;
           const entry = row.original;
 
-          if (version <= 1) return null;
+          const hasBeenUpdated = entry.updatedAt && entry.createdAt && entry.updatedAt.valueOf() !== entry.createdAt.valueOf();
+          const fallbackVersion = hasBeenUpdated ? 2 : 1;
+          const displayVersion = version ?? fallbackVersion;
 
-          return <EtbVersionBadge version={version} variant="subtle" onClick={() => onShowHistory?.(entry)} />;
+          if (!displayVersion || displayVersion <= 1) return null;
+
+          return <EtbVersionBadge version={displayVersion} variant="subtle" onClick={() => onShowHistory?.(entry)} />;
         },
         size: 70,
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) => {
+          const entry = row.original;
+
+          // "Gelöscht" Badge nur anzeigen, wenn Eintrag gelöscht wurde
+          if (entry.deletedAt) {
+            return (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 font-medium text-red-700 text-xs dark:bg-red-900/30 dark:text-red-400"
+                title={`Gelöscht${entry.deleterUsername ? ` von ${entry.deleterUsername}` : ''}`}
+              >
+                <PiTrashSimple className="h-3 w-3" />
+                Gelöscht
+              </span>
+            );
+          }
+
+          return null;
+        },
+        size: 90,
       },
       {
         id: 'timestamp',
         accessorKey: 'timestamp',
         header: 'Zeit',
         cell: ({ getValue }) => {
-          const date = new Date(getValue<string>());
+          const rawTimestamp = getValue<string | Date | null | undefined>();
+          const date = rawTimestamp ? new Date(rawTimestamp) : null;
+
+          if (!date || !isValid(date)) {
+            return <span className="text-gray-500 text-sm dark:text-gray-400">-</span>;
+          }
+
           return (
             <time className="text-gray-700 text-sm dark:text-gray-300" title={format(date, 'dd.MM.yyyy HH:mm:ss', { locale: de })}>
               {format(date, 'HH:mm:ss', { locale: de })}
@@ -82,7 +116,7 @@ export function useEtbColumns({ onEditEntry, handleDelete, onShowHistory }: UseE
         id: 'text',
         accessorKey: 'text',
         header: 'Eintrag',
-        cell: ({ row }) => <EtbTextCell entry={row.original} />,
+        cell: ({ row }) => <EtbTextCell entry={row.original} isDeleted={!!row.original.deletedAt} />,
         size: 600,
         minSize: 400,
       },
@@ -91,12 +125,18 @@ export function useEtbColumns({ onEditEntry, handleDelete, onShowHistory }: UseE
         header: 'Aktionen',
         cell: ({ row }) => {
           const entry = row.original;
+          const isDeleted = !!entry.deletedAt;
 
-          // Für gelöschte Einträge keine Actions anzeigen
-          if (entry.deletedAt) {
+          // Für gelöschte Einträge: disabled Buttons mit Tooltip
+          if (isDeleted) {
             return (
-              <div className="flex justify-center gap-1">
-                <span className="text-gray-400 text-xs italic">Gelöscht</span>
+              <div className="flex justify-center gap-1" title="Eintrag wurde gelöscht">
+                <IconButton appearance="minimal" size="sm" disabled className="cursor-not-allowed opacity-40" aria-label="Bearbeiten nicht möglich">
+                  <PiPencil />
+                </IconButton>
+                <IconButton appearance="minimal" size="sm" intent="danger" disabled className="cursor-not-allowed opacity-40" aria-label="Löschen nicht möglich">
+                  <PiTrash />
+                </IconButton>
               </div>
             );
           }

@@ -10,7 +10,7 @@ import { EintragId } from '@domain/value-objects/eintrag-id';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { EtbKategorie } from '@domain/value-objects/etb-kategorie';
 import { EtbSequenceNumber } from '@domain/value-objects/etb-sequence-number';
-import { EtbSnapshot, type EtbEintragSnapshot } from '@domain/value-objects/etb-snapshot';
+import { type EtbEintragSnapshot, EtbSnapshot } from '@domain/value-objects/etb-snapshot';
 import { EtbStatus } from '@domain/value-objects/etb-status';
 import { EtbVersion } from '@domain/value-objects/etb-version';
 import type { UserId } from '@domain/value-objects/user-id';
@@ -83,35 +83,10 @@ import type { UserId } from '@domain/value-objects/user-id';
  */
 export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
   /**
-   * Foreign Aggregate Reference: ID des zugehörigen Einsatzes.
-   * 1:1 Beziehung: Ein Einsatz hat maximal ein ETB.
-   */
-  private _einsatzId: EinsatzId;
-
-  /**
-   * Status des ETB (State Machine: DRAFT → ACTIVE → LOCKED).
-   */
-  private _status: EtbStatus;
-
-  /**
-   * Liste aller Einträge (inkl. soft-deleted).
-   * Ordered by sequenceNumber for chronological display.
-   * WICHTIG: Gelöschte Einträge bleiben in Array (isDeleted=true).
-   */
-  private _eintraege: EtbEintrag[];
-
-  /**
-   * Version für Optimistic Locking und Audit-Trail.
-   * Wird bei jeder Änderung inkrementiert.
-   */
-  private _version: EtbVersion;
-
-  /**
    * Private Counter für auto-increment Sequenznummern.
    * Startet bei 1, inkrementiert bei jedem addEintrag().
    */
   private _nextSequenceNumber: number;
-
   /**
    * Uncommitted Snapshots Akkumulator.
    *
@@ -150,11 +125,22 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
   }
 
   /**
+   * Foreign Aggregate Reference: ID des zugehörigen Einsatzes.
+   * 1:1 Beziehung: Ein Einsatz hat maximal ein ETB.
+   */
+  private _einsatzId: EinsatzId;
+
+  /**
    * Readonly getter für Einsatz ID (Foreign Aggregate Reference).
    */
   get einsatzId(): EinsatzId {
     return this._einsatzId;
   }
+
+  /**
+   * Status des ETB (State Machine: DRAFT → ACTIVE → LOCKED).
+   */
+  private _status: EtbStatus;
 
   /**
    * Readonly getter für ETB Status.
@@ -164,6 +150,13 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
   }
 
   /**
+   * Liste aller Einträge (inkl. soft-deleted).
+   * Ordered by sequenceNumber for chronological display.
+   * WICHTIG: Gelöschte Einträge bleiben in Array (isDeleted=true).
+   */
+  private _eintraege: EtbEintrag[];
+
+  /**
    * Readonly getter für Einträge.
    * CRITICAL: Returns shallow copy für Mutation-Safety!
    * Verhindert dass Caller die interne _eintraege Liste direkt mutiert.
@@ -171,6 +164,12 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
   get eintraege(): EtbEintrag[] {
     return [...this._eintraege];
   }
+
+  /**
+   * Version für Optimistic Locking und Audit-Trail.
+   * Wird bei jeder Änderung inkrementiert.
+   */
+  private _version: EtbVersion;
 
   /**
    * Readonly getter für Version.
@@ -183,7 +182,7 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
    * Static Factory Method für neues ETB Aggregate.
    *
    * Diese Methode erstellt ein neues ETB mit initialen Defaults:
-   * - Auto-generierte EtbId (nanoid)
+   * - Auto-generierte EtbId (cuid)
    * - Status = DRAFT (erster Zustand der State Machine)
    * - Version = 1 (initiale Version)
    * - nextSequenceNumber = 1 (erste Sequenznummer)
@@ -307,33 +306,6 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
   }
 
   /**
-   * Erstellt einen Snapshot des aktuellen Zustands VOR einer Mutation.
-   *
-   * Diese Methode wird zu Beginn jeder mutierenden Operation aufgerufen:
-   * - addEintrag(): Snapshot BEVOR neuer Eintrag hinzugefuegt wird
-   * - updateEintrag(): Snapshot BEVOR Eintrag geaendert wird
-   * - deleteEintrag(): Snapshot BEVOR Eintrag als geloescht markiert wird
-   *
-   * **Warum VOR der Mutation?**
-   * - Rollback: Snapshot enthaelt exakten Pre-Mutation State
-   * - Audit-Trail: "Wie sah es aus bevor diese Aenderung erfolgte?"
-   * - DRK-Compliance: Lueckenloser Aenderungsnachweis
-   *
-   * **Warum protected?**
-   * - Nur Business Methods des Aggregates sollen Snapshots erstellen
-   * - Externe Caller koennen nicht beliebig Snapshots erstellen
-   * - Analog zu addDomainEvent() in AggregateRoot
-   */
-  protected createSnapshot(): void {
-    const snapshot = new EtbSnapshot(this._version, this.getSnapshotData(), new Date());
-    this._uncommittedSnapshots.push(snapshot);
-  }
-
-  // ============================================================================
-  // BUSINESS METHODS
-  // ============================================================================
-
-  /**
    * Fügt einen neuen Eintrag zum ETB hinzu.
    *
    * Diese Methode implementiert die komplette Business Logic für Entry Creation:
@@ -402,6 +374,10 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
 
     return Result.ok<EtbEintrag>(eintrag);
   }
+
+  // ============================================================================
+  // BUSINESS METHODS
+  // ============================================================================
 
   /**
    * Aktualisiert den Text eines bestehenden Eintrags.
@@ -555,5 +531,28 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
     this.addDomainEvent(new EtbLockedEvent(this.id, userId, new Date()));
 
     return Result.ok<void>(undefined);
+  }
+
+  /**
+   * Erstellt einen Snapshot des aktuellen Zustands VOR einer Mutation.
+   *
+   * Diese Methode wird zu Beginn jeder mutierenden Operation aufgerufen:
+   * - addEintrag(): Snapshot BEVOR neuer Eintrag hinzugefuegt wird
+   * - updateEintrag(): Snapshot BEVOR Eintrag geaendert wird
+   * - deleteEintrag(): Snapshot BEVOR Eintrag als geloescht markiert wird
+   *
+   * **Warum VOR der Mutation?**
+   * - Rollback: Snapshot enthaelt exakten Pre-Mutation State
+   * - Audit-Trail: "Wie sah es aus bevor diese Aenderung erfolgte?"
+   * - DRK-Compliance: Lueckenloser Aenderungsnachweis
+   *
+   * **Warum protected?**
+   * - Nur Business Methods des Aggregates sollen Snapshots erstellen
+   * - Externe Caller koennen nicht beliebig Snapshots erstellen
+   * - Analog zu addDomainEvent() in AggregateRoot
+   */
+  protected createSnapshot(): void {
+    const snapshot = new EtbSnapshot(this._version, this.getSnapshotData(), new Date());
+    this._uncommittedSnapshots.push(snapshot);
   }
 }

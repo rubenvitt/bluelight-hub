@@ -13,7 +13,7 @@ export class CreateLagekarteCommand {
   /**
    * Privater Konstruktor - erzwingt Verwendung der Factory-Methode.
    *
-   * @param einsatzId - Eindeutige ID des Einsatzes (Nanoid, 21 Zeichen)
+   * @param einsatzId - Eindeutige ID des Einsatzes (cuid)
    * @param initialPoi - Optionaler erster POI für atomare Lagekarte-Erstellung.
    *                     Ermöglicht Single-Request-Erstellung mit initialer Position.
    */

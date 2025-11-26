@@ -183,7 +183,7 @@ packages/backend/
 │   ├── common/                         # 🔧 Shared utilities and infrastructure
 │   │   ├── decorators/
 │   │   │   ├── api-wrapped-response.decorator.ts # Swagger wrapper
-│   │   │   ├── is-nanoid.decorator.ts  # Zod Nanoid validator
+│   │   │   ├── is-cuid.decorator.ts  # Zod Nanoid validator
 │   │   │   ├── rate-limit.decorator.ts # Rate limiting decorator
 │   │   │   └── skip-transform.decorator.ts # Skip response transformation
 │   │   ├── guards/
@@ -194,7 +194,7 @@ packages/backend/
 │   │   ├── filters/
 │   │   │   └── http-exception.filter.ts # Global exception handler
 │   │   ├── pipes/
-│   │   │   └── parse-nanoid.pipe.ts    # Nanoid validation pipe
+│   │   │   └── parse-cuid.pipe.ts    # Nanoid validation pipe
 │   │   ├── dto/
 │   │   │   └── pagination.dto.ts       # Pagination params (page, limit)
 │   │   ├── interfaces/
@@ -268,7 +268,7 @@ packages/backend/
 │   # - @prisma/client, prisma (ORM)
 │   # - passport, passport-jwt (authentication)
 │   # - bcrypt (password hashing)
-│   # - nanoid (ID generation)
+│   # - cuid (ID generation)
 │   # - @nestjs/terminus (health checks)
 │   # - @nestjs/cache-manager (caching)
 │   # - nest-commander (CLI)

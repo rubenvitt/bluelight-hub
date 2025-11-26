@@ -1,13 +1,14 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { CoordinateConverter } from '@application/common/coordinate-converter';
 import { Result } from '@domain/common/result';
+import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import type { PoiId } from '@domain/value-objects/poi-id';
 import { UserId } from '@domain/value-objects/user-id';
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import { CoordinateConverter } from '@application/common/coordinate-converter';
-import type { AddPoiCommand } from './add-poi.command';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
+import { AddPoiCommand } from './add-poi.command';
 
 /**
  * Handler für AddPoiCommand.
@@ -24,7 +25,8 @@ import type { AddPoiCommand } from './add-poi.command';
  * (transaktionale Konsistenz: Events nur nach erfolgreicher Persistenz).
  */
 @Injectable()
-export class AddPoiCommandHandler {
+@CommandHandler(AddPoiCommand)
+export class AddPoiCommandHandler implements ICommandHandler<AddPoiCommand, Result<PoiId>> {
   private readonly logger = new Logger(AddPoiCommandHandler.name);
 
   constructor(

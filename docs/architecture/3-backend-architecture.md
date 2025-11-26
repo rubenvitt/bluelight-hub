@@ -187,7 +187,7 @@ packages/backend/src/
 - **ORM:** Prisma 6.19.0
 - **Database:** PostgreSQL 17
 - **Migration Strategy:** Prisma Migrate with SQL migrations
-- **ID Generation:** `cuid()` (primary), `nanoid()` (User IDs)
+- **ID Generation:** `cuid()` (primary)
 
 ### Data Models (9 Models)
 

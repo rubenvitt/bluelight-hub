@@ -158,7 +158,7 @@ model Poi {
 **Database Model:**
 ```prisma
 model User {
-  id               String    @id @default(nanoid())
+  id               String    @id @default(cuid())
   username         String    @unique @db.VarChar(100)
   passwordHash     String?   @db.Text // only admin users
   role             UserRole  @default(USER)

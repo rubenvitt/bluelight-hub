@@ -312,7 +312,7 @@ status1.equals(status2); // true (structural equality!)
 
 ### 2. EntityId<TAggregateType>
 
-**Purpose:** Type-Safe IDs mit Nanoid validation
+**Purpose:** Type-Safe IDs mit Cuid validation
 
 ```typescript
 import { EntityId } from '@domain/common/entity-id';
@@ -320,12 +320,12 @@ import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { UserId } from '@domain/value-objects/user-id';
 
 // Usage: Auto-Generation
-const result = EinsatzId.create(); // Generates Nanoid automatically
+const result = EinsatzId.create(); // Generates cuid automatically
 if (result.isSuccess) {
   console.log(result.value.value); // "A1B2C3D4E5F6G7H8I9J0K" (21 chars)
 }
 
-// Usage: With existing Nanoid
+// Usage: With existing cuid
 const result2 = EinsatzId.create('A1B2C3D4E5F6G7H8I9J0K');
 
 // Type-Safety (compile-time!)
@@ -335,16 +335,9 @@ processEinsatz(userId); // ❌ TypeScript Compile Error!
 ```
 
 **Key Features:**
-- ✅ **Nanoid Validation:** `/^[A-Za-z0-9_-]{21}$/` (21 URL-safe chars)
-- ✅ **Auto-Generation:** `create()` ohne Parameter → `nanoid()`
+- ✅ **Auto-Generation:** `create()` ohne Parameter → `cuid()`
 - ✅ **Type-Safety:** `EinsatzId ≠ UserId` at compile-time
 - ✅ **Result<T> Pattern:** Validierung mit Error Handling
-
-**Warum Nanoid statt UUID?**
-- 21 Zeichen (vs. 36 bei UUID)
-- URL-safe (keine special chars)
-- Collision-resistant (gleiche Sicherheit wie UUID)
-- Project Standard (package.json dependency)
 
 ### 3. DomainEvent
 
@@ -376,13 +369,13 @@ const event = new EinsatzCreatedEvent(
   'Musterstraße 42'
 );
 
-console.log(event.eventId);     // "X1Y2Z3..." (Nanoid, 21 chars)
+console.log(event.eventId);     // "X1Y2Z3..." (cuid, 21 chars)
 console.log(event.occurredAt);  // 2025-11-14T13:45:23.456Z
 console.log(EinsatzCreatedEvent.eventName()); // "EinsatzCreated"
 ```
 
 **Key Features:**
-- ✅ **Auto-Generation:** `eventId` (nanoid) + `occurredAt` (Date) im Constructor
+- ✅ **Auto-Generation:** `eventId` (cuid) + `occurredAt` (Date) im Constructor
 - ✅ **Immutable:** Readonly properties (historical facts)
 - ✅ **Event Routing:** `eventName()` für type-safe dispatching
 - ✅ **Versioning:** `eventVersion()` für Schema Evolution
@@ -492,7 +485,7 @@ const einsatz = result.value!;
 
 // 3. Typed ID (EntityId<'Einsatz'>)
 const id: EinsatzId = einsatz.id;
-console.log(id.value); // Nanoid (21 chars)
+console.log(id.value); // cuid
 
 // 4. ValueObject Equality
 const sameId = EinsatzId.create(id.value).value!;
@@ -501,7 +494,7 @@ console.log(id.equals(sameId)); // true (structural equality)
 // 5. Domain Events
 const events = einsatz.getDomainEvents();
 events.forEach(event => {
-  console.log(event.eventId);     // Nanoid
+  console.log(event.eventId);     // cuid
   console.log(event.occurredAt);  // Date
   console.log(event.constructor.name); // "EinsatzCreatedEvent"
 });
@@ -535,11 +528,11 @@ console.log(einsatz.equals(einsatz2)); // false (different IDs)
    constructor(...) { ... }
    ```
 
-3. **IMMER Nanoid für IDs (NICHT UUID)**
+3. **IMMER Cuid für IDs (NICHT UUID)**
    ```typescript
    // ✅ CORRECT (Project Standard)
-   import { nanoid } from 'nanoid';
-   const id = nanoid(); // 21 URL-safe chars
+   import { createId } from '@paralleldrive/cuid2';
+   const id = createId();
 
    // ❌ WRONG
    import { randomUUID } from 'crypto';
@@ -1343,7 +1336,7 @@ Starte mit den kleinsten Bausteinen - Value Objects:
 // domain/lagekarte/value-objects/lagekarte-id.vo.ts
 import { ValueObject } from '@domain/shared/base/value-object';
 import { Result } from '@domain/common/result';
-import { nanoid } from 'nanoid'; // Ausnahme: nanoid erlaubt für ID-Generierung
+import { createId } from '@paralleldrive/cuid';
 
 interface LagekarteIdProps {
   value: string;
@@ -1355,12 +1348,10 @@ export class LagekarteId extends ValueObject<LagekarteIdProps> {
   }
 
   static create(id?: string): Result<LagekarteId> {
-    const value = id ?? nanoid();
+    const value = id ?? createId();
 
-    // Validierung: Nanoid Format (21 alphanumerische Zeichen, URL-safe)
-    const nanoidRegex = /^[A-Za-z0-9_-]{21}$/;
-    if (!nanoidRegex.test(value)) {
-      return Result.fail('Ungültige Nanoid (erwartet: 21 alphanumerische Zeichen)');
+    if (!isCuid(value)) {
+      return Result.fail('Ungültige Cuid');
     }
 
     return Result.ok(new LagekarteId({ value }));
@@ -1606,7 +1597,7 @@ export class PrismaLagekarteRepository implements ILagekarteRepository {
 - ✅ TypeScript Standard Library (`Date`, `Map`, `Set`, etc.)
 - ✅ Andere Domain Objects (`import { EinsatzId } from '../value-objects/einsatz-id.vo'`)
 - ✅ Shared Kernel (`import { Result } from '@domain/common/result'`)
-- ✅ Nanoid Library (`nanoid` - NUR für ID-Generierung)
+- ✅ Cuid Library (`cuid` - NUR für ID-Generierung)
 
 **Application Layer DARF importieren:**
 - ✅ Domain Layer (`import { Einsatz } from '@domain/einsatz/aggregates/einsatz.aggregate'`)
@@ -1625,7 +1616,7 @@ export class PrismaLagekarteRepository implements ILagekarteRepository {
 - ❌ Infrastructure Layer (`import { PrismaService } from '@infrastructure/...'`)
 - ❌ NestJS (`@nestjs/*`)
 - ❌ Prisma (`@prisma/client`)
-- ❌ External Libraries (außer `nanoid`)
+- ❌ External Libraries (außer `cuid`)
 
 **Enforcement:**
 

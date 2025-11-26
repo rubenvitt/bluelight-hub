@@ -6,13 +6,13 @@
  * nicht zu blockieren. ETBs können bei Bedarf manuell nacherstellt werden.
  *
  * @module application/etb/event-handlers
- * @see EinsatzCreatedEvent - Trigger Event
+ * @see EinsatzErstelltEvent - Trigger Event (Service Layer)
  * @see CreateEtbHandler - Delegierter Command Handler
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
-import type { EinsatzCreatedEvent } from '@domain/events/einsatz-created.event';
+import type { EinsatzErstelltEvent } from '@/einsatz/events/einsatz-erstellt.event';
 // NOTE: CreateEtbHandler needs value import (not type) for NestJS DI to work at runtime
 import type { CreateEtbHandler } from '../commands/create-etb/create-etb.handler';
 import { CreateEtbCommand } from '../commands/create-etb/create-etb.command';
@@ -20,7 +20,7 @@ import { CreateEtbCommand } from '../commands/create-etb/create-etb.command';
 /**
  * Event Handler für automatische ETB-Erstellung.
  *
- * Lauscht auf 'einsatz.created' Events und erstellt automatisch ein
+ * Lauscht auf 'einsatz.erstellt' Events und erstellt automatisch ein
  * zugehöriges Einsatztagebuch (ETB) für DRK-Compliance.
  *
  * **Fire-and-Forget Pattern:**
@@ -32,6 +32,10 @@ import { CreateEtbCommand } from '../commands/create-etb/create-etb.command';
  * - Explizite Abhängigkeiten für bessere Testbarkeit
  * - Keine zusätzliche Indirektion über CQRS Bus
  * - Handler kann gemockt werden ohne TestingModule Setup
+ *
+ * **Hinweis:** Verwendet Service-Layer Event 'einsatz.erstellt' statt
+ * Domain Event 'einsatz.created', da der EinsatzService noch nicht
+ * auf DDD migriert ist und EinsatzErstelltEvent emittiert.
  */
 @Injectable()
 export class EtbAutoCreationHandler {
@@ -40,25 +44,25 @@ export class EtbAutoCreationHandler {
   constructor(private readonly createEtbHandler: CreateEtbHandler) {}
 
   /**
-   * Verarbeitet EinsatzCreatedEvent und erstellt automatisch ein ETB.
+   * Verarbeitet EinsatzErstelltEvent und erstellt automatisch ein ETB.
    *
-   * @param event - Das empfangene EinsatzCreatedEvent
+   * @param event - Das empfangene EinsatzErstelltEvent (Service Layer Event)
    * @returns Promise<void> - Keine Rückgabe (Fire-and-Forget)
    *
    * @example
    * ```typescript
    * // Event wird automatisch via EventEmitter2 dispatched:
-   * await eventEmitter.emitAsync('einsatz.created', event);
+   * eventEmitter.emit('einsatz.erstellt', event);
    * // Handler wird automatisch aufgerufen
    * ```
    */
-  @OnEvent('einsatz.created')
-  async handle(event: EinsatzCreatedEvent): Promise<void> {
-    const einsatzIdValue = event.einsatzId.value;
+  @OnEvent('einsatz.erstellt')
+  async handle(event: EinsatzErstelltEvent): Promise<void> {
+    const einsatzIdValue = event.einsatzId;
 
     this.logger.log(`Auto-creating ETB for Einsatz`, {
-      eventId: event.eventId,
       einsatzId: einsatzIdValue,
+      timestamp: event.timestamp,
     });
 
     try {
@@ -67,7 +71,6 @@ export class EtbAutoCreationHandler {
 
       if (commandResult.isFailure) {
         this.logger.error(`Failed to create CreateEtbCommand`, {
-          eventId: event.eventId,
           einsatzId: einsatzIdValue,
           error: commandResult.error,
         });
@@ -86,13 +89,11 @@ export class EtbAutoCreationHandler {
         if (isAlreadyExists) {
           // Idempotenz: ETB existiert bereits - das ist OK bei at-least-once delivery
           this.logger.warn(`ETB already exists for Einsatz ${einsatzIdValue}, skipping creation`, {
-            eventId: event.eventId,
             einsatzId: einsatzIdValue,
           });
         } else {
           // Echter Fehler: Loggen mit vollem Kontext
           this.logger.error(`Failed to create ETB`, {
-            eventId: event.eventId,
             einsatzId: einsatzIdValue,
             error: errorMessage,
           });
@@ -104,14 +105,12 @@ export class EtbAutoCreationHandler {
       // biome-ignore lint/style/noNonNullAssertion: Safe - already checked isFailure above
       const etbId = result.value!;
       this.logger.log(`ETB created successfully`, {
-        eventId: event.eventId,
         einsatzId: einsatzIdValue,
         etbId: etbId.value,
       });
     } catch (error) {
       // Unerwarteter Fehler: Mit Stack Trace loggen
       this.logger.error(`Unexpected error during ETB auto-creation`, {
-        eventId: event.eventId,
         einsatzId: einsatzIdValue,
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,

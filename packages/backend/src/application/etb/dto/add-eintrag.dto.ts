@@ -48,4 +48,16 @@ export class AddEintragDto {
   @IsOptional()
   @IsEnum(EtbKategorie, { message: 'kategorie muss ein gültiger EtbKategorie-Wert sein' })
   kategorie?: EtbKategorie;
+
+  /**
+   * Einsatz-ID fuer automatische ETB-Erstellung, falls noch kein ETB existiert.
+   * Optional, weil bestehende ETBs weiterhin nur die etbId benötigen.
+   */
+  @ApiPropertyOptional({
+    description: 'Aktive Einsatz-ID (wird genutzt um bei Bedarf ein ETB zu erstellen)',
+    example: 'clx1234567890abcdefghijk',
+  })
+  @IsOptional()
+  @IsString({ message: 'einsatzId muss ein String sein' })
+  einsatzId?: string;
 }

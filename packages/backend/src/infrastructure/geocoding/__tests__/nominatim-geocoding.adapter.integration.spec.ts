@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { NominatimGeocodingAdapter } from '../nominatim-geocoding.adapter';
 import { Address } from '@domain/value-objects/address';
 import { GeoCoordinate } from '@domain/value-objects/geo-coordinate';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { NominatimGeocodingAdapter } from '../nominatim-geocoding.adapter';
 
 /**
  * Integration Tests für NominatimGeocodingAdapter.
@@ -178,7 +178,7 @@ describe('NominatimGeocodingAdapter Integration Tests', () => {
    *
    * Prüft dass:
    * - User-Agent Header gesetzt wird (Nominatim Policy Pflicht)
-   * - Header-Wert korrekt ist: "Bluelight-Hub/1.0 (contact@bluelight-hub.de)"
+   * - Header-Wert korrekt ist: "Bluelight-Hub/1.0 (contact@bluelight-hub.app)"
    */
   it('should include User-Agent header in Nominatim requests', async () => {
     // Given: Mock Nominatim API Response
@@ -207,7 +207,7 @@ describe('NominatimGeocodingAdapter Integration Tests', () => {
     expect(fetchOptions?.headers).toBeDefined();
 
     const headers = fetchOptions?.headers as Record<string, string>;
-    expect(headers['User-Agent']).toBe('Bluelight-Hub/1.0 (contact@bluelight-hub.de)');
+    expect(headers['User-Agent']).toBe('Bluelight-Hub/1.0 (contact@bluelight-hub.app)');
   });
 
   /**

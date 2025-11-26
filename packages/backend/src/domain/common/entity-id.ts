@@ -1,8 +1,8 @@
 // CUID2 für sichere, kollisionsresistente ID-Generierung
-// Ersetzt nanoid für Konsistenz mit Prisma-generierten IDs
-import { createId, isCuid } from '@paralleldrive/cuid2';
 import { Result } from '@domain/common/result';
 import { ValueObject } from '@domain/common/value-object';
+// Ersetzt cuid für Konsistenz mit Prisma-generierten IDs
+import { createId, isCuid } from '@paralleldrive/cuid2';
 
 /**
  * Interface für die Props eines EntityId Value Objects.
@@ -126,7 +126,7 @@ export abstract class EntityId<TAggregateType extends string> extends ValueObjec
    * Nutzt ValueObject.equals() für strukturelle Gleichheit.
    *
    * @param other - Die zu vergleichende EntityId (optional)
-   * @returns true wenn beide IDs denselben Nanoid-Wert haben
+   * @returns true wenn beide IDs denselben cuid-Wert haben
    *
    * @example
    * ```typescript

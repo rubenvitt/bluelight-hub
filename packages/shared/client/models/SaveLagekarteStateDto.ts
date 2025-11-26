@@ -20,7 +20,7 @@ import { mapValues } from '../runtime';
  */
 export interface SaveLagekarteStateDto {
   /**
-   * ID des zugehörigen Einsatzes
+   * ID des zugehörigen Einsatzes (CUID)
    * @type {string}
    * @memberof SaveLagekarteStateDto
    */

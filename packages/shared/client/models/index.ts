@@ -1,5 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
+export * from './AddEintragDto';
 export * from './AddPoiDto';
 export * from './AdminLoginResponseDto';
 export * from './AdminPasswordDto';
@@ -35,9 +36,13 @@ export * from './EinsatzControllerGetCompletenessVAlpha200Response';
 export * from './EinsatzControllerGetPreviousVAlpha200Response';
 export * from './EinsatzControllerGetStatusCountsVAlpha200Response';
 export * from './EinsatzResponseDto';
+export * from './EintragDto';
 export * from './EtbDto';
 export * from './EtbEintragDto';
 export * from './EtbHistoryEntryDto';
+export * from './EtbHistoryListResponse';
+export * from './EtbSnapshotDto';
+export * from './EtbVersionDto';
 export * from './GeocodeAddressDto';
 export * from './GetEtbResponse';
 export * from './HealthControllerCheck200Response';
@@ -62,6 +67,7 @@ export * from './StatusCountsResponseDto';
 export * from './TextbausteinDto';
 export * from './TextbausteinListResponse';
 export * from './UpdateEinsatzDto';
+export * from './UpdateEintragDto';
 export * from './UpdateEtbEintragDto';
 export * from './UpdateEtbEintragResponse';
 export * from './UpdatePoiDto';

@@ -1,13 +1,13 @@
+import { PrismaService } from '@/prisma/prisma.service';
 import type { EinsatztagebuchAggregate } from '@domain/aggregates/einsatztagebuch.aggregate';
 import type { IEtbRepository, TransactionContext } from '@domain/repositories/i-etb.repository';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { EtbId } from '@domain/value-objects/etb-id';
-import { EtbSnapshot, type EtbEintragSnapshot } from '@domain/value-objects/etb-snapshot';
+import { type EtbEintragSnapshot, EtbSnapshot } from '@domain/value-objects/etb-snapshot';
 import { EtbVersion } from '@domain/value-objects/etb-version';
 import { Injectable } from '@nestjs/common';
 import type { EtbSnapshot as PrismaEtbSnapshot, Prisma } from '@prisma/client';
-import { PrismaService } from '@/prisma/prisma.service';
-import { PrismaEtbMapper, type EtbEintragPersistenceData } from '../mappers/prisma-etb.mapper';
+import { PrismaEtbMapper } from '../mappers/prisma-etb.mapper';
 
 /**
  * Transaction Client Type Alias fuer bessere Lesbarkeit.
@@ -30,11 +30,12 @@ type PrismaTransactionClient = Prisma.TransactionClient;
  *    - Prisma upsert() handhabt CREATE vs UPDATE automatisch
  *    - Idempotent: save() kann mehrfach mit demselben Aggregate aufgerufen werden
  *
- * 2. **EINTRAG CASCADE DELETE/CREATE:**
- *    - DELETE all existing Eintraege (etbEintrag.deleteMany)
- *    - CREATE all current Eintraege (etbEintrag.createMany)
- *    - Einfachheit über Effizienz (keine Delta-Berechnung)
- *    - Aggregate ist Source of Truth (alle Eintraege werden re-persisted)
+ * 2. **EINTRAG APPEND-ONLY (DRK-Compliance):**
+ *    - INSERT neue Eintraege mit ON CONFLICT DO NOTHING
+ *    - Bestehende Eintraege bleiben UNVERÄNDERT (keine Updates)
+ *    - KEINE physischen Deletes (NO-DELETE Trigger aktiv)
+ *    - Soft-Delete via deletedAt Feld für "gelöschte" Einträge
+ *    - 10-Jahres-Aufbewahrungspflicht wird respektiert
  *
  * 3. **Transaction Support:**
  *    - Optional tx Parameter für atomare Multi-Aggregate Operations
@@ -59,7 +60,7 @@ type PrismaTransactionClient = Prisma.TransactionClient;
  *
  * **PERFORMANCE OPTIMIZATIONS:**
  * - Eintrag Eager Loading: include: { eintraege: true } (verhindert N+1 Queries)
- * - Batch Operations: deleteMany + createMany (statt N einzelne Queries)
+ * - Append-Only INSERT: ON CONFLICT DO NOTHING für idempotente Saves
  * - Index Usage: einsatzId Index für schnelle Lookups
  */
 @Injectable()
@@ -81,20 +82,17 @@ export class PrismaEtbRepository implements IEtbRepository {
    * Sie erstellt ein neues ETB wenn dieses noch nicht existiert, oder
    * aktualisiert ein existierendes ETB.
    *
-   * **EINTRAG CASCADE STRATEGY:**
-   * 1. Disable NO-DELETE Trigger (für deleteMany)
-   * 2. DELETE all existing Eintraege (etbEintrag.deleteMany)
-   * 3. Re-enable Trigger
-   * 4. UPSERT ETB (einsatztagebuch.upsert)
-   * 5. CREATE all current Eintraege (etbEintrag.createMany)
-   * 6. Persist uncommitted Snapshots
-   * 7. Clear Snapshots auf Aggregate
+   * **EINTRAG APPEND-ONLY STRATEGY (DRK-Compliance):**
+   * 1. UPSERT ETB (einsatztagebuch.upsert)
+   * 2. INSERT neue Eintraege mit ON CONFLICT DO NOTHING
+   * 3. Persist uncommitted Snapshots
+   * 4. Clear Snapshots auf Aggregate
    *
-   * **Warum DELETE + CREATE statt UPDATE:**
-   * - Einfachheit: Kein komplexes Delta-Tracking (added/removed/updated Eintraege)
-   * - Aggregate Root: Eintraege haben keine stable Identity außerhalb Aggregate
-   * - Performance: Eintrag-Listen sind klein (<1000 Eintraege), Batch Operations sind schnell
-   * - Idempotenz: Mehrfaches save() mit demselben Aggregate produziert gleiches Ergebnis
+   * **Warum Append-Only statt DELETE + CREATE:**
+   * - DRK-Compliance: 10-Jahres-Aufbewahrungspflicht, NO-DELETE Trigger aktiv
+   * - Audit-Trail: Einträge werden nie physisch gelöscht, nur soft-deleted
+   * - Idempotenz: ON CONFLICT DO NOTHING garantiert idempotente Saves
+   * - Bestehende Einträge bleiben unverändert (immutable nach Creation)
    *
    * **Transaction Handling:**
    * - Wenn tx=undefined: Verwendet interne Prisma $transaction()
@@ -114,30 +112,25 @@ export class PrismaEtbRepository implements IEtbRepository {
     // updatedBy wird ebenfalls aus dem letzten Eintrag extrahiert (falls vorhanden)
     const firstEintrag = aggregate.eintraege[0];
     const lastEintrag = aggregate.eintraege[aggregate.eintraege.length - 1];
-    const createdByUser = firstEintrag?.createdBy.value ?? 'SYSTEM';
+    // Fallback: wenn Aggregate noch keine Eintraege hat (z.B. auto-creation bei Einsatz),
+    // nutze den Ersteller des Einsatzes als createdBy, damit FK constraint erfüllt ist.
+    const createdByUser =
+      firstEintrag?.createdBy.value ??
+      (
+        await client.einsatz.findUnique({
+          select: { createdBy: true },
+          where: { id: aggregate.einsatzId.value },
+        })
+      )?.createdBy ??
+      'SYSTEM';
     const updatedByUser = lastEintrag?.createdBy.value;
 
     const { etb, eintraege } = PrismaEtbMapper.toPersistence(aggregate, createdByUser, updatedByUser);
     const etbId = aggregate.id.value;
 
-    // Transaction Closure: ETB Upsert + Eintrag Cascade + Snapshot Persistence
+    // Transaction Closure: ETB Upsert + Eintrag INSERT + Snapshot Persistence
     const operation = async (prismaClient: PrismaTransactionClient): Promise<void> => {
-      // Step 1: Disable NO-DELETE Trigger (für deleteMany)
-      // HINWEIS: Bypass NO-DELETE Trigger via session_replication_role
-      // Das ist acceptable weil:
-      // 1. Repository ist die EINZIGE Stelle die Eintraege managed (Aggregate Boundary)
-      // 2. NO-DELETE Trigger soll User/Application SQL DELETEs blockieren, nicht Repository Cascade
-      // 3. Alternative wäre Delta-Tracking (added/removed Eintraege), aber das ist deutlich komplexer
-      // 4. session_replication_role=replica ist lokale Session (keine globalen Side-Effects)
-      await prismaClient.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
-
-      // Step 2: DELETE all existing Eintraege (Cascade Strategy)
-      await prismaClient.$executeRawUnsafe('DELETE FROM etb_eintraege WHERE "etbId" = $1', etbId);
-
-      // Step 3: Re-enable Trigger
-      await prismaClient.$executeRawUnsafe('SET LOCAL session_replication_role = DEFAULT');
-
-      // Step 4: UPSERT ETB Record (CREATE or UPDATE)
+      // Step 1: UPSERT ETB Record (CREATE or UPDATE)
       // HINWEIS: Wir verwenden "unchecked" Syntax mit direkten FK-IDs statt connect
       // Das ist konsistenter und vermeidet Prisma Type-Konflikte
       await prismaClient.einsatztagebuch.upsert({
@@ -166,14 +159,36 @@ export class PrismaEtbRepository implements IEtbRepository {
         },
       });
 
-      // Step 5: CREATE all current Eintraege (Batch Operation)
+      // Step 2: UPSERT Eintraege (DRK-Compliance: Append-Only + Updates erlaubt)
+      // WICHTIG: Keine DELETE-Operation! ETB-Einträge werden NIEMALS physisch gelöscht.
+      // - Neue Einträge werden hinzugefügt (INSERT)
+      // - Bestehende Einträge werden aktualisiert (ON CONFLICT DO UPDATE)
+      // - "Gelöschte" Einträge werden soft-deleted (deletedAt != null)
+      // Dies respektiert den NO-DELETE Trigger und die 10-Jahres-Aufbewahrungspflicht.
       if (eintraege.length > 0) {
-        await prismaClient.etbEintrag.createMany({
-          data: eintraege.map((eintrag: EtbEintragPersistenceData) => ({
-            ...eintrag,
-            etbId,
-          })),
-        });
+        // Verwende Raw SQL mit ON CONFLICT DO UPDATE für Upsert-Semantik
+        // Der Unique Constraint (etbId, sequenceNumber) ermöglicht Updates
+        for (const eintrag of eintraege) {
+          await prismaClient.$executeRaw`
+            INSERT INTO etb_eintraege (
+              "id", "etbId", "sequenceNumber", "text", "createdBy", "createdAt",
+              "updatedAt", "deletedAt", "deletedBy", "kategorie", "timestamp",
+              "version", "isAutomatic", "metadata"
+            ) VALUES (
+              ${eintrag.id}, ${etbId}, ${eintrag.sequenceNumber}, ${eintrag.text},
+              ${eintrag.createdBy}, ${eintrag.createdAt}, ${eintrag.updatedAt},
+              ${eintrag.deletedAt}, ${eintrag.deletedBy}, ${eintrag.kategorie}::"EtbKategorie",
+              ${eintrag.timestamp}, ${eintrag.version}, ${eintrag.isAutomatic},
+              ${eintrag.metadata ?? null}::jsonb
+            )
+            ON CONFLICT ("etbId", "sequenceNumber") DO UPDATE SET
+              "text" = EXCLUDED."text",
+              "updatedAt" = EXCLUDED."updatedAt",
+              "deletedAt" = EXCLUDED."deletedAt",
+              "deletedBy" = EXCLUDED."deletedBy",
+              "version" = EXCLUDED."version"
+          `;
+        }
       }
 
       // Step 6: Persist uncommitted Snapshots

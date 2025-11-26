@@ -1,5 +1,5 @@
-import type { Result } from '@domain/common/result';
 import type { Einsatz } from '@domain/aggregates/einsatz.aggregate';
+import type { Result } from '@domain/common/result';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 
 /**
@@ -132,12 +132,12 @@ export interface IEinsatzRepository {
    *
    * Warum separate Method (statt Generic Query)?
    * - Einsatznummer ist Business Key (Alternative ID für User-Facing Referenzen)
-   * - UI verwendet Einsatznummer für Suche (User kennen keine UUIDs/Nanoids)
+   * - UI verwendet Einsatznummer für Suche (User kennen keine UUIDs/cuid)
    * - Performance: Infrastructure Layer kann Index auf Nummer anlegen
    *
    * Uniqueness Constraint:
    * - Infrastructure Layer enforced UNIQUE constraint auf `nummer` Column
-   * - Domain Layer generiert Nummer via nanoid (collision-resistant)
+   * - Domain Layer generiert Nummer via cuid (collision-resistant)
    * - Race Condition Handling via DB Unique Constraint Error
    *
    * @param nummer - Einsatznummer (z.B. "E2024-A1B2C3")

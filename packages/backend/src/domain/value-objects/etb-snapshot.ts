@@ -12,7 +12,7 @@ import type { EtbVersion } from '@domain/value-objects/etb-version';
  * - Dieses Interface mappt alle VOs auf ihre primitiven Werte
  */
 export interface EtbEintragSnapshot {
-  /** EintragId als String (nanoid) */
+  /** EintragId als String (cuid) */
   id: string;
   /** Sequenznummer als Number */
   sequenceNumber: number;

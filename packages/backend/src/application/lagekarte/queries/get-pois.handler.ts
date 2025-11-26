@@ -1,11 +1,12 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import { Result } from '@domain/common/result';
 import type { PoiDto } from '@application/lagekarte/dtos/poi.dto';
 import { PoiMapper } from '@application/lagekarte/mappers/poi.mapper';
-import type { GetPoisQuery } from './get-pois.query';
+import { GetPoisQuery } from './get-pois.query';
 
 /**
  * Handler für GetPoisQuery.
@@ -64,7 +65,8 @@ import type { GetPoisQuery } from './get-pois.query';
  * ```
  */
 @Injectable()
-export class GetPoisQueryHandler {
+@QueryHandler(GetPoisQuery)
+export class GetPoisQueryHandler implements IQueryHandler<GetPoisQuery, Result<PoiDto[]>> {
   constructor(
     @Inject('ILagekarteRepository')
     private readonly lagekarteRepository: ILagekarteRepository,

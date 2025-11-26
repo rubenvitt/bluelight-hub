@@ -29,15 +29,17 @@ export class EtbService {
   constructor(private readonly etbRepository: EtbRepository) {}
 
   /**
+   * @deprecated DEAKTIVIERT - Ersetzt durch EtbAutoCreationHandler (CQRS/DDD)
+   *
    * Event-Listener: Reagiert auf Einsatz-Erstellung und legt automatisch ETB an
    *
-   * Dieser Listener wird automatisch aufgerufen, wenn ein neuer Einsatz erstellt wurde.
-   * Er entkoppelt das EtbModule vom EinsatzModule und verhindert zyklische Abhängigkeiten.
+   * Dieser Listener wurde durch den EtbAutoCreationHandler im Application Layer ersetzt,
+   * der den CQRS-Ansatz mit Domain Events verwendet.
    *
-   * @param event - Das EinsatzErstelltEvent mit einsatzId und userId
+   * @see packages/backend/src/application/etb/event-handlers/etb-auto-creation.handler.ts
    */
-  @OnEvent('einsatz.erstellt')
-  async handleEinsatzErstellt(event: EinsatzErstelltEvent): Promise<void> {
+  // @OnEvent('einsatz.erstellt') - DEAKTIVIERT: Nutze EtbAutoCreationHandler stattdessen
+  async handleEinsatzErstellt_DISABLED(event: EinsatzErstelltEvent): Promise<void> {
     try {
       await this.createEtbForEinsatz(event.einsatzId, event.userId);
       this.logger.log(`📖 ETB für Einsatz ${event.einsatzId} automatisch erstellt (DRAFT) - Event-basiert`);

@@ -37,8 +37,12 @@ import type { UserId } from '@domain/value-objects/user-id';
 export class EintragDeletedEvent extends DomainEvent {
   /**
    * Event Name für Event Router (Past Tense).
+   *
+   * @returns Event Name in past tense
    */
-  public readonly eventName = 'etb.eintrag_deleted';
+  public static eventName(): string {
+    return 'etb.eintrag_deleted';
+  }
 
   /**
    * @param etbId - ID des parent ETB Aggregates

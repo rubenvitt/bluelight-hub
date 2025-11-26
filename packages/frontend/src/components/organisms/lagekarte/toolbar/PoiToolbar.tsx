@@ -108,7 +108,7 @@ export const PoiToolbar: React.FC<PoiToolbarProps> = ({ onPoiTypeSelect, selecte
 
                   return (
                     <MenuItem key={type}>
-                      {({ focus }) => (
+                      {() => (
                         <Button
                           type="button"
                           onClick={() => onPoiTypeSelect(type)}
@@ -165,7 +165,7 @@ export const PoiToolbar: React.FC<PoiToolbarProps> = ({ onPoiTypeSelect, selecte
 
                   return (
                     <MenuItem key={type}>
-                      {({ focus }) => (
+                      {() => (
                         <Button
                           type="button"
                           onClick={() => onPoiTypeSelect(type)}

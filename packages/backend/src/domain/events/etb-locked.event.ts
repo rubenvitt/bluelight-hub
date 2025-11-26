@@ -41,8 +41,12 @@ import type { UserId } from '@domain/value-objects/user-id';
 export class EtbLockedEvent extends DomainEvent {
   /**
    * Event Name für Event Router (Past Tense).
+   *
+   * @returns Event Name in past tense
    */
-  public readonly eventName = 'etb.locked';
+  public static eventName(): string {
+    return 'etb.locked';
+  }
 
   /**
    * @param etbId - ID des gesperrten ETB Aggregates

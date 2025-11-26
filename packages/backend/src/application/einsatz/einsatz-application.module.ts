@@ -1,0 +1,74 @@
+import { Module } from '@nestjs/common';
+import { LagekarteEventsModule } from '@infrastructure/events/lagekarte-events.module';
+import { LagekarteInfrastructureModule } from '@infrastructure/lagekarte-infrastructure.module';
+import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
+import { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
+import { CreateEinsatzHandler, UpdateEinsatzHandler, DeleteEinsatzHandler, CompleteEinsatzHandler, ArchiveEinsatzHandler, UpdateEinsatzStatusHandler } from './commands';
+
+/**
+ * NestJS-Modul für Application Layer - Einsatz Bounded Context.
+ *
+ * Dieses Modul registriert alle Command-Handler für Einsatz CRUD-Operationen
+ * und macht sie über Dependency Injection verfügbar. Ermöglicht Controller
+ * (Infrastructure Layer) die Handler zu nutzen, ohne direkt zu importieren
+ * (Loose Coupling via Hexagonale Architektur).
+ *
+ * **CQRS Pattern (Story 4-1):**
+ * - Command Handlers: State Mutation (Create, Update, Delete)
+ * - Query Handlers: State Reading (Story 4-3 - noch nicht implementiert)
+ *
+ * **NO-DELETE Policy (DRK-Compliance):**
+ * DeleteEinsatzHandler gibt IMMER einen Fehler zurück.
+ * Einsätze können nicht gelöscht werden (10-Jahre-Aufbewahrungspflicht).
+ * Verwende stattdessen ArchiveEinsatzCommand (Story 4-2).
+ *
+ * **Warum separate Module pro Bounded Context:**
+ * - Klare Modul-Grenzen entsprechend DDD
+ * - Selektives Testen möglich (nur Einsatz-Context)
+ * - Einfachere Migration zu Microservices
+ * - Dependency Injection Scope pro Context
+ *
+ * @example
+ * ```typescript
+ * // In Controller:
+ * constructor(private readonly createHandler: CreateEinsatzHandler) {}
+ *
+ * @Post()
+ * async create(@Body() dto: CreateEinsatzDto) {
+ *   const command = CreateEinsatzCommand.create(dto.alarmstichwort, dto.userId);
+ *   return this.createHandler.execute(command.value);
+ * }
+ * ```
+ */
+@Module({
+  imports: [
+    // Event Infrastructure (IEventPublisher)
+    LagekarteEventsModule,
+    // Repository Infrastructure (IEinsatzRepository)
+    LagekarteInfrastructureModule,
+  ],
+  providers: [
+    // Domain Services (Story 4-2)
+    EinsatzCompletenessService,
+    EinsatzArchivalPolicy,
+    // Command Handlers (Story 4-1)
+    CreateEinsatzHandler,
+    UpdateEinsatzHandler,
+    DeleteEinsatzHandler,
+    // Command Handlers (Story 4-2: Status Transitions)
+    CompleteEinsatzHandler,
+    ArchiveEinsatzHandler,
+    UpdateEinsatzStatusHandler,
+  ],
+  exports: [
+    // Export handlers for use in Infrastructure Layer (Controllers)
+    CreateEinsatzHandler,
+    UpdateEinsatzHandler,
+    DeleteEinsatzHandler,
+    // Story 4-2: Status Transition Handlers
+    CompleteEinsatzHandler,
+    ArchiveEinsatzHandler,
+    UpdateEinsatzStatusHandler,
+  ],
+})
+export class EinsatzApplicationModule {}

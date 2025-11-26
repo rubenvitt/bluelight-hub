@@ -7,7 +7,7 @@
 **Purpose:** Zentrale Benutzerverwaltung
 
 **Key Fields:**
-- `id` (String, nanoid) - Primary Key
+- `id` (String, cuid) - Primary Key
 - `username` (String, unique) - Username
 - `passwordHash` (String, optional) - Nur für Admin-User
 - `role` (UserRole) - USER, ADMIN, SUPER_ADMIN

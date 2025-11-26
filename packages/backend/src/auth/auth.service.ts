@@ -4,6 +4,7 @@ import { formatNatoDateTime } from '@/utils/date.util';
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { isCuid } from '@paralleldrive/cuid2';
 import type { User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import type { AdminSetupDto } from './dto/admin-setup.dto';
@@ -440,7 +441,7 @@ export class AuthService {
   private async autoRegisterUser(username: string): Promise<AuthResponseDto & { accessToken: string; refreshToken: string }> {
     try {
       const newUser = await this.createUser(username);
-      this.logger.log(`⭐ Neuer Benutzer automatisch angelegt: ${newUser.username}`);
+      this.logger.log(`⭐ Neuer Benutzer automatisch angelegt: ${newUser.username} / ${newUser.id}`);
 
       // Update lastLoginAt for new user as well
       await this.updateLastLogin(newUser.id);
@@ -503,7 +504,7 @@ export class AuthService {
     // Der erste Benutzer wird automatisch SUPER_ADMIN
     const role = adminCount === 0 ? 'SUPER_ADMIN' : 'USER';
 
-    return this.prisma.user.create({
+    const newVar = await this.prisma.user.create({
       data: {
         username,
         passwordHash: null, // explizit null für normale User
@@ -511,6 +512,10 @@ export class AuthService {
         lastLoginAt: new Date(), // Set the initial login time
       },
     });
+    if (!isCuid(newVar.id)) {
+      throw new Error(`Cannot create new user ID.`);
+    }
+    return newVar;
   }
 
   /**

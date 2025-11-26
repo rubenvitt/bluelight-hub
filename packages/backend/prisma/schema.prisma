@@ -20,7 +20,7 @@ enum UserRole {
 }
 
 model User {
-  id               String    @id @default(nanoid())
+  id               String    @id @default(cuid())
   username         String    @unique @db.VarChar(100)
   passwordHash     String?   @db.Text // only admin users have a password
   role             UserRole  @default(USER)

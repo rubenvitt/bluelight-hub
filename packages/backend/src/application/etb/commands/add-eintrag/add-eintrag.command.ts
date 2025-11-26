@@ -39,6 +39,7 @@ export class AddEintragCommand {
     public readonly text: string,
     public readonly userId: string,
     public readonly kategorie: EtbKategorie = EtbKategorie.LAGE,
+    public readonly einsatzId?: string,
   ) {}
 
   /**
@@ -53,7 +54,7 @@ export class AddEintragCommand {
    * @param kategorie - Kategorie des Eintrags (optional, Default: LAGE)
    * @returns Result mit validiertem Command oder Fehlermeldung
    */
-  public static create(etbId: string, text: string, userId: string, kategorie?: EtbKategorie): Result<AddEintragCommand> {
+  public static create(etbId: string, text: string, userId: string, kategorie?: EtbKategorie, einsatzId?: string): Result<AddEintragCommand> {
     // Validation: etbId required
     if (!etbId || etbId.trim().length === 0) {
       return Result.fail('etbId is required');
@@ -69,6 +70,11 @@ export class AddEintragCommand {
       return Result.fail('userId is required');
     }
 
-    return Result.ok(new AddEintragCommand(etbId, text, userId, kategorie ?? EtbKategorie.LAGE));
+    // Validation: einsatzId optional, but if provided must not be empty
+    if (einsatzId !== undefined && einsatzId.trim().length === 0) {
+      return Result.fail('einsatzId cannot be empty when provided');
+    }
+
+    return Result.ok(new AddEintragCommand(etbId, text, userId, kategorie ?? EtbKategorie.LAGE, einsatzId));
   }
 }

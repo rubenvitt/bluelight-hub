@@ -1,4 +1,4 @@
-import { validateRequiredString, validateNanoidFormat } from '@application/common/validators/string-validator';
+import { validateCuid2Format, validateRequiredString } from '@application/common/validators/string-validator';
 
 /**
  * Query zum Abrufen von POIs einer Lagekarte.
@@ -37,10 +37,10 @@ export class GetPoisQuery {
    * - Wenn category definiert: Nur POIs mit dieser Kategorie
    * - Filterung erfolgt im Handler via aggregate.findPoisByCategory()
    *
-   * @param lagekarteId - Eindeutige ID der Lagekarte (Nanoid, 21 Zeichen)
+   * @param lagekarteId - Eindeutige ID der Lagekarte (cuid)
    * @param category - Optionale Kategorie-Filterung (z.B. "EINSATZSTELLE")
    * @throws Error wenn lagekarteId leer oder undefined ist
-   * @throws Error wenn lagekarteId kein gültiges nanoid Format hat
+   * @throws Error wenn lagekarteId kein gültiges cuid Format hat
    *
    * @example
    * ```typescript
@@ -61,6 +61,6 @@ export class GetPoisQuery {
     public readonly category?: string,
   ) {
     validateRequiredString(lagekarteId, 'lagekarteId');
-    validateNanoidFormat(lagekarteId, 'lagekarteId');
+    validateCuid2Format(lagekarteId, 'lagekarteId');
   }
 }

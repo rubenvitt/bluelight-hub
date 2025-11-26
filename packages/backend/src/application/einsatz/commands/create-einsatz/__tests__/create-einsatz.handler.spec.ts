@@ -89,7 +89,17 @@ describe('CreateEinsatzHandler', () => {
       const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
       expect(publishedEvents.length).toBeGreaterThan(0);
       const createdEvent = publishedEvents[0];
+
+      // Validate alarmstichwort
       expect(createdEvent.alarmstichwort).toBe(alarmstichwort);
+
+      // Validate nummer format: E{YEAR}-{CUID-8}
+      const currentYear = new Date().getFullYear();
+      expect(createdEvent.nummer).toBeDefined();
+      expect(createdEvent.nummer).toMatch(new RegExp(`^E${currentYear}-[a-z0-9]{8}$`));
+
+      // Validate einsatzId exists
+      expect(createdEvent.einsatzId).toBeDefined();
     });
 
     it('sollte Status ANGELEGT sein nach Erstellung', async () => {

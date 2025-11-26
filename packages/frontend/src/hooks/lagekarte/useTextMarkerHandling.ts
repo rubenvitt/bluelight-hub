@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type * as L from 'leaflet';
 import type * as GeoJSON from 'geojson';
+import type { LayerWithShapeId, LayerWithTextContent } from '@/utils/lagekarte/types';
 
 interface UseTextMarkerHandlingProps {
   map: L.Map;
@@ -8,6 +9,10 @@ interface UseTextMarkerHandlingProps {
   setShapes: (shapes: GeoJSON.FeatureCollection) => void;
   onShapesChange: (shapes: GeoJSON.FeatureCollection) => void;
 }
+
+const isTextMarkerLayer = (layer: L.Layer): layer is LayerWithShapeId & LayerWithTextContent => {
+  return 'getElement' in layer && typeof (layer as LayerWithTextContent).getElement === 'function';
+};
 
 /**
  * Event Handler: Text content changes (input/change on Leaflet.PM textarea)
@@ -48,10 +53,10 @@ export const useTextMarkerHandling = ({ map, shapesRef, setShapes, onShapesChang
       // Find the layer associated with this marker
       let shapeId: string | null = null;
 
-      map.eachLayer((layer: any) => {
-        if (layer.getElement && layer.getElement() === markerIcon) {
+      map.eachLayer((layer) => {
+        if (isTextMarkerLayer(layer) && layer.getElement?.() === markerIcon) {
           // Get shape ID directly from layer (stored during initialization or creation)
-          shapeId = layer._shapeId;
+          shapeId = layer._shapeId ?? null;
         }
       });
 

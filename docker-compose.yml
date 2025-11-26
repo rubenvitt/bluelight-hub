@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17
+    image: sha256:48c2ba21a288201d8cfa3f52b1f09a8b0a28f9c1926d37bc12cf269f7c76d400
     container_name: bluelight-hub-postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data

@@ -22,6 +22,7 @@ type EtbEntryFormData = z.infer<typeof etbEntrySchema>;
 
 interface EtbEntryFormProps {
   etbId: string;
+  einsatzId?: string;
   editingEntry?: EtbEintragDto | null;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -31,7 +32,7 @@ interface EtbEntryFormProps {
 /**
  * Formular zur Erstellung und Bearbeitung von ETB-Einträgen
  */
-export function EtbEntryForm({ etbId, editingEntry, onSuccess, onCancel, className }: EtbEntryFormProps) {
+export function EtbEntryForm({ etbId, einsatzId, editingEntry, onSuccess, onCancel, className }: EtbEntryFormProps) {
   const createEintrag = useCreateEtbEintrag();
   const updateEintrag = useUpdateEtbEintrag();
   const { data: textbausteineData } = useTextbausteine();
@@ -75,6 +76,7 @@ export function EtbEntryForm({ etbId, editingEntry, onSuccess, onCancel, classNa
               kategorie: value.kategorie,
               text: value.text.trim(),
               timestamp: value.timestamp,
+              einsatzId,
             },
           });
         }

@@ -13,7 +13,7 @@ import { EntityId } from '@domain/common/entity-id';
  *   console.log(id.toString()); // "A1B2C3D4E5F6G7H8I9J0K"
  * }
  *
- * // Mit existierendem Nanoid
+ * // Mit existierendem cuid
  * const result2 = EinsatzId.create('A1B2C3D4E5F6G7H8I9J0K');
  *
  * // Type-Safety: EinsatzId ≠ UserId

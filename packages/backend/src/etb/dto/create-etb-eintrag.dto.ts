@@ -47,5 +47,5 @@ export class CreateEtbEintragDto {
   })
   @IsOptional()
   @IsObject({ message: 'metadata muss ein Objekt sein' })
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }

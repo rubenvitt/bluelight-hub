@@ -4,7 +4,6 @@ import { EtbId } from '@domain/value-objects/etb-id';
 import { EintragId } from '@domain/value-objects/eintrag-id';
 import { UserId } from '@domain/value-objects/user-id';
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import type { DeleteEintragCommand } from './delete-eintrag.command';
 
 /**
@@ -36,8 +35,6 @@ export class DeleteEintragHandler {
   constructor(
     @Inject('IEtbRepository')
     private readonly etbRepository: IEtbRepository,
-    @Inject('IEventPublisher')
-    private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(command: DeleteEintragCommand): Promise<Result<void>> {
@@ -122,10 +119,8 @@ export class DeleteEintragHandler {
       return Result.fail<void>('Eintrag konnte nicht gelöscht werden');
     }
 
-    // Step 7: Publish domain events (AFTER successful save - transactional consistency)
-    // EintragDeletedEvent was added by aggregate.deleteEintrag()
-    await this.eventPublisher.publishAll(aggregate.getDomainEvents());
-    aggregate.clearDomainEvents();
+    // Domain Events werden automatisch in Outbox persistiert (Story 4-4: Transactional Outbox Pattern)
+    // Repository.save() → Outbox → Polling Worker → Event Handler
 
     return Result.ok<void>(undefined);
   }

@@ -405,6 +405,39 @@ model Lagekarte {
   @@map("lagekarte")
 }
 
+// ========================================
+// Outbox Pattern Models (Transactional Outbox)
+// ========================================
+
+// Outbox Event Status Enum
+enum OutboxEventStatus {
+  PENDING // Event wartet auf Veröffentlichung
+  PUBLISHED // Event erfolgreich veröffentlicht
+  FAILED // Event dauerhaft fehlgeschlagen (nach max Retries)
+}
+
+// Outbox Event Model (Transactional Outbox Pattern für Event-Garantie)
+// Events werden ATOMAR mit Aggregates persistiert, dann asynchron per Polling-Worker veröffentlicht.
+// DRK Compliance: Kein Event-Verlust bei System-Crash zwischen save() und publish().
+model OutboxEvent {
+  id                String             @id @default(cuid())
+  eventName         String             @db.VarChar(100) // z.B. "einsatz.created", "etb.eintrag_added"
+  eventVersion      Int                @default(1) // Event-Versionierung für Schema-Evolution
+  aggregateId       String             @db.VarChar(100) // ID des betroffenen Aggregates
+  payload           Json               @db.JsonB // Serialisiertes Domain Event (JSON)
+  status            OutboxEventStatus  @default(PENDING)
+  retryCount        Int                @default(0) // Anzahl fehlgeschlagener Versuche
+  lastFailureReason String?            @db.Text // Letzte Fehlermeldung
+  createdAt         DateTime           @default(now()) // Zeitpunkt der Persistierung
+  occurredAt        DateTime // Zeitpunkt des Original-Events (aus DomainEvent)
+  publishedAt       DateTime? // Zeitpunkt der erfolgreichen Veröffentlichung
+
+  // Indexes für effizientes Polling
+  @@index([status, createdAt], map: "idx_outbox_pending_poll") // Polling-Query: WHERE status=PENDING ORDER BY createdAt
+  @@index([eventName], map: "idx_outbox_event_name") // Event-Type-Filterung
+  @@map("outbox_events")
+}
+
 // Lagekarte POI Model (n:1 mit Lagekarte)
 // KOORDINATENFORMAT:
 // - MGRS (Military Grid Reference System) ist das PRIMÄRE Koordinatenformat

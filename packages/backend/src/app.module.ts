@@ -16,6 +16,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { UserManagementModule } from './user-management/user-management.module';
 import { LagekarteModule } from './modules/lagekarte/lagekarte.module';
 import { LagekarteInfrastructureModule } from './infrastructure/lagekarte-infrastructure.module';
+import { OutboxModule } from './infrastructure/outbox/outbox.module';
 
 /**
  * Haupt-Anwendungsmodul der Bluelight Hub Backend-Anwendung
@@ -66,6 +67,7 @@ import { LagekarteInfrastructureModule } from './infrastructure/lagekarte-infras
     EtbModule,
     LagekarteModule,
     LagekarteInfrastructureModule,
+    OutboxModule, // Transactional Outbox Pattern (Story 4-4)
   ],
   controllers: [AppController],
   providers: [

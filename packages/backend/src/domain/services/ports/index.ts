@@ -9,3 +9,4 @@
 export type { IEventPublisher } from './i-event-publisher.port';
 export type { IGeocodingPort } from './i-geocoding.port';
 export type { ITokenServicePort } from './i-token-service.port';
+export type { IAlertService, OutboxFailureAlertPayload } from './i-alert.service';

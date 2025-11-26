@@ -1,4 +1,5 @@
-import { Injectable, Inject } from '@nestjs/common';
+import type { IQueryHandler } from '@nestjs/cqrs';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import { Result } from '@domain/common/result';
 import type { EinsatzDto } from '@application/einsatz/dto/einsatz.dto';
@@ -45,7 +46,9 @@ import type { GetActiveEinsaetzeQuery } from './get-active-einsaetze.query';
  * ```
  */
 @Injectable()
-export class GetActiveEinsaetzeQueryHandler {
+export class GetActiveEinsaetzeQueryHandler implements IQueryHandler<GetActiveEinsaetzeQuery, Result<EinsatzDto[]>> {
+  private readonly logger = new Logger(GetActiveEinsaetzeQueryHandler.name);
+
   constructor(
     @Inject('IEinsatzRepository')
     private readonly repository: IEinsatzRepository,
@@ -66,10 +69,10 @@ export class GetActiveEinsaetzeQueryHandler {
    * - Unerwartete Fehler (try-catch) → Result.fail()
    * - Leeres Array ist KEIN Fehler sondern valides Resultat
    *
-   * @param query - GetActiveEinsaetzeQuery (parameterlos)
+   * @param _query - GetActiveEinsaetzeQuery (parameterlos, Underscore weil unused)
    * @returns Result<EinsatzDto[]> - Success mit DTOs oder Failure mit Error Message
    */
-  async execute(query: GetActiveEinsaetzeQuery): Promise<Result<EinsatzDto[]>> {
+  async execute(_query: GetActiveEinsaetzeQuery): Promise<Result<EinsatzDto[]>> {
     try {
       // 1. Hole alle aktiven Einsaetze vom Repository
       const aggregatesResult = await this.repository.findActive();
@@ -79,7 +82,11 @@ export class GetActiveEinsaetzeQueryHandler {
         return Result.fail<EinsatzDto[]>(aggregatesResult.error ?? 'Failed to fetch active einsaetze from repository');
       }
 
-      const aggregates = aggregatesResult.value!;
+      // Type Narrowing: value ist garantiert vorhanden wenn isFailure === false
+      const aggregates = aggregatesResult.value;
+      if (!aggregates) {
+        return Result.ok<EinsatzDto[]>([]);
+      }
 
       // 3. Sortiere nach createdAt DESC (newest first)
       // WICHTIG: sort() mutiert Array, daher spreaden wir fuer Immutability
@@ -93,7 +100,8 @@ export class GetActiveEinsaetzeQueryHandler {
       // 5. Return Success mit DTOs (leeres Array ist valide)
       return Result.ok<EinsatzDto[]>(dtos);
     } catch (error) {
-      // Unerwartete Fehler (sollte nicht passieren, da Repository Result<T> verwendet)
+      // Structured Logging fuer Produktions-Debugging
+      this.logger.error('Unexpected error fetching active einsaetze', error instanceof Error ? error.stack : String(error));
       const errorMessage = error instanceof Error ? error.message : 'Unexpected error while fetching active einsaetze';
       return Result.fail<EinsatzDto[]>(errorMessage);
     }

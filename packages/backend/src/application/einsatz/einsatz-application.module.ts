@@ -4,6 +4,7 @@ import { LagekarteInfrastructureModule } from '@infrastructure/lagekarte-infrast
 import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
 import { CreateEinsatzHandler, UpdateEinsatzHandler, DeleteEinsatzHandler, CompleteEinsatzHandler, ArchiveEinsatzHandler, UpdateEinsatzStatusHandler } from './commands';
+import { GetActiveEinsaetzeQueryHandler, GetEinsatzByIdQueryHandler, GetEinsatzByNummerQueryHandler } from './queries';
 
 /**
  * NestJS-Modul für Application Layer - Einsatz Bounded Context.
@@ -13,9 +14,9 @@ import { CreateEinsatzHandler, UpdateEinsatzHandler, DeleteEinsatzHandler, Compl
  * (Infrastructure Layer) die Handler zu nutzen, ohne direkt zu importieren
  * (Loose Coupling via Hexagonale Architektur).
  *
- * **CQRS Pattern (Story 4-1):**
+ * **CQRS Pattern (Story 4-1, 4-3):**
  * - Command Handlers: State Mutation (Create, Update, Delete)
- * - Query Handlers: State Reading (Story 4-3 - noch nicht implementiert)
+ * - Query Handlers: State Reading (GetActiveEinsaetze, GetById, GetByNummer)
  *
  * **NO-DELETE Policy (DRK-Compliance):**
  * DeleteEinsatzHandler gibt IMMER einen Fehler zurück.
@@ -59,6 +60,10 @@ import { CreateEinsatzHandler, UpdateEinsatzHandler, DeleteEinsatzHandler, Compl
     CompleteEinsatzHandler,
     ArchiveEinsatzHandler,
     UpdateEinsatzStatusHandler,
+    // Query Handlers (Story 4-3: Read Operations)
+    GetActiveEinsaetzeQueryHandler,
+    GetEinsatzByIdQueryHandler,
+    GetEinsatzByNummerQueryHandler,
   ],
   exports: [
     // Export handlers for use in Infrastructure Layer (Controllers)
@@ -69,6 +74,10 @@ import { CreateEinsatzHandler, UpdateEinsatzHandler, DeleteEinsatzHandler, Compl
     CompleteEinsatzHandler,
     ArchiveEinsatzHandler,
     UpdateEinsatzStatusHandler,
+    // Story 4-3: Query Handlers
+    GetActiveEinsaetzeQueryHandler,
+    GetEinsatzByIdQueryHandler,
+    GetEinsatzByNummerQueryHandler,
   ],
 })
 export class EinsatzApplicationModule {}

@@ -51,6 +51,8 @@ import { UserId } from '@domain/value-objects/user-id';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Result } from '@domain/common/result';
 import { PrismaEtbRepository } from '@infrastructure/etb/repositories/prisma-etb.repository';
+import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
+import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import type { DomainEvent } from '@domain/common/domain-event';
@@ -252,7 +254,12 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
         // Repository
         {
           provide: 'IEtbRepository',
-          useFactory: () => new PrismaEtbRepository(prisma as unknown as PrismaService),
+          useFactory: () => {
+            const prismaService = prisma as unknown as PrismaService;
+            const eventSerializer = new EventSerializer();
+            const outboxRepository = new PrismaOutboxRepository(prismaService, eventSerializer);
+            return new PrismaEtbRepository(prismaService, outboxRepository);
+          },
         },
         // Mock EinsatzRepository
         {

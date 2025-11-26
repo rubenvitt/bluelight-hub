@@ -3,7 +3,6 @@ import { Result } from '@domain/common/result';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { UserId } from '@domain/value-objects/user-id';
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import type { LockEtbCommand } from './lock-etb.command';
 
 /**
@@ -33,8 +32,6 @@ export class LockEtbHandler {
   constructor(
     @Inject('IEtbRepository')
     private readonly etbRepository: IEtbRepository,
-    @Inject('IEventPublisher')
-    private readonly eventPublisher: IEventPublisher,
   ) {}
 
   /**
@@ -112,9 +109,8 @@ export class LockEtbHandler {
       return Result.fail<void>('ETB konnte nicht gesperrt werden');
     }
 
-    // Step 7: Publish domain events (AFTER successful save)
-    await this.eventPublisher.publishAll(aggregate.getDomainEvents());
-    aggregate.clearDomainEvents();
+    // Domain Events werden automatisch in Outbox persistiert (Story 4-4: Transactional Outbox Pattern)
+    // Repository.save() → Outbox → Polling Worker → Event Handler
 
     return Result.ok<void>(undefined);
   }

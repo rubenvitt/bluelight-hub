@@ -48,6 +48,8 @@ import { Result } from '@domain/common/result';
 
 // Infrastructure
 import { PrismaLagekarteRepository } from '@infrastructure/repositories/prisma-lagekarte.repository';
+import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
+import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
 import type { PrismaService } from '@/prisma/prisma.service';
 
 // Application - Commands
@@ -166,7 +168,9 @@ describe('Lagekarte CQRS API - E2E Tests', () => {
 
     // Initialize Repository
     const prismaService = prisma as unknown as PrismaService;
-    lagekarteRepository = new PrismaLagekarteRepository(prismaService);
+    const eventSerializer = new EventSerializer();
+    const outboxRepository = new PrismaOutboxRepository(prismaService, eventSerializer);
+    lagekarteRepository = new PrismaLagekarteRepository(prismaService, outboxRepository);
 
     // Mock EinsatzRepository
     mockEinsatzRepository = {

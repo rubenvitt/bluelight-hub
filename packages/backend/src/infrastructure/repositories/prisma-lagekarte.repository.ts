@@ -6,6 +6,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { PrismaLagekarteMapper } from './mappers/prisma-lagekarte.mapper';
 import type { PrismaClient } from '@prisma/client';
+import { PrismaOutboxRepository, type PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
 
 /**
  * Prisma Implementation des ILagekarteRepository (Hexagonal Architecture).
@@ -73,8 +74,12 @@ export class PrismaLagekarteRepository implements ILagekarteRepository {
    * Prisma Client zur Verfügung. Singleton-Pattern im App-Lifecycle.
    *
    * @param prisma - PrismaService (NestJS-managed Singleton)
+   * @param outboxRepository - OutboxRepository für Transactional Outbox Pattern (Story 4-4)
    */
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outboxRepository: PrismaOutboxRepository,
+  ) {}
 
   /**
    * Speichert das Lagekarte-Aggregat (Upsert: Create oder Update).
@@ -97,7 +102,14 @@ export class PrismaLagekarteRepository implements ILagekarteRepository {
    * **Transaction Handling:**
    * - Wenn tx=undefined: Verwendet interne Prisma $transaction()
    * - Wenn tx=provided: Nutzt externe Transaction (Handler-Level)
-   * - Atomicity: Lagekarte + POIs werden zusammen committed oder rolled back
+   * - Atomicity: Lagekarte + POIs + Outbox Events werden zusammen committed oder rolled back
+   *
+   * **Transactional Outbox Pattern (Story 4-4):**
+   * - Domain Events werden ATOMAR mit dem Aggregate persistiert
+   * - Events landen in outbox_events Tabelle (status=PENDING)
+   * - Polling Worker published Events asynchron aus Outbox
+   * - Garantiert: Kein Event-Verlust durch Transaction Rollback
+   * - clearDomainEvents() erfolgt NACH Transaction Commit
    *
    * **Error Cases:**
    * - P2002 (Unique Constraint): einsatzId bereits verwendet (sollte nicht passieren bei Upsert)
@@ -169,6 +181,14 @@ export class PrismaLagekarteRepository implements ILagekarteRepository {
           })),
         });
       }
+
+      // Step 4: Persist Domain Events to Outbox (ATOMIC with Lagekarte + POIs)
+      // WICHTIG: Events werden in derselben Transaktion wie das Aggregate committed
+      // → Garantiert Konsistenz: Kein Event-Verlust bei Transaction Rollback
+      const events = aggregate.getDomainEvents();
+      if (events.length > 0) {
+        await this.outboxRepository.save(events, prismaClient as unknown as PrismaTransaction);
+      }
     };
 
     // Execute in Transaction (internal oder external)
@@ -181,6 +201,11 @@ export class PrismaLagekarteRepository implements ILagekarteRepository {
         await operation(prismaClient as PrismaClient);
       });
     }
+
+    // Step 5: Clear Domain Events AFTER successful transaction
+    // WICHTIG: clearDomainEvents() muss NACH dem Transaction Commit erfolgen
+    // → Verhindert Event-Verlust bei Transaction Rollback
+    aggregate.clearDomainEvents();
   }
 
   /**

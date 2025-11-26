@@ -5,8 +5,6 @@ import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { EtbId } from '@domain/value-objects/etb-id';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import { EtbCreatedEvent } from '@domain/events/etb-created.event';
 import type { CreateEtbCommand } from './create-etb.command';
 
 /**
@@ -20,8 +18,8 @@ import type { CreateEtbCommand } from './create-etb.command';
  * while server-side logging preserves full diagnostic context for debugging.
  * This prevents OWASP A01:2021 (Broken Access Control) information leakage.
  *
- * Nach erfolgreichem Save werden Domain Events via IEventPublisher publiziert
- * (transaktionale Konsistenz: Events nur nach erfolgreicher Persistenz).
+ * Domain Events werden automatisch vom Aggregate emittiert und vom Repository
+ * in der Outbox persistiert (Transactional Outbox Pattern).
  */
 @Injectable()
 export class CreateEtbHandler {
@@ -32,8 +30,6 @@ export class CreateEtbHandler {
     private readonly einsatzRepository: IEinsatzRepository,
     @Inject('IEtbRepository')
     private readonly etbRepository: IEtbRepository,
-    @Inject('IEventPublisher')
-    private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(command: CreateEtbCommand): Promise<Result<EtbId>> {
@@ -94,6 +90,7 @@ export class CreateEtbHandler {
     }
 
     // Step 5: Save aggregate
+    // Domain Events werden automatisch in Outbox persistiert (Transactional Outbox Pattern)
     try {
       await this.etbRepository.save(aggregate);
     } catch (error) {
@@ -104,12 +101,6 @@ export class CreateEtbHandler {
       });
       return Result.fail<EtbId>('ETB konnte nicht gespeichert werden');
     }
-
-    // Step 6: Publish domain events (AFTER successful save - transactional consistency)
-    // Create EtbCreatedEvent explicitly since Aggregate.create() doesn't emit events
-    const etbCreatedEvent = new EtbCreatedEvent(aggregate.id, einsatzId);
-    await this.eventPublisher.publish(etbCreatedEvent);
-    aggregate.clearDomainEvents();
 
     return Result.ok(aggregate.id);
   }

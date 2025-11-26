@@ -2,7 +2,6 @@ import { CreateEtbCommand, type CreateEtbHandler } from '@application/etb/comman
 import { Result } from '@domain/common/result';
 import type { EtbEintrag } from '@domain/entities/etb-eintrag.entity';
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { EtbKategorie } from '@domain/value-objects/etb-kategorie';
 import { UserId } from '@domain/value-objects/user-id';
@@ -33,8 +32,6 @@ export class AddEintragHandler {
   constructor(
     @Inject('IEtbRepository')
     private readonly etbRepository: IEtbRepository,
-    @Inject('IEventPublisher')
-    private readonly eventPublisher: IEventPublisher,
     @Optional()
     private readonly createEtbHandler?: CreateEtbHandler,
   ) {}
@@ -163,10 +160,8 @@ export class AddEintragHandler {
       return Result.fail<EtbEintrag>('Eintrag konnte nicht gespeichert werden');
     }
 
-    // Step 7: Publish domain events (AFTER successful save - transactional consistency)
-    // EintragAddedEvent was added by aggregate.addEintrag()
-    await this.eventPublisher.publishAll(aggregate.getDomainEvents());
-    aggregate.clearDomainEvents();
+    // Domain Events werden automatisch in Outbox persistiert (Story 4-4: Transactional Outbox Pattern)
+    // Repository.save() → Outbox → Polling Worker → Event Handler
 
     return Result.ok(eintrag);
   }

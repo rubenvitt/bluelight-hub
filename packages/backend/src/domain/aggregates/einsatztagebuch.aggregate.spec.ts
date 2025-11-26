@@ -3,6 +3,7 @@ import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { UserId } from '@domain/value-objects/user-id';
 import { EtbStatus } from '@domain/value-objects/etb-status';
 import { EintragId } from '@domain/value-objects/eintrag-id';
+import { EtbCreatedEvent } from '@domain/events/etb-created.event';
 
 // Mock cuid2 for Jest compatibility (ESM module issue)
 jest.mock('@paralleldrive/cuid2', () => ({
@@ -64,6 +65,24 @@ describe('EinsatztagebuchAggregate', () => {
       const result = EinsatztagebuchAggregate.create(null as any);
       expect(result.isFailure).toBe(true);
       expect(result.error).toContain('EinsatzId');
+    });
+
+    it('should emit EtbCreatedEvent on creation', () => {
+      // Given: Valid einsatzId
+      // When: Creating ETB
+      const result = EinsatztagebuchAggregate.create(einsatzId);
+
+      // Then: EtbCreatedEvent is emitted
+      expect(result.isSuccess).toBe(true);
+      const etb = result.value!;
+      const domainEvents = etb.getDomainEvents();
+
+      expect(domainEvents).toHaveLength(1);
+      expect(domainEvents[0]).toBeInstanceOf(EtbCreatedEvent);
+
+      const event = domainEvents[0] as EtbCreatedEvent;
+      expect(event.etbId.equals(etb.id)).toBe(true);
+      expect(event.einsatzId.equals(einsatzId)).toBe(true);
     });
   });
 

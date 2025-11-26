@@ -3,6 +3,8 @@ import { PrismaLagekarteRepository } from './repositories/prisma-lagekarte.repos
 import { PrismaEinsatzRepositoryAdapter } from './repositories/prisma-einsatz.repository';
 import { NominatimGeocodingAdapter } from './geocoding/nominatim-geocoding.adapter';
 import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
+import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
 
 /**
  * NestJS Module für Lagekarte Infrastructure Layer.
@@ -34,6 +36,13 @@ import { PrismaModule } from '@/prisma/prisma.module';
  *
  * **Module Dependencies:**
  * - PrismaModule: Stellt PrismaService für Repository zur Verfügung
+ * - EventSerializer: Serialisiert Domain Events für Outbox Pattern (Story 4-4)
+ * - PrismaOutboxRepository: Persistiert Events in outbox_events Tabelle (Story 4-4)
+ *
+ * **Transactional Outbox Pattern (Story 4-4):**
+ * - PrismaLagekarteRepository nutzt PrismaOutboxRepository für atomare Event-Persistierung
+ * - Events werden mit Aggregate in einer Transaktion committed
+ * - Garantiert: Keine Event-Loss durch Transaction Rollback
  *
  * @example
  * ```typescript
@@ -52,6 +61,10 @@ import { PrismaModule } from '@/prisma/prisma.module';
 @Module({
   imports: [PrismaModule], // Import PrismaModule für PrismaService
   providers: [
+    // Outbox Infrastructure (Story 4-4)
+    EventSerializer,
+    PrismaOutboxRepository,
+
     {
       provide: 'ILagekarteRepository', // String Token (Interface-Name)
       useClass: PrismaLagekarteRepository, // Konkrete Implementation

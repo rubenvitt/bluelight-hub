@@ -22,6 +22,8 @@ import { PrismaClient } from '@prisma/client';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { PrismaEtbRepository } from '../repositories/prisma-etb.repository';
+import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
+import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
 import { createId } from '@paralleldrive/cuid2';
 
 // ============================================
@@ -257,8 +259,10 @@ export async function createEtbE2eModule(): Promise<EtbE2eTestContext> {
     )
   `;
 
-  // 5. Repository und EventPublisher
-  const repository = new PrismaEtbRepository(prisma);
+  // 5. Repository und EventPublisher mit Outbox Support (Story 4-4)
+  const eventSerializer = new EventSerializer();
+  const outboxRepository = new PrismaOutboxRepository(prisma, eventSerializer);
+  const repository = new PrismaEtbRepository(prisma, outboxRepository);
   const eventPublisher = new SpyEventPublisher();
 
   return {

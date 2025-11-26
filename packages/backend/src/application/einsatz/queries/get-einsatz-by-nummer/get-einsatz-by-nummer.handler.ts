@@ -1,5 +1,5 @@
 import type { IQueryHandler } from '@nestjs/cqrs';
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import { Result } from '@domain/common/result';
 import type { EinsatzDto } from '@application/einsatz/dto/einsatz.dto';
@@ -42,6 +42,8 @@ import type { GetEinsatzByNummerQuery } from './get-einsatz-by-nummer.query';
  */
 @Injectable()
 export class GetEinsatzByNummerQueryHandler implements IQueryHandler<GetEinsatzByNummerQuery, Result<EinsatzDto | null>> {
+  private readonly logger = new Logger(GetEinsatzByNummerQueryHandler.name);
+
   constructor(
     @Inject('IEinsatzRepository')
     private readonly einsatzRepository: IEinsatzRepository,
@@ -79,7 +81,7 @@ export class GetEinsatzByNummerQueryHandler implements IQueryHandler<GetEinsatzB
 
       // Step 2: Handle Repository Error
       if (aggregateResult.isFailure) {
-        const errorMessage = aggregateResult.error && aggregateResult.error.trim() ? aggregateResult.error : 'Failed to load Einsatz by nummer';
+        const errorMessage = aggregateResult.error?.trim() ? aggregateResult.error : 'Failed to load Einsatz by nummer';
         return Result.fail(errorMessage);
       }
 
@@ -94,8 +96,9 @@ export class GetEinsatzByNummerQueryHandler implements IQueryHandler<GetEinsatzB
       const dto = EinsatzQueryMapper.toEinsatzDto(aggregate);
 
       return Result.ok(dto);
-    } catch (_error) {
-      // Step 5: Catch unexpected errors (e.g., database connection failure)
+    } catch (error) {
+      // Step 5: Structured Logging fuer Produktions-Debugging
+      this.logger.error(`Unexpected error loading einsatz by nummer ${query.nummer}`, error instanceof Error ? error.stack : String(error));
       return Result.fail('Failed to load Einsatz by nummer');
     }
   }

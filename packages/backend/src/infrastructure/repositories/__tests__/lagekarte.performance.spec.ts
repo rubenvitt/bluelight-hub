@@ -39,6 +39,8 @@ jest.mock('@paralleldrive/cuid2', () => ({
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaLagekarteRepository } from '../prisma-lagekarte.repository';
+import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
+import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { UserId } from '@domain/value-objects/user-id';
@@ -160,7 +162,9 @@ describe('PrismaLagekarteRepository - Performance Baselines', () => {
 
     // Initialize Repository
     const prismaService = prisma as unknown as PrismaService;
-    repository = new PrismaLagekarteRepository(prismaService);
+    const eventSerializer = new EventSerializer();
+    const outboxRepository = new PrismaOutboxRepository(prismaService, eventSerializer);
+    repository = new PrismaLagekarteRepository(prismaService, outboxRepository);
   });
 
   /**

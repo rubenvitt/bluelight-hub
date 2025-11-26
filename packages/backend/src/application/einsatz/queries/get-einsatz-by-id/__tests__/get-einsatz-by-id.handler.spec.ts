@@ -4,11 +4,11 @@ import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { UserId } from '@domain/value-objects/user-id';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { Address } from '@domain/value-objects/address';
-import { GetEinsatzByIdHandler } from '../get-einsatz-by-id.handler';
+import { GetEinsatzByIdQueryHandler } from '../get-einsatz-by-id.handler';
 import { GetEinsatzByIdQuery } from '../get-einsatz-by-id.query';
 
-describe('GetEinsatzByIdHandler', () => {
-  let handler: GetEinsatzByIdHandler;
+describe('GetEinsatzByIdQueryHandler', () => {
+  let handler: GetEinsatzByIdQueryHandler;
   let mockRepository: {
     save: jest.Mock;
     findById: jest.Mock;
@@ -27,10 +27,10 @@ describe('GetEinsatzByIdHandler', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [GetEinsatzByIdHandler, { provide: 'IEinsatzRepository', useValue: mockRepository }],
+      providers: [GetEinsatzByIdQueryHandler, { provide: 'IEinsatzRepository', useValue: mockRepository }],
     }).compile();
 
-    handler = module.get<GetEinsatzByIdHandler>(GetEinsatzByIdHandler);
+    handler = module.get<GetEinsatzByIdQueryHandler>(GetEinsatzByIdQueryHandler);
   });
 
   afterEach(() => {

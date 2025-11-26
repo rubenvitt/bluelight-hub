@@ -4,6 +4,7 @@ import { EtbEintrag } from '@domain/entities/etb-eintrag.entity';
 import { EintragAddedEvent } from '@domain/events/eintrag-added.event';
 import { EintragDeletedEvent } from '@domain/events/eintrag-deleted.event';
 import { EintragUpdatedEvent } from '@domain/events/eintrag-updated.event';
+import { EtbCreatedEvent } from '@domain/events/etb-created.event';
 import { EtbLockedEvent } from '@domain/events/etb-locked.event';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EintragId } from '@domain/value-objects/eintrag-id';
@@ -226,6 +227,9 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
       version, // Version 1
       1, // Next sequence number starts at 1
     );
+
+    // Emit EtbCreatedEvent (Domain Event für ETB Creation)
+    aggregate.addDomainEvent(new EtbCreatedEvent(etbId, einsatzId));
 
     return Result.ok<EinsatztagebuchAggregate>(aggregate);
   }

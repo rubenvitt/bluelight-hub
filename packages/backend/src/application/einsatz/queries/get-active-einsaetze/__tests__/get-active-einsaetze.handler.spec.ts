@@ -182,7 +182,6 @@ describe('GetActiveEinsaetzeQueryHandler', () => {
 
     it('should map all aggregate fields to DTO correctly', async () => {
       // Given: Einsatz mit allen optionalen Feldern
-      const userId = UserId.create().value!;
       const einsatzort = Address.create({
         strasse: 'Musterstr.',
         hausnummer: '42',

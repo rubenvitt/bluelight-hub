@@ -1,4 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import type { IQueryHandler } from '@nestjs/cqrs';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { EinsatzDto } from '@application/einsatz/dto/einsatz.dto';
 import { EinsatzQueryMapper } from '@application/einsatz/mappers/einsatz-query.mapper';
 import { Result } from '@domain/common/result';
@@ -46,7 +47,9 @@ import type { GetEinsatzByIdQuery } from './get-einsatz-by-id.query';
  * ```
  */
 @Injectable()
-export class GetEinsatzByIdHandler {
+export class GetEinsatzByIdQueryHandler implements IQueryHandler<GetEinsatzByIdQuery, Result<EinsatzDto | null>> {
+  private readonly logger = new Logger(GetEinsatzByIdQueryHandler.name);
+
   constructor(
     @Inject('IEinsatzRepository')
     private readonly repository: IEinsatzRepository,
@@ -72,7 +75,11 @@ export class GetEinsatzByIdHandler {
       if (einsatzIdResult.isFailure) {
         return Result.fail(einsatzIdResult.error ?? 'Ungueltige einsatzId');
       }
-      const einsatzId = einsatzIdResult.value as EinsatzId;
+      // Type Narrowing: value ist garantiert vorhanden nach isFailure Check
+      const einsatzId = einsatzIdResult.value;
+      if (!einsatzId) {
+        return Result.fail('Ungueltige einsatzId');
+      }
 
       // Repository Call
       const repoResult = await this.repository.findById(einsatzId);
@@ -91,6 +98,8 @@ export class GetEinsatzByIdHandler {
 
       return Result.ok<EinsatzDto | null>(dto);
     } catch (error) {
+      // Structured Logging fuer Produktions-Debugging
+      this.logger.error(`Unexpected error loading einsatz ${query.einsatzId}`, error instanceof Error ? error.stack : String(error));
       return Result.fail(`Unerwarteter Fehler beim Laden des Einsatzes: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

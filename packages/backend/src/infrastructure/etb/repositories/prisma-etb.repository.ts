@@ -8,6 +8,7 @@ import { EtbVersion } from '@domain/value-objects/etb-version';
 import { Injectable } from '@nestjs/common';
 import type { EtbSnapshot as PrismaEtbSnapshot, Prisma } from '@prisma/client';
 import { PrismaEtbMapper } from '../mappers/prisma-etb.mapper';
+import { PrismaOutboxRepository, type PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
 
 /**
  * Transaction Client Type Alias fuer bessere Lesbarkeit.
@@ -72,8 +73,12 @@ export class PrismaEtbRepository implements IEtbRepository {
    * Prisma Client zur Verfügung. Singleton-Pattern im App-Lifecycle.
    *
    * @param prisma - PrismaService (NestJS-managed Singleton)
+   * @param outboxRepository - OutboxRepository für Transactional Outbox Pattern (Story 4-4)
    */
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outboxRepository: PrismaOutboxRepository,
+  ) {}
 
   /**
    * Speichert das ETB-Aggregat (Upsert: Create oder Update).
@@ -87,6 +92,8 @@ export class PrismaEtbRepository implements IEtbRepository {
    * 2. INSERT neue Eintraege mit ON CONFLICT DO NOTHING
    * 3. Persist uncommitted Snapshots
    * 4. Clear Snapshots auf Aggregate
+   * 5. Persist Domain Events to Outbox (Story 4-4)
+   * 6. Clear Domain Events auf Aggregate (nach erfolgreicher Transaction)
    *
    * **Warum Append-Only statt DELETE + CREATE:**
    * - DRK-Compliance: 10-Jahres-Aufbewahrungspflicht, NO-DELETE Trigger aktiv
@@ -97,7 +104,14 @@ export class PrismaEtbRepository implements IEtbRepository {
    * **Transaction Handling:**
    * - Wenn tx=undefined: Verwendet interne Prisma $transaction()
    * - Wenn tx=provided: Nutzt externe Transaction (Handler-Level)
-   * - Atomicity: ETB + Eintraege + Snapshots werden zusammen committed oder rolled back
+   * - Atomicity: ETB + Eintraege + Snapshots + Outbox Events werden zusammen committed oder rolled back
+   *
+   * **Transactional Outbox Pattern (Story 4-4):**
+   * - Domain Events werden ATOMAR mit dem Aggregate persistiert
+   * - Events landen in outbox_events Tabelle (status=PENDING)
+   * - Polling Worker published Events asynchron aus Outbox
+   * - Garantiert: Kein Event-Verlust durch Transaction Rollback
+   * - clearDomainEvents() erfolgt NACH Transaction Commit
    *
    * @param aggregate - Das zu speichernde ETB Aggregat
    * @param tx - Optionale externe Transaktion
@@ -209,6 +223,14 @@ export class PrismaEtbRepository implements IEtbRepository {
       // WICHTIG: Nach erfolgreicher Persistierung müssen Snapshots geleert werden
       // um doppelte Persistierung zu verhindern
       aggregate.clearSnapshots();
+
+      // Step 8: Persist Domain Events to Outbox (ATOMIC with ETB + Eintraege)
+      // WICHTIG: Events werden in derselben Transaktion wie das Aggregate committed
+      // → Garantiert Konsistenz: Kein Event-Verlust bei Transaction Rollback
+      const events = aggregate.getDomainEvents();
+      if (events.length > 0) {
+        await this.outboxRepository.save(events, prismaClient as unknown as PrismaTransaction);
+      }
     };
 
     // Execute in Transaction (internal oder external)
@@ -221,6 +243,12 @@ export class PrismaEtbRepository implements IEtbRepository {
         await operation(prismaClient);
       });
     }
+
+    // Step 9: Clear Domain Events AFTER successful transaction
+    // WICHTIG: clearDomainEvents() muss NACH dem Transaction Commit erfolgen
+    // → Verhindert Event-Verlust bei Transaction Rollback
+    // → Analog zu clearSnapshots() innerhalb der Transaction
+    aggregate.clearDomainEvents();
   }
 
   /**

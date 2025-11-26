@@ -9,7 +9,6 @@ import { PoiCategory } from '@domain/value-objects/poi-category';
 import { UserId } from '@domain/value-objects/user-id';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { CoordinateConverter } from '@application/common/coordinate-converter';
 import { CreateLagekarteCommand } from './create-lagekarte.command';
 
@@ -37,8 +36,6 @@ export class CreateLagekarteCommandHandler implements ICommandHandler<CreateLage
     private readonly einsatzRepository: IEinsatzRepository,
     @Inject('ILagekarteRepository')
     private readonly lagekarteRepository: ILagekarteRepository,
-    @Inject('IEventPublisher')
-    private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(command: CreateLagekarteCommand): Promise<Result<LagekarteId>> {
@@ -153,9 +150,8 @@ export class CreateLagekarteCommandHandler implements ICommandHandler<CreateLage
       return Result.fail<LagekarteId>(`Failed to save Lagekarte: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    // Step 8: Publish domain events (AFTER successful save - transactional consistency)
-    await this.eventPublisher.publishAll(aggregate.getDomainEvents());
-    aggregate.clearDomainEvents();
+    // Domain Events werden automatisch in Outbox persistiert (Story 4-4: Transactional Outbox Pattern)
+    // Repository.save() → Outbox → Polling Worker → Event Handler
 
     return Result.ok(aggregate.id);
   }

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { PrismaEtbRepository } from './repositories/prisma-etb.repository';
+import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
+import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
 
 /**
  * NestJS Module für ETB Infrastructure Layer.
@@ -22,6 +24,13 @@ import { PrismaEtbRepository } from './repositories/prisma-etb.repository';
  *
  * **Module Dependencies:**
  * - PrismaModule: Stellt PrismaService für Repository zur Verfügung
+ * - EventSerializer: Serialisiert Domain Events für Outbox Pattern (Story 4-4)
+ * - PrismaOutboxRepository: Persistiert Events in outbox_events Tabelle (Story 4-4)
+ *
+ * **Transactional Outbox Pattern (Story 4-4):**
+ * - PrismaEtbRepository nutzt PrismaOutboxRepository für atomare Event-Persistierung
+ * - Events werden mit Aggregate in einer Transaktion committed
+ * - Garantiert: Keine Event-Loss durch Transaction Rollback
  *
  * @example
  * ```typescript
@@ -38,6 +47,10 @@ import { PrismaEtbRepository } from './repositories/prisma-etb.repository';
 @Module({
   imports: [PrismaModule],
   providers: [
+    // Outbox Infrastructure (Story 4-4)
+    EventSerializer,
+    PrismaOutboxRepository,
+
     // Repository Implementation bound to Interface Token
     {
       provide: 'IEtbRepository',

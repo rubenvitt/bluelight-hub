@@ -1,6 +1,7 @@
 import { AddPoiCommandHandler } from '../add-poi.handler';
 import { AddPoiCommand } from '../add-poi.command';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
@@ -47,6 +48,7 @@ function generateTestCuid(suffix = ''): string {
 describe('AddPoiCommandHandler', () => {
   let handler: AddPoiCommandHandler;
   let mockLagekarteRepo: jest.Mocked<ILagekarteRepository>;
+  let mockEventPublisher: jest.Mocked<IEventPublisher>;
 
   beforeEach(() => {
     // Create mock repository with all required methods
@@ -58,8 +60,14 @@ describe('AddPoiCommandHandler', () => {
       // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
+    mockEventPublisher = {
+      publish: jest.fn(),
+      publishAll: jest.fn(),
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
+    } as any;
+
     // Instantiate handler with mocks (Direct Instantiation Pattern)
-    handler = new AddPoiCommandHandler(mockLagekarteRepo);
+    handler = new AddPoiCommandHandler(mockLagekarteRepo, mockEventPublisher);
   });
 
   afterEach(() => {

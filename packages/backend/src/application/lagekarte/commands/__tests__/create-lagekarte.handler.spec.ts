@@ -2,6 +2,7 @@ import { CreateLagekarteCommandHandler } from '../create-lagekarte.handler';
 import { CreateLagekarteCommand } from '../create-lagekarte.command';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { Result } from '@domain/common/result';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 
@@ -49,6 +50,7 @@ describe('CreateLagekarteCommandHandler', () => {
   let handler: CreateLagekarteCommandHandler;
   let mockEinsatzRepo: jest.Mocked<IEinsatzRepository>;
   let mockLagekarteRepo: jest.Mocked<ILagekarteRepository>;
+  let mockEventPublisher: jest.Mocked<IEventPublisher>;
 
   beforeEach(() => {
     // Create mock repositories with all required methods
@@ -69,8 +71,14 @@ describe('CreateLagekarteCommandHandler', () => {
       // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
+    mockEventPublisher = {
+      publish: jest.fn(),
+      publishAll: jest.fn(),
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
+    } as any;
+
     // Instantiate handler with mocks (Direct Instantiation Pattern)
-    handler = new CreateLagekarteCommandHandler(mockEinsatzRepo, mockLagekarteRepo);
+    handler = new CreateLagekarteCommandHandler(mockEinsatzRepo, mockLagekarteRepo, mockEventPublisher);
   });
 
   afterEach(() => {

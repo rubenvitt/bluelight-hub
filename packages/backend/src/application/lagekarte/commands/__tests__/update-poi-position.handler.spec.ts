@@ -2,6 +2,7 @@
 import { UpdatePoiPositionCommandHandler } from '../update-poi-position.handler';
 import { UpdatePoiPositionCommand } from '../update-poi-position.command';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { PoiCategory } from '@domain/value-objects/poi-category';
@@ -47,6 +48,7 @@ function generateTestCuid(suffix = ''): string {
 describe('UpdatePoiPositionCommandHandler', () => {
   let handler: UpdatePoiPositionCommandHandler;
   let mockLagekarteRepo: jest.Mocked<ILagekarteRepository>;
+  let mockEventPublisher: jest.Mocked<IEventPublisher>;
 
   beforeEach(() => {
     // Create mock repository with all required methods
@@ -57,8 +59,13 @@ describe('UpdatePoiPositionCommandHandler', () => {
       exists: jest.fn(),
     } as any;
 
+    mockEventPublisher = {
+      publish: jest.fn(),
+      publishAll: jest.fn(),
+    } as any;
+
     // Instantiate handler with mocks (Direct Instantiation Pattern)
-    handler = new UpdatePoiPositionCommandHandler(mockLagekarteRepo);
+    handler = new UpdatePoiPositionCommandHandler(mockLagekarteRepo, mockEventPublisher);
   });
 
   afterEach(() => {

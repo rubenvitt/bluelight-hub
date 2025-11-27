@@ -2,6 +2,7 @@
 import { RemovePoiCommandHandler } from '../remove-poi.handler';
 import { RemovePoiCommand } from '../remove-poi.command';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
@@ -48,6 +49,7 @@ function generateTestCuid(suffix = ''): string {
 describe('RemovePoiCommandHandler', () => {
   let handler: RemovePoiCommandHandler;
   let mockLagekarteRepo: jest.Mocked<ILagekarteRepository>;
+  let mockEventPublisher: jest.Mocked<IEventPublisher>;
 
   beforeEach(() => {
     // Create mock repository with all required methods
@@ -58,8 +60,13 @@ describe('RemovePoiCommandHandler', () => {
       exists: jest.fn(),
     } as any;
 
+    mockEventPublisher = {
+      publish: jest.fn(),
+      publishAll: jest.fn(),
+    } as any;
+
     // Instantiate handler with mocks (Direct Instantiation Pattern)
-    handler = new RemovePoiCommandHandler(mockLagekarteRepo);
+    handler = new RemovePoiCommandHandler(mockLagekarteRepo, mockEventPublisher);
   });
 
   afterEach(() => {

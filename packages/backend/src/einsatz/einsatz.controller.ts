@@ -16,11 +16,14 @@ import {
   UpdateEinsatzDto,
 } from '@/einsatz/dto';
 import { EinsatzDetailsDto, EinsatzListItemDto } from '@/application/einsatz/dto';
-import { GetEinsatzDetailsQuery, GetEinsatzDetailsQueryHandler, GetActiveEinsaetzeWithCountsQuery, GetActiveEinsaetzeWithCountsQueryHandler } from '@/application/einsatz/queries';
-import { Body, Controller, Get, Logger, NotFoundException, Param, Patch, Post, Query, UseGuards, ValidationPipe } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { CreateEinsatzCommand, UpdateEinsatzCommand, ArchiveEinsatzCommand } from '@/application/einsatz/commands';
+import { GetEinsatzDetailsQuery, GetActiveEinsaetzeWithCountsQuery, GetEinsatzByIdQuery } from '@/application/einsatz/queries';
+import { Body, Controller, Get, Logger, NotFoundException, Param, Patch, Post, Query, UseGuards, ValidationPipe, BadRequestException } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, ApiCreatedResponse } from '@nestjs/swagger';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import * as util from 'node:util';
 import { EinsatzService } from './einsatz.service';
+import { EinsatzDto } from '@/application/einsatz/dto/einsatz.dto';
 
 /**
  * Controller für Einsatzverwaltung
@@ -56,10 +59,10 @@ export class EinsatzController {
   private readonly logger = new Logger(EinsatzController.name);
 
   constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
     private readonly einsatzService: EinsatzService,
     private readonly duplicateDetectionService: CacheDuplicateDetectionService,
-    private readonly getEinsatzDetailsHandler: GetEinsatzDetailsQueryHandler,
-    private readonly getActiveEinsaetzeWithCountsHandler: GetActiveEinsaetzeWithCountsQueryHandler,
   ) {}
 
   @Post()
@@ -67,23 +70,38 @@ export class EinsatzController {
     summary: 'Neuen Einsatz erstellen',
     description: 'Erstellt einen neuen Einsatz mit automatisch generiertem Namen. Alle Felder sind optional.',
   })
-  @ApiWrappedResponse(EinsatzResponseDto, { description: 'Einsatz erfolgreich erstellt' })
+  @ApiCreatedResponse({ type: EinsatzDto, description: 'Einsatz erfolgreich erstellt' })
   @ApiBadRequestResponse({ description: 'Validierungsfehler in den Eingabedaten' })
   async create(
     @Body(new ValidationPipe({ transform: true, whitelist: true }))
     createEinsatzDto: CreateEinsatzDto,
     @CurrentUser() user: ValidatedUser,
-  ): Promise<EinsatzResponseDto> {
+  ): Promise<EinsatzDto> {
     this.logger.log(`Creating new Einsatz for user ${user.userId}`);
 
-    // Generiere Cache-Key basierend auf Eingabedaten und User
-    const cacheKey = `einsatz:create:${user.userId}:${JSON.stringify(createEinsatzDto)}`;
-
-    return await this.duplicateDetectionService.executeIdempotent(
-      cacheKey,
-      () => this.einsatzService.create(createEinsatzDto, user.userId),
-      60000, // 1 Minute TTL
+    // Command erstellen und validieren
+    const commandResult = CreateEinsatzCommand.create(
+      createEinsatzDto.alarmstichwort || 'Unbekannt',
+      user.userId,
+      undefined, // einsatzort TODO: von DTO mappen
+      createEinsatzDto.beschreibung,
     );
+    if (commandResult.isFailure || !commandResult.value) {
+      throw new BadRequestException(commandResult.error);
+    }
+
+    // Command ausfuehren
+    const result = await this.commandBus.execute(commandResult.value);
+    if (result.isFailure) throw new BadRequestException(result.error);
+    if (!result.value) throw new BadRequestException('Einsatz-ID wurde nicht zurückgegeben');
+
+    // Einsatz laden via Query
+    const query = new GetEinsatzByIdQuery(result.value.value);
+    const einsatzResult = await this.queryBus.execute(query);
+    if (einsatzResult.isFailure) throw new BadRequestException(einsatzResult.error);
+    if (!einsatzResult.value) throw new NotFoundException('Einsatz wurde erstellt, konnte aber nicht geladen werden');
+
+    return einsatzResult.value;
   }
 
   @Get()
@@ -122,15 +140,16 @@ export class EinsatzController {
     description: 'Optimierte Abfrage für Dashboard: Liefert alle nicht-archivierten Einsätze mit ETB-Einträge und POI-Counts. ' + 'Sortiert nach Erstellungsdatum (neueste zuerst).',
   })
   @ApiOkResponse({ type: [EinsatzListItemDto], description: 'Liste aktiver Einsätze mit Counts' })
+  @ApiBadRequestResponse({ description: 'Fehler beim Abrufen der Einsätze' })
   async getActiveEinsaetzeWithCounts(): Promise<EinsatzListItemDto[]> {
     this.logger.log('Fetching active Einsätze with counts');
 
     const query = new GetActiveEinsaetzeWithCountsQuery();
-    const result = await this.getActiveEinsaetzeWithCountsHandler.execute(query);
+    const result = await this.queryBus.execute(query);
 
     if (result.isFailure) {
       this.logger.error(`Failed to get active Einsätze with counts: ${result.error}`);
-      throw new Error(result.error ?? 'Unbekannter Fehler');
+      throw new BadRequestException(result.error ?? 'Unbekannter Fehler');
     }
 
     return result.value ?? [];
@@ -224,19 +243,18 @@ export class EinsatzController {
     this.logger.log(`Fetching Einsatz details (combined) for ${id}`);
 
     const query = new GetEinsatzDetailsQuery(id);
-    const result = await this.getEinsatzDetailsHandler.execute(query);
+    const result = await this.queryBus.execute(query);
 
     if (result.isFailure) {
       this.logger.error(`Failed to get Einsatz details: ${result.error}`);
       throw new NotFoundException(result.error);
     }
 
-    const einsatzDetails = result.value;
-    if (!einsatzDetails) {
+    if (!result.value) {
       throw new NotFoundException(`Einsatz mit ID ${id} nicht gefunden`);
     }
 
-    return einsatzDetails;
+    return result.value;
   }
 
   @Get(':id')
@@ -259,27 +277,44 @@ export class EinsatzController {
     summary: 'Einsatz aktualisieren',
     description: 'Aktualisiert einen bestehenden Einsatz. Der Name wird automatisch neu generiert.',
   })
-  @ApiWrappedResponse(EinsatzResponseDto, { description: 'Einsatz erfolgreich aktualisiert' })
-  @ApiNotFoundResponse({
-    description: 'Einsatz nicht gefunden',
-  })
+  @ApiOkResponse({ type: EinsatzDto, description: 'Einsatz erfolgreich aktualisiert' })
+  @ApiNotFoundResponse({ description: 'Einsatz nicht gefunden' })
   @ApiBadRequestResponse({ description: 'Validierungsfehler in den Eingabedaten' })
   async update(
     @Param('id') id: string,
     @Body(new ValidationPipe({ transform: true, whitelist: true }))
     updateEinsatzDto: UpdateEinsatzDto,
     @CurrentUser() user: ValidatedUser,
-  ): Promise<EinsatzResponseDto> {
+  ): Promise<EinsatzDto> {
     this.logger.log(`Updating Einsatz ${id} by user ${user.userId}`);
 
-    // Generiere Cache-Key basierend auf ID, Eingabedaten und User
-    const cacheKey = `einsatz:update:${id}:${user.userId}:${JSON.stringify(updateEinsatzDto)}`;
-
-    return await this.duplicateDetectionService.executeIdempotent(
-      cacheKey,
-      () => this.einsatzService.update(id, updateEinsatzDto, user.userId),
-      60000, // 1 Minute TTL
+    // Command erstellen und validieren
+    const commandResult = UpdateEinsatzCommand.create(
+      id,
+      updateEinsatzDto.alarmstichwort,
+      undefined, // einsatzort TODO: von DTO mappen
+      updateEinsatzDto.beschreibung,
     );
+    if (commandResult.isFailure || !commandResult.value) {
+      throw new BadRequestException(commandResult.error);
+    }
+
+    // Command ausfuehren
+    const result = await this.commandBus.execute(commandResult.value);
+    if (result.isFailure) {
+      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) {
+        throw new NotFoundException(result.error);
+      }
+      throw new BadRequestException(result.error);
+    }
+
+    // Einsatz laden via Query
+    const query = new GetEinsatzByIdQuery(id);
+    const einsatzResult = await this.queryBus.execute(query);
+    if (einsatzResult.isFailure) throw new BadRequestException(einsatzResult.error);
+    if (!einsatzResult.value) throw new NotFoundException('Einsatz wurde aktualisiert, konnte aber nicht geladen werden');
+
+    return einsatzResult.value;
   }
 
   /**
@@ -293,12 +328,33 @@ export class EinsatzController {
     summary: 'Einsatz archivieren (Soft-Delete)',
     description: 'Markiert einen Einsatz als ARCHIVIERT. Einsätze werden gemäß No-Delete Policy niemals physisch gelöscht.',
   })
-  @ApiWrappedResponse(EinsatzResponseDto, { description: 'Einsatz erfolgreich archiviert' })
-  @ApiNotFoundResponse({
-    description: 'Einsatz nicht gefunden',
-  })
-  async archive(@Param('id') id: string, @CurrentUser() user: ValidatedUser): Promise<EinsatzResponseDto> {
+  @ApiOkResponse({ type: EinsatzDto, description: 'Einsatz erfolgreich archiviert' })
+  @ApiNotFoundResponse({ description: 'Einsatz nicht gefunden' })
+  @ApiBadRequestResponse({ description: 'Validierungsfehler oder Einsatz kann nicht archiviert werden' })
+  async archive(@Param('id') id: string, @CurrentUser() user: ValidatedUser): Promise<EinsatzDto> {
     this.logger.warn(`Archiving Einsatz ${id} by user ${user.userId} (No-Delete Policy)`);
-    return await this.einsatzService.archive(id, user.userId);
+
+    // Command erstellen und validieren
+    const commandResult = ArchiveEinsatzCommand.create(id, user.userId);
+    if (commandResult.isFailure || !commandResult.value) {
+      throw new BadRequestException(commandResult.error);
+    }
+
+    // Command ausfuehren
+    const result = await this.commandBus.execute(commandResult.value);
+    if (result.isFailure) {
+      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) {
+        throw new NotFoundException(result.error);
+      }
+      throw new BadRequestException(result.error);
+    }
+
+    // Einsatz laden via Query
+    const query = new GetEinsatzByIdQuery(id);
+    const einsatzResult = await this.queryBus.execute(query);
+    if (einsatzResult.isFailure) throw new BadRequestException(einsatzResult.error);
+    if (!einsatzResult.value) throw new NotFoundException('Einsatz wurde archiviert, konnte aber nicht geladen werden');
+
+    return einsatzResult.value;
   }
 }

@@ -1,6 +1,5 @@
 import { Result } from '@domain/common/result';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { InMemoryEtbRepository } from '../../__tests__/in-memory-etb.repository';
 import { createTestEtb, createTestSnapshot } from '@domain/aggregates/__tests__/fixtures/etb.fixtures';
 
@@ -74,7 +73,6 @@ function generateTestCuid(): string {
 describe('ETB Query Integration Tests', () => {
   let etbRepository: InMemoryEtbRepository;
   let mockEinsatzRepository: jest.Mocked<IEinsatzRepository>;
-  let mockEventPublisher: jest.Mocked<IEventPublisher>;
 
   // Command Handlers
   let createEtbHandler: CreateEtbHandler;
@@ -106,18 +104,12 @@ describe('ETB Query Integration Tests', () => {
       save: jest.fn(),
     };
 
-    // Mock IEventPublisher (Spy Pattern)
-    mockEventPublisher = {
-      publish: jest.fn().mockResolvedValue(undefined),
-      publishAll: jest.fn().mockResolvedValue(undefined),
-    };
-
-    // Command Handlers initialisieren
-    createEtbHandler = new CreateEtbHandler(mockEinsatzRepository, etbRepository, mockEventPublisher);
-    addEintragHandler = new AddEintragHandler(etbRepository, mockEventPublisher);
-    updateEintragHandler = new UpdateEintragHandler(etbRepository, mockEventPublisher);
-    deleteEintragHandler = new DeleteEintragHandler(etbRepository, mockEventPublisher);
-    lockEtbHandler = new LockEtbHandler(etbRepository, mockEventPublisher);
+    // Command Handlers initialisieren (Transactional Outbox Pattern - kein Event Publisher nötig)
+    createEtbHandler = new CreateEtbHandler(mockEinsatzRepository, etbRepository);
+    addEintragHandler = new AddEintragHandler(etbRepository);
+    updateEintragHandler = new UpdateEintragHandler(etbRepository);
+    deleteEintragHandler = new DeleteEintragHandler(etbRepository);
+    lockEtbHandler = new LockEtbHandler(etbRepository);
 
     // Query Handlers initialisieren
     getEtbHandler = new GetEtbQueryHandler(etbRepository);
@@ -470,13 +462,10 @@ describe('ETB Query Integration Tests', () => {
 
       // ETB sperren
       const lockCmd = LockEtbCommand.create(etbId, testUserId, 'ADMIN').value!;
-      await lockEtbHandler.execute(lockCmd);
+      const lockResult = await lockEtbHandler.execute(lockCmd);
 
-      // Assert: Event-Reihenfolge
-      // 1x publish (EtbCreatedEvent)
-      expect(mockEventPublisher.publish).toHaveBeenCalledTimes(1);
-      // 4x publishAll (Add, Update, Delete, Lock)
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(4);
+      // Assert: ETB ist korrekt gesperrt
+      expect(lockResult.isSuccess).toBe(true);
     });
   });
 

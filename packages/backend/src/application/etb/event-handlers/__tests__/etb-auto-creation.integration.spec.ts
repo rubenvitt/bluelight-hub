@@ -54,8 +54,6 @@ import { PrismaEtbRepository } from '@infrastructure/etb/repositories/prisma-etb
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import type { DomainEvent } from '@domain/common/domain-event';
 
 /**
  * Generiert eine Test-CUID mit korrektem Format.
@@ -87,36 +85,11 @@ async function safeExecute(prisma: PrismaClient, query: string, ...params: unkno
   }
 }
 
-/**
- * SpyEventPublisher: Implementiert IEventPublisher und trackt alle publizierten Events.
- *
- * Warum: Ermöglicht Verifizierung der Event-Emission während Integration Tests.
- * Speichert Events in Arrays für einfache Assertions.
- */
-class SpyEventPublisher implements IEventPublisher {
-  public publishedEvents: DomainEvent[] = [];
-
-  async publish(event: DomainEvent): Promise<void> {
-    this.publishedEvents.push(event);
-  }
-
-  async publishAll(events: DomainEvent[]): Promise<void> {
-    for (const event of events) {
-      this.publishedEvents.push(event);
-    }
-  }
-
-  clear(): void {
-    this.publishedEvents = [];
-  }
-}
-
 describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
   const prisma = new PrismaClient();
   let module: TestingModule;
   let eventEmitter: EventEmitter2;
   let etbAutoCreationHandler: EtbAutoCreationHandler;
-  let spyEventPublisher: SpyEventPublisher;
 
   let testUserId: string;
   let testEinsatzId: string;
@@ -227,9 +200,6 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
     });
     testEinsatzId = einsatzResult.id;
 
-    // Create Spy EventPublisher
-    spyEventPublisher = new SpyEventPublisher();
-
     // Mock IEinsatzRepository (exists check)
     const mockEinsatzRepository: IEinsatzRepository = {
       exists: jest.fn().mockImplementation(async (einsatzId: EinsatzId) => {
@@ -265,11 +235,6 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
         {
           provide: 'IEinsatzRepository',
           useValue: mockEinsatzRepository,
-        },
-        // Spy EventPublisher
-        {
-          provide: 'IEventPublisher',
-          useValue: spyEventPublisher,
         },
         // Handlers
         CreateEtbHandler,
@@ -311,7 +276,6 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
     } finally {
       await prisma.$executeRawUnsafe('SET session_replication_role = DEFAULT;');
     }
-    spyEventPublisher.clear();
   });
 
   /**
@@ -809,40 +773,6 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
         where: { einsatzId: nonExistentEinsatzId.value },
       });
       expect(etbCount).toBe(0);
-    });
-  });
-
-  // ========================================
-  // ADDITIONAL: Event Published After Creation
-  // ========================================
-
-  describe('Event Published After ETB Creation', () => {
-    /**
-     * Test 16: EtbCreatedEvent wird nach erfolgreicher ETB-Erstellung publiziert
-     *
-     * **Business Rule:** Andere Module können auf ETB-Erstellung reagieren
-     * **Pattern:** Transactional Outbox (Events nach Commit)
-     */
-    it('should publish EtbCreatedEvent after successful ETB creation', async () => {
-      if (!databaseSchemaCompatible) {
-        console.warn('Skipping test: database schema is out of sync');
-        return;
-      }
-
-      // Given: EinsatzCreatedEvent
-      const einsatzId = EinsatzId.create(testEinsatzId).value!;
-      const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
-
-      // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
-
-      // Then: EtbCreatedEvent wurde publiziert
-      expect(spyEventPublisher.publishedEvents.length).toBeGreaterThanOrEqual(1);
-
-      // Find EtbCreatedEvent
-      const etbCreatedEvent = spyEventPublisher.publishedEvents.find((e) => (e.constructor as typeof DomainEvent).eventName() === 'etb.created');
-      expect(etbCreatedEvent).toBeDefined();
     });
   });
 });

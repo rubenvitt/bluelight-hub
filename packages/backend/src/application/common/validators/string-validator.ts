@@ -1,5 +1,3 @@
-import { isCuid } from '@paralleldrive/cuid2';
-
 /**
  * Max-Lengths für Einsatz-Felder.
  *
@@ -98,12 +96,16 @@ export const CUID2_REGEX = /^[a-z][a-z0-9]{19,29}$/;
  * CUID2-Format: 20-30 Zeichen, nur lowercase (a-z, 0-9), startet mit Kleinbuchstabe.
  * Verwendet für alle Entity-IDs im System nach Migration von cuid.
  *
+ * **Warum CUID2_REGEX und nicht isCuid():**
+ * Die isCuid() Funktion aus @paralleldrive/cuid2 ist zu permissiv und akzeptiert
+ * auch kürzere oder ungültige Strings. Für strikte Validierung nutzen wir das Regex.
+ *
  * @param value - Der zu validierende String
  * @param fieldName - Name des Feldes (für Fehlermeldung)
  * @throws Error wenn Format ungültig
  */
 export function validateCuid2Format(value: string, fieldName: string): void {
-  if (!isCuid(value)) {
+  if (!CUID2_REGEX.test(value)) {
     throw new Error(`${fieldName} must be a valid CUID2 format (20-30 lowercase alphanumeric characters, starting with a letter)`);
   }
 }

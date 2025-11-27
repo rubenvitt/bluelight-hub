@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import type { EventEmitter2 } from '@nestjs/event-emitter';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 
@@ -32,7 +32,7 @@ import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.p
 export class EventEmitterPublisher implements IEventPublisher {
   private readonly logger = new Logger(EventEmitterPublisher.name);
 
-  constructor(private readonly eventEmitter: EventEmitter2) {}
+  constructor(@Inject(EventEmitter2) private readonly eventEmitter: EventEmitter2) {}
 
   /**
    * Publiziert ein einzelnes Domain Event via EventEmitter2.

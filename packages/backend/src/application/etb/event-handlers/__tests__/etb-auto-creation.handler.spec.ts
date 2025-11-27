@@ -1,8 +1,6 @@
 import { Result } from '@domain/common/result';
-import { EinsatzCreatedEvent } from '@domain/events/einsatz-created.event';
-import { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { EinsatzErstelltEvent } from '@/einsatz/events/einsatz-erstellt.event';
 import { EtbId } from '@domain/value-objects/etb-id';
-import { UserId } from '@domain/value-objects/user-id';
 import type { CreateEtbHandler } from '../../commands/create-etb/create-etb.handler';
 import { EtbAutoCreationHandler } from '../etb-auto-creation.handler';
 
@@ -37,22 +35,21 @@ function generateTestCuid(): string {
 }
 
 /**
- * Erstellt ein Test-EinsatzCreatedEvent mit allen erforderlichen Daten.
+ * Erstellt ein Test-EinsatzErstelltEvent mit allen erforderlichen Daten.
  *
  * @param overrides - Optional: Teilweise Ueberschreibungen der Default-Werte
  */
 function createTestEvent(
   overrides: Partial<{
-    einsatzId: EinsatzId;
-    createdBy: UserId;
-    alarmstichwort: string;
-    aggregateId: string;
+    einsatzId: string;
+    userId: string;
+    timestamp: Date;
   }> = {},
-): EinsatzCreatedEvent {
-  const defaultEinsatzId = EinsatzId.create(generateTestCuid()).value!;
-  const defaultCreatedBy = UserId.create(generateTestCuid()).value!;
+): EinsatzErstelltEvent {
+  const defaultEinsatzId = generateTestCuid();
+  const defaultUserId = generateTestCuid();
 
-  return new EinsatzCreatedEvent(overrides.einsatzId ?? defaultEinsatzId, overrides.createdBy ?? defaultCreatedBy, overrides.alarmstichwort ?? 'Testeinsatz', overrides.aggregateId);
+  return new EinsatzErstelltEvent(overrides.einsatzId ?? defaultEinsatzId, overrides.userId ?? defaultUserId, overrides.timestamp ?? new Date());
 }
 
 describe('EtbAutoCreationHandler', () => {
@@ -91,7 +88,7 @@ describe('EtbAutoCreationHandler', () => {
   describe('AC1: Handler sollte CreateEtbHandler.execute() mit korrektem Command aufrufen', () => {
     it('should call CreateEtbHandler.execute() with command containing correct einsatzId', async () => {
       // Arrange
-      const testEinsatzId = EinsatzId.create(generateTestCuid()).value!;
+      const testEinsatzId = generateTestCuid();
       const testEtbId = EtbId.create(generateTestCuid()).value!;
       const event = createTestEvent({ einsatzId: testEinsatzId });
 
@@ -103,12 +100,12 @@ describe('EtbAutoCreationHandler', () => {
       // Assert
       expect(mockCreateEtbHandler.execute).toHaveBeenCalledTimes(1);
       const receivedCommand = mockCreateEtbHandler.execute.mock.calls[0][0];
-      expect(receivedCommand.einsatzId).toBe(testEinsatzId.value);
+      expect(receivedCommand.einsatzId).toBe(testEinsatzId);
     });
 
     it('should extract einsatzId correctly from event', async () => {
       // Arrange
-      const specificEinsatzId = EinsatzId.create(generateTestCuid()).value!;
+      const specificEinsatzId = generateTestCuid();
       const testEtbId = EtbId.create(generateTestCuid()).value!;
       const event = createTestEvent({ einsatzId: specificEinsatzId });
 
@@ -119,14 +116,14 @@ describe('EtbAutoCreationHandler', () => {
 
       // Assert
       const receivedCommand = mockCreateEtbHandler.execute.mock.calls[0][0];
-      expect(receivedCommand.einsatzId).toBe(specificEinsatzId.value);
+      expect(receivedCommand.einsatzId).toBe(specificEinsatzId);
     });
   });
 
   describe('AC2: Handler sollte bei erfolgreicher Erstellung Logger.log() mit etbId aufrufen', () => {
     it('should call Logger.log() with etbId on successful creation', async () => {
       // Arrange
-      const testEinsatzId = EinsatzId.create(generateTestCuid()).value!;
+      const testEinsatzId = generateTestCuid();
       const testEtbId = EtbId.create(generateTestCuid()).value!;
       const event = createTestEvent({ einsatzId: testEinsatzId });
 
@@ -143,13 +140,13 @@ describe('EtbAutoCreationHandler', () => {
       expect(successLogCall[0]).toBe('ETB created successfully');
       expect(successLogCall[1]).toEqual(
         expect.objectContaining({
-          einsatzId: testEinsatzId.value,
+          einsatzId: testEinsatzId,
           etbId: testEtbId.value,
         }),
       );
     });
 
-    it('should include eventId in success log', async () => {
+    it('should include timestamp in success log', async () => {
       // Arrange
       const testEtbId = EtbId.create(generateTestCuid()).value!;
       const event = createTestEvent();
@@ -163,7 +160,7 @@ describe('EtbAutoCreationHandler', () => {
       const successLogCall = mockLogger.log.mock.calls[1];
       expect(successLogCall[1]).toEqual(
         expect.objectContaining({
-          eventId: event.eventId,
+          einsatzId: event.einsatzId,
         }),
       );
     });
@@ -172,7 +169,7 @@ describe('EtbAutoCreationHandler', () => {
   describe('AC3: Handler sollte bei Duplikat (ETB exists) Logger.warn() aufrufen', () => {
     it('should call Logger.warn() when ETB already exists', async () => {
       // Arrange
-      const testEinsatzId = EinsatzId.create(generateTestCuid()).value!;
+      const testEinsatzId = generateTestCuid();
       const event = createTestEvent({ einsatzId: testEinsatzId });
 
       mockCreateEtbHandler.execute.mockResolvedValue(Result.fail('ETB already exists for this Einsatz'));
@@ -185,8 +182,7 @@ describe('EtbAutoCreationHandler', () => {
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('ETB already exists'),
         expect.objectContaining({
-          einsatzId: testEinsatzId.value,
-          eventId: event.eventId,
+          einsatzId: testEinsatzId,
         }),
       );
     });
@@ -223,7 +219,7 @@ describe('EtbAutoCreationHandler', () => {
   describe('AC4: Handler sollte bei unerwartetem Fehler Logger.error() aufrufen', () => {
     it('should call Logger.error() when CreateEtbHandler.execute() throws', async () => {
       // Arrange
-      const testEinsatzId = EinsatzId.create(generateTestCuid()).value!;
+      const testEinsatzId = generateTestCuid();
       const event = createTestEvent({ einsatzId: testEinsatzId });
       const unexpectedError = new Error('Database connection failed');
 
@@ -237,8 +233,7 @@ describe('EtbAutoCreationHandler', () => {
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Unexpected error during ETB auto-creation',
         expect.objectContaining({
-          einsatzId: testEinsatzId.value,
-          eventId: event.eventId,
+          einsatzId: testEinsatzId,
           error: 'Database connection failed',
         }),
       );
@@ -262,7 +257,7 @@ describe('EtbAutoCreationHandler', () => {
 
     it('should call Logger.error() for non-duplicate failures from Result.fail', async () => {
       // Arrange
-      const testEinsatzId = EinsatzId.create(generateTestCuid()).value!;
+      const testEinsatzId = generateTestCuid();
       const event = createTestEvent({ einsatzId: testEinsatzId });
 
       mockCreateEtbHandler.execute.mockResolvedValue(Result.fail('Repository save failed'));
@@ -275,22 +270,15 @@ describe('EtbAutoCreationHandler', () => {
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to create ETB',
         expect.objectContaining({
-          einsatzId: testEinsatzId.value,
+          einsatzId: testEinsatzId,
           error: 'Repository save failed',
         }),
       );
     });
 
     it('should call Logger.error() when command creation fails', async () => {
-      // Arrange: Ungueltige einsatzId erzwingen (leerer String via speziellem Event)
-      // Da wir die EinsatzId nicht leer machen koennen, testen wir das Verhalten
-      // durch Mocken eines Events mit leerem String (Edge Case)
-      const event = createTestEvent();
-
-      // Override the einsatzId.value getter to return empty string
-      Object.defineProperty(event.einsatzId, 'value', {
-        get: () => '',
-      });
+      // Arrange: Ungueltige einsatzId erzwingen (leerer String)
+      const event = createTestEvent({ einsatzId: '' });
 
       // Act
       await handler.handle(event);
@@ -300,7 +288,6 @@ describe('EtbAutoCreationHandler', () => {
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to create CreateEtbCommand',
         expect.objectContaining({
-          eventId: event.eventId,
           einsatzId: '',
           error: 'einsatzId is required',
         }),
@@ -329,10 +316,7 @@ describe('EtbAutoCreationHandler', () => {
 
     it('should NOT throw when command creation fails', async () => {
       // Arrange
-      const event = createTestEvent();
-      Object.defineProperty(event.einsatzId, 'value', {
-        get: () => '   ',
-      });
+      const event = createTestEvent({ einsatzId: '   ' });
 
       // Act & Assert: Sollte NICHT werfen
       await expect(handler.handle(event)).resolves.toBeUndefined();
@@ -369,10 +353,10 @@ describe('EtbAutoCreationHandler', () => {
     });
   });
 
-  describe('AC6: Handler sollte Event Properties korrekt extrahieren (einsatzId, eventId)', () => {
+  describe('AC6: Handler sollte Event Properties korrekt extrahieren (einsatzId, timestamp)', () => {
     it('should extract einsatzId from event correctly', async () => {
       // Arrange
-      const specificEinsatzId = EinsatzId.create(generateTestCuid()).value!;
+      const specificEinsatzId = generateTestCuid();
       const testEtbId = EtbId.create(generateTestCuid()).value!;
       const event = createTestEvent({ einsatzId: specificEinsatzId });
 
@@ -385,38 +369,33 @@ describe('EtbAutoCreationHandler', () => {
       expect(mockLogger.log).toHaveBeenCalledWith(
         'Auto-creating ETB for Einsatz',
         expect.objectContaining({
-          einsatzId: specificEinsatzId.value,
+          einsatzId: specificEinsatzId,
         }),
       );
     });
 
-    it('should extract eventId from event correctly', async () => {
+    it('should extract timestamp from event correctly', async () => {
       // Arrange
       const testEtbId = EtbId.create(generateTestCuid()).value!;
-      const event = createTestEvent();
-      const expectedEventId = event.eventId;
+      const testTimestamp = new Date('2024-01-01T12:00:00Z');
+      const event = createTestEvent({ timestamp: testTimestamp });
 
       mockCreateEtbHandler.execute.mockResolvedValue(Result.ok(testEtbId));
 
       // Act
       await handler.handle(event);
 
-      // Assert: Pruefe dass eventId in allen Logs vorhanden ist
+      // Assert: Pruefe dass timestamp im ersten Log vorhanden ist
       expect(mockLogger.log.mock.calls[0][1]).toEqual(
         expect.objectContaining({
-          eventId: expectedEventId,
-        }),
-      );
-      expect(mockLogger.log.mock.calls[1][1]).toEqual(
-        expect.objectContaining({
-          eventId: expectedEventId,
+          timestamp: testTimestamp,
         }),
       );
     });
 
-    it('should use einsatzId.value (string) not the EinsatzId object', async () => {
+    it('should use einsatzId string directly from event', async () => {
       // Arrange
-      const testEinsatzId = EinsatzId.create(generateTestCuid()).value!;
+      const testEinsatzId = generateTestCuid();
       const testEtbId = EtbId.create(generateTestCuid()).value!;
       const event = createTestEvent({ einsatzId: testEinsatzId });
 
@@ -428,25 +407,26 @@ describe('EtbAutoCreationHandler', () => {
       // Assert: Sicherstellen dass der String-Wert verwendet wird
       const commandArg = mockCreateEtbHandler.execute.mock.calls[0][0];
       expect(typeof commandArg.einsatzId).toBe('string');
-      expect(commandArg.einsatzId).toBe(testEinsatzId.value);
+      expect(commandArg.einsatzId).toBe(testEinsatzId);
     });
 
-    it('should log both einsatzId and eventId at start of processing', async () => {
+    it('should log both einsatzId and timestamp at start of processing', async () => {
       // Arrange
-      const testEinsatzId = EinsatzId.create(generateTestCuid()).value!;
+      const testEinsatzId = generateTestCuid();
       const testEtbId = EtbId.create(generateTestCuid()).value!;
-      const event = createTestEvent({ einsatzId: testEinsatzId });
+      const testTimestamp = new Date('2024-01-01T12:00:00Z');
+      const event = createTestEvent({ einsatzId: testEinsatzId, timestamp: testTimestamp });
 
       mockCreateEtbHandler.execute.mockResolvedValue(Result.ok(testEtbId));
 
       // Act
       await handler.handle(event);
 
-      // Assert: Erster Log sollte beide IDs enthalten
+      // Assert: Erster Log sollte beide Properties enthalten
       expect(mockLogger.log.mock.calls[0][0]).toBe('Auto-creating ETB for Einsatz');
       expect(mockLogger.log.mock.calls[0][1]).toEqual({
-        eventId: event.eventId,
-        einsatzId: testEinsatzId.value,
+        einsatzId: testEinsatzId,
+        timestamp: testTimestamp,
       });
     });
   });

@@ -37,7 +37,7 @@ describe('ETB Domain Events', () => {
 
   describe('EintragAddedEvent', () => {
     it('should have correct event name', () => {
-      const event = new EintragAddedEvent(etbId, eintragId, 1, 'Test', userId);
+      const _event = new EintragAddedEvent(etbId, eintragId, 1, 'Test', userId);
       expect(EintragAddedEvent.eventName()).toBe('etb.eintrag_added');
     });
 
@@ -72,7 +72,7 @@ describe('ETB Domain Events', () => {
 
   describe('EintragUpdatedEvent', () => {
     it('should have correct event name', () => {
-      const event = new EintragUpdatedEvent(etbId, eintragId, 'Old', 'New', userId);
+      const _event = new EintragUpdatedEvent(etbId, eintragId, 'Old', 'New', userId);
       expect(EintragUpdatedEvent.eventName()).toBe('etb.eintrag_updated');
     });
 
@@ -94,7 +94,7 @@ describe('ETB Domain Events', () => {
 
   describe('EintragDeletedEvent', () => {
     it('should have correct event name', () => {
-      const event = new EintragDeletedEvent(etbId, eintragId, userId);
+      const _event = new EintragDeletedEvent(etbId, eintragId, userId);
       expect(EintragDeletedEvent.eventName()).toBe('etb.eintrag_deleted');
     });
 
@@ -115,7 +115,7 @@ describe('ETB Domain Events', () => {
   describe('EtbLockedEvent', () => {
     it('should have correct event name', () => {
       const lockedAt = new Date();
-      const event = new EtbLockedEvent(etbId, userId, lockedAt);
+      const _event = new EtbLockedEvent(etbId, userId, lockedAt);
       expect(EtbLockedEvent.eventName()).toBe('etb.locked');
     });
 

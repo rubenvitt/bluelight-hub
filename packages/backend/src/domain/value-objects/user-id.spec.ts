@@ -88,7 +88,7 @@ describe('UserId', () => {
 
     it('should fail with invalid CUID2 format (too long)', () => {
       // Given: Invalid CUID2 (too long - >30 chars)
-      const tooLongId = 'c' + 'x'.repeat(35);
+      const tooLongId = `c${'x'.repeat(35)}`;
 
       // When: Creating UserId with invalid format
       const result = UserId.create(tooLongId);

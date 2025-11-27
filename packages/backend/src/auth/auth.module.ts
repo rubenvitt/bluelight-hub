@@ -9,6 +9,7 @@ import { AdminJwtAuthGuard } from './guards/admin-jwt-auth.guard';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
+import { AuthApplicationModule } from '@/application/auth/auth-application.module';
 
 /**
  * Authentifizierungsmodul für BlueLight Hub
@@ -36,6 +37,8 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
       }),
       inject: [ConfigService],
     }),
+    // CQRS Application Layer für Auth Commands (Login, Logout)
+    AuthApplicationModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtRefreshStrategy, AdminJwtStrategy, AdminJwtAuthGuard],

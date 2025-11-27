@@ -42,6 +42,11 @@ model User {
   lockedManuallyBy String?   @db.VarChar(100)
   lockReason       String?   @db.Text
 
+  // Custom Permissions (JSON Array serialized as String)
+  // Format: ["user:read", "einsatz:create", "etb:lock"]
+  // NULL = no custom permissions (inherit from role only)
+  permissions      String?   @db.Text
+
   // Relations
   // sessions        Session[]
   // refreshTokens   RefreshToken[]

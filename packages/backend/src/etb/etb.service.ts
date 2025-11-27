@@ -3,7 +3,6 @@ import { FilterPaginationDto } from '@/common/dto/pagination.dto';
 import type { PaginatedData } from '@/common/interceptors/transform.interceptor';
 import { EinsatzErstelltEvent } from '@/einsatz/events/einsatz-erstellt.event';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
 import { Einsatz, Einsatztagebuch, EtbEintrag, EtbEintragHistorie, EtbStatus, EtbTextbaustein, User } from '@prisma/client';
 import { CreateEtbEintragDto } from './dto/create-etb-eintrag.dto';
 import { CreateEtbDto } from './dto/create-etb.dto';

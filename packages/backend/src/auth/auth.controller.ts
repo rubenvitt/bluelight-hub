@@ -1,9 +1,26 @@
 import { toAdminLoginResponseDto, toAdminSetupResponseDto, toAdminStatusResponseDto, toAdminTokenVerificationDto, toLogoutResponseDto, toRefreshResponseDto, toUserResponseDto } from '@/auth/mappers';
 import { SkipTransform } from '@/common/decorators/skip-transform.decorator';
 import { AppConfigService } from '@/common/services/app-config.service';
-import { Body, Controller, Get, HttpCode, HttpStatus, Logger, NotFoundException, Post, Req, Res, UnauthorizedException, UseGuards, VERSION_NEUTRAL } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  NotFoundException,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+  VERSION_NEUTRAL,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiBody, ApiCookieAuth, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiBody, ApiCookieAuth, ApiForbiddenResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -18,6 +35,8 @@ import { AdminTokenVerificationDto } from './dto/admin-token-verification.dto';
 import { AuthCheckResponseDto } from './dto/auth-check-response.dto';
 import { AuthRequestDto } from './dto/auth-request.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { LoginDto } from './dto/login.dto';
+import { LoginResponseDto } from './dto/login-response.dto';
 import { LogoutResponseDto } from './dto/logout-response.dto';
 import { PublicUsersResponseDto } from './dto/public-users-response.dto';
 import { RefreshResponseDto } from './dto/refresh-response.dto';
@@ -26,6 +45,10 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import type { ValidatedUser } from './strategies/jwt.strategy';
 import { isAdmin } from './utils/auth.utils';
+import { LoginHandler } from '@/application/auth/commands/login/login.handler';
+import { LogoutHandler } from '@/application/auth/commands/logout/logout.handler';
+import { LoginCommand } from '@/application/auth/commands/login/login.command';
+import { LogoutCommand } from '@/application/auth/commands/logout/logout.command';
 
 /**
  * Controller für Authentifizierung-Endpunkte
@@ -48,6 +71,8 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
     private readonly appConfig: AppConfigService,
+    private readonly loginHandler: LoginHandler,
+    private readonly logoutHandler: LogoutHandler,
   ) {}
 
   /**
@@ -126,6 +151,91 @@ export class AuthController {
       });
       throw error;
     }
+  }
+
+  /**
+   * User Login via CQRS (LoginCommand)
+   *
+   * Meldet einen User an und gibt JWT Token zurück:
+   * - PASSWORDLESS für USER Role (nur Username)
+   * - PASSWORD-REQUIRED für ADMIN/SUPER_ADMIN Role
+   *
+   * Der Token wird zusätzlich als HTTP-Only Cookie gesetzt (optional für Web-Clients).
+   *
+   * @param dto - LoginDto mit Username und optional Passwort
+   * @param res - Express Response für Cookie-Verwaltung
+   * @returns LoginResponseDto mit JWT Token
+   * @throws UnauthorizedException bei ungültigen Credentials
+   * @throws ForbiddenException wenn Account gesperrt ist
+   * @throws BadRequestException bei Validierungsfehlern
+   */
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 Anfragen pro Minute
+  @ApiOperation({
+    summary: 'User Login (PASSWORDLESS für USER, PASSWORD für ADMIN)',
+    description: 'Meldet einen User an und gibt JWT Token zurück. PASSWORDLESS Auth für USER Role, PASSWORD-REQUIRED für ADMIN/SUPER_ADMIN.',
+  })
+  @ApiBody({
+    type: LoginDto,
+    description: 'Login-Daten mit Username und optionalem Passwort',
+  })
+  @ApiOkResponse({
+    description: 'Login erfolgreich - JWT Token wird via Set-Cookie (HTTP-Only) gesetzt: accessToken',
+    type: LoginResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Ungültige Anmeldedaten (falscher Username oder Passwort)',
+  })
+  @ApiForbiddenResponse({
+    description: 'Benutzerkonto gesperrt',
+  })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Zu viele Anfragen - bitte später erneut versuchen',
+  })
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response): Promise<LoginResponseDto> {
+    // 1. LoginCommand erstellen
+    const commandResult = LoginCommand.create(dto.username, dto.password);
+    if (commandResult.isFailure || !commandResult.value) {
+      this.logger.error('Invalid LoginCommand', { error: commandResult.error });
+      throw new BadRequestException(commandResult.error ?? 'Ungültige Login-Daten');
+    }
+
+    // 2. Command ausführen
+    const result = await this.loginHandler.execute(commandResult.value);
+
+    // 3. Error Handling mit spezifischen HTTP Status
+    if (result.isFailure) {
+      const error = result.error ?? 'Login fehlgeschlagen';
+      this.logger.warn('Login failed', { error, username: dto.username });
+
+      // Gesperrter Account → 403 Forbidden
+      if (error.includes('gesperrt') || error.includes('locked')) {
+        throw new ForbiddenException(error);
+      }
+
+      // Alle anderen Fehler → 401 Unauthorized
+      throw new UnauthorizedException(error);
+    }
+
+    // 4. Cookie setzen (optional, für Web-Clients)
+    const token = result.value;
+    if (!token) {
+      throw new BadRequestException('Login erfolgreich, aber kein Token zurückgegeben');
+    }
+
+    const isProduction = this.appConfig.isProduction();
+    response.cookie('accessToken', token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 24h
+    });
+
+    this.logger.log('Login successful', { username: dto.username });
+
+    return { token };
   }
 
   /**
@@ -226,25 +336,52 @@ export class AuthController {
   }
 
   /**
-   * Meldet einen Benutzer ab und löscht die Authentifizierung-Cookies
+   * User Logout via CQRS (LogoutCommand)
    *
+   * Meldet einen User ab und löscht die Authentifizierung-Cookies.
+   * MVP: Stateless JWT (Token bleibt gültig bis Expiration 24h).
+   * Future: Redis Blacklist für echtes Token-Revocation.
+   *
+   * @param authHeader - Authorization Header mit JWT Token
    * @param res - Express Response für Cookie-Verwaltung
+   * @throws BadRequestException bei fehlendem oder ungültigem Token
    */
   @Post('logout')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary: 'Benutzer abmelden',
-    description: 'Meldet den Benutzer ab und löscht alle Authentifizierung-Cookies',
+    summary: 'User Logout',
+    description: 'Meldet den User ab und löscht alle Authentifizierung-Cookies. MVP: Token bleibt gültig bis Expiration.',
   })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Erfolgreich abgemeldet',
-    type: LogoutResponseDto,
+  @ApiNoContentResponse({
+    description: 'Logout erfolgreich',
   })
-  async logout(@Res({ passthrough: true }) res: Response): Promise<LogoutResponseDto> {
-    clearAuthCookies(res, this.appConfig.isProduction());
-    this.logger.debug('Logout successful');
-    return toLogoutResponseDto();
+  @ApiUnauthorizedResponse({
+    description: 'Nicht authentifiziert - JWT Token fehlt oder ungültig',
+  })
+  async logout(@Headers('authorization') authHeader: string, @Res({ passthrough: true }) response: Response): Promise<void> {
+    // 1. Token extrahieren
+    const token = authHeader?.replace('Bearer ', '');
+
+    // 2. LogoutCommand erstellen
+    const commandResult = LogoutCommand.create(token);
+    if (commandResult.isFailure || !commandResult.value) {
+      this.logger.error('Invalid LogoutCommand', { error: commandResult.error });
+      throw new BadRequestException(commandResult.error ?? 'Kein Token vorhanden');
+    }
+
+    // 3. Command ausführen (MVP: No-Op)
+    const result = await this.logoutHandler.execute(commandResult.value);
+    if (result.isFailure) {
+      this.logger.error('Logout failed', { error: result.error });
+      throw new BadRequestException(result.error ?? 'Logout fehlgeschlagen');
+    }
+
+    // 4. Cookies löschen
+    clearAuthCookies(response, this.appConfig.isProduction());
+
+    this.logger.log('Logout successful (MVP: Token bleibt gültig bis Expiration)');
+    // No return - HTTP 204 No Content
   }
 
   /**

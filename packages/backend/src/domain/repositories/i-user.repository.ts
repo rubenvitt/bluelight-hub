@@ -188,4 +188,32 @@ export interface IUserRepository {
    * @returns Result<boolean> - Success mit true wenn Username existiert, false sonst
    */
   existsByUsername(username: Username, tx?: TransactionContext): Promise<Result<boolean>>;
+
+  /**
+   * Lädt den bcrypt Password Hash für einen User.
+   *
+   * **Security Separation:**
+   * - Password Hash ist NICHT Teil des User Aggregates (Security by Design)
+   * - Aggregate kennt KEIN passwordHash (Domain Layer bleibt unabhängig von Auth Details)
+   * - Nur Infrastructure Layer (Repository) hat Zugriff auf passwordHash
+   *
+   * **Warum separater Query:**
+   * - Password Hash wird nur bei Login benötigt (nicht bei normalen User Operations)
+   * - Vermeidet unnötiges Laden von sensitiven Daten bei findById/findByUsername
+   * - Explizite Abfrage zeigt Intent (Password Verification)
+   *
+   * **Use Case:**
+   * - Login Flow: Username + Password Verification via bcrypt.compare()
+   * - Password Change: Verify Old Password before setting New Password
+   *
+   * **Warum null zurückgeben:**
+   * - USER-Accounts haben KEIN Passwort (PASSWORDLESS Auth)
+   * - null ist valides Business-Resultat für USER Role
+   * - Result.fail() ist für technische Fehler (DB-Connection, etc.)
+   *
+   * @param id - UserId Value Object mit validierter Nanoid
+   * @param tx - Optional Transaction Context für Atomizität
+   * @returns Result<string | null> - Success mit bcrypt Hash oder null wenn User kein Passwort hat
+   */
+  getPasswordHash(id: UserId, tx?: TransactionContext): Promise<Result<string | null>>;
 }

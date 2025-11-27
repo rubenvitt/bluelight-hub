@@ -2,7 +2,6 @@ import { Result } from '@domain/common/result';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { EtbId } from '@domain/value-objects/etb-id';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import { EtbCreatedEvent } from '@domain/events/etb-created.event';
 import { InMemoryEtbRepository } from '../../__tests__/in-memory-etb.repository';
 import { CreateEtbCommand } from '../create-etb/create-etb.command';
 import { CreateEtbHandler } from '../create-etb/create-etb.handler';

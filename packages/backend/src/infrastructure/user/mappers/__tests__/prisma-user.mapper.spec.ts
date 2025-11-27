@@ -35,6 +35,7 @@ jest.mock('@paralleldrive/cuid2', () => ({
 import { UserAggregate } from '@domain/aggregates/user.aggregate';
 import { Username } from '@domain/value-objects/username';
 import { UserRole } from '@domain/value-objects/user-role';
+import { Permission } from '@domain/value-objects/permission';
 import type { UserRole as PrismaUserRole } from '@prisma/client';
 import { PrismaUserMapper, type UserWithRelations } from '../prisma-user.mapper';
 
@@ -86,6 +87,7 @@ function createMockPrismaUser(overrides: Partial<UserWithRelations> = {}): UserW
     lastLoginAt: null,
     deletedAt: null,
     deletedBy: null,
+    permissions: null, // Default: no custom permissions
     createdAt: new Date('2025-01-01T10:00:00Z'),
     updatedAt: new Date('2025-01-01T10:00:00Z'),
     ...overrides,
@@ -603,6 +605,263 @@ describe('PrismaUserMapper', () => {
       expect(persistData.deletedAt).toBeNull();
       expect(persistData.deletedBy).toBeNull();
       expect(persistData.lockedManuallyAt).toBeNull(); // isLocked=false → null
+    });
+  });
+
+  // ============================================================================
+  // PERMISSION SERIALIZATION TESTS
+  // ============================================================================
+
+  describe('Permission Serialization', () => {
+    describe('serializePermissions()', () => {
+      it('sollte leeres Array zu null serialisieren', () => {
+        // Given: Domain User ohne Permissions
+        const user = createDomainUser();
+
+        // When: toPersistence() aufgerufen
+        const persistData = PrismaUserMapper.toPersistence(user);
+
+        // Then: permissions ist null (Optimierung)
+        expect(persistData.permissions).toBeNull();
+      });
+
+      it('sollte einzelne Permission korrekt serialisieren', () => {
+        // Given: Prisma User rekonstruieren und Permission hinzufügen
+        const prismaUser = createMockPrismaUser();
+        const aggregate = PrismaUserMapper.toAggregate(prismaUser);
+
+        // Permission gewähren via Domain Logic
+        const permission = Permission.CREATE_EINSATZ();
+        const grantedBy = aggregate.id;
+        aggregate.grantPermission(permission, grantedBy);
+
+        // When: toPersistence() aufgerufen
+        const persistData = PrismaUserMapper.toPersistence(aggregate);
+
+        // Then: permissions ist JSON Array String
+        expect(persistData.permissions).toBe('["einsatz:create"]');
+      });
+
+      it('sollte mehrere Permissions korrekt serialisieren', () => {
+        // Given: User mit mehreren Permissions
+        const prismaUser = createMockPrismaUser();
+        const aggregate = PrismaUserMapper.toAggregate(prismaUser);
+
+        // Mehrere Permissions gewähren
+        const grantedBy = aggregate.id;
+        aggregate.grantPermission(Permission.CREATE_EINSATZ(), grantedBy);
+        aggregate.grantPermission(Permission.EDIT_EINSATZ(), grantedBy);
+        aggregate.grantPermission(Permission.LOCK_ETB(), grantedBy);
+
+        // When: toPersistence() aufgerufen
+        const persistData = PrismaUserMapper.toPersistence(aggregate);
+
+        // Then: permissions ist JSON Array mit allen Permissions
+        const parsed = JSON.parse(persistData.permissions as string);
+        expect(parsed).toHaveLength(3);
+        expect(parsed).toContain('einsatz:create');
+        expect(parsed).toContain('einsatz:update');
+        expect(parsed).toContain('etb:lock');
+      });
+    });
+
+    describe('deserializePermissions()', () => {
+      it('sollte null zu leerem Array deserialisieren', () => {
+        // Given: Prisma User mit permissions=null
+        const prismaUser = createMockPrismaUser({
+          permissions: null,
+        });
+
+        // When: toAggregate() aufgerufen
+        const aggregate = PrismaUserMapper.toAggregate(prismaUser);
+
+        // Then: Aggregate hat leeres Permission Array
+        expect(aggregate.permissions).toEqual([]);
+      });
+
+      it('sollte leeren String zu leerem Array deserialisieren', () => {
+        // Given: Prisma User mit leerem String
+        const prismaUser = createMockPrismaUser({
+          permissions: '',
+        });
+
+        // When: toAggregate() aufgerufen
+        const aggregate = PrismaUserMapper.toAggregate(prismaUser);
+
+        // Then: Aggregate hat leeres Permission Array
+        expect(aggregate.permissions).toEqual([]);
+      });
+
+      it('sollte validen JSON String korrekt deserialisieren', () => {
+        // Given: Prisma User mit JSON Array String
+        const prismaUser = createMockPrismaUser({
+          permissions: '["user:read","einsatz:create"]',
+        });
+
+        // When: toAggregate() aufgerufen
+        const aggregate = PrismaUserMapper.toAggregate(prismaUser);
+
+        // Then: Aggregate hat korrekte Permissions
+        expect(aggregate.permissions).toHaveLength(2);
+        expect(aggregate.permissions[0].value).toBe('user:read');
+        expect(aggregate.permissions[1].value).toBe('einsatz:create');
+      });
+
+      it('sollte ungültigen JSON graceful zu leerem Array degradieren', () => {
+        // Given: Prisma User mit ungültigem JSON
+        const prismaUser = createMockPrismaUser({
+          permissions: 'invalid json {]',
+        });
+
+        // When: toAggregate() aufgerufen (sollte NICHT crashen)
+        const aggregate = PrismaUserMapper.toAggregate(prismaUser);
+
+        // Then: Aggregate hat leeres Permission Array (graceful degradation)
+        expect(aggregate.permissions).toEqual([]);
+      });
+
+      it('sollte nicht-Array JSON graceful zu leerem Array degradieren', () => {
+        // Given: Prisma User mit JSON Object statt Array
+        const prismaUser = createMockPrismaUser({
+          permissions: '{"permission":"user:read"}',
+        });
+
+        // When: toAggregate() aufgerufen
+        const aggregate = PrismaUserMapper.toAggregate(prismaUser);
+
+        // Then: Aggregate hat leeres Permission Array (graceful degradation)
+        expect(aggregate.permissions).toEqual([]);
+      });
+
+      it('sollte ungültige Permission Strings überspringen', () => {
+        // Given: Prisma User mit teilweise ungültigen Permissions
+        const prismaUser = createMockPrismaUser({
+          permissions: '["user:read","invalid","einsatz:create","too:many:colons"]',
+        });
+
+        // When: toAggregate() aufgerufen
+        const aggregate = PrismaUserMapper.toAggregate(prismaUser);
+
+        // Then: Nur valide Permissions werden rekonstruiert
+        expect(aggregate.permissions).toHaveLength(2);
+        expect(aggregate.permissions[0].value).toBe('user:read');
+        expect(aggregate.permissions[1].value).toBe('einsatz:create');
+      });
+
+      it('sollte non-string Array Items überspringen', () => {
+        // Given: Prisma User mit non-string Items
+        const prismaUser = createMockPrismaUser({
+          permissions: '["user:read",123,null,"einsatz:create"]',
+        });
+
+        // When: toAggregate() aufgerufen
+        const aggregate = PrismaUserMapper.toAggregate(prismaUser);
+
+        // Then: Nur String Permissions werden rekonstruiert
+        expect(aggregate.permissions).toHaveLength(2);
+        expect(aggregate.permissions[0].value).toBe('user:read');
+        expect(aggregate.permissions[1].value).toBe('einsatz:create');
+      });
+    });
+  });
+
+  // ============================================================================
+  // PERMISSION ROUND-TRIP TESTS
+  // ============================================================================
+
+  describe('Permission Round-Trip Tests', () => {
+    it('sollte Permissions bei Domain -> Prisma -> Domain Round-Trip erhalten', () => {
+      // Given: Prisma User mit Permissions
+      const originalPrisma = createMockPrismaUser({
+        permissions: '["einsatz:create","etb:lock","user:read"]',
+      });
+
+      // When: Prisma -> Domain -> Prisma
+      const aggregate = PrismaUserMapper.toAggregate(originalPrisma);
+      const persistData = PrismaUserMapper.toPersistence(aggregate);
+
+      // Simuliere DB-Row aus Persistence Data
+      const simulatedDbRow: UserWithRelations = {
+        ...originalPrisma,
+        permissions: persistData.permissions,
+      };
+
+      const reconstructedAggregate = PrismaUserMapper.toAggregate(simulatedDbRow);
+
+      // Then: Permissions bleiben erhalten
+      expect(reconstructedAggregate.permissions).toHaveLength(3);
+      expect(reconstructedAggregate.permissions[0].value).toBe('einsatz:create');
+      expect(reconstructedAggregate.permissions[1].value).toBe('etb:lock');
+      expect(reconstructedAggregate.permissions[2].value).toBe('user:read');
+    });
+
+    it('sollte leeres Permission Array bei Round-Trip erhalten (als null)', () => {
+      // Given: Prisma User ohne Permissions
+      const originalPrisma = createMockPrismaUser({
+        permissions: null,
+      });
+
+      // When: Prisma -> Domain -> Prisma
+      const aggregate = PrismaUserMapper.toAggregate(originalPrisma);
+      const persistData = PrismaUserMapper.toPersistence(aggregate);
+
+      // Then: permissions bleibt null (Optimierung)
+      expect(persistData.permissions).toBeNull();
+
+      // When: Erneut rekonstruieren
+      const simulatedDbRow: UserWithRelations = {
+        ...originalPrisma,
+        permissions: persistData.permissions,
+      };
+      const reconstructedAggregate = PrismaUserMapper.toAggregate(simulatedDbRow);
+
+      // Then: Permissions bleibt leeres Array
+      expect(reconstructedAggregate.permissions).toEqual([]);
+    });
+
+    it('sollte Permission Mutation korrekt persistieren', () => {
+      // Given: User ohne Permissions erstellen
+      const user = createDomainUser();
+      expect(user.permissions).toEqual([]);
+
+      // When: Permissions via Domain Logic hinzufügen
+      const grantedBy = user.id;
+      user.grantPermission(Permission.LOCK_ETB(), grantedBy);
+      user.grantPermission(Permission.CREATE_EINSATZ(), grantedBy);
+
+      // When: Persistieren
+      const persistData = PrismaUserMapper.toPersistence(user);
+
+      // Then: Permissions sind serialisiert
+      expect(persistData.permissions).toBeTruthy();
+      const parsed = JSON.parse(persistData.permissions as string);
+      expect(parsed).toHaveLength(2);
+      expect(parsed).toContain('etb:lock');
+      expect(parsed).toContain('einsatz:create');
+    });
+
+    it('sollte Permission Revoke korrekt persistieren', () => {
+      // Given: Prisma User mit Permissions rekonstruieren
+      const prismaUser = createMockPrismaUser({
+        permissions: '["einsatz:create","etb:lock"]',
+      });
+      const aggregate = PrismaUserMapper.toAggregate(prismaUser);
+
+      // Verify initial state
+      expect(aggregate.permissions).toHaveLength(2);
+
+      // When: Permission via Domain Logic revoken
+      const permission = Permission.LOCK_ETB();
+      aggregate.revokePermission(permission);
+
+      // When: Persistieren
+      const persistData = PrismaUserMapper.toPersistence(aggregate);
+
+      // Then: Nur noch 1 Permission übrig
+      const parsed = JSON.parse(persistData.permissions as string);
+      expect(parsed).toHaveLength(1);
+      expect(parsed).toContain('einsatz:create');
+      expect(parsed).not.toContain('etb:lock');
     });
   });
 });

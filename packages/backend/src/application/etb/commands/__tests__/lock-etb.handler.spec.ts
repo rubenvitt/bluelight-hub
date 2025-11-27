@@ -146,7 +146,7 @@ describe('LockEtbHandler', () => {
       await etbRepository.save(etb);
 
       const command = LockEtbCommand.create(etb.id.value, testUserId, 'ADMIN').value!;
-      const beforeLock = new Date();
+      const _beforeLock = new Date();
 
       // Act
       const result = await lockHandler.execute(command);

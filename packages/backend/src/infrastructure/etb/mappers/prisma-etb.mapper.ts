@@ -8,7 +8,6 @@ import { EtbSequenceNumber } from '@domain/value-objects/etb-sequence-number';
 import { EtbStatus } from '@domain/value-objects/etb-status';
 import { EtbVersion } from '@domain/value-objects/etb-version';
 import { UserId } from '@domain/value-objects/user-id';
-import { Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Einsatztagebuch, EtbEintrag as PrismaEtbEintrag, EtbKategorie as PrismaEtbKategorie, EtbStatus as PrismaEtbStatus } from '@prisma/client';
 

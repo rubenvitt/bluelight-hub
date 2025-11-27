@@ -3,6 +3,7 @@ import { UserAggregate } from '@domain/aggregates/user.aggregate';
 import { UserId } from '@domain/value-objects/user-id';
 import { Username } from '@domain/value-objects/username';
 import { UserRole } from '@domain/value-objects/user-role';
+import { Permission } from '@domain/value-objects/permission';
 
 /**
  * Typ-Definition für User Prisma-Daten.
@@ -30,6 +31,7 @@ export interface UserPersistenceData {
   deletedBy: string | null;
   isLocked: boolean;
   lockedManuallyAt: Date | null;
+  permissions: string | null;
 }
 
 /**
@@ -44,13 +46,15 @@ export interface UserPersistenceData {
  * - Konsistent mit anderen Mappern im Projekt (PrismaEinsatzMapper)
  *
  * **Mapping-Herausforderungen:**
- * - `permissions` (custom) existiert NUR in Domain, NICHT in Prisma Schema
+ * - `permissions` wird als JSON Array String serialisiert (["user:read", "einsatz:create"])
  * - `username` wird zu lowercase normalisiert in DB gespeichert
  * - `role` ist Enum in DB, Value Object in Domain
  * - `isLocked` ist boolean in beiden, aber Semantik unterschiedlich (manual vs auto-lock)
  *
  * **Design-Entscheidungen:**
- * - Custom Permissions werden NICHT persistiert (Domain-Only, transient state)
+ * - Custom Permissions werden als JSON Array String persistiert (AC2.6)
+ * - Leeres Permission Array → NULL in DB (keine unnötigen leeren Arrays)
+ * - JSON Parse Fehler → graceful degradation zu leerem Array
  * - Username wird immer lowercase in DB gespeichert (case-insensitive uniqueness)
  * - passwordHash ist optional (nur ADMIN/SUPER_ADMIN haben Passwort)
  */
@@ -71,6 +75,9 @@ export class PrismaUserMapper {
     // Role Mapping: Domain VO → Prisma Enum String
     const role = PrismaUserMapper.mapDomainRoleToPrisma(aggregate.role);
 
+    // Permission Serialization: Domain Permission[] → JSON String
+    const permissions = PrismaUserMapper.serializePermissions(aggregate.permissions);
+
     return {
       id: aggregate.id.value,
       username: aggregate.username.value.toLowerCase(), // Case-insensitive uniqueness
@@ -87,6 +94,7 @@ export class PrismaUserMapper {
       deletedBy: null, // Wird bei delete() gesetzt
       isLocked: aggregate.isLocked, // Manual Lock (admin-initiated)
       lockedManuallyAt: aggregate.isLocked ? new Date() : null,
+      permissions, // Serialized JSON Array oder NULL
     };
   }
 
@@ -96,8 +104,8 @@ export class PrismaUserMapper {
    * Nutzt Object.defineProperty() um private Fields des Aggregates zu setzen,
    * da der private Constructor nicht direkt aufgerufen werden kann.
    *
-   * WICHTIG: Domain-Only Felder werden NICHT rekonstruiert:
-   * - Custom Permissions: Werden als leeres Array initialisiert (transient state)
+   * WICHTIG: Custom Permissions werden aus DB rekonstruiert (AC2.6).
+   * Permissions werden aus JSON String deserialisiert via deserializePermissions().
    *
    * @param prismaData - User Daten aus Prisma findFirst/findUnique
    * @returns Vollständig rekonstruiertes UserAggregate
@@ -120,8 +128,10 @@ export class PrismaUserMapper {
     // Role Mapping: Prisma Enum String → Domain VO
     const role = PrismaUserMapper.mapPrismaRoleToDomain(prismaData.role);
 
+    // Permission Deserialization: JSON String → Domain Permission[]
+    const permissions = PrismaUserMapper.deserializePermissions(prismaData.permissions);
+
     // Step 2: Erstelle Aggregate via Factory (validiert Constraints)
-    // Custom Permissions werden NICHT persistiert (transient state)
     const aggregateResult = UserAggregate.create(username, role);
 
     if (aggregateResult.isFailure) {
@@ -142,6 +152,13 @@ export class PrismaUserMapper {
     // _isLocked (Factory setzt false, wir wollen DB-Wert)
     Object.defineProperty(aggregate, '_isLocked', {
       value: prismaData.isLocked,
+      writable: true,
+      configurable: true,
+    });
+
+    // _permissions (Factory setzt leeres Array, wir wollen DB-Werte)
+    Object.defineProperty(aggregate, '_permissions', {
+      value: permissions,
       writable: true,
       configurable: true,
     });
@@ -195,6 +212,108 @@ export class PrismaUserMapper {
         return UserRole.SUPER_ADMIN();
       default:
         throw new Error(`Unknown UserRole: ${role}`);
+    }
+  }
+
+  /**
+   * Serialisiert Permission Array zu JSON String fuer Prisma Persistence.
+   *
+   * Konvertiert Domain Permission VOs zu einem JSON Array String.
+   * Leeres Array wird zu NULL optimiert (keine unnötigen leeren Arrays in DB).
+   *
+   * **Warum NULL statt "[]":**
+   * - Spart Speicherplatz für Users ohne Custom Permissions
+   * - Macht Queries einfacher (WHERE permissions IS NULL vs WHERE permissions = "[]")
+   * - Semantisch klarer: NULL = "keine Custom Permissions" vs "[]" = "explizit leer"
+   *
+   * @param permissions - Array von Permission Value Objects
+   * @returns JSON String (z.B. '["user:read","einsatz:create"]') oder null bei leerem Array
+   *
+   * @example
+   * ```typescript
+   * serializePermissions([]) // null
+   * serializePermissions([Permission.CREATE_EINSATZ()]) // '["einsatz:create"]'
+   * serializePermissions([Permission.LOCK_ETB(), Permission.EDIT_EINSATZ()])
+   * // '["etb:lock","einsatz:update"]'
+   * ```
+   */
+  private static serializePermissions(permissions: Permission[]): string | null {
+    // Leeres Array → NULL (Optimierung)
+    if (permissions.length === 0) {
+      return null;
+    }
+
+    // Extrahiere Permission Value Strings und serialisiere als JSON
+    const permissionStrings = permissions.map((p) => p.value);
+    return JSON.stringify(permissionStrings);
+  }
+
+  /**
+   * Deserialisiert JSON String zu Permission Array fuer Domain Reconstruction.
+   *
+   * Parsed JSON String aus DB und konvertiert zu Permission Value Objects.
+   * Implementiert graceful degradation bei Parse Fehlern (JSON corrupt oder invalid).
+   *
+   * **Warum graceful degradation:**
+   * - Verhindert System-Crash bei DB-Corruption oder Schema-Migration Fehler
+   * - User kann sich weiterhin einloggen (mit Role-Permissions only)
+   * - Fehler wird geloggt für spätere Analyse (zukünftig)
+   * - Security: Im Zweifel KEINE Permissions gewähren (fail-closed)
+   *
+   * @param json - JSON String aus Prisma (z.B. '["user:read"]') oder null
+   * @returns Array von Permission VOs, leeres Array bei null oder Parse Error
+   *
+   * @example
+   * ```typescript
+   * deserializePermissions(null) // []
+   * deserializePermissions('') // []
+   * deserializePermissions('["user:read","einsatz:create"]')
+   * // [Permission("user:read"), Permission("einsatz:create")]
+   * deserializePermissions('invalid json') // [] (graceful degradation)
+   * deserializePermissions('["invalid:format:too:many:colons"]') // [] (skip invalid)
+   * ```
+   */
+  private static deserializePermissions(json: string | null): Permission[] {
+    // NULL oder leerer String → leeres Array
+    if (!json || json.trim() === '') {
+      return [];
+    }
+
+    try {
+      // Parse JSON Array
+      const parsed = JSON.parse(json);
+
+      // Validiere dass es ein Array ist
+      if (!Array.isArray(parsed)) {
+        // Graceful degradation: Ungültiges Format → leeres Array
+        console.warn(`[PrismaUserMapper] Invalid permissions format (not an array): ${json}`);
+        return [];
+      }
+
+      // Konvertiere String Array zu Permission VOs
+      const permissions: Permission[] = [];
+      for (const permissionString of parsed) {
+        // Validiere dass es ein String ist
+        if (typeof permissionString !== 'string') {
+          console.warn(`[PrismaUserMapper] Skipping non-string permission: ${permissionString}`);
+          continue;
+        }
+
+        // Erstelle Permission VO mit Validierung
+        const result = Permission.create(permissionString);
+        if (result.isSuccess) {
+          permissions.push(result.value as Permission);
+        } else {
+          // Skip invalid permission (graceful degradation)
+          console.warn(`[PrismaUserMapper] Skipping invalid permission: ${permissionString} (${result.error})`);
+        }
+      }
+
+      return permissions;
+    } catch (error) {
+      // JSON Parse Fehler → graceful degradation
+      console.warn(`[PrismaUserMapper] Failed to parse permissions JSON: ${json}`, error);
+      return [];
     }
   }
 }

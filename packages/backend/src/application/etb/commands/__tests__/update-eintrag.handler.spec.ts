@@ -191,7 +191,7 @@ describe('UpdateEintragHandler', () => {
     it('should verify all entry data is preserved during update', async () => {
       // Arrange: Create ETB with 1 entry
       const etb = createTestEtb({ entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
-      const originalText = etb.eintraege[0].text;
+      const _originalText = etb.eintraege[0].text;
       const originalId = etb.eintraege[0].id.value;
       await etbRepository.save(etb);
 

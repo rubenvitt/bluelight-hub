@@ -475,12 +475,12 @@ describe('CompleteEinsatzHandler', () => {
       const command = CompleteEinsatzCommand.create(einsatz.id.value, userId.value).value!;
       const callOrder: string[] = [];
 
-      mockRepository.findById.mockImplementation(async (id: EinsatzId) => {
+      mockRepository.findById.mockImplementation(async (_id: EinsatzId) => {
         callOrder.push('findById');
         return Result.ok(einsatz);
       });
 
-      mockCompletenessService.canBeCompleted.mockImplementation((e) => {
+      mockCompletenessService.canBeCompleted.mockImplementation((_e) => {
         callOrder.push('canBeCompleted');
         return Result.ok(undefined);
       });

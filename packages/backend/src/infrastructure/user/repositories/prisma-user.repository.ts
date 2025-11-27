@@ -286,4 +286,47 @@ export class PrismaUserRepository implements IUserRepository {
       return Result.fail(`Database error: ${message}`);
     }
   }
+
+  /**
+   * Lädt den bcrypt Password Hash für einen User.
+   *
+   * **Security Separation:**
+   * - Password Hash ist NICHT Teil des User Aggregates (Security by Design)
+   * - Nur Infrastructure Layer hat Zugriff auf passwordHash
+   * - Separate Query verhindert unnötiges Laden bei normalen User Operations
+   *
+   * **Use Case:**
+   * - Login Flow: Password Verification via bcrypt.compare()
+   * - Password Change: Verify Old Password before setting New Password
+   *
+   * **PASSWORDLESS Auth:**
+   * - USER-Accounts haben passwordHash = NULL
+   * - null ist valides Business-Resultat (KEIN Fehler)
+   *
+   * @param id - UserId Value Object mit validierter Nanoid
+   * @param tx - Optional Transaction Context für Atomizität
+   * @returns Result<string | null> - Success mit bcrypt Hash oder null wenn User kein Passwort hat
+   */
+  async getPasswordHash(id: UserId, tx?: TransactionContext): Promise<Result<string | null>> {
+    const client = (tx as PrismaTransactionClient | undefined) ?? this.prisma;
+
+    try {
+      const user = await client.user.findUnique({
+        where: { id: id.value },
+        select: { passwordHash: true }, // Only select passwordHash (Performance)
+      });
+
+      // NULL Handling: User nicht gefunden = FAILURE (User muss existieren für Password Check)
+      if (!user) {
+        return Result.fail('User nicht gefunden');
+      }
+
+      // NULL Handling: passwordHash = null ist valid (PASSWORDLESS USER Account)
+      return Result.ok(user.passwordHash);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to get password hash', { userId: id.value, error: message });
+      return Result.fail(`Database error: ${message}`);
+    }
+  }
 }

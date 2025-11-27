@@ -27,7 +27,7 @@ function calculateRetryDelay(attemptIndex: number): number {
  * @returns ETB-Daten mit status, version, eintraege
  */
 export const useEtb = (einsatzId?: string, includeDeleted?: boolean) => {
-  return useQuery<EtbDto, ResponseError>({
+  return useQuery<EtbDto | undefined, ResponseError>({
     enabled: !!einsatzId,
     queryKey: QUERY_KEYS.etb.byEinsatz(einsatzId, includeDeleted),
     queryFn: async () => {
@@ -40,12 +40,26 @@ export const useEtb = (einsatzId?: string, includeDeleted?: boolean) => {
           includeDeleted,
         });
       } catch (error) {
+        // 404 ist kein Fehler - ETB existiert einfach noch nicht
+        // Kein Toast, kein Error - return undefined
+        const statusCode = (error as { status?: number })?.status || (error as { response?: { status?: number } })?.response?.status;
+
+        if (statusCode === 404) {
+          logger.debug('ETB nicht gefunden (404) - normaler Zustand', { einsatzId });
+          return undefined as unknown as EtbDto; // Return undefined statt Error
+        }
+
         logger.error('Failed to fetch ETB via CQRS API', error);
         throw error;
       }
     },
     staleTime: 30000,
-    retry: 3,
+    retry: (failureCount, error) => {
+      // Kein Retry bei 404
+      const statusCode = (error as { status?: number })?.status || (error as { response?: { status?: number } })?.response?.status;
+      if (statusCode === 404) return false;
+      return failureCount < 3;
+    },
     retryDelay: calculateRetryDelay,
   });
 };

@@ -4,8 +4,7 @@ import { Button } from '@/components/atoms/button.atom';
 import { Spinner } from '@/components/atoms/spinner.atom';
 import { type Layer, LayerToggle } from '@/components/molecules/lagekarte/LayerToggle/LayerToggle';
 import { useColorMode } from '@/hooks/use-color-mode';
-import { useCreateEtb, useEtb } from '@/hooks/useEtb';
-import { errorChecks } from '@/utils/apiErrorHandler';
+import { useEtb } from '@/hooks/useEtb';
 import { captureMapScreenshot } from '@/utils/captureMapScreenshot';
 import { cn } from '@/utils/cn';
 import type { ShapeType } from '@/utils/drawing-styles';
@@ -209,9 +208,6 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
 
   // ETB-Daten (für etbId beim Export)
   const { data: etbData, refetch: refetchEtb, isLoading: isEtbLoading } = useEtb(einsatzId);
-
-  // ETB-Erstellung falls nicht vorhanden
-  const createEtb = useCreateEtb();
 
   // Auto-Save Hook (debounced 2s)
   const { triggerAutoSave } = useLagekarteAutoSave(einsatzId);
@@ -454,42 +450,22 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
 
     setIsExportingToEtb(true);
 
-    console.log('[ETB Export] Handler aufgerufen', { etbData });
-
-    // Bei fehlendem ETB: Automatisch erstellen (für bestehende Einsätze ohne ETB)
+    // Bei fehlendem ETB: Fehler anzeigen und abbrechen
+    // ETB sollte automatisch bei Einsatz-Erstellung erstellt werden
     let targetEtbId = etbData?.id;
     if (!targetEtbId) {
-      console.log('[ETB Export] Kein ETB vorhanden, erstelle neues ETB für Einsatz', einsatzId);
-      try {
-        const newEtb = await createEtb.mutateAsync({ einsatzId });
-        targetEtbId = newEtb.id;
-        console.log('[ETB Export] ETB erstellt:', targetEtbId);
-        // ETB-Daten aktualisieren für zukünftige Exports
-        await refetchEtb();
-      } catch (error: unknown) {
-        // 409 Conflict = ETB existiert bereits, Daten neu laden
-        // Nutze errorChecks.isConflict() für robuste ResponseError-Detection
-        if (errorChecks.isConflict(error)) {
-          console.log('[ETB Export] ETB existiert bereits (409), lade Daten neu');
-          const refetchResult = await refetchEtb();
-          targetEtbId = refetchResult.data?.id;
-          if (!targetEtbId) {
-            console.error('[ETB Export] ETB existiert laut 409, aber konnte nicht geladen werden');
-            setIsExportingToEtb(false);
-            toast.error('Fehler beim Export', {
-              description: 'ETB existiert, konnte aber nicht geladen werden.',
-            });
-            return;
-          }
-          console.log('[ETB Export] ETB nach Refetch gefunden:', targetEtbId);
-        } else {
-          console.error('[ETB Export] ETB-Erstellung fehlgeschlagen:', error);
-          setIsExportingToEtb(false);
-          toast.error('Fehler beim Export', {
-            description: 'ETB konnte nicht erstellt werden. Bitte versuche es erneut.',
-          });
-          return;
-        }
+      console.log('[ETB Export] Kein ETB vorhanden für Einsatz', einsatzId);
+
+      // Versuche ETB-Daten neu zu laden (vielleicht noch nicht geladen)
+      const refetchResult = await refetchEtb();
+      targetEtbId = refetchResult.data?.id;
+
+      if (!targetEtbId) {
+        toast.error('Export nicht möglich', {
+          description: 'Das Einsatztagebuch wurde noch nicht erstellt. Bitte öffne zuerst das ETB.',
+        });
+        setIsExportingToEtb(false);
+        return;
       }
     }
 
@@ -586,7 +562,7 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
     } finally {
       setIsExportingToEtb(false);
     }
-  }, [mapInstance, etbData, einsatzId, createEtb, refetchEtb, isEtbLoading]);
+  }, [mapInstance, etbData, einsatzId, refetchEtb, isEtbLoading]);
 
   // Error-State anzeigen
   if (hasError) {

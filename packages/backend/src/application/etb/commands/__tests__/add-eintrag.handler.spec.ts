@@ -1,6 +1,4 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import { EintragAddedEvent } from '@domain/events/eintrag-added.event';
 import { InMemoryEtbRepository } from '../../__tests__/in-memory-etb.repository';
 import { AddEintragCommand } from '../add-eintrag/add-eintrag.command';
 import { AddEintragHandler } from '../add-eintrag/add-eintrag.handler';
@@ -39,7 +37,6 @@ function generateTestCuid(): string {
 describe('AddEintragHandler', () => {
   let handler: AddEintragHandler;
   let etbRepository: InMemoryEtbRepository;
-  let mockEventPublisher: jest.Mocked<IEventPublisher>;
   let testUserId: string;
   let testEinsatzId: string;
 
@@ -49,14 +46,8 @@ describe('AddEintragHandler', () => {
     testUserId = generateTestCuid();
     testEinsatzId = generateTestCuid();
 
-    // Mock IEventPublisher (Spy Pattern)
-    mockEventPublisher = {
-      publish: jest.fn().mockResolvedValue(undefined),
-      publishAll: jest.fn().mockResolvedValue(undefined),
-    };
-
     // Create handler with dependencies
-    handler = new AddEintragHandler(etbRepository, mockEventPublisher);
+    handler = new AddEintragHandler(etbRepository);
   });
 
   afterEach(() => {
@@ -151,8 +142,8 @@ describe('AddEintragHandler', () => {
     });
   });
 
-  describe('AC2: EintragAddedEvent contains correct sequence number', () => {
-    it('should publish event with correct sequence number', async () => {
+  describe('AC2: AddEintrag creates correct entry data', () => {
+    it('should create entry with correct sequence number', async () => {
       // Arrange: Create ETB with 2 existing entries
       const etb = createTestEtb({ entriesCount: 2, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
@@ -164,14 +155,13 @@ describe('AddEintragHandler', () => {
 
       // Assert
       expect(result.isSuccess).toBe(true);
+      expect(result.value!.sequenceNumber.value).toBe(3);
+      expect(result.value!.text).toBe('Dritter Eintrag');
 
-      // Verify event was published with correct sequence number (3)
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(publishedEvents.length).toBe(1);
-      expect(publishedEvents[0]).toBeInstanceOf(EintragAddedEvent);
-      expect((publishedEvents[0] as EintragAddedEvent).sequenceNumber).toBe(3);
-      expect((publishedEvents[0] as EintragAddedEvent).text).toBe('Dritter Eintrag');
+      // Verify saved ETB has correct entry
+      const savedEtb = await etbRepository.findById(etb.id);
+      expect(savedEtb?.eintraege.length).toBe(3);
+      expect(savedEtb?.eintraege[2].sequenceNumber.value).toBe(3);
     });
   });
 
@@ -233,31 +223,17 @@ describe('AddEintragHandler', () => {
   });
 
   describe('Error Handling', () => {
-    it('should throw NotFoundException when ETB not found', async () => {
+    it('should return failure when ETB not found', async () => {
       // Arrange: Create command for non-existent ETB
       const fakeEtbId = generateTestCuid();
       const command = AddEintragCommand.create(fakeEtbId, 'Test Text', testUserId).value!;
 
-      // Act & Assert
-      await expect(handler.execute(command)).rejects.toThrow(NotFoundException);
-      await expect(handler.execute(command)).rejects.toThrow('ETB nicht gefunden');
-    });
-
-    it('should NOT publish events when operation fails', async () => {
-      // Arrange: Non-existent ETB
-      const fakeEtbId = generateTestCuid();
-      const command = AddEintragCommand.create(fakeEtbId, 'Test Text', testUserId).value!;
-
       // Act
-      try {
-        await handler.execute(command);
-      } catch {
-        // Expected
-      }
+      const result = await handler.execute(command);
 
       // Assert
-      expect(mockEventPublisher.publish).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('ETB nicht gefunden');
     });
   });
 

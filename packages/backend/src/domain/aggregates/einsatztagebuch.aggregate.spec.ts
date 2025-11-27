@@ -4,6 +4,7 @@ import { UserId } from '@domain/value-objects/user-id';
 import { EtbStatus } from '@domain/value-objects/etb-status';
 import { EintragId } from '@domain/value-objects/eintrag-id';
 import { EtbCreatedEvent } from '@domain/events/etb-created.event';
+import type { DomainEvent } from '@domain/common/domain-event';
 
 // Mock cuid2 for Jest compatibility (ESM module issue)
 jest.mock('@paralleldrive/cuid2', () => ({
@@ -261,7 +262,7 @@ describe('EinsatztagebuchAggregate', () => {
 
       const events = etb.getDomainEvents();
       expect(events).toHaveLength(1);
-      expect(events[0].eventName).toBe('etb.eintrag_added');
+      expect((events[0].constructor as typeof DomainEvent).eventName()).toBe('etb.eintrag_added');
     });
 
     it('should emit EintragUpdatedEvent on updateEintrag', () => {
@@ -273,7 +274,7 @@ describe('EinsatztagebuchAggregate', () => {
 
       const events = etb.getDomainEvents();
       expect(events).toHaveLength(1);
-      expect(events[0].eventName).toBe('etb.eintrag_updated');
+      expect((events[0].constructor as typeof DomainEvent).eventName()).toBe('etb.eintrag_updated');
     });
 
     it('should emit EintragDeletedEvent on deleteEintrag', () => {
@@ -285,7 +286,7 @@ describe('EinsatztagebuchAggregate', () => {
 
       const events = etb.getDomainEvents();
       expect(events).toHaveLength(1);
-      expect(events[0].eventName).toBe('etb.eintrag_deleted');
+      expect((events[0].constructor as typeof DomainEvent).eventName()).toBe('etb.eintrag_deleted');
     });
 
     it('should emit EtbLockedEvent on lock', () => {
@@ -296,7 +297,7 @@ describe('EinsatztagebuchAggregate', () => {
 
       const events = etb.getDomainEvents();
       expect(events).toHaveLength(1);
-      expect(events[0].eventName).toBe('etb.locked');
+      expect((events[0].constructor as typeof DomainEvent).eventName()).toBe('etb.locked');
     });
   });
 

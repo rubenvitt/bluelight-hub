@@ -2,7 +2,6 @@
 import { RemovePoiCommandHandler } from '../remove-poi.handler';
 import { RemovePoiCommand } from '../remove-poi.command';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
@@ -49,7 +48,6 @@ function generateTestCuid(suffix = ''): string {
 describe('RemovePoiCommandHandler', () => {
   let handler: RemovePoiCommandHandler;
   let mockLagekarteRepo: jest.Mocked<ILagekarteRepository>;
-  let mockEventPublisher: jest.Mocked<IEventPublisher>;
 
   beforeEach(() => {
     // Create mock repository with all required methods
@@ -60,14 +58,8 @@ describe('RemovePoiCommandHandler', () => {
       exists: jest.fn(),
     } as any;
 
-    // Create mock event publisher
-    mockEventPublisher = {
-      publish: jest.fn().mockResolvedValue(undefined),
-      publishAll: jest.fn().mockResolvedValue(undefined),
-    };
-
     // Instantiate handler with mocks (Direct Instantiation Pattern)
-    handler = new RemovePoiCommandHandler(mockLagekarteRepo, mockEventPublisher);
+    handler = new RemovePoiCommandHandler(mockLagekarteRepo);
   });
 
   afterEach(() => {
@@ -105,45 +97,6 @@ describe('RemovePoiCommandHandler', () => {
       // Verify POI was removed
       const savedAggregate = mockLagekarteRepo.save.mock.calls[0][0];
       expect(savedAggregate.pois.length).toBe(0);
-    });
-
-    it('should emit PoiRemovedEvent when POI is removed', async () => {
-      // Given
-      const lagekarteId = generateTestCuid('lkrt2');
-      const einsatzId = EinsatzId.create(generateTestCuid('eins2')).value!;
-      const createdBy = UserId.create().value!;
-      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
-
-      // Add POI to aggregate
-      const berlinMgrs = MgrsCoordinate.fromLatLng(52.5163, 13.3777).value!;
-      const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = LagekarteId.create(lagekarteId).value!;
-      const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
-      const poiId = addResult.value!.id;
-
-      // Clear initial LagekarteCreatedEvent + PoiAddedEvent to test only remove
-      aggregate.clearDomainEvents();
-
-      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
-
-      // Mock: Lagekarte exists with POI
-      mockLagekarteRepo.findById.mockResolvedValue(aggregate);
-      mockLagekarteRepo.save.mockResolvedValue(undefined);
-
-      // When
-      const result = await handler.execute(command);
-
-      // Then
-      expect(result.isSuccess).toBe(true);
-
-      // Verify domain event was published via eventPublisher
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(publishedEvents.length).toBe(1); // Only PoiRemovedEvent (after clear)
-      expect(publishedEvents[0].constructor.name).toBe('PoiRemovedEvent');
-      expect(publishedEvents[0]).toMatchObject({
-        poiId: poiId,
-      });
     });
 
     it('should verify hard delete - POI not in aggregate after removal', async () => {
@@ -505,144 +458,6 @@ describe('RemovePoiCommandHandler', () => {
       const savedAggregate = mockLagekarteRepo.save.mock.calls[0][0];
       expect(savedAggregate.pois.length).toBe(initialPoiCount - 1);
       expect(savedAggregate.pois.length).toBe(2);
-    });
-
-    it('should verify event publishing happens after successful save', async () => {
-      // Given
-      const lagekarteId = generateTestCuid('lkr14');
-      const einsatzId = EinsatzId.create(generateTestCuid('ein14')).value!;
-      const createdBy = UserId.create().value!;
-      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
-
-      // Add POI to aggregate
-      const berlinMgrs = MgrsCoordinate.fromLatLng(52.5163, 13.3777).value!;
-      const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = LagekarteId.create(lagekarteId).value!;
-      const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
-      const poiId = addResult.value!.id;
-
-      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
-
-      // Mock: Lagekarte exists
-      mockLagekarteRepo.findById.mockResolvedValue(aggregate);
-      mockLagekarteRepo.save.mockResolvedValue(undefined);
-
-      // When
-      await handler.execute(command);
-
-      // Then: Verify events are published via eventPublisher
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(publishedEvents.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('Event Publishing', () => {
-    it('should publish PoiRemovedEvent after successful save', async () => {
-      // Given
-      const lagekarteId = generateTestCuid('lkr15');
-      const einsatzId = EinsatzId.create(generateTestCuid('ein15')).value!;
-      const createdBy = UserId.create().value!;
-      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
-
-      // Add POI to aggregate
-      const berlinMgrs = MgrsCoordinate.fromLatLng(52.5163, 13.3777).value!;
-      const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = LagekarteId.create(lagekarteId).value!;
-      const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
-      const poiId = addResult.value!.id;
-
-      // Clear initial LagekarteCreatedEvent + PoiAddedEvent
-      aggregate.clearDomainEvents();
-
-      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
-
-      mockLagekarteRepo.findById.mockResolvedValue(aggregate);
-      mockLagekarteRepo.save.mockResolvedValue(undefined);
-
-      // When
-      await handler.execute(command);
-
-      // Then
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      // Only PoiRemovedEvent (after clearing initial events)
-      expect(publishedEvents.length).toBe(1);
-      expect(publishedEvents[0].constructor.name).toBe('PoiRemovedEvent');
-    });
-
-    it('should NOT publish events when POI not found', async () => {
-      // Given
-      const lagekarteId = generateTestCuid('lkr16');
-      const einsatzId = EinsatzId.create(generateTestCuid('ein16')).value!;
-      const createdBy = UserId.create().value!;
-      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
-
-      const fakePoiId = generateTestCuid('fake2');
-      const command = RemovePoiCommand.create(lagekarteId, fakePoiId).value!;
-
-      mockLagekarteRepo.findById.mockResolvedValue(aggregate);
-
-      // When
-      const result = await handler.execute(command);
-
-      // Then
-      expect(result.isFailure).toBe(true);
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
-    });
-
-    it('should NOT publish events when save fails', async () => {
-      // Given
-      const lagekarteId = generateTestCuid('lkr17');
-      const einsatzId = EinsatzId.create(generateTestCuid('ein17')).value!;
-      const createdBy = UserId.create().value!;
-      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
-
-      // Add POI to aggregate
-      const berlinMgrs = MgrsCoordinate.fromLatLng(52.5163, 13.3777).value!;
-      const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = LagekarteId.create(lagekarteId).value!;
-      const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
-      const poiId = addResult.value!.id;
-
-      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
-
-      mockLagekarteRepo.findById.mockResolvedValue(aggregate);
-      mockLagekarteRepo.save.mockRejectedValue(new Error('DB Error'));
-
-      // When
-      const result = await handler.execute(command);
-
-      // Then
-      expect(result.isFailure).toBe(true);
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
-    });
-
-    it('should clear domain events after publishing', async () => {
-      // Given
-      const lagekarteId = generateTestCuid('lkr18');
-      const einsatzId = EinsatzId.create(generateTestCuid('ein18')).value!;
-      const createdBy = UserId.create().value!;
-      const aggregate = LagekarteAggregate.create(einsatzId, createdBy).value!;
-
-      // Add POI to aggregate
-      const berlinMgrs = MgrsCoordinate.fromLatLng(52.5163, 13.3777).value!;
-      const category = PoiCategory.create('EINSATZSTELLE').value!;
-      const userId = LagekarteId.create(lagekarteId).value!;
-      const addResult = aggregate.addPoi('Test POI', berlinMgrs, category, userId as any);
-      const poiId = addResult.value!.id;
-
-      const command = RemovePoiCommand.create(lagekarteId, poiId.value).value!;
-
-      mockLagekarteRepo.findById.mockResolvedValue(aggregate);
-      mockLagekarteRepo.save.mockResolvedValue(undefined);
-
-      // When
-      await handler.execute(command);
-
-      // Then: Events are cleared after publishing (aggregate is modified)
-      // We verify publishAll was called, which is followed by clearDomainEvents
-      expect(mockEventPublisher.publishAll).toHaveBeenCalled();
     });
   });
 

@@ -16,7 +16,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { OutboxEventPublisher, DEFAULT_OUTBOX_PUBLISHER_CONFIG, type OutboxPublisherConfig } from '../outbox-event-publisher.service';
 import { PrismaOutboxRepository, type OutboxEventDto } from '../prisma-outbox.repository';
 import { EventDeserializer } from '../event-deserializer';
-import { EventEmitterPublisher } from '../../events/event-emitter-publisher';
+import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import type { SerializedEvent } from '../event-serializer';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { IAlertService } from '@domain/services/ports/i-alert.service';
@@ -40,7 +40,7 @@ describe('OutboxEventPublisher', () => {
   let publisher: OutboxEventPublisher;
   let outboxRepository: jest.Mocked<PrismaOutboxRepository>;
   let eventDeserializer: jest.Mocked<EventDeserializer>;
-  let eventPublisher: jest.Mocked<EventEmitterPublisher>;
+  let eventPublisher: jest.Mocked<IEventPublisher>;
   let alertService: jest.Mocked<IAlertService>;
 
   // Mock Outbox Event
@@ -92,7 +92,7 @@ describe('OutboxEventPublisher', () => {
         OutboxEventPublisher,
         { provide: PrismaOutboxRepository, useValue: mockOutboxRepository },
         { provide: EventDeserializer, useValue: mockEventDeserializer },
-        { provide: EventEmitterPublisher, useValue: mockEventPublisher },
+        { provide: 'IEventPublisher', useValue: mockEventPublisher },
         { provide: 'IAlertService', useValue: mockAlertService },
       ],
     }).compile();
@@ -100,7 +100,7 @@ describe('OutboxEventPublisher', () => {
     publisher = module.get<OutboxEventPublisher>(OutboxEventPublisher);
     outboxRepository = module.get(PrismaOutboxRepository);
     eventDeserializer = module.get(EventDeserializer);
-    eventPublisher = module.get(EventEmitterPublisher);
+    eventPublisher = module.get('IEventPublisher');
     alertService = module.get('IAlertService');
   });
 
@@ -341,7 +341,7 @@ describe('OutboxEventPublisher', () => {
       const customPublisher = new OutboxEventPublisher(
         outboxRepository as unknown as PrismaOutboxRepository,
         eventDeserializer as unknown as EventDeserializer,
-        eventPublisher as unknown as EventEmitterPublisher,
+        eventPublisher as unknown as IEventPublisher,
         alertService as unknown as IAlertService,
         customConfig,
       );
@@ -361,7 +361,7 @@ describe('OutboxEventPublisher', () => {
       const customPublisher = new OutboxEventPublisher(
         outboxRepository as unknown as PrismaOutboxRepository,
         eventDeserializer as unknown as EventDeserializer,
-        eventPublisher as unknown as EventEmitterPublisher,
+        eventPublisher as unknown as IEventPublisher,
         alertService as unknown as IAlertService,
         customConfig,
       );
@@ -427,7 +427,7 @@ describe('OutboxEventPublisher', () => {
       const publisherWithoutAlert = new OutboxEventPublisher(
         outboxRepository as unknown as PrismaOutboxRepository,
         eventDeserializer as unknown as EventDeserializer,
-        eventPublisher as unknown as EventEmitterPublisher,
+        eventPublisher as unknown as IEventPublisher,
         undefined, // No AlertService
         DEFAULT_OUTBOX_PUBLISHER_CONFIG,
       );

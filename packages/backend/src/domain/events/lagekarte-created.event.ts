@@ -29,11 +29,6 @@ import type { UserId } from '@domain/value-objects/user-id';
  */
 export class LagekarteCreatedEvent extends DomainEvent {
   /**
-   * Event Name für Event Router (Past Tense, lowercase dot-separated).
-   */
-  public readonly eventName = 'lagekarte.created';
-
-  /**
    * @param lagekarteId - ID der erstellten Lagekarte
    * @param einsatzId - ID des zugehörigen Einsatzes
    * @param createdBy - User ID des Erstellers

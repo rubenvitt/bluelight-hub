@@ -5,6 +5,7 @@ import { Spinner } from '@/components/atoms/spinner.atom';
 import { type Layer, LayerToggle } from '@/components/molecules/lagekarte/LayerToggle/LayerToggle';
 import { useColorMode } from '@/hooks/use-color-mode';
 import { useCreateEtb, useEtb } from '@/hooks/useEtb';
+import { errorChecks } from '@/utils/apiErrorHandler';
 import { captureMapScreenshot } from '@/utils/captureMapScreenshot';
 import { cn } from '@/utils/cn';
 import type { ShapeType } from '@/utils/drawing-styles';
@@ -207,7 +208,7 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
   const { data: lagekarteData } = useLagekarte(einsatzId);
 
   // ETB-Daten (für etbId beim Export)
-  const { data: etbData, refetch: refetchEtb } = useEtb(einsatzId);
+  const { data: etbData, refetch: refetchEtb, isLoading: isEtbLoading } = useEtb(einsatzId);
 
   // ETB-Erstellung falls nicht vorhanden
   const createEtb = useCreateEtb();
@@ -435,6 +436,14 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
   const handleExportToEtb = useCallback(async () => {
     console.log('[ETB Export] Handler aufgerufen', { mapInstance: !!mapInstance, etbData, etbId: etbData?.id });
 
+    // Prüfe ob ETB-Daten noch geladen werden
+    if (isEtbLoading) {
+      toast.error('Fehler beim Export', {
+        description: 'ETB-Daten werden noch geladen. Bitte warten.',
+      });
+      return;
+    }
+
     if (!mapInstance) {
       console.log('[ETB Export] Validation failed', { hasMapInstance: false });
       toast.error('Fehler beim Export', {
@@ -459,8 +468,8 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
         await refetchEtb();
       } catch (error: unknown) {
         // 409 Conflict = ETB existiert bereits, Daten neu laden
-        const isConflict = error instanceof Error && 'response' in error && (error as { response?: { status?: number } }).response?.status === 409;
-        if (isConflict) {
+        // Nutze errorChecks.isConflict() für robuste ResponseError-Detection
+        if (errorChecks.isConflict(error)) {
           console.log('[ETB Export] ETB existiert bereits (409), lade Daten neu');
           const refetchResult = await refetchEtb();
           targetEtbId = refetchResult.data?.id;
@@ -577,7 +586,7 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
     } finally {
       setIsExportingToEtb(false);
     }
-  }, [mapInstance, etbData, einsatzId, createEtb, refetchEtb]);
+  }, [mapInstance, etbData, einsatzId, createEtb, refetchEtb, isEtbLoading]);
 
   // Error-State anzeigen
   if (hasError) {
@@ -692,7 +701,7 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
         {/* Lagekarte-Toolbar (Top-Right) - nur im Standard-Modus */}
         {mode === 'standard' && (
           <div className="absolute top-2.5 right-2.5 z-[10]">
-            <LagekarteToolbar onOfflineDownloadClick={handleOfflineDownloadClick} onEtbExportClick={handleExportToEtb} isExportingToEtb={isExportingToEtb} />
+            <LagekarteToolbar onOfflineDownloadClick={handleOfflineDownloadClick} onEtbExportClick={handleExportToEtb} isExportingToEtb={isExportingToEtb || isEtbLoading} />
           </div>
         )}
 

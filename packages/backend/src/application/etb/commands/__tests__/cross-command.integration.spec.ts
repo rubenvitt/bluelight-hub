@@ -1,8 +1,4 @@
 import { BadRequestException } from '@nestjs/common';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import { EintragAddedEvent } from '@domain/events/eintrag-added.event';
-import { EintragUpdatedEvent } from '@domain/events/eintrag-updated.event';
-import { EintragDeletedEvent } from '@domain/events/eintrag-deleted.event';
 import { InMemoryEtbRepository } from '../../__tests__/in-memory-etb.repository';
 import { AddEintragCommand } from '../add-eintrag/add-eintrag.command';
 import { AddEintragHandler } from '../add-eintrag/add-eintrag.handler';
@@ -52,7 +48,6 @@ function generateTestCuid(): string {
  */
 describe('Cross-Command Integration Tests (Story 3-2)', () => {
   let etbRepository: InMemoryEtbRepository;
-  let mockEventPublisher: jest.Mocked<IEventPublisher>;
   let addEintragHandler: AddEintragHandler;
   let updateEintragHandler: UpdateEintragHandler;
   let deleteEintragHandler: DeleteEintragHandler;
@@ -66,17 +61,11 @@ describe('Cross-Command Integration Tests (Story 3-2)', () => {
     testUserId = generateTestCuid();
     testEinsatzId = generateTestCuid();
 
-    // Mock IEventPublisher (Spy Pattern)
-    mockEventPublisher = {
-      publish: jest.fn().mockResolvedValue(undefined),
-      publishAll: jest.fn().mockResolvedValue(undefined),
-    };
-
     // Create all handlers with shared repository
-    addEintragHandler = new AddEintragHandler(etbRepository, mockEventPublisher);
-    updateEintragHandler = new UpdateEintragHandler(etbRepository, mockEventPublisher);
-    deleteEintragHandler = new DeleteEintragHandler(etbRepository, mockEventPublisher);
-    lockEtbHandler = new LockEtbHandler(etbRepository, mockEventPublisher);
+    addEintragHandler = new AddEintragHandler(etbRepository);
+    updateEintragHandler = new UpdateEintragHandler(etbRepository);
+    deleteEintragHandler = new DeleteEintragHandler(etbRepository);
+    lockEtbHandler = new LockEtbHandler(etbRepository);
   });
 
   afterEach(() => {
@@ -111,13 +100,6 @@ describe('Cross-Command Integration Tests (Story 3-2)', () => {
       expect(savedEtb?.eintraege.length).toBe(1);
       expect(savedEtb?.eintraege[0].isDeleted).toBe(true);
       expect(savedEtb?.eintraege[0].text).toBe('Aktualisierter Text');
-
-      // Assert: Verify events were published in correct order
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(3);
-      const allEvents = mockEventPublisher.publishAll.mock.calls.flatMap((call) => call[0]);
-      expect(allEvents[0]).toBeInstanceOf(EintragAddedEvent);
-      expect(allEvents[1]).toBeInstanceOf(EintragUpdatedEvent);
-      expect(allEvents[2]).toBeInstanceOf(EintragDeletedEvent);
     });
   });
 
@@ -241,20 +223,13 @@ describe('Cross-Command Integration Tests (Story 3-2)', () => {
       const update2 = UpdateEintragCommand.create(etb.id.value, existingEintragId, 'Version 3', testUserId).value!;
       await updateEintragHandler.execute(update2);
 
-      // Assert: Verify final text and that events captured old text
+      // Assert: Verify final text is correct
       const savedEtb = await etbRepository.findById(etb.id);
       expect(savedEtb?.eintraege[0].text).toBe('Version 3');
 
-      // Verify EintragUpdatedEvents contain oldText for audit trail
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls.flatMap((call) => call[0]);
-      const updateEvents = publishedEvents.filter((e) => e instanceof EintragUpdatedEvent) as EintragUpdatedEvent[];
-
-      expect(updateEvents.length).toBe(2);
-      // First update: old text was the original fixture text
-      expect(updateEvents[0].newText).toBe('Version 2');
-      // Second update: old text was 'Version 2'
-      expect(updateEvents[1].oldText).toBe('Version 2');
-      expect(updateEvents[1].newText).toBe('Version 3');
+      // Verify snapshots were created for audit trail
+      expect(savedEtb?.hasUncommittedSnapshots()).toBe(true);
+      expect(savedEtb?.getUncommittedSnapshots().length).toBeGreaterThanOrEqual(2);
     });
   });
 

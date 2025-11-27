@@ -2,7 +2,6 @@ import { CreateLagekarteCommandHandler } from '../create-lagekarte.handler';
 import { CreateLagekarteCommand } from '../create-lagekarte.command';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { Result } from '@domain/common/result';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 
@@ -50,7 +49,6 @@ describe('CreateLagekarteCommandHandler', () => {
   let handler: CreateLagekarteCommandHandler;
   let mockEinsatzRepo: jest.Mocked<IEinsatzRepository>;
   let mockLagekarteRepo: jest.Mocked<ILagekarteRepository>;
-  let mockEventPublisher: jest.Mocked<IEventPublisher>;
 
   beforeEach(() => {
     // Create mock repositories with all required methods
@@ -71,14 +69,8 @@ describe('CreateLagekarteCommandHandler', () => {
       // biome-ignore lint/suspicious/noExplicitAny: Test mock typing
     } as any;
 
-    // Create mock event publisher
-    mockEventPublisher = {
-      publish: jest.fn().mockResolvedValue(undefined),
-      publishAll: jest.fn().mockResolvedValue(undefined),
-    };
-
     // Instantiate handler with mocks (Direct Instantiation Pattern)
-    handler = new CreateLagekarteCommandHandler(mockEinsatzRepo, mockLagekarteRepo, mockEventPublisher);
+    handler = new CreateLagekarteCommandHandler(mockEinsatzRepo, mockLagekarteRepo);
   });
 
   afterEach(() => {
@@ -181,60 +173,6 @@ describe('CreateLagekarteCommandHandler', () => {
       expect(savedAggregate.pois[0].name).toBe('Rathaus Hamburg');
       expect(savedAggregate.pois[0].coordinate.toString()).toBe('32UNE8934004990'); // Normalized MGRS
       expect(savedAggregate.pois[0].category.value).toBe('BEREITSTELLUNGSRAUM');
-    });
-
-    it('should emit PoiAddedEvent when initialPoi provided', async () => {
-      // Given
-      const einsatzId = createValidTestId('ein123');
-      const initialPoi = {
-        name: 'Brandenburger Tor',
-        coordinate: { lat: 52.5163, lng: 13.3777 },
-        category: 'EINSATZSTELLE',
-      };
-      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
-
-      // Mock: Einsatz exists
-      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
-      mockLagekarteRepo.findByEinsatzId.mockResolvedValue(null);
-      mockLagekarteRepo.save.mockResolvedValue(undefined);
-
-      // When
-      const result = await handler.execute(command);
-
-      // Then
-      expect(result.isSuccess).toBe(true);
-
-      // Verify domain event was published via eventPublisher
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(publishedEvents.length).toBe(2); // LagekarteCreatedEvent + PoiAddedEvent
-      expect(publishedEvents[1].constructor.name).toBe('PoiAddedEvent');
-      expect(publishedEvents[1]).toMatchObject({
-        name: 'Brandenburger Tor', // Event uses 'name', not 'poiName'
-      });
-    });
-
-    it('should only emit LagekarteCreatedEvent when no initialPoi provided', async () => {
-      // Given
-      const einsatzId = createValidTestId('ein123');
-      const command = CreateLagekarteCommand.create(einsatzId).value!;
-
-      // Mock: Einsatz exists
-      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
-      mockLagekarteRepo.findByEinsatzId.mockResolvedValue(null);
-      mockLagekarteRepo.save.mockResolvedValue(undefined);
-
-      // When
-      const result = await handler.execute(command);
-
-      // Then
-      expect(result.isSuccess).toBe(true);
-
-      // Verify only LagekarteCreatedEvent was published (no PoiAddedEvent)
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(publishedEvents.length).toBe(1);
-      expect(publishedEvents[0].constructor.name).toBe('LagekarteCreatedEvent');
     });
   });
 
@@ -545,125 +483,6 @@ describe('CreateLagekarteCommandHandler', () => {
 
       // Verify same EinsatzId instance used (Value Object Equality)
       expect(existsCall.equals(findByEinsatzIdCall)).toBe(true);
-    });
-
-    it('should verify event publishing happens after successful save', async () => {
-      // Given
-      const einsatzId = createValidTestId('ein123');
-      const initialPoi = {
-        name: 'Test POI',
-        coordinate: { lat: 52.5163, lng: 13.3777 },
-        category: 'EINSATZSTELLE',
-      };
-      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
-
-      // Mock: Einsatz exists
-      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
-      mockLagekarteRepo.findByEinsatzId.mockResolvedValue(null);
-      mockLagekarteRepo.save.mockResolvedValue(undefined);
-
-      // When
-      await handler.execute(command);
-
-      // Then: Verify events are published via eventPublisher
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(publishedEvents.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('Event Publishing', () => {
-    it('should publish LagekarteCreatedEvent after successful save (no initialPoi)', async () => {
-      // Given
-      const einsatzId = createValidTestId('ein123');
-      const command = CreateLagekarteCommand.create(einsatzId).value!;
-
-      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
-      mockLagekarteRepo.findByEinsatzId.mockResolvedValue(null);
-      mockLagekarteRepo.save.mockResolvedValue(undefined);
-
-      // When
-      await handler.execute(command);
-
-      // Then
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(publishedEvents.length).toBe(1);
-      expect(publishedEvents[0].constructor.name).toBe('LagekarteCreatedEvent');
-    });
-
-    it('should publish both LagekarteCreatedEvent AND PoiAddedEvent when initialPoi provided', async () => {
-      // Given
-      const einsatzId = createValidTestId('ein123');
-      const initialPoi = {
-        name: 'Brandenburger Tor',
-        coordinate: { lat: 52.5163, lng: 13.3777 },
-        category: 'EINSATZSTELLE',
-      };
-      const command = CreateLagekarteCommand.create(einsatzId, initialPoi).value!;
-
-      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
-      mockLagekarteRepo.findByEinsatzId.mockResolvedValue(null);
-      mockLagekarteRepo.save.mockResolvedValue(undefined);
-
-      // When
-      await handler.execute(command);
-
-      // Then
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(publishedEvents.length).toBe(2);
-      expect(publishedEvents[0].constructor.name).toBe('LagekarteCreatedEvent');
-      expect(publishedEvents[1].constructor.name).toBe('PoiAddedEvent');
-    });
-
-    it('should NOT publish events when Einsatz not found', async () => {
-      // Given
-      const einsatzId = createValidTestId('ein123');
-      const command = CreateLagekarteCommand.create(einsatzId).value!;
-
-      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(false));
-
-      // When
-      const result = await handler.execute(command);
-
-      // Then
-      expect(result.isFailure).toBe(true);
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
-    });
-
-    it('should NOT publish events when save fails', async () => {
-      // Given
-      const einsatzId = createValidTestId('ein123');
-      const command = CreateLagekarteCommand.create(einsatzId).value!;
-
-      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
-      mockLagekarteRepo.findByEinsatzId.mockResolvedValue(null);
-      mockLagekarteRepo.save.mockRejectedValue(new Error('DB Error'));
-
-      // When
-      const result = await handler.execute(command);
-
-      // Then
-      expect(result.isFailure).toBe(true);
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
-    });
-
-    it('should clear domain events after publishing', async () => {
-      // Given
-      const einsatzId = createValidTestId('ein123');
-      const command = CreateLagekarteCommand.create(einsatzId).value!;
-
-      mockEinsatzRepo.exists.mockResolvedValue(Result.ok(true));
-      mockLagekarteRepo.findByEinsatzId.mockResolvedValue(null);
-      mockLagekarteRepo.save.mockResolvedValue(undefined);
-
-      // When
-      await handler.execute(command);
-
-      // Then: Events are cleared after publishing (aggregate is modified)
-      // We verify publishAll was called, which is followed by clearDomainEvents
-      expect(mockEventPublisher.publishAll).toHaveBeenCalled();
     });
   });
 

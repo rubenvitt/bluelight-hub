@@ -38,11 +38,6 @@ import type { PoiCategory } from '@domain/value-objects/poi-category';
  */
 export class PoiAddedEvent extends DomainEvent {
   /**
-   * Event Name für Event Router (Past Tense, lowercase dot-separated).
-   */
-  public readonly eventName = 'lagekarte.poi_added';
-
-  /**
    * @param lagekarteId - ID der parent Lagekarte (Aggregate Root)
    * @param poiId - ID des neu hinzugefügten POI
    * @param name - Name/Bezeichnung des POI

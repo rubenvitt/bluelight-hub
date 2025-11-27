@@ -1,6 +1,4 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import { EtbLockedEvent } from '@domain/events/etb-locked.event';
 import { InMemoryEtbRepository } from '../../__tests__/in-memory-etb.repository';
 import { LockEtbCommand } from '../lock-etb/lock-etb.command';
 import { LockEtbHandler } from '../lock-etb/lock-etb.handler';
@@ -42,7 +40,6 @@ describe('LockEtbHandler', () => {
   let lockHandler: LockEtbHandler;
   let addEintragHandler: AddEintragHandler;
   let etbRepository: InMemoryEtbRepository;
-  let mockEventPublisher: jest.Mocked<IEventPublisher>;
   let testUserId: string;
   let testEinsatzId: string;
 
@@ -52,15 +49,9 @@ describe('LockEtbHandler', () => {
     testUserId = generateTestCuid();
     testEinsatzId = generateTestCuid();
 
-    // Mock IEventPublisher (Spy Pattern)
-    mockEventPublisher = {
-      publish: jest.fn().mockResolvedValue(undefined),
-      publishAll: jest.fn().mockResolvedValue(undefined),
-    };
-
     // Create handlers with dependencies
-    lockHandler = new LockEtbHandler(etbRepository, mockEventPublisher);
-    addEintragHandler = new AddEintragHandler(etbRepository, mockEventPublisher);
+    lockHandler = new LockEtbHandler(etbRepository);
+    addEintragHandler = new AddEintragHandler(etbRepository);
   });
 
   afterEach(() => {
@@ -113,9 +104,6 @@ describe('LockEtbHandler', () => {
       const lockCommand = LockEtbCommand.create(etb.id.value, testUserId, 'ADMIN').value!;
       await lockHandler.execute(lockCommand);
 
-      // Clear mock to track only the AddEintrag call
-      mockEventPublisher.publishAll.mockClear();
-
       // Act: Try to add entry to locked ETB
       const addCommand = AddEintragCommand.create(etb.id.value, 'Neuer Eintrag', testUserId).value!;
 
@@ -151,8 +139,8 @@ describe('LockEtbHandler', () => {
     });
   });
 
-  describe('AC4: EtbLockedEvent published with correct data', () => {
-    it('should publish EtbLockedEvent with etbId, lockedBy and lockedAt', async () => {
+  describe('AC4: ETB locked state persisted correctly', () => {
+    it('should persist locked state with correct metadata', async () => {
       // Arrange
       const etb = createTestEtb({ entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
@@ -161,19 +149,14 @@ describe('LockEtbHandler', () => {
       const beforeLock = new Date();
 
       // Act
-      await lockHandler.execute(command);
+      const result = await lockHandler.execute(command);
 
       // Assert
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(publishedEvents.length).toBe(1);
-      expect(publishedEvents[0]).toBeInstanceOf(EtbLockedEvent);
+      expect(result.isSuccess).toBe(true);
 
-      const event = publishedEvents[0] as EtbLockedEvent;
-      expect(event.etbId.value).toBe(etb.id.value);
-      expect(event.lockedBy.value).toBe(testUserId);
-      expect(event.lockedAt).toBeInstanceOf(Date);
-      expect(event.lockedAt.getTime()).toBeGreaterThanOrEqual(beforeLock.getTime());
+      // Verify ETB is locked in repository
+      const savedEtb = await etbRepository.findById(etb.id);
+      expect(savedEtb?.isLocked()).toBe(true);
     });
   });
 
@@ -214,60 +197,36 @@ describe('LockEtbHandler', () => {
     });
   });
 
-  describe('AC7: Handler does NOT publish events when operation fails', () => {
-    it('should NOT publish events when ETB not found', async () => {
+  describe('AC7: Handler error handling validation', () => {
+    it('should throw NotFoundException when ETB not found', async () => {
       // Arrange
       const fakeEtbId = generateTestCuid();
       const command = LockEtbCommand.create(fakeEtbId, testUserId, 'ADMIN').value!;
 
-      // Act
-      try {
-        await lockHandler.execute(command);
-      } catch {
-        // Expected
-      }
-
-      // Assert
-      expect(mockEventPublisher.publish).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      // Act & Assert
+      await expect(lockHandler.execute(command)).rejects.toThrow(NotFoundException);
     });
 
-    it('should NOT publish events when authorization fails', async () => {
+    it('should throw ForbiddenException when authorization fails', async () => {
       // Arrange
       const etb = createTestEtb({ entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
 
       const command = LockEtbCommand.create(etb.id.value, testUserId, 'USER').value!;
 
-      // Act
-      try {
-        await lockHandler.execute(command);
-      } catch {
-        // Expected
-      }
-
-      // Assert
-      expect(mockEventPublisher.publish).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      // Act & Assert
+      await expect(lockHandler.execute(command)).rejects.toThrow(ForbiddenException);
     });
 
-    it('should NOT publish events when ETB already locked', async () => {
+    it('should throw BadRequestException when ETB already locked', async () => {
       // Arrange
       const etb = createTestEtb({ status: 'LOCKED', entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
 
       const command = LockEtbCommand.create(etb.id.value, testUserId, 'ADMIN').value!;
 
-      // Act
-      try {
-        await lockHandler.execute(command);
-      } catch {
-        // Expected
-      }
-
-      // Assert
-      expect(mockEventPublisher.publish).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      // Act & Assert
+      await expect(lockHandler.execute(command)).rejects.toThrow(BadRequestException);
     });
   });
 

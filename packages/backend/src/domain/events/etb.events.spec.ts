@@ -38,7 +38,7 @@ describe('ETB Domain Events', () => {
   describe('EintragAddedEvent', () => {
     it('should have correct event name', () => {
       const event = new EintragAddedEvent(etbId, eintragId, 1, 'Test', userId);
-      expect(event.eventName).toBe('etb.eintrag_added');
+      expect(EintragAddedEvent.eventName()).toBe('etb.eintrag_added');
     });
 
     it('should auto-generate eventId (CUID)', () => {
@@ -73,7 +73,7 @@ describe('ETB Domain Events', () => {
   describe('EintragUpdatedEvent', () => {
     it('should have correct event name', () => {
       const event = new EintragUpdatedEvent(etbId, eintragId, 'Old', 'New', userId);
-      expect(event.eventName).toBe('etb.eintrag_updated');
+      expect(EintragUpdatedEvent.eventName()).toBe('etb.eintrag_updated');
     });
 
     it('should preserve oldText and newText for audit trail', () => {
@@ -95,7 +95,7 @@ describe('ETB Domain Events', () => {
   describe('EintragDeletedEvent', () => {
     it('should have correct event name', () => {
       const event = new EintragDeletedEvent(etbId, eintragId, userId);
-      expect(event.eventName).toBe('etb.eintrag_deleted');
+      expect(EintragDeletedEvent.eventName()).toBe('etb.eintrag_deleted');
     });
 
     it('should preserve deletedBy for audit trail', () => {
@@ -116,7 +116,7 @@ describe('ETB Domain Events', () => {
     it('should have correct event name', () => {
       const lockedAt = new Date();
       const event = new EtbLockedEvent(etbId, userId, lockedAt);
-      expect(event.eventName).toBe('etb.locked');
+      expect(EtbLockedEvent.eventName()).toBe('etb.locked');
     });
 
     it('should preserve lockedAt timestamp', () => {

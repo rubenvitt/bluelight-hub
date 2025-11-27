@@ -65,17 +65,17 @@ describe('LagekarteCreatedEvent', () => {
   });
 
   describe('eventName', () => {
-    it('sollte Instance Property eventName korrekt setzen', () => {
-      // When: Create event
-      const event = new LagekarteCreatedEvent(testLagekarteId, testEinsatzId, testUserId, false);
-
-      // Then: eventName is correct
-      expect(event.eventName).toBe('lagekarte.created');
-    });
-
     it('sollte static eventName() "lagekarte.created" zurueckgeben', () => {
       // Then: Static eventName returns correct value
       expect(LagekarteCreatedEvent.eventName()).toBe('lagekarte.created');
+    });
+
+    it('sollte eventName via Constructor-Zugriff korrekt liefern', () => {
+      // When: Create event
+      const event = new LagekarteCreatedEvent(testLagekarteId, testEinsatzId, testUserId, false);
+
+      // Then: eventName is accessible via constructor (Pattern für Aggregate-Tests)
+      expect((event.constructor as typeof DomainEvent).eventName()).toBe('lagekarte.created');
     });
   });
 

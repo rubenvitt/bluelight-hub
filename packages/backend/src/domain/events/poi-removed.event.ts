@@ -36,11 +36,6 @@ import type { UserId } from '@domain/value-objects/user-id';
  */
 export class PoiRemovedEvent extends DomainEvent {
   /**
-   * Event Name für Event Router (Past Tense, lowercase dot-separated).
-   */
-  public readonly eventName = 'lagekarte.poi_removed';
-
-  /**
    * @param lagekarteId - ID der parent Lagekarte (Aggregate Root)
    * @param poiId - ID des entfernten POI
    * @param removedBy - User ID des Löschenden

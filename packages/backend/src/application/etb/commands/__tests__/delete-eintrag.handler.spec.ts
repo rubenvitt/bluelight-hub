@@ -1,6 +1,4 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import { EintragDeletedEvent } from '@domain/events/eintrag-deleted.event';
 import { InMemoryEtbRepository } from '../../__tests__/in-memory-etb.repository';
 import { DeleteEintragCommand } from '../delete-eintrag/delete-eintrag.command';
 import { DeleteEintragHandler } from '../delete-eintrag/delete-eintrag.handler';
@@ -39,7 +37,6 @@ function generateTestCuid(): string {
 describe('DeleteEintragHandler', () => {
   let handler: DeleteEintragHandler;
   let etbRepository: InMemoryEtbRepository;
-  let mockEventPublisher: jest.Mocked<IEventPublisher>;
   let testUserId: string;
   let testEinsatzId: string;
 
@@ -49,14 +46,8 @@ describe('DeleteEintragHandler', () => {
     testUserId = generateTestCuid();
     testEinsatzId = generateTestCuid();
 
-    // Mock IEventPublisher (Spy Pattern)
-    mockEventPublisher = {
-      publish: jest.fn().mockResolvedValue(undefined),
-      publishAll: jest.fn().mockResolvedValue(undefined),
-    };
-
     // Create handler with dependencies
-    handler = new DeleteEintragHandler(etbRepository, mockEventPublisher);
+    handler = new DeleteEintragHandler(etbRepository);
   });
 
   afterEach(() => {
@@ -135,8 +126,8 @@ describe('DeleteEintragHandler', () => {
     });
   });
 
-  describe('AC4: EintragDeletedEvent published with etbId, eintragId, deletedBy', () => {
-    it('should publish EintragDeletedEvent with correct data', async () => {
+  describe('AC4: DeleteEintrag marks entry as deleted', () => {
+    it('should mark entry as deleted in repository', async () => {
       // Arrange: Create ETB with one entry
       const etb = createTestEtb({ entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
@@ -144,18 +135,15 @@ describe('DeleteEintragHandler', () => {
 
       // Act
       const command = DeleteEintragCommand.create(etb.id.value, eintrag.id.value, testUserId).value!;
-      await handler.execute(command);
+      const result = await handler.execute(command);
 
       // Assert
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(publishedEvents.length).toBe(1);
-      expect(publishedEvents[0]).toBeInstanceOf(EintragDeletedEvent);
+      expect(result.isSuccess).toBe(true);
 
-      const event = publishedEvents[0] as EintragDeletedEvent;
-      expect(event.etbId.value).toBe(etb.id.value);
-      expect(event.eintragId.value).toBe(eintrag.id.value);
-      expect(event.deletedBy.value).toBe(testUserId);
+      // Verify entry is marked as deleted
+      const savedEtb = await etbRepository.findById(etb.id);
+      const deletedEntry = savedEtb?.eintraege.find((e) => e.id.value === eintrag.id.value);
+      expect(deletedEntry?.isDeleted).toBe(true);
     });
   });
 
@@ -202,26 +190,18 @@ describe('DeleteEintragHandler', () => {
     });
   });
 
-  describe('AC8: Handler does NOT publish events when operation fails', () => {
-    it('should not publish events when ETB not found', async () => {
+  describe('AC8: Handler validation', () => {
+    it('should throw NotFoundException when ETB not found', async () => {
       // Arrange: Non-existent ETB
       const fakeEtbId = generateTestCuid();
       const fakeEintragId = generateTestCuid();
       const command = DeleteEintragCommand.create(fakeEtbId, fakeEintragId, testUserId).value!;
 
-      // Act
-      try {
-        await handler.execute(command);
-      } catch {
-        // Expected
-      }
-
-      // Assert
-      expect(mockEventPublisher.publish).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow(NotFoundException);
     });
 
-    it('should not publish events when ETB is locked', async () => {
+    it('should throw BadRequestException when ETB is locked', async () => {
       // Arrange: Locked ETB
       const etb = createTestEtb({ status: 'LOCKED', entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
@@ -229,16 +209,8 @@ describe('DeleteEintragHandler', () => {
 
       const command = DeleteEintragCommand.create(etb.id.value, eintragId, testUserId).value!;
 
-      // Act
-      try {
-        await handler.execute(command);
-      } catch {
-        // Expected
-      }
-
-      // Assert
-      expect(mockEventPublisher.publish).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow(BadRequestException);
     });
   });
 

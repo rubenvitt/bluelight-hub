@@ -368,6 +368,15 @@ export const useCreateEtb = () => {
       return { newEtb };
     },
     onError: async (error: ResponseError) => {
+      // 409 Conflict = ETB existiert bereits - KEIN Fehler-Toast zeigen
+      // Der aufrufende Code (z.B. LagekarteView) behandelt diesen Fall
+      const statusCode = (error as { status?: number })?.status || (error as { response?: { status?: number } })?.response?.status || (error as unknown as { statusCode?: number })?.statusCode;
+
+      if (statusCode === 409) {
+        logger.info('ETB existiert bereits (409 Conflict) - wird vom Aufrufer behandelt');
+        return; // Kein Toast, Aufrufer handled das
+      }
+
       const message = await getApiErrorMessage(error, 'Das ETB konnte nicht erstellt werden.', 'createEtb');
       logger.error('Failed to create ETB', error);
       toast.error('Fehler', { description: message });
@@ -386,7 +395,13 @@ export const useCreateEtb = () => {
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.etb.all });
     },
-    retry: 3,
+    // Kein Retry bei 409 Conflict (ETB existiert bereits)
+    retry: (failureCount, error) => {
+      const statusCode = (error as { status?: number })?.status || (error as { response?: { status?: number } })?.response?.status || (error as unknown as { statusCode?: number })?.statusCode;
+
+      if (statusCode === 409) return false;
+      return failureCount < 3;
+    },
     retryDelay: calculateRetryDelay,
   });
 };

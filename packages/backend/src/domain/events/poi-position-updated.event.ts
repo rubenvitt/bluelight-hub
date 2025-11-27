@@ -49,11 +49,6 @@ import type { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
  */
 export class PoiPositionUpdatedEvent extends DomainEvent {
   /**
-   * Event Name für Event Router (Past Tense, lowercase dot-separated).
-   */
-  public readonly eventName = 'lagekarte.poi_position_updated';
-
-  /**
    * @param lagekarteId - ID der parent Lagekarte (Aggregate Root)
    * @param poiId - ID des aktualisierten POI
    * @param oldCoordinate - Alte MGRS-Koordinate (vor Update)

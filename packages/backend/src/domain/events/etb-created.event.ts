@@ -26,11 +26,6 @@ import type { EtbId } from '@domain/value-objects/etb-id';
  */
 export class EtbCreatedEvent extends DomainEvent {
   /**
-   * Event Name für Event Router (Past Tense, lowercase dot-separated).
-   */
-  public readonly eventName = 'etb.created';
-
-  /**
    * @param etbId - ID des erstellten ETBs
    * @param einsatzId - ID des zugehörigen Einsatzes
    */

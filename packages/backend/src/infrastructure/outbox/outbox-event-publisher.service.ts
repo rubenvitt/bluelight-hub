@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional, Inject } f
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaOutboxRepository, type OutboxEventDto } from './prisma-outbox.repository';
 import { EventDeserializer } from './event-deserializer';
-import { EventEmitterPublisher } from '../events/event-emitter-publisher';
+import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import type { IAlertService } from '@domain/services/ports/i-alert.service';
 
 /**
@@ -68,7 +68,7 @@ export class OutboxEventPublisher implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly outboxRepository: PrismaOutboxRepository,
     private readonly eventDeserializer: EventDeserializer,
-    private readonly eventPublisher: EventEmitterPublisher,
+    @Inject('IEventPublisher') private readonly eventPublisher: IEventPublisher,
     @Optional() @Inject('IAlertService') private readonly alertService?: IAlertService,
     @Optional() @Inject(OUTBOX_PUBLISHER_CONFIG) config?: OutboxPublisherConfig,
   ) {

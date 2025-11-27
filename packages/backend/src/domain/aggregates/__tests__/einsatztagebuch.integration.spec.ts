@@ -2,6 +2,7 @@ import { EinsatztagebuchAggregate } from '../einsatztagebuch.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { UserId } from '@domain/value-objects/user-id';
 import { EtbStatus } from '@domain/value-objects/etb-status';
+import type { DomainEvent } from '@domain/common/domain-event';
 
 // Mock cuid2 for Jest compatibility (ESM module issue)
 jest.mock('@paralleldrive/cuid2', () => ({
@@ -80,10 +81,10 @@ describe('EinsatztagebuchAggregate Integration Tests', () => {
       etb.deleteEintrag(entry.id, userId);
       etb.lock(userId);
 
-      // Events: 4 operations (add, update, delete, lock)
+      // Events: 5 operations (create, add, update, delete, lock)
       const events = etb.getDomainEvents();
-      expect(events).toHaveLength(4);
-      expect(events.map((e) => e.eventName)).toEqual(['etb.eintrag_added', 'etb.eintrag_updated', 'etb.eintrag_deleted', 'etb.locked']);
+      expect(events).toHaveLength(5);
+      expect(events.map((e) => (e.constructor as typeof DomainEvent).eventName())).toEqual(['etb.created', 'etb.eintrag_added', 'etb.eintrag_updated', 'etb.eintrag_deleted', 'etb.locked']);
     });
 
     it('should preserve entry order across operations', () => {

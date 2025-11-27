@@ -1,6 +1,4 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import { EintragUpdatedEvent } from '@domain/events/eintrag-updated.event';
 import { InMemoryEtbRepository } from '../../__tests__/in-memory-etb.repository';
 import { UpdateEintragCommand } from '../update-eintrag/update-eintrag.command';
 import { UpdateEintragHandler } from '../update-eintrag/update-eintrag.handler';
@@ -39,7 +37,6 @@ function generateTestCuid(): string {
 describe('UpdateEintragHandler', () => {
   let handler: UpdateEintragHandler;
   let etbRepository: InMemoryEtbRepository;
-  let mockEventPublisher: jest.Mocked<IEventPublisher>;
   let testUserId: string;
   let testEinsatzId: string;
 
@@ -49,14 +46,8 @@ describe('UpdateEintragHandler', () => {
     testUserId = generateTestCuid();
     testEinsatzId = generateTestCuid();
 
-    // Mock IEventPublisher (Spy Pattern)
-    mockEventPublisher = {
-      publish: jest.fn().mockResolvedValue(undefined),
-      publishAll: jest.fn().mockResolvedValue(undefined),
-    };
-
     // Create handler with dependencies
-    handler = new UpdateEintragHandler(etbRepository, mockEventPublisher);
+    handler = new UpdateEintragHandler(etbRepository);
   });
 
   afterEach(() => {
@@ -173,8 +164,8 @@ describe('UpdateEintragHandler', () => {
     });
   });
 
-  describe('AC3: UpdateEintrag preserves oldText in EintragUpdatedEvent', () => {
-    it('should capture oldText before mutation', async () => {
+  describe('AC3: UpdateEintrag correctly updates entry text', () => {
+    it('should update text and verify in repository', async () => {
       // Arrange: Create ETB with 1 entry
       const etb = createTestEtb({ entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       const originalText = etb.eintraege[0].text;
@@ -190,23 +181,18 @@ describe('UpdateEintragHandler', () => {
 
       // Assert
       expect(result.isSuccess).toBe(true);
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
 
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(publishedEvents.length).toBe(1);
-      expect(publishedEvents[0]).toBeInstanceOf(EintragUpdatedEvent);
-
-      const event = publishedEvents[0] as EintragUpdatedEvent;
-      expect(event.oldText).toBe(originalText);
-      expect(event.newText).toBe(newText);
+      // Verify text was updated in repository
+      const savedEtb = await etbRepository.findById(etb.id);
+      expect(savedEtb?.eintraege[0].text).toBe(newText);
+      expect(savedEtb?.eintraege[0].text).not.toBe(originalText);
     });
-  });
 
-  describe('AC3: EintragUpdatedEvent contains etbId, eintragId, oldText, newText, userId', () => {
-    it('should publish event with all required fields', async () => {
+    it('should verify all entry data is preserved during update', async () => {
       // Arrange: Create ETB with 1 entry
       const etb = createTestEtb({ entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       const originalText = etb.eintraege[0].text;
+      const originalId = etb.eintraege[0].id.value;
       await etbRepository.save(etb);
 
       const eintragId = etb.eintraege[0].id.value;
@@ -220,14 +206,11 @@ describe('UpdateEintragHandler', () => {
       // Assert
       expect(result.isSuccess).toBe(true);
 
-      const publishedEvents = mockEventPublisher.publishAll.mock.calls[0][0];
-      const event = publishedEvents[0] as EintragUpdatedEvent;
-
-      expect(event.etbId.value).toBe(etb.id.value);
-      expect(event.eintragId.value).toBe(eintragId);
-      expect(event.oldText).toBe(originalText);
-      expect(event.newText).toBe(newText);
-      expect(event.updatedBy.value).toBe(testUserId);
+      // Verify entry metadata is preserved
+      const savedEtb = await etbRepository.findById(etb.id);
+      const updatedEntry = savedEtb?.eintraege[0];
+      expect(updatedEntry?.id.value).toBe(originalId);
+      expect(updatedEntry?.text).toBe(newText);
     });
   });
 
@@ -294,25 +277,7 @@ describe('UpdateEintragHandler', () => {
       await expect(handler.execute(command)).rejects.toThrow('ETB nicht gefunden');
     });
 
-    it('should NOT publish events when operation fails', async () => {
-      // Arrange: Non-existent ETB
-      const fakeEtbId = generateTestCuid();
-      const fakeEintragId = generateTestCuid();
-      const command = UpdateEintragCommand.create(fakeEtbId, fakeEintragId, 'Test Text', testUserId).value!;
-
-      // Act
-      try {
-        await handler.execute(command);
-      } catch {
-        // Expected
-      }
-
-      // Assert
-      expect(mockEventPublisher.publish).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
-    });
-
-    it('should NOT publish events when domain validation fails (ETB locked)', async () => {
+    it('should throw BadRequestException when domain validation fails (ETB locked)', async () => {
       // Arrange: Create locked ETB
       const etb = createTestEtb({ status: 'LOCKED', entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
@@ -320,16 +285,8 @@ describe('UpdateEintragHandler', () => {
       const eintragId = etb.eintraege[0].id.value;
       const command = UpdateEintragCommand.create(etb.id.value, eintragId, 'Neuer Text', testUserId).value!;
 
-      // Act
-      try {
-        await handler.execute(command);
-      } catch {
-        // Expected
-      }
-
-      // Assert
-      expect(mockEventPublisher.publish).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow(BadRequestException);
     });
   });
 

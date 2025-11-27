@@ -24,7 +24,7 @@ function calculateRetryDelay(attemptIndex: number): number {
  *
  * @param einsatzId - Die ID des Einsatzes
  * @param includeDeleted - Geloeschte Eintraege einschliessen (Standard: false)
- * @returns ETB-Daten mit status, version, eintraege
+ * @returns ETB-Daten mit status, version, eintraege oder undefined wenn ETB nicht existiert (404)
  */
 export const useEtb = (einsatzId?: string, includeDeleted?: boolean) => {
   return useQuery<EtbDto | undefined, ResponseError>({

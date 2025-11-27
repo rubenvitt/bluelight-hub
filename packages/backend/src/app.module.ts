@@ -16,6 +16,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { UserManagementModule } from './user-management/user-management.module';
 import { LagekarteModule } from './modules/lagekarte/lagekarte.module';
 import { LagekarteInfrastructureModule } from './infrastructure/lagekarte-infrastructure.module';
+import { EinsatzInfrastructureModule } from './infrastructure/einsatz/einsatz-infrastructure.module';
 import { OutboxModule } from './infrastructure/outbox/outbox.module';
 
 /**
@@ -67,6 +68,7 @@ import { OutboxModule } from './infrastructure/outbox/outbox.module';
     EtbModule,
     LagekarteModule,
     LagekarteInfrastructureModule,
+    EinsatzInfrastructureModule, // Einsatz Repository Infrastructure (Story 4-5)
     OutboxModule, // Transactional Outbox Pattern (Story 4-4)
   ],
   controllers: [AppController],

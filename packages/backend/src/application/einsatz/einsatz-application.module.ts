@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '@/prisma/prisma.module';
 import { LagekarteEventsModule } from '@infrastructure/events/lagekarte-events.module';
 import { LagekarteInfrastructureModule } from '@infrastructure/lagekarte-infrastructure.module';
 import { EtbInfrastructureModule } from '@infrastructure/etb/etb-infrastructure.module';
@@ -44,6 +45,8 @@ import { GetActiveEinsaetzeQueryHandler, GetEinsatzByIdQueryHandler, GetEinsatzB
  */
 @Module({
   imports: [
+    // Database Connection
+    PrismaModule,
     // Event Infrastructure (IEventPublisher)
     LagekarteEventsModule,
     // Repository Infrastructure (IEinsatzRepository, ILagekarteRepository)

@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { LagekarteEventsModule } from '@infrastructure/events/lagekarte-events.module';
 import { LagekarteInfrastructureModule } from '@infrastructure/lagekarte-infrastructure.module';
+import { EtbInfrastructureModule } from '@infrastructure/etb/etb-infrastructure.module';
 import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
 import { CreateEinsatzHandler, UpdateEinsatzHandler, DeleteEinsatzHandler, CompleteEinsatzHandler, ArchiveEinsatzHandler, UpdateEinsatzStatusHandler } from './commands';
-import { GetActiveEinsaetzeQueryHandler, GetEinsatzByIdQueryHandler, GetEinsatzByNummerQueryHandler } from './queries';
+import { GetActiveEinsaetzeQueryHandler, GetEinsatzByIdQueryHandler, GetEinsatzByNummerQueryHandler, GetEinsatzDetailsQueryHandler, GetActiveEinsaetzeWithCountsQueryHandler } from './queries';
 
 /**
  * NestJS-Modul für Application Layer - Einsatz Bounded Context.
@@ -45,8 +46,10 @@ import { GetActiveEinsaetzeQueryHandler, GetEinsatzByIdQueryHandler, GetEinsatzB
   imports: [
     // Event Infrastructure (IEventPublisher)
     LagekarteEventsModule,
-    // Repository Infrastructure (IEinsatzRepository)
+    // Repository Infrastructure (IEinsatzRepository, ILagekarteRepository)
     LagekarteInfrastructureModule,
+    // Repository Infrastructure (IEtbRepository) - für Cross-Aggregate Queries (Story 4-3b)
+    EtbInfrastructureModule,
   ],
   providers: [
     // Domain Services (Story 4-2)
@@ -64,6 +67,9 @@ import { GetActiveEinsaetzeQueryHandler, GetEinsatzByIdQueryHandler, GetEinsatzB
     GetActiveEinsaetzeQueryHandler,
     GetEinsatzByIdQueryHandler,
     GetEinsatzByNummerQueryHandler,
+    // Query Handlers (Story 4-3b: Combined Cross-Aggregate Queries)
+    GetEinsatzDetailsQueryHandler,
+    GetActiveEinsaetzeWithCountsQueryHandler,
   ],
   exports: [
     // Export handlers for use in Infrastructure Layer (Controllers)
@@ -78,6 +84,9 @@ import { GetActiveEinsaetzeQueryHandler, GetEinsatzByIdQueryHandler, GetEinsatzB
     GetActiveEinsaetzeQueryHandler,
     GetEinsatzByIdQueryHandler,
     GetEinsatzByNummerQueryHandler,
+    // Story 4-3b: Combined Cross-Aggregate Query Handlers
+    GetEinsatzDetailsQueryHandler,
+    GetActiveEinsaetzeWithCountsQueryHandler,
   ],
 })
 export class EinsatzApplicationModule {}

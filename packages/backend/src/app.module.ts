@@ -17,6 +17,8 @@ import { UserManagementModule } from './user-management/user-management.module';
 import { LagekarteModule } from './modules/lagekarte/lagekarte.module';
 import { LagekarteInfrastructureModule } from './infrastructure/lagekarte-infrastructure.module';
 import { EinsatzInfrastructureModule } from './infrastructure/einsatz/einsatz-infrastructure.module';
+import { UserInfrastructureModule } from './infrastructure/user';
+import { AuthInfrastructureModule } from './infrastructure/auth';
 import { OutboxModule } from './infrastructure/outbox/outbox.module';
 
 /**
@@ -69,6 +71,8 @@ import { OutboxModule } from './infrastructure/outbox/outbox.module';
     LagekarteModule,
     LagekarteInfrastructureModule,
     EinsatzInfrastructureModule, // Einsatz Repository Infrastructure (Story 4-5)
+    UserInfrastructureModule, // User Repository Infrastructure (Story 4-7, Task 5)
+    AuthInfrastructureModule, // JWT Auth Service Infrastructure (Story 4-7, Task 5)
     OutboxModule, // Transactional Outbox Pattern (Story 4-4)
   ],
   controllers: [AppController],

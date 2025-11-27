@@ -1,5 +1,6 @@
 import { PrismaModule } from '@/prisma/prisma.module';
 import { Module } from '@nestjs/common';
+import { EinsatzApplicationModule } from '@/application/einsatz/einsatz-application.module';
 import { EinsatzController } from './einsatz.controller';
 import { EinsatzRepository } from './einsatz.repository';
 import { EinsatzService } from './einsatz.service';
@@ -20,7 +21,7 @@ import { EinsatzService } from './einsatz.service';
  * Abhängigkeiten zu vermeiden.
  */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, EinsatzApplicationModule],
   controllers: [EinsatzController],
   providers: [EinsatzService, EinsatzRepository],
   exports: [EinsatzService],

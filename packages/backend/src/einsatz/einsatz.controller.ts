@@ -15,8 +15,10 @@ import {
   StatusCountsResponseDto,
   UpdateEinsatzDto,
 } from '@/einsatz/dto';
-import { Body, Controller, Get, Logger, Param, Patch, Post, Query, UseGuards, ValidationPipe } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNotFoundResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { EinsatzDetailsDto, EinsatzListItemDto } from '@/application/einsatz/dto';
+import { GetEinsatzDetailsQuery, GetEinsatzDetailsQueryHandler, GetActiveEinsaetzeWithCountsQuery, GetActiveEinsaetzeWithCountsQueryHandler } from '@/application/einsatz/queries';
+import { Body, Controller, Get, Logger, NotFoundException, Param, Patch, Post, Query, UseGuards, ValidationPipe } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import * as util from 'node:util';
 import { EinsatzService } from './einsatz.service';
 
@@ -56,6 +58,8 @@ export class EinsatzController {
   constructor(
     private readonly einsatzService: EinsatzService,
     private readonly duplicateDetectionService: CacheDuplicateDetectionService,
+    private readonly getEinsatzDetailsHandler: GetEinsatzDetailsQueryHandler,
+    private readonly getActiveEinsaetzeWithCountsHandler: GetActiveEinsaetzeWithCountsQueryHandler,
   ) {}
 
   @Post()
@@ -104,6 +108,32 @@ export class EinsatzController {
     };
     this.logger.log(`Fetching Einsätze with filters: ${util.inspect(sanitizedQuery)}`);
     return await this.einsatzService.findAll(query);
+  }
+
+  /**
+   * Optimierte Liste aktiver Einsätze mit ETB-Einträge und POI-Counts.
+   * Ersetzt mehrere einzelne API-Calls für Dashboard-Ansichten.
+   *
+   * @returns Aktive Einsätze (nicht ARCHIVIERT) mit Counts
+   */
+  @Get('active-with-counts')
+  @ApiOperation({
+    summary: 'Aktive Einsätze mit Counts abrufen',
+    description: 'Optimierte Abfrage für Dashboard: Liefert alle nicht-archivierten Einsätze mit ETB-Einträge und POI-Counts. ' + 'Sortiert nach Erstellungsdatum (neueste zuerst).',
+  })
+  @ApiOkResponse({ type: [EinsatzListItemDto], description: 'Liste aktiver Einsätze mit Counts' })
+  async getActiveEinsaetzeWithCounts(): Promise<EinsatzListItemDto[]> {
+    this.logger.log('Fetching active Einsätze with counts');
+
+    const query = new GetActiveEinsaetzeWithCountsQuery();
+    const result = await this.getActiveEinsaetzeWithCountsHandler.execute(query);
+
+    if (result.isFailure) {
+      this.logger.error(`Failed to get active Einsätze with counts: ${result.error}`);
+      throw new Error(result.error ?? 'Unbekannter Fehler');
+    }
+
+    return result.value ?? [];
   }
 
   @Get('stats/status-counts')
@@ -173,6 +203,40 @@ export class EinsatzController {
       this.logger.error(`Failed to get completeness for Einsatz ${id}: ${(error as Error).message}`);
       throw error;
     }
+  }
+
+  /**
+   * Kombinierte Abfrage für Einsatz mit ETB und Lagekarte.
+   * Reduziert Frontend API-Calls von 3 auf 1 für bessere Performance.
+   *
+   * @param id Einsatz-ID (CUID2 Format)
+   * @returns Einsatz mit zugehörigem ETB und Lagekarte (beide können null sein)
+   */
+  @Get(':id/details')
+  @ApiOperation({
+    summary: 'Einsatz mit ETB und Lagekarte abrufen (kombiniert)',
+    description: 'Lädt einen Einsatz zusammen mit seinem Einsatztagebuch und Lagekarte in einer einzigen Anfrage. ' + 'ETB und Lagekarte können null sein, wenn sie noch nicht erstellt wurden.',
+  })
+  @ApiOkResponse({ type: EinsatzDetailsDto, description: 'Einsatz mit ETB und Lagekarte' })
+  @ApiNotFoundResponse({ description: 'Einsatz nicht gefunden' })
+  @ApiBadRequestResponse({ description: 'Ungültige Einsatz-ID' })
+  async getEinsatzDetails(@Param('id') id: string): Promise<EinsatzDetailsDto> {
+    this.logger.log(`Fetching Einsatz details (combined) for ${id}`);
+
+    const query = new GetEinsatzDetailsQuery(id);
+    const result = await this.getEinsatzDetailsHandler.execute(query);
+
+    if (result.isFailure) {
+      this.logger.error(`Failed to get Einsatz details: ${result.error}`);
+      throw new NotFoundException(result.error);
+    }
+
+    const einsatzDetails = result.value;
+    if (!einsatzDetails) {
+      throw new NotFoundException(`Einsatz mit ID ${id} nicht gefunden`);
+    }
+
+    return einsatzDetails;
   }
 
   @Get(':id')

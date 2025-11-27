@@ -6,3 +6,9 @@ export { GetEinsatzByIdQuery, GetEinsatzByIdQueryHandler } from './get-einsatz-b
 
 // GetEinsatzByNummer
 export { GetEinsatzByNummerQuery, GetEinsatzByNummerQueryHandler } from './get-einsatz-by-nummer';
+
+// GetEinsatzDetails
+export { GetEinsatzDetailsQuery, GetEinsatzDetailsQueryHandler } from './get-einsatz-details';
+
+// GetActiveEinsaetzeWithCounts (Story 4-3b: Combined Queries)
+export { GetActiveEinsaetzeWithCountsQuery, GetActiveEinsaetzeWithCountsQueryHandler } from './get-active-einsaetze-with-counts';

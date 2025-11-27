@@ -20,6 +20,8 @@ import type {
   EinsatzControllerGetCompletenessVAlpha200Response,
   EinsatzControllerGetPreviousVAlpha200Response,
   EinsatzControllerGetStatusCountsVAlpha200Response,
+  EinsatzDetailsDto,
+  EinsatzListItemDto,
   UpdateEinsatzDto,
 } from '../models/index';
 import {
@@ -35,6 +37,10 @@ import {
   EinsatzControllerGetPreviousVAlpha200ResponseToJSON,
   EinsatzControllerGetStatusCountsVAlpha200ResponseFromJSON,
   EinsatzControllerGetStatusCountsVAlpha200ResponseToJSON,
+  EinsatzDetailsDtoFromJSON,
+  EinsatzDetailsDtoToJSON,
+  EinsatzListItemDtoFromJSON,
+  EinsatzListItemDtoToJSON,
   UpdateEinsatzDtoFromJSON,
   UpdateEinsatzDtoToJSON,
 } from '../models/index';
@@ -65,6 +71,10 @@ export interface EinsatzControllerFindOneVAlphaRequest {
 export interface EinsatzControllerGetCompletenessVAlphaRequest {
   id: string;
   refresh?: boolean;
+}
+
+export interface EinsatzControllerGetEinsatzDetailsVAlphaRequest {
+  id: string;
 }
 
 export interface EinsatzControllerGetNextVAlphaRequest {
@@ -316,6 +326,45 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
+   * Optimierte Abfrage für Dashboard: Liefert alle nicht-archivierten Einsätze mit ETB-Einträge und POI-Counts. Sortiert nach Erstellungsdatum (neueste zuerst).
+   * Aktive Einsätze mit Counts abrufen
+   */
+  async einsatzControllerGetActiveEinsaetzeWithCountsVAlphaRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<EinsatzListItemDto>>> {
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    if (this.configuration && this.configuration.accessToken) {
+      const token = this.configuration.accessToken;
+      const tokenString = await token('bearer', []);
+
+      if (tokenString) {
+        headerParameters['Authorization'] = `Bearer ${tokenString}`;
+      }
+    }
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/einsatz/active-with-counts`,
+        method: 'GET',
+        headers: headerParameters,
+        query: queryParameters,
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(EinsatzListItemDtoFromJSON));
+  }
+
+  /**
+   * Optimierte Abfrage für Dashboard: Liefert alle nicht-archivierten Einsätze mit ETB-Einträge und POI-Counts. Sortiert nach Erstellungsdatum (neueste zuerst).
+   * Aktive Einsätze mit Counts abrufen
+   */
+  async einsatzControllerGetActiveEinsaetzeWithCountsVAlpha(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<EinsatzListItemDto>> {
+    const response = await this.einsatzControllerGetActiveEinsaetzeWithCountsVAlphaRaw(initOverrides);
+    return await response.value();
+  }
+
+  /**
    * Berechnet und gibt die Vollständigkeit eines Einsatzes zurück.
    * Vollständigkeits-Check für Einsatz
    */
@@ -365,6 +414,55 @@ export class EinsatzApi extends runtime.BaseAPI {
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
   ): Promise<EinsatzControllerGetCompletenessVAlpha200Response> {
     const response = await this.einsatzControllerGetCompletenessVAlphaRaw(requestParameters, initOverrides);
+    return await response.value();
+  }
+
+  /**
+   * Lädt einen Einsatz zusammen mit seinem Einsatztagebuch und Lagekarte in einer einzigen Anfrage. ETB und Lagekarte können null sein, wenn sie noch nicht erstellt wurden.
+   * Einsatz mit ETB und Lagekarte abrufen (kombiniert)
+   */
+  async einsatzControllerGetEinsatzDetailsVAlphaRaw(
+    requestParameters: EinsatzControllerGetEinsatzDetailsVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<EinsatzDetailsDto>> {
+    if (requestParameters['id'] == null) {
+      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling einsatzControllerGetEinsatzDetailsVAlpha().');
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    if (this.configuration && this.configuration.accessToken) {
+      const token = this.configuration.accessToken;
+      const tokenString = await token('bearer', []);
+
+      if (tokenString) {
+        headerParameters['Authorization'] = `Bearer ${tokenString}`;
+      }
+    }
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/einsatz/{id}/details`.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
+        method: 'GET',
+        headers: headerParameters,
+        query: queryParameters,
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response, (jsonValue) => EinsatzDetailsDtoFromJSON(jsonValue));
+  }
+
+  /**
+   * Lädt einen Einsatz zusammen mit seinem Einsatztagebuch und Lagekarte in einer einzigen Anfrage. ETB und Lagekarte können null sein, wenn sie noch nicht erstellt wurden.
+   * Einsatz mit ETB und Lagekarte abrufen (kombiniert)
+   */
+  async einsatzControllerGetEinsatzDetailsVAlpha(
+    requestParameters: EinsatzControllerGetEinsatzDetailsVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<EinsatzDetailsDto> {
+    const response = await this.einsatzControllerGetEinsatzDetailsVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
 

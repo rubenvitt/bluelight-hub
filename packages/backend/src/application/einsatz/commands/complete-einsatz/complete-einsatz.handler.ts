@@ -1,7 +1,7 @@
 import { Result } from '@domain/common/result';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import type { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
+import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -37,6 +37,7 @@ export class CompleteEinsatzHandler {
     private readonly einsatzRepository: IEinsatzRepository,
     @Inject('IEventPublisher')
     private readonly eventPublisher: IEventPublisher,
+    @Inject(EinsatzCompletenessService)
     private readonly completenessService: EinsatzCompletenessService,
   ) {}
 

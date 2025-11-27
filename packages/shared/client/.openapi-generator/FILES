@@ -14,6 +14,7 @@ apis/index.ts
 index.ts
 models/AddEintragDto.ts
 models/AddPoiDto.ts
+models/AddressDto.ts
 models/AdminLoginResponseDto.ts
 models/AdminPasswordDto.ts
 models/AdminSetupDto.ts
@@ -47,6 +48,10 @@ models/EinsatzControllerFindAllVAlpha200ResponsePagination.ts
 models/EinsatzControllerGetCompletenessVAlpha200Response.ts
 models/EinsatzControllerGetPreviousVAlpha200Response.ts
 models/EinsatzControllerGetStatusCountsVAlpha200Response.ts
+models/EinsatzDetailsDto.ts
+models/EinsatzDto.ts
+models/EinsatzListItemDto.ts
+models/EinsatzListItemDtoEinsatzort.ts
 models/EinsatzResponseDto.ts
 models/EintragDto.ts
 models/EtbDto.ts

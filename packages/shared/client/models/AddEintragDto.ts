@@ -32,7 +32,7 @@ export interface AddEintragDto {
    */
   kategorie?: AddEintragDtoKategorieEnum;
   /**
-   * Aktive Einsatz-ID (wird genutzt, um bei Bedarf automatisch ein ETB anzulegen)
+   * Aktive Einsatz-ID (wird genutzt um bei Bedarf ein ETB zu erstellen)
    * @type {string}
    * @memberof AddEintragDto
    */

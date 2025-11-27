@@ -2,6 +2,7 @@
 /* eslint-disable */
 export * from './AddEintragDto';
 export * from './AddPoiDto';
+export * from './AddressDto';
 export * from './AdminLoginResponseDto';
 export * from './AdminPasswordDto';
 export * from './AdminSetupDto';
@@ -35,6 +36,10 @@ export * from './EinsatzControllerFindAllVAlpha200ResponsePagination';
 export * from './EinsatzControllerGetCompletenessVAlpha200Response';
 export * from './EinsatzControllerGetPreviousVAlpha200Response';
 export * from './EinsatzControllerGetStatusCountsVAlpha200Response';
+export * from './EinsatzDetailsDto';
+export * from './EinsatzDto';
+export * from './EinsatzListItemDto';
+export * from './EinsatzListItemDtoEinsatzort';
 export * from './EinsatzResponseDto';
 export * from './EintragDto';
 export * from './EtbDto';

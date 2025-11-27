@@ -205,7 +205,9 @@ function getErrorCategory(error: unknown): string {
     const status = (error as ResponseError).response.status;
 
     if (status === 401) return 'auth';
-    if (status >= 400 && status < 500) return 'validation';
+    if (status === 404) return 'not_found'; // 404 ist KEIN Validierungsfehler
+    if (status === 400 || status === 422) return 'validation'; // Nur echte Validierungsfehler
+    if (status >= 400 && status < 500) return 'client'; // Andere Client-Fehler
     if (status >= 500) return 'server';
   }
 
@@ -286,8 +288,20 @@ export async function handleQueryError(error: unknown, _query?: unknown): Promis
 
   // Show toast based on category
   switch (category) {
+    case 'not_found':
+      // 404 Fehler werden NICHT als Toast gezeigt - sie sind oft erwartet
+      // (z.B. ETB existiert noch nicht, Lagekarte existiert noch nicht)
+      logger.debug('Resource not found (404) - kein Toast', { message });
+      return; // KEIN Toast!
+
     case 'validation':
       toast.warning('Validierungsfehler', {
+        description: message,
+        duration: 6000,
+      });
+      break;
+    case 'client':
+      toast.warning('Anfragefehler', {
         description: message,
         duration: 6000,
       });

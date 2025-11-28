@@ -450,7 +450,10 @@ export const useActiveEinsaetzeWithCounts = () => {
     queryKey: QUERY_KEYS.einsatz.activeWithCounts(),
     queryFn: async () => {
       try {
-        return await api.einsatz().einsatzControllerGetActiveEinsaetzeWithCountsVAlpha();
+        const response = await api.einsatz().einsatzControllerGetActiveEinsaetzeWithCountsVAlpha();
+        // Backend liefert {data: EinsatzListItemDto[], meta: {...}} durch TransformInterceptor
+        // Extrahiere nur das data-Array
+        return (response as unknown as { data: EinsatzListItemDto[] }).data;
       } catch (error) {
         logger.error('Failed to fetch active einsaetze with counts', error);
         throw error;

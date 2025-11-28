@@ -1,7 +1,15 @@
 import { api } from '@/api';
 import { QUERY_KEYS } from '@/queryKeys';
-import type { EinsatzDetailsDto, EinsatzDto, EtbDto, LagekarteDto } from '@bluelight-hub/shared/client';
+import { logger } from '@/utils/logger';
+import type { EinsatzDetailsDto, EinsatzDto, EtbDto, LagekarteDto, ResponseError } from '@bluelight-hub/shared/client';
 import { useQuery } from '@tanstack/react-query';
+
+/**
+ * Exponential Backoff Retry-Verzögerung berechnen
+ */
+function calculateRetryDelay(attemptIndex: number): number {
+  return Math.min(1000 * 2 ** attemptIndex, 30000);
+}
 
 export interface UseEinsatzDetailsResult {
   einsatz: EinsatzDto | undefined;
@@ -33,10 +41,21 @@ export interface UseEinsatzDetailsResult {
  * ```
  */
 export function useEinsatzDetails(einsatzId: string): UseEinsatzDetailsResult {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<EinsatzDetailsDto, ResponseError>({
     queryKey: QUERY_KEYS.einsatz.detailsCombined(einsatzId),
-    queryFn: () => api.einsatz().einsatzControllerGetEinsatzDetailsVAlpha({ id: einsatzId }),
+    queryFn: async () => {
+      if (!einsatzId) throw new Error('ID is required');
+      try {
+        return await api.einsatz().einsatzControllerGetEinsatzDetailsVAlpha({ id: einsatzId });
+      } catch (err) {
+        logger.error('Failed to fetch einsatz details', err);
+        throw err;
+      }
+    },
     enabled: !!einsatzId,
+    staleTime: 30_000, // 30 seconds
+    retry: 3,
+    retryDelay: calculateRetryDelay,
   });
 
   return {

@@ -8,7 +8,6 @@ import type {
   EinsatzControllerCreateVAlpha200Response,
   EinsatzControllerFindAllVAlpha200Response,
   EinsatzControllerFindAllVAlphaStatusEnum,
-  EinsatzDetailsDto,
   EinsatzListItemDto,
   EinsatzResponseDto,
   ResponseError,
@@ -407,42 +406,6 @@ export const useActiveEinsaetzeWithCounts = () => {
     retry: 3,
     retryDelay: calculateRetryDelay,
   });
-};
-
-/**
- * Hook for combined Einsatz details (Einsatz + ETB + Lagekarte).
- * Reduces API calls from 3 to 1 for the detail view.
- *
- * This hook fetches all relevant data for an Einsatz detail page in a single request,
- * significantly improving performance and reducing network overhead.
- *
- * @param id - The Einsatz ID to fetch details for (null to disable query)
- * @returns Query result with destructured einsatz, etb, and lagekarte data
- */
-export const useEinsatzDetails = (id: string | null) => {
-  const query = useQuery<EinsatzDetailsDto, ResponseError>({
-    queryKey: QUERY_KEYS.einsatz.detailsCombined(id || ''),
-    queryFn: async () => {
-      if (!id) throw new Error('ID is required');
-      try {
-        return await api.einsatz().einsatzControllerGetEinsatzDetailsVAlpha({ id });
-      } catch (error) {
-        logger.error('Failed to fetch einsatz details', error);
-        throw error;
-      }
-    },
-    enabled: !!id,
-    staleTime: 30_000, // 30 seconds
-    retry: 3,
-    retryDelay: calculateRetryDelay,
-  });
-
-  return {
-    ...query,
-    einsatz: query.data?.einsatz ?? null,
-    etb: query.data?.etb ?? null,
-    lagekarte: query.data?.lagekarte ?? null,
-  };
 };
 
 /**

@@ -116,4 +116,21 @@ export class PrismaEinsatzRepositoryAdapter implements IEinsatzRepository {
     this.logger.warn('findByNummer() called but not yet implemented - awaiting Epic 4 (Einsatz Domain Migration)');
     return Result.fail('PrismaEinsatzRepositoryAdapter.findByNummer() not implemented yet - awaiting Epic 4');
   }
+
+  /**
+   * Zaehlt Einsaetze gruppiert nach Status.
+   *
+   * @throws NotImplementedError - Implementierung in Epic 4 (Einsatz Domain Migration)
+   */
+  async countByStatus(_includeArchived: boolean): Promise<
+    Result<{
+      angelegt: number;
+      inBearbeitung: number;
+      abgeschlossen: number;
+      archiviert: number;
+    }>
+  > {
+    this.logger.warn('countByStatus() called but not yet implemented - awaiting Epic 4 (Einsatz Domain Migration)');
+    return Result.fail('PrismaEinsatzRepositoryAdapter.countByStatus() not implemented yet - awaiting Epic 4');
+  }
 }

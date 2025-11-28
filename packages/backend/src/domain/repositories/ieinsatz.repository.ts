@@ -180,6 +180,45 @@ export interface IEinsatzRepository {
   exists(id: EinsatzId): Promise<Result<boolean>>;
 
   /**
+   * Zaehlt Einsaetze gruppiert nach Status.
+   *
+   * Warum separate countByStatus() Method?
+   * - Performance: COUNT() Queries schneller als findAll() + Array.length
+   * - Use Case: Dashboard Statistiken benoetigen nur Counts, nicht alle Aggregates
+   * - Database Optimization: Nutzt GROUP BY fuer effiziente Aggregation
+   *
+   * Parameter includeArchived:
+   * - false (default): Archivierte Einsaetze werden NICHT gezaehlt (archiviert = 0)
+   * - true: Archivierte Einsaetze werden inkludiert (fuer Compliance Reports)
+   *
+   * @param includeArchived - Ob archivierte Einsaetze mitgezaehlt werden sollen
+   * @returns Result mit Status-Counts Object (angelegt, inBearbeitung, abgeschlossen, archiviert)
+   *
+   * @example
+   * ```typescript
+   * // Ohne archivierte Einsaetze
+   * const result = await repository.countByStatus(false);
+   * if (result.isSuccess) {
+   *   const counts = result.value!;
+   *   console.log(`Angelegt: ${counts.angelegt}`);
+   *   console.log(`Archiviert: ${counts.archiviert}`); // 0
+   * }
+   *
+   * // Mit archivierten Einsaetzen
+   * const resultWithArchived = await repository.countByStatus(true);
+   * // resultWithArchived.value.archiviert > 0
+   * ```
+   */
+  countByStatus(includeArchived: boolean): Promise<
+    Result<{
+      angelegt: number;
+      inBearbeitung: number;
+      abgeschlossen: number;
+      archiviert: number;
+    }>
+  >;
+
+  /**
    * HINWEIS: KEINE delete() Method!
    *
    * Warum kein delete()?

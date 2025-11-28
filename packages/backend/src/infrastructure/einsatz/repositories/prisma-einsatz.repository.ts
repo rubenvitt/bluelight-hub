@@ -315,4 +315,59 @@ export class PrismaEinsatzRepository implements IEinsatzRepository {
       return Result.fail(`Database error: ${message}`);
     }
   }
+
+  /**
+   * Zaehlt Einsaetze gruppiert nach Status.
+   *
+   * Verwendet parallele COUNT Queries fuer optimale Performance.
+   * Archivierte Einsaetze werden optional inkludiert (Default: ausgeschlossen).
+   *
+   * **Performance:**
+   * - 4x parallele COUNT Queries via Promise.all()
+   * - Keine Row Materialization (nur Counts)
+   * - Index-optimiert (Status Column ist indexed)
+   *
+   * **includeArchived Logik:**
+   * - false (default): archiviert = 0 (Query wird nicht ausgeführt)
+   * - true: archiviert = tatsächlicher Count aus DB
+   *
+   * @param includeArchived - Ob archivierte Einsaetze mitgezaehlt werden sollen
+   * @returns Promise<Result<StatusCounts>> - Success mit Counts oder Failure bei DB-Fehler
+   */
+  async countByStatus(includeArchived: boolean): Promise<
+    Result<{
+      angelegt: number;
+      inBearbeitung: number;
+      abgeschlossen: number;
+      archiviert: number;
+    }>
+  > {
+    try {
+      // Parallel COUNT Queries für optimale Performance
+      const [angelegt, inBearbeitung, abgeschlossen, archiviert] = await Promise.all([
+        this.prisma.einsatz.count({
+          where: { status: 'ANGELEGT' },
+        }),
+        this.prisma.einsatz.count({
+          where: { status: 'IN_BEARBEITUNG' },
+        }),
+        this.prisma.einsatz.count({
+          where: { status: 'ABGESCHLOSSEN' },
+        }),
+        // Conditional: Nur archivierte Zählen wenn includeArchived=true
+        includeArchived ? this.prisma.einsatz.count({ where: { status: 'ARCHIVIERT' } }) : Promise.resolve(0),
+      ]);
+
+      return Result.ok({
+        angelegt,
+        inBearbeitung,
+        abgeschlossen,
+        archiviert,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to count Einsaetze by status: ${message}`);
+      return Result.fail(`Database error: ${message}`);
+    }
+  }
 }

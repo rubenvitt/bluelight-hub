@@ -3,6 +3,7 @@ import { EinsatzStatus, EinsatzStatusBadge } from '@/components/molecules/einsat
 import { useActiveEinsatz } from '@/hooks/useActiveEinsatz';
 import { formatNatoDateTime } from '@/utils/dateFormatter';
 import type { EinsatzResponseDto } from '@bluelight-hub/shared/client';
+import { PiBookOpen, PiMapPin } from 'react-icons/pi';
 
 interface EinsatzListItemProps {
   einsatz: EinsatzResponseDto;
@@ -11,6 +12,11 @@ interface EinsatzListItemProps {
 export const EinsatzListItem = ({ einsatz }: EinsatzListItemProps) => {
   const { activeEinsatz } = useActiveEinsatz();
   const isCurrentlyActive = activeEinsatz?.id === einsatz.id;
+
+  // TODO: Switch to useActiveEinsaetzeWithCounts when available
+  // These fields will be available after backend implementation and API regeneration
+  const etbEintraegeCount = (einsatz as any).etbEintraegeCount;
+  const poisCount = (einsatz as any).poisCount;
 
   return (
     <div className="cursor-pointer px-3 py-3 transition-all hover:bg-gray-50 sm:px-4 sm:py-4 dark:hover:bg-gray-700/50">
@@ -33,6 +39,24 @@ export const EinsatzListItem = ({ einsatz }: EinsatzListItemProps) => {
           </div>
           <div className="flex flex-col gap-1 text-gray-500 text-xs sm:flex-row sm:items-center sm:gap-2 sm:space-x-2 sm:text-sm dark:text-gray-400">
             <span className="font-mono">{formatNatoDateTime(einsatz.createdAt)}</span>
+
+            {/* ETB & POI Counts */}
+            {(etbEintraegeCount !== undefined || poisCount !== undefined) && (
+              <div className="flex items-center gap-2">
+                {etbEintraegeCount !== undefined && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-800 text-xs dark:bg-blue-900/30 dark:text-blue-400">
+                    <PiBookOpen className="h-3 w-3" />
+                    {etbEintraegeCount}
+                  </span>
+                )}
+                {poisCount !== undefined && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 font-medium text-purple-800 text-xs dark:bg-purple-900/30 dark:text-purple-400">
+                    <PiMapPin className="h-3 w-3" />
+                    {poisCount}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="mt-2">
             <EinsatzCompletenessBar einsatz={einsatz} showTooltip={false} showPercentage={true} size="sm" className="max-w-full sm:max-w-xs" />

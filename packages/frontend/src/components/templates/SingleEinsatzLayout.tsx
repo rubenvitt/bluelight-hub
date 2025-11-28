@@ -1,4 +1,3 @@
-import { api } from '@/api';
 import { CommandTrigger } from '@/components/atoms/command-trigger.atom';
 import { Container } from '@/components/atoms/container.atom';
 import { Dialog } from '@/components/molecules/dialog.molecule';
@@ -7,13 +6,13 @@ import { ModuleButton } from '@/components/molecules/einsatz/ModuleButton';
 import { ModuleOverviewCard } from '@/components/molecules/einsatz/ModuleOverviewCard';
 import { CommandPalette } from '@/components/organisms/command-palette';
 import { CommandPaletteErrorBoundary } from '@/components/organisms/command-palette/CommandPaletteErrorBoundary';
+import { useEinsatzDetails } from '@/hooks/einsatz/useEinsatzDetails';
 import { useEinsatzModules } from '@/hooks/einsatz/useEinsatzModules';
-import { QUERY_KEYS } from '@/queryKeys';
 import { cn } from '@/utils/cn';
 import { getModuleActiveColor, getModuleColor } from '@/utils/module-colors';
 import { Button } from '@atoms/button.atom';
 import { UpdateEinsatzDtoStatusEnum } from '@bluelight-hub/shared/client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useMatchRoute, useNavigate, useParams, useRouter } from '@tanstack/react-router';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -42,13 +41,9 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
   const isOnEtbRoute = !!matchRoute({ to: '/app/einsatz/$einsatzId/führung/etb', fuzzy: false });
   const supportsFullscreen = isOnKarteRoute || isOnEtbRoute;
 
-  // Lade Einsatzdaten für Header
-  const { data: einsatzResponse } = useQuery({
-    queryKey: QUERY_KEYS.einsatz.detail(einsatzId),
-    queryFn: () => api.einsatz().einsatzControllerFindOneVAlpha({ id: einsatzId }),
-  });
-
-  const einsatz = einsatzResponse?.data;
+  // Lade kombinierte Einsatzdaten (Einsatz + ETB + Lagekarte)
+  // ETB und Lagekarte werden im Cache vorgeladen, sodass Child-Routes diese nutzen können
+  const { einsatz, etb, lagekarte } = useEinsatzDetails(einsatzId);
 
   // Modul-Konfiguration aus Hook
   const modules = useEinsatzModules();

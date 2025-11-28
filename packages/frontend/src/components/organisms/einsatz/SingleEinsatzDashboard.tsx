@@ -37,6 +37,11 @@ export function SingleEinsatzDashboard() {
 
   const einsatz = einsatzResponse?.data;
 
+  // TODO: Switch to useActiveEinsaetzeWithCounts when available
+  // These fields will be available after backend implementation and API regeneration
+  const etbEintraegeCount = einsatz ? (einsatz as any).etbEintraegeCount : undefined;
+  const poisCount = einsatz ? (einsatz as any).poisCount : undefined;
+
   // Setze diesen Einsatz automatisch als aktiv
   useEffect(() => {
     if (einsatz && (!isEinsatzActive || activeEinsatz?.id !== einsatz.id)) {
@@ -116,8 +121,19 @@ export function SingleEinsatzDashboard() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <EinsatzStatsCard title="Einsatzdauer" value={duration} icon={<PiClock className="h-8 w-8" />} description={`Seit ${formatNatoDateTime(startTime)}`} />
         <EinsatzStatsCard title="Einheiten" value="2" icon={<PiTruck className="h-8 w-8" />} description="12 Einsatzkräfte" variant="success" />
-        <EinsatzStatsCard title="ETB-Einträge" value="15" icon={<PiClipboard className="h-8 w-8" />} description="Letzter vor 5 Min." trend={{ value: 25, isPositive: true }} />
-        <EinsatzStatsCard title="Priorität" value="Hoch" icon={<PiWarning className="h-8 w-8" />} description={einsatz.alarmstichwort || 'Standard'} variant="warning" />
+        <EinsatzStatsCard
+          title="ETB-Einträge"
+          value={etbEintraegeCount !== undefined ? String(etbEintraegeCount) : '-'}
+          icon={<PiClipboard className="h-8 w-8" />}
+          description={etbEintraegeCount !== undefined ? 'Dokumentierte Einträge' : 'Wird geladen...'}
+        />
+        <EinsatzStatsCard
+          title="POIs"
+          value={poisCount !== undefined ? String(poisCount) : '-'}
+          icon={<PiMapPin className="h-8 w-8" />}
+          description={poisCount !== undefined ? 'Markierungen auf Karte' : 'Wird geladen...'}
+          variant="info"
+        />
       </div>
 
       {/* Schnellzugriffe */}

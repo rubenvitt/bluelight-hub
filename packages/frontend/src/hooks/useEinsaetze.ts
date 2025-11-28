@@ -8,6 +8,8 @@ import type {
   EinsatzControllerCreateVAlpha200Response,
   EinsatzControllerFindAllVAlpha200Response,
   EinsatzControllerFindAllVAlphaStatusEnum,
+  EinsatzDetailsDto,
+  EinsatzListItemDto,
   EinsatzResponseDto,
   ResponseError,
   UpdateEinsatzDto,
@@ -378,6 +380,68 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
     createEinsatz: createEinsatzMutation,
     updateEinsatz: updateEinsatzMutation,
     archiveEinsatz: archiveEinsatzMutation,
+  };
+};
+
+/**
+ * Hook for dashboard list with ETB/POI counts.
+ * Uses the optimized combined endpoint for better performance.
+ *
+ * This hook fetches all active (non-archived) Einsätze with aggregated counts
+ * for ETB entries and POIs, optimized for dashboard display.
+ *
+ * @returns Query result with EinsatzListItemDto[] containing counts
+ */
+export const useActiveEinsaetzeWithCounts = () => {
+  return useQuery<EinsatzListItemDto[], ResponseError>({
+    queryKey: [...QUERY_KEYS.einsatz.all, 'activeWithCounts'] as const,
+    queryFn: async () => {
+      try {
+        return await api.einsatz().einsatzControllerGetActiveEinsaetzeWithCountsVAlpha();
+      } catch (error) {
+        logger.error('Failed to fetch active einsaetze with counts', error);
+        throw error;
+      }
+    },
+    staleTime: 30_000, // 30 seconds
+    retry: 3,
+    retryDelay: calculateRetryDelay,
+  });
+};
+
+/**
+ * Hook for combined Einsatz details (Einsatz + ETB + Lagekarte).
+ * Reduces API calls from 3 to 1 for the detail view.
+ *
+ * This hook fetches all relevant data for an Einsatz detail page in a single request,
+ * significantly improving performance and reducing network overhead.
+ *
+ * @param id - The Einsatz ID to fetch details for (null to disable query)
+ * @returns Query result with destructured einsatz, etb, and lagekarte data
+ */
+export const useEinsatzDetails = (id: string | null) => {
+  const query = useQuery<EinsatzDetailsDto, ResponseError>({
+    queryKey: QUERY_KEYS.einsatz.detailsCombined(id || ''),
+    queryFn: async () => {
+      if (!id) throw new Error('ID is required');
+      try {
+        return await api.einsatz().einsatzControllerGetEinsatzDetailsVAlpha({ id });
+      } catch (error) {
+        logger.error('Failed to fetch einsatz details', error);
+        throw error;
+      }
+    },
+    enabled: !!id,
+    staleTime: 30_000, // 30 seconds
+    retry: 3,
+    retryDelay: calculateRetryDelay,
+  });
+
+  return {
+    ...query,
+    einsatz: query.data?.einsatz ?? null,
+    etb: query.data?.etb ?? null,
+    lagekarte: query.data?.lagekarte ?? null,
   };
 };
 

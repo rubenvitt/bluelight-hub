@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import type { ValidatedUser } from '@/auth/strategies/jwt.strategy';
 import { ApiWrappedResponse } from '@/common/decorators/api-wrapped-response.decorator';
+import { SkipTransform } from '@/common/decorators/skip-transform.decorator';
 import type { PaginatedData } from '@/common/interceptors/transform.interceptor';
 import {
   CompletenessQueryDto,
@@ -101,6 +102,7 @@ export class EinsatzController {
    * Optimierte Liste aktiver Einsätze mit ETB-Einträge und POI-Counts via CQRS Query
    */
   @Get('active-with-counts')
+  @SkipTransform()
   @ApiOperation({ summary: 'Aktive Einsätze mit Counts abrufen', description: 'Optimierte Abfrage für Dashboard: Liefert alle nicht-archivierten Einsätze mit ETB-Einträge und POI-Counts.' })
   @ApiOkResponse({ type: [EinsatzListItemDto], description: 'Liste aktiver Einsätze mit Counts' })
   @ApiBadRequestResponse({ description: 'Fehler beim Abrufen der Einsätze' })

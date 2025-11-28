@@ -1,6 +1,5 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { JwtTokenServiceAdapter } from '../jwt-token-service.adapter';
 import { UserId } from '@domain/value-objects/user-id';
 import { UserRole } from '@domain/value-objects/user-role';
@@ -9,7 +8,7 @@ import { UserRole } from '@domain/value-objects/user-role';
  * Unit Tests für JwtTokenServiceAdapter.
  *
  * Diese Tests validieren die Infrastructure Layer Implementation des
- * IJwtAuthServicePort mit gemocktem JwtService und ConfigService.
+ * IJwtAuthServicePort mit gemocktem JwtService.
  *
  * **Test Coverage:**
  * - generateToken() Method: Token-Generierung, Payload-Validierung, Expiry, Secret-Handling, Error Cases
@@ -18,7 +17,7 @@ import { UserRole } from '@domain/value-objects/user-role';
  *
  * **Mocking Strategy:**
  * - JwtService: Vollständig gemockt (signAsync, verifyAsync)
- * - ConfigService: Mock mit get() → returns JWT_SECRET
+ * - JWT_SECRET: Wird von process.env.JWT_SECRET gelesen
  *
  * **Test Patterns:**
  * - AAA Pattern: Arrange → Act → Assert
@@ -28,28 +27,28 @@ import { UserRole } from '@domain/value-objects/user-role';
 describe('JwtTokenServiceAdapter', () => {
   let adapter: JwtTokenServiceAdapter;
   let mockJwtService: jest.Mocked<JwtService>;
-  let mockConfigService: jest.Mocked<ConfigService>;
 
   const TEST_SECRET = 'test-jwt-secret-for-unit-tests';
 
   beforeEach(async () => {
+    // Set environment variable for tests
+    process.env.JWT_SECRET = TEST_SECRET;
+
     mockJwtService = {
       signAsync: jest.fn(),
       verifyAsync: jest.fn(),
     } as unknown as jest.Mocked<JwtService>;
 
-    mockConfigService = {
-      get: jest.fn().mockReturnValue(TEST_SECRET),
-    } as unknown as jest.Mocked<ConfigService>;
-
     const module: TestingModule = await Test.createTestingModule({
-      providers: [JwtTokenServiceAdapter, { provide: JwtService, useValue: mockJwtService }, { provide: ConfigService, useValue: mockConfigService }],
+      providers: [JwtTokenServiceAdapter, { provide: JwtService, useValue: mockJwtService }],
     }).compile();
 
     adapter = module.get<JwtTokenServiceAdapter>(JwtTokenServiceAdapter);
   });
 
   afterEach(() => {
+    // Clean up environment variable and mocks
+    delete process.env.JWT_SECRET;
     jest.clearAllMocks();
   });
 

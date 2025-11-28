@@ -2,21 +2,20 @@ import { EinsatzCompletenessBar } from '@/components/molecules/einsatz/einsatz-c
 import { EinsatzStatus, EinsatzStatusBadge } from '@/components/molecules/einsatz/einsatz-status-badge.molecule';
 import { useActiveEinsatz } from '@/hooks/useActiveEinsatz';
 import { formatNatoDateTime } from '@/utils/dateFormatter';
-import type { EinsatzResponseDto } from '@bluelight-hub/shared/client';
+import type { EinsatzListItemDto, EinsatzResponseDto } from '@bluelight-hub/shared/client';
 import { PiBookOpen, PiMapPin } from 'react-icons/pi';
 
 interface EinsatzListItemProps {
-  einsatz: EinsatzResponseDto;
+  einsatz: EinsatzResponseDto | EinsatzListItemDto;
 }
 
 export const EinsatzListItem = ({ einsatz }: EinsatzListItemProps) => {
   const { activeEinsatz } = useActiveEinsatz();
   const isCurrentlyActive = activeEinsatz?.id === einsatz.id;
 
-  // TODO: Switch to useActiveEinsaetzeWithCounts when available
-  // These fields will be available after backend implementation and API regeneration
-  const etbEintraegeCount = (einsatz as any).etbEintraegeCount;
-  const poisCount = (einsatz as any).poisCount;
+  // Extract counts if available (present in EinsatzListItemDto)
+  const etbEintraegeCount = 'etbEintraegeCount' in einsatz ? einsatz.etbEintraegeCount : undefined;
+  const poisCount = 'poisCount' in einsatz ? einsatz.poisCount : undefined;
 
   return (
     <div className="cursor-pointer px-3 py-3 transition-all hover:bg-gray-50 sm:px-4 sm:py-4 dark:hover:bg-gray-700/50">

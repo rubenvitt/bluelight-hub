@@ -17,8 +17,8 @@ interface EinsatzInfoCardProps {
 export function EinsatzInfoCard({ einsatz, isArchived, isEditing, form }: EinsatzInfoCardProps) {
   // TODO: Switch to useActiveEinsaetzeWithCounts when available
   // These fields will be available after backend implementation and API regeneration
-  const etbEintraegeCount = (einsatz as any).etbEintraegeCount;
-  const poisCount = (einsatz as any).poisCount;
+  const etbEintraegeCount = 'etbEintraegeCount' in einsatz ? (einsatz as { etbEintraegeCount: number }).etbEintraegeCount : undefined;
+  const poisCount = 'poisCount' in einsatz ? (einsatz as { poisCount: number }).poisCount : undefined;
 
   return (
     <div className="mb-6 rounded-lg bg-white p-6 shadow dark:bg-gray-800">
@@ -75,7 +75,7 @@ export function EinsatzInfoCard({ einsatz, isArchived, isEditing, form }: Einsat
               <PiMapPinIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               <div>
                 <p className="font-medium text-purple-900 text-xs dark:text-purple-100">POIs auf Karte</p>
-                <p className="font-semibold text-purple-900 text-lg dark:text-purple-100">{poisCount}</p>
+                <p className="font-semibold text-lg text-purple-900 dark:text-purple-100">{poisCount}</p>
               </div>
             </div>
           )}

@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JWT_AUTH_SERVICE } from '../di-tokens';
 import { JwtTokenServiceAdapter } from './adapters/jwt-token-service.adapter';
 
@@ -23,18 +22,17 @@ import { JwtTokenServiceAdapter } from './adapters/jwt-token-service.adapter';
  * - Ermöglicht austauschbare Implementierungen (JWT, OAuth, Mock für Tests)
  *
  * **Module Dependencies:**
- * - ConfigModule: Stellt Umgebungsvariablen bereit
- * - JwtModule: NestJS JWT Service für Token-Operationen
+ * - JwtModule: NestJS JWT Service für Token-Operationen (mit registerAsync)
+ * - ConfigService: Wird vom parent Module (AppModule) global bereitgestellt
  *
  * **JWT Configuration:**
  * - Secret wird aus JWT_SECRET Environment Variable gelesen
- * - Token Expiration: 24 Stunden (konfigurierbar)
- * - JwtModule wird asynchron registriert für ConfigService Injection
+ * - Token Expiration: 24 Stunden
+ * - JwtModule.registerAsync mit Factory (kein external dependency injection)
  *
- * **useExisting vs useClass:**
- * - JwtTokenServiceAdapter als direkter Provider registriert
- * - JWT_AUTH_SERVICE Token aliased auf existierende Instanz
- * - Ermöglicht Injection via Token ODER direkte Class
+ * **Module Scope:**
+ * - ConfigService ist global registriert im AppModule
+ * - JwtModule ist lokal registriert, wird aber über Factory konfiguriert
  *
  * @example
  * ```typescript
@@ -50,16 +48,11 @@ import { JwtTokenServiceAdapter } from './adapters/jwt-token-service.adapter';
  */
 @Module({
   imports: [
-    ConfigModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: {
-          expiresIn: '24h',
-        },
-      }),
+    JwtModule.register({
+      secret: process.env.JWT_SECRET,
+      signOptions: {
+        expiresIn: '24h',
+      },
     }),
   ],
   providers: [
@@ -69,6 +62,6 @@ import { JwtTokenServiceAdapter } from './adapters/jwt-token-service.adapter';
       useExisting: JwtTokenServiceAdapter,
     },
   ],
-  exports: [JWT_AUTH_SERVICE, JwtTokenServiceAdapter],
+  exports: [JWT_AUTH_SERVICE, JwtTokenServiceAdapter, JwtModule],
 })
 export class AuthInfrastructureModule {}

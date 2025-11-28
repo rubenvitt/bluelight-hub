@@ -26,37 +26,37 @@ import {
 /**
  *
  * @export
- * @interface EinsatzControllerCreateVAlpha200Response
+ * @interface EinsatzControllerFindOneVAlpha200Response
  */
-export interface EinsatzControllerCreateVAlpha200Response {
+export interface EinsatzControllerFindOneVAlpha200Response {
   /**
    *
    * @type {EinsatzResponseDto}
-   * @memberof EinsatzControllerCreateVAlpha200Response
+   * @memberof EinsatzControllerFindOneVAlpha200Response
    */
   data: EinsatzResponseDto;
   /**
    *
    * @type {UserControllerFindOneVAlpha200ResponseMeta}
-   * @memberof EinsatzControllerCreateVAlpha200Response
+   * @memberof EinsatzControllerFindOneVAlpha200Response
    */
   meta: UserControllerFindOneVAlpha200ResponseMeta;
 }
 
 /**
- * Check if a given object implements the EinsatzControllerCreateVAlpha200Response interface.
+ * Check if a given object implements the EinsatzControllerFindOneVAlpha200Response interface.
  */
-export function instanceOfEinsatzControllerCreateVAlpha200Response(value: object): value is EinsatzControllerCreateVAlpha200Response {
+export function instanceOfEinsatzControllerFindOneVAlpha200Response(value: object): value is EinsatzControllerFindOneVAlpha200Response {
   if (!('data' in value) || value['data'] === undefined) return false;
   if (!('meta' in value) || value['meta'] === undefined) return false;
   return true;
 }
 
-export function EinsatzControllerCreateVAlpha200ResponseFromJSON(json: any): EinsatzControllerCreateVAlpha200Response {
-  return EinsatzControllerCreateVAlpha200ResponseFromJSONTyped(json, false);
+export function EinsatzControllerFindOneVAlpha200ResponseFromJSON(json: any): EinsatzControllerFindOneVAlpha200Response {
+  return EinsatzControllerFindOneVAlpha200ResponseFromJSONTyped(json, false);
 }
 
-export function EinsatzControllerCreateVAlpha200ResponseFromJSONTyped(json: any, ignoreDiscriminator: boolean): EinsatzControllerCreateVAlpha200Response {
+export function EinsatzControllerFindOneVAlpha200ResponseFromJSONTyped(json: any, ignoreDiscriminator: boolean): EinsatzControllerFindOneVAlpha200Response {
   if (json == null) {
     return json;
   }
@@ -66,11 +66,11 @@ export function EinsatzControllerCreateVAlpha200ResponseFromJSONTyped(json: any,
   };
 }
 
-export function EinsatzControllerCreateVAlpha200ResponseToJSON(json: any): EinsatzControllerCreateVAlpha200Response {
-  return EinsatzControllerCreateVAlpha200ResponseToJSONTyped(json, false);
+export function EinsatzControllerFindOneVAlpha200ResponseToJSON(json: any): EinsatzControllerFindOneVAlpha200Response {
+  return EinsatzControllerFindOneVAlpha200ResponseToJSONTyped(json, false);
 }
 
-export function EinsatzControllerCreateVAlpha200ResponseToJSONTyped(value?: EinsatzControllerCreateVAlpha200Response | null, ignoreDiscriminator: boolean = false): any {
+export function EinsatzControllerFindOneVAlpha200ResponseToJSONTyped(value?: EinsatzControllerFindOneVAlpha200Response | null, ignoreDiscriminator: boolean = false): any {
   if (value == null) {
     return value;
   }

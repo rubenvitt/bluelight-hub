@@ -15,22 +15,23 @@
 import * as runtime from '../runtime';
 import type {
   CreateEinsatzDto,
-  EinsatzControllerCreateVAlpha200Response,
   EinsatzControllerFindAllVAlpha200Response,
+  EinsatzControllerFindOneVAlpha200Response,
   EinsatzControllerGetCompletenessVAlpha200Response,
   EinsatzControllerGetPreviousVAlpha200Response,
   EinsatzControllerGetStatusCountsVAlpha200Response,
   EinsatzDetailsDto,
+  EinsatzDto,
   EinsatzListItemDto,
   UpdateEinsatzDto,
 } from '../models/index';
 import {
   CreateEinsatzDtoFromJSON,
   CreateEinsatzDtoToJSON,
-  EinsatzControllerCreateVAlpha200ResponseFromJSON,
-  EinsatzControllerCreateVAlpha200ResponseToJSON,
   EinsatzControllerFindAllVAlpha200ResponseFromJSON,
   EinsatzControllerFindAllVAlpha200ResponseToJSON,
+  EinsatzControllerFindOneVAlpha200ResponseFromJSON,
+  EinsatzControllerFindOneVAlpha200ResponseToJSON,
   EinsatzControllerGetCompletenessVAlpha200ResponseFromJSON,
   EinsatzControllerGetCompletenessVAlpha200ResponseToJSON,
   EinsatzControllerGetPreviousVAlpha200ResponseFromJSON,
@@ -39,6 +40,8 @@ import {
   EinsatzControllerGetStatusCountsVAlpha200ResponseToJSON,
   EinsatzDetailsDtoFromJSON,
   EinsatzDetailsDtoToJSON,
+  EinsatzDtoFromJSON,
+  EinsatzDtoToJSON,
   EinsatzListItemDtoFromJSON,
   EinsatzListItemDtoToJSON,
   UpdateEinsatzDtoFromJSON,
@@ -99,13 +102,13 @@ export interface EinsatzControllerUpdateVAlphaRequest {
  */
 export class EinsatzApi extends runtime.BaseAPI {
   /**
-   * Markiert einen Einsatz als ARCHIVIERT. Einsätze werden gemäß No-Delete Policy niemals physisch gelöscht.
+   * Markiert einen Einsatz als ARCHIVIERT. Niemals physisch gelöscht.
    * Einsatz archivieren (Soft-Delete)
    */
   async einsatzControllerArchiveVAlphaRaw(
     requestParameters: EinsatzControllerArchiveVAlphaRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<EinsatzControllerCreateVAlpha200Response>> {
+  ): Promise<runtime.ApiResponse<EinsatzDto>> {
     if (requestParameters['id'] == null) {
       throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling einsatzControllerArchiveVAlpha().');
     }
@@ -132,29 +135,26 @@ export class EinsatzApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => EinsatzControllerCreateVAlpha200ResponseFromJSON(jsonValue));
+    return new runtime.JSONApiResponse(response, (jsonValue) => EinsatzDtoFromJSON(jsonValue));
   }
 
   /**
-   * Markiert einen Einsatz als ARCHIVIERT. Einsätze werden gemäß No-Delete Policy niemals physisch gelöscht.
+   * Markiert einen Einsatz als ARCHIVIERT. Niemals physisch gelöscht.
    * Einsatz archivieren (Soft-Delete)
    */
-  async einsatzControllerArchiveVAlpha(
-    requestParameters: EinsatzControllerArchiveVAlphaRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<EinsatzControllerCreateVAlpha200Response> {
+  async einsatzControllerArchiveVAlpha(requestParameters: EinsatzControllerArchiveVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<EinsatzDto> {
     const response = await this.einsatzControllerArchiveVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
 
   /**
-   * Erstellt einen neuen Einsatz mit automatisch generiertem Namen. Alle Felder sind optional.
+   * Erstellt einen neuen Einsatz mit automatisch generiertem Namen.
    * Neuen Einsatz erstellen
    */
   async einsatzControllerCreateVAlphaRaw(
     requestParameters: EinsatzControllerCreateVAlphaRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<EinsatzControllerCreateVAlpha200Response>> {
+  ): Promise<runtime.ApiResponse<EinsatzDto>> {
     if (requestParameters['createEinsatzDto'] == null) {
       throw new runtime.RequiredError('createEinsatzDto', 'Required parameter "createEinsatzDto" was null or undefined when calling einsatzControllerCreateVAlpha().');
     }
@@ -184,23 +184,20 @@ export class EinsatzApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => EinsatzControllerCreateVAlpha200ResponseFromJSON(jsonValue));
+    return new runtime.JSONApiResponse(response, (jsonValue) => EinsatzDtoFromJSON(jsonValue));
   }
 
   /**
-   * Erstellt einen neuen Einsatz mit automatisch generiertem Namen. Alle Felder sind optional.
+   * Erstellt einen neuen Einsatz mit automatisch generiertem Namen.
    * Neuen Einsatz erstellen
    */
-  async einsatzControllerCreateVAlpha(
-    requestParameters: EinsatzControllerCreateVAlphaRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<EinsatzControllerCreateVAlpha200Response> {
+  async einsatzControllerCreateVAlpha(requestParameters: EinsatzControllerCreateVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<EinsatzDto> {
     const response = await this.einsatzControllerCreateVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
 
   /**
-   * Gibt eine paginierte Liste aller Einsätze zurück. WICHTIG: Archivierte Einsätze werden gemäß No-Delete Policy standardmäßig ausgeschlossen. Verwende includeArchived=true um archivierte Einsätze einzuschließen.
+   * Paginierte Liste aller Einsätze. Archivierte standardmäßig ausgeschlossen.
    * Alle Einsätze abrufen
    */
   async einsatzControllerFindAllVAlphaRaw(
@@ -265,7 +262,7 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
-   * Gibt eine paginierte Liste aller Einsätze zurück. WICHTIG: Archivierte Einsätze werden gemäß No-Delete Policy standardmäßig ausgeschlossen. Verwende includeArchived=true um archivierte Einsätze einzuschließen.
+   * Paginierte Liste aller Einsätze. Archivierte standardmäßig ausgeschlossen.
    * Alle Einsätze abrufen
    */
   async einsatzControllerFindAllVAlpha(
@@ -283,7 +280,7 @@ export class EinsatzApi extends runtime.BaseAPI {
   async einsatzControllerFindOneVAlphaRaw(
     requestParameters: EinsatzControllerFindOneVAlphaRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<EinsatzControllerCreateVAlpha200Response>> {
+  ): Promise<runtime.ApiResponse<EinsatzControllerFindOneVAlpha200Response>> {
     if (requestParameters['id'] == null) {
       throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling einsatzControllerFindOneVAlpha().');
     }
@@ -310,7 +307,7 @@ export class EinsatzApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => EinsatzControllerCreateVAlpha200ResponseFromJSON(jsonValue));
+    return new runtime.JSONApiResponse(response, (jsonValue) => EinsatzControllerFindOneVAlpha200ResponseFromJSON(jsonValue));
   }
 
   /**
@@ -320,13 +317,13 @@ export class EinsatzApi extends runtime.BaseAPI {
   async einsatzControllerFindOneVAlpha(
     requestParameters: EinsatzControllerFindOneVAlphaRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<EinsatzControllerCreateVAlpha200Response> {
+  ): Promise<EinsatzControllerFindOneVAlpha200Response> {
     const response = await this.einsatzControllerFindOneVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
 
   /**
-   * Optimierte Abfrage für Dashboard: Liefert alle nicht-archivierten Einsätze mit ETB-Einträge und POI-Counts. Sortiert nach Erstellungsdatum (neueste zuerst).
+   * Optimierte Abfrage für Dashboard: Liefert alle nicht-archivierten Einsätze mit ETB-Einträge und POI-Counts.
    * Aktive Einsätze mit Counts abrufen
    */
   async einsatzControllerGetActiveEinsaetzeWithCountsVAlphaRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<EinsatzListItemDto>>> {
@@ -356,7 +353,7 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
-   * Optimierte Abfrage für Dashboard: Liefert alle nicht-archivierten Einsätze mit ETB-Einträge und POI-Counts. Sortiert nach Erstellungsdatum (neueste zuerst).
+   * Optimierte Abfrage für Dashboard: Liefert alle nicht-archivierten Einsätze mit ETB-Einträge und POI-Counts.
    * Aktive Einsätze mit Counts abrufen
    */
   async einsatzControllerGetActiveEinsaetzeWithCountsVAlpha(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<EinsatzListItemDto>> {
@@ -418,7 +415,7 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
-   * Lädt einen Einsatz zusammen mit seinem Einsatztagebuch und Lagekarte in einer einzigen Anfrage. ETB und Lagekarte können null sein, wenn sie noch nicht erstellt wurden.
+   * Lädt Einsatz mit ETB und Lagekarte in einer Anfrage.
    * Einsatz mit ETB und Lagekarte abrufen (kombiniert)
    */
   async einsatzControllerGetEinsatzDetailsVAlphaRaw(
@@ -455,7 +452,7 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
-   * Lädt einen Einsatz zusammen mit seinem Einsatztagebuch und Lagekarte in einer einzigen Anfrage. ETB und Lagekarte können null sein, wenn sie noch nicht erstellt wurden.
+   * Lädt Einsatz mit ETB und Lagekarte in einer Anfrage.
    * Einsatz mit ETB und Lagekarte abrufen (kombiniert)
    */
   async einsatzControllerGetEinsatzDetailsVAlpha(
@@ -467,7 +464,7 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
-   * Gibt nur die ID des nächsten Einsatzes basierend auf createdAt zurück. Effizient für Navigation.
+   * Gibt die ID des nächsten Einsatzes basierend auf createdAt zurück.
    * ID des nächsten Einsatzes abrufen
    */
   async einsatzControllerGetNextVAlphaRaw(
@@ -504,7 +501,7 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
-   * Gibt nur die ID des nächsten Einsatzes basierend auf createdAt zurück. Effizient für Navigation.
+   * Gibt die ID des nächsten Einsatzes basierend auf createdAt zurück.
    * ID des nächsten Einsatzes abrufen
    */
   async einsatzControllerGetNextVAlpha(
@@ -516,7 +513,7 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
-   * Gibt nur die ID des vorherigen Einsatzes basierend auf createdAt zurück. Effizient für Navigation.
+   * Gibt die ID des vorherigen Einsatzes basierend auf createdAt zurück.
    * ID des vorherigen Einsatzes abrufen
    */
   async einsatzControllerGetPreviousVAlphaRaw(
@@ -553,7 +550,7 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
-   * Gibt nur die ID des vorherigen Einsatzes basierend auf createdAt zurück. Effizient für Navigation.
+   * Gibt die ID des vorherigen Einsatzes basierend auf createdAt zurück.
    * ID des vorherigen Einsatzes abrufen
    */
   async einsatzControllerGetPreviousVAlpha(
@@ -565,7 +562,7 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
-   * Gibt die Anzahl der Einsätze pro Status zurück.
+   * Anzahl der Einsätze pro Status.
    * Status-Statistiken abrufen
    */
   async einsatzControllerGetStatusCountsVAlphaRaw(
@@ -602,7 +599,7 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
-   * Gibt die Anzahl der Einsätze pro Status zurück.
+   * Anzahl der Einsätze pro Status.
    * Status-Statistiken abrufen
    */
   async einsatzControllerGetStatusCountsVAlpha(
@@ -614,13 +611,13 @@ export class EinsatzApi extends runtime.BaseAPI {
   }
 
   /**
-   * Aktualisiert einen bestehenden Einsatz. Der Name wird automatisch neu generiert.
+   * Aktualisiert einen bestehenden Einsatz.
    * Einsatz aktualisieren
    */
   async einsatzControllerUpdateVAlphaRaw(
     requestParameters: EinsatzControllerUpdateVAlphaRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<EinsatzControllerCreateVAlpha200Response>> {
+  ): Promise<runtime.ApiResponse<EinsatzDto>> {
     if (requestParameters['id'] == null) {
       throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling einsatzControllerUpdateVAlpha().');
     }
@@ -654,17 +651,14 @@ export class EinsatzApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => EinsatzControllerCreateVAlpha200ResponseFromJSON(jsonValue));
+    return new runtime.JSONApiResponse(response, (jsonValue) => EinsatzDtoFromJSON(jsonValue));
   }
 
   /**
-   * Aktualisiert einen bestehenden Einsatz. Der Name wird automatisch neu generiert.
+   * Aktualisiert einen bestehenden Einsatz.
    * Einsatz aktualisieren
    */
-  async einsatzControllerUpdateVAlpha(
-    requestParameters: EinsatzControllerUpdateVAlphaRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<EinsatzControllerCreateVAlpha200Response> {
+  async einsatzControllerUpdateVAlpha(requestParameters: EinsatzControllerUpdateVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<EinsatzDto> {
     const response = await this.einsatzControllerUpdateVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }

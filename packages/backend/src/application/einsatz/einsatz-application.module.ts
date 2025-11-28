@@ -5,8 +5,20 @@ import { LagekarteInfrastructureModule } from '@infrastructure/lagekarte-infrast
 import { EtbInfrastructureModule } from '@infrastructure/etb/etb-infrastructure.module';
 import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
+import { EinsatzRepository } from '@/einsatz/einsatz.repository';
 import { CreateEinsatzHandler, UpdateEinsatzHandler, DeleteEinsatzHandler, CompleteEinsatzHandler, ArchiveEinsatzHandler, UpdateEinsatzStatusHandler } from './commands';
-import { GetActiveEinsaetzeQueryHandler, GetEinsatzByIdQueryHandler, GetEinsatzByNummerQueryHandler, GetEinsatzDetailsQueryHandler, GetActiveEinsaetzeWithCountsQueryHandler } from './queries';
+import {
+  GetActiveEinsaetzeQueryHandler,
+  GetEinsatzByIdQueryHandler,
+  GetEinsatzByNummerQueryHandler,
+  GetEinsatzDetailsQueryHandler,
+  GetActiveEinsaetzeWithCountsQueryHandler,
+  GetStatusCountsQueryHandler,
+  GetEinsatzCompletenessQueryHandler,
+  GetAllEinsaetzeQueryHandler,
+  GetPreviousEinsatzIdQueryHandler,
+  GetNextEinsatzIdQueryHandler,
+} from './queries';
 
 /**
  * NestJS-Modul für Application Layer - Einsatz Bounded Context.
@@ -55,6 +67,8 @@ import { GetActiveEinsaetzeQueryHandler, GetEinsatzByIdQueryHandler, GetEinsatzB
     EtbInfrastructureModule,
   ],
   providers: [
+    // Legacy Repository (für GetAllEinsaetzeQueryHandler - TODO: migrieren zu IEinsatzRepository)
+    EinsatzRepository,
     // Domain Services (Story 4-2)
     EinsatzCompletenessService,
     EinsatzArchivalPolicy,
@@ -73,6 +87,12 @@ import { GetActiveEinsaetzeQueryHandler, GetEinsatzByIdQueryHandler, GetEinsatzB
     // Query Handlers (Story 4-3b: Combined Cross-Aggregate Queries)
     GetEinsatzDetailsQueryHandler,
     GetActiveEinsaetzeWithCountsQueryHandler,
+    // Query Handlers (Story 4-8: Additional Queries for Controller)
+    GetStatusCountsQueryHandler,
+    GetEinsatzCompletenessQueryHandler,
+    GetAllEinsaetzeQueryHandler,
+    GetPreviousEinsatzIdQueryHandler,
+    GetNextEinsatzIdQueryHandler,
   ],
   exports: [
     // Export handlers for use in Infrastructure Layer (Controllers)
@@ -90,6 +110,12 @@ import { GetActiveEinsaetzeQueryHandler, GetEinsatzByIdQueryHandler, GetEinsatzB
     // Story 4-3b: Combined Cross-Aggregate Query Handlers
     GetEinsatzDetailsQueryHandler,
     GetActiveEinsaetzeWithCountsQueryHandler,
+    // Story 4-8: Additional Query Handlers
+    GetStatusCountsQueryHandler,
+    GetEinsatzCompletenessQueryHandler,
+    GetAllEinsaetzeQueryHandler,
+    GetPreviousEinsatzIdQueryHandler,
+    GetNextEinsatzIdQueryHandler,
   ],
 })
 export class EinsatzApplicationModule {}

@@ -20,7 +20,7 @@ import {
   VERSION_NEUTRAL,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiBody, ApiCookieAuth, ApiForbiddenResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiBody, ApiCookieAuth, ApiForbiddenResponse, ApiHeader, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -339,11 +339,12 @@ export class AuthController {
    * User Logout via CQRS (LogoutCommand)
    *
    * Meldet einen User ab und löscht die Authentifizierung-Cookies.
+   * JWT Token wird automatisch aus dem Cookie extrahiert.
    * MVP: Stateless JWT (Token bleibt gültig bis Expiration 24h).
    * Future: Redis Blacklist für echtes Token-Revocation.
    *
-   * @param authHeader - Authorization Header mit JWT Token
-   * @param res - Express Response für Cookie-Verwaltung
+   * @param req - Express Request mit accessToken Cookie
+   * @param response - Express Response für Cookie-Verwaltung
    * @throws BadRequestException bei fehlendem oder ungültigem Token
    */
   @Post('logout')
@@ -359,9 +360,10 @@ export class AuthController {
   @ApiUnauthorizedResponse({
     description: 'Nicht authentifiziert - JWT Token fehlt oder ungültig',
   })
-  async logout(@Headers('authorization') authHeader: string, @Res({ passthrough: true }) response: Response): Promise<void> {
-    // 1. Token extrahieren
-    const token = authHeader?.replace('Bearer ', '');
+  @ApiCookieAuth()
+  async logout(@Req() req: Request, @Res({ passthrough: true }) response: Response): Promise<void> {
+    // 1. Token aus Cookie extrahieren (JwtAuthGuard hat bereits validiert)
+    const token = req.cookies?.accessToken;
 
     // 2. LogoutCommand erstellen
     const commandResult = LogoutCommand.create(token);

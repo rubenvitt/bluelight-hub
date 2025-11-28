@@ -1,7 +1,7 @@
 import { Result } from '@domain/common/result';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import type { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
+import { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -30,13 +30,14 @@ import type { ArchiveEinsatzCommand } from './archive-einsatz.command';
 @Injectable()
 export class ArchiveEinsatzHandler {
   private readonly logger = new Logger(ArchiveEinsatzHandler.name);
+  /** Stateless Domain Policy - direkte Instanziierung da keine Dependencies */
+  private readonly archivalPolicy = new EinsatzArchivalPolicy();
 
   constructor(
     @Inject('IEinsatzRepository')
     private readonly einsatzRepository: IEinsatzRepository,
     @Inject('IEventPublisher')
     private readonly eventPublisher: IEventPublisher,
-    private readonly archivalPolicy: EinsatzArchivalPolicy,
   ) {}
 
   /**

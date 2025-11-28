@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { IQueryHandler } from '@nestjs/cqrs';
+import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { Result } from '../../../../domain/common/result';
 import type { PrismaService } from '../../../../prisma/prisma.service';
 import type { EinsatzListItemDto } from '../../dto/einsatz-list-item.dto';
-import type { GetActiveEinsaetzeWithCountsQuery } from './get-active-einsaetze-with-counts.query';
+import { GetActiveEinsaetzeWithCountsQuery } from './get-active-einsaetze-with-counts.query';
 
 /**
  * Handler fuer GetActiveEinsaetzeWithCountsQuery.
@@ -52,6 +52,7 @@ import type { GetActiveEinsaetzeWithCountsQuery } from './get-active-einsaetze-w
  * }
  * ```
  */
+@QueryHandler(GetActiveEinsaetzeWithCountsQuery)
 @Injectable()
 export class GetActiveEinsaetzeWithCountsQueryHandler implements IQueryHandler<GetActiveEinsaetzeWithCountsQuery, Result<EinsatzListItemDto[]>> {
   private readonly logger = new Logger(GetActiveEinsaetzeWithCountsQueryHandler.name);

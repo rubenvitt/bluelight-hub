@@ -1,5 +1,6 @@
 import { PrismaModule } from '@/prisma/prisma.module';
 import { Module } from '@nestjs/common';
+import { CqrsModule } from '@nestjs/cqrs';
 import { EinsatzApplicationModule } from '@/application/einsatz/einsatz-application.module';
 import { EinsatzController } from './einsatz.controller';
 import { EinsatzRepository } from './einsatz.repository';
@@ -21,7 +22,7 @@ import { EinsatzService } from './einsatz.service';
  * Abhängigkeiten zu vermeiden.
  */
 @Module({
-  imports: [PrismaModule, EinsatzApplicationModule],
+  imports: [CqrsModule, PrismaModule, EinsatzApplicationModule],
   controllers: [EinsatzController],
   providers: [EinsatzService, EinsatzRepository],
   exports: [EinsatzService],

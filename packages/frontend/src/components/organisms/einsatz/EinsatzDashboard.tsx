@@ -5,14 +5,14 @@ import { SearchInput } from '@/components/molecules/search-input.molecule';
 import { FilterPanel } from '@/components/organisms/dashboard/FilterPanel';
 import { MobileFilterDialog } from '@/components/organisms/dashboard/MobileFilterDialog';
 import { EinsatzCreateForm } from '@/components/organisms/einsatz/EinsatzCreateForm';
-import { useEinsaetze } from '@/hooks/useEinsaetze';
+import { useActiveEinsaetzeWithCounts } from '@/hooks/useEinsaetze';
 import { useEinsatzStatusCounts } from '@/hooks/useEinsatzStatusCounts';
 import { Button } from '@atoms/button.atom';
 import { EinsatzControllerFindAllVAlphaOrderByEnum, EinsatzControllerFindAllVAlphaOrderDirectionEnum, EinsatzResponseDtoStatusEnum } from '@bluelight-hub/shared/client';
 import { Link } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
-import { PiFunnel, PiFunnelX, PiPlus, PiSpinner } from 'react-icons/pi';
+import { PiFunnel, PiFunnelX, PiPlus } from 'react-icons/pi';
 
 interface SortOption {
   key: EinsatzControllerFindAllVAlphaOrderByEnum;
@@ -31,58 +31,56 @@ export function EinsatzDashboard() {
   const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
-  const effectiveStatusFilter = useMemo(() => {
-    if (showArchived && !statusFilter) {
-      return undefined;
-    }
-    return statusFilter;
-  }, [showArchived, statusFilter]);
+  // Use optimized hook with counts
+  const { data: rawEinsaetze = [], isLoading, error, refetch } = useActiveEinsaetzeWithCounts();
 
-  const {
-    einsaetze: rawEinsaetze,
-    isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    error,
-    fetchNextPage,
-    refetch,
-  } = useEinsaetze({
-    status: effectiveStatusFilter,
-    search: searchTerm,
-    orderBy: sortOption.key,
-    orderDirection: sortOption.direction,
-    limit: 20,
-    infinite: true,
-  });
-
+  // Apply client-side filtering and sorting
   const einsaetze = useMemo(() => {
-    if (showArchived && !statusFilter) {
-      return rawEinsaetze.filter((e) => e.status !== EinsatzResponseDtoStatusEnum.Archiviert);
+    let filtered = rawEinsaetze;
+
+    // Filter by status
+    if (statusFilter) {
+      filtered = filtered.filter((e) => e.status === statusFilter);
+    } else if (!showArchived) {
+      filtered = filtered.filter((e) => e.status !== EinsatzResponseDtoStatusEnum.Archiviert);
     }
-    return rawEinsaetze;
-  }, [rawEinsaetze, showArchived, statusFilter]);
+
+    // Filter by search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (e) =>
+          e.alarmstichwort.toLowerCase().includes(term) ||
+          e.nummer.toLowerCase().includes(term) ||
+          e.einsatzort?.ort?.toLowerCase().includes(term) ||
+          e.einsatzort?.strasse?.toLowerCase().includes(term),
+      );
+    }
+
+    // Sort
+    const sorted = [...filtered].sort((a, b) => {
+      let aValue: string | number | Date = a.createdAt;
+      let bValue: string | number | Date = b.createdAt;
+
+      if (sortOption.key === EinsatzControllerFindAllVAlphaOrderByEnum.Nummer) {
+        aValue = a.nummer;
+        bValue = b.nummer;
+      } else if (sortOption.key === EinsatzControllerFindAllVAlphaOrderByEnum.Alarmstichwort) {
+        aValue = a.alarmstichwort;
+        bValue = b.alarmstichwort;
+      } else if (sortOption.key === EinsatzControllerFindAllVAlphaOrderByEnum.Status) {
+        aValue = a.status;
+        bValue = b.status;
+      }
+
+      const comparison = aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      return sortOption.direction === EinsatzControllerFindAllVAlphaOrderDirectionEnum.Desc ? -comparison : comparison;
+    });
+
+    return sorted;
+  }, [rawEinsaetze, statusFilter, showArchived, searchTerm, sortOption]);
 
   const { total, counts } = useEinsatzStatusCounts(true);
-
-  // Intersection Observer für Infinite Scrolling
-  const observerTarget = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const target = observerTarget.current;
-    if (!target) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage?.();
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   useHotkeys(
     'mod+n',
@@ -101,10 +99,6 @@ export function EinsatzDashboard() {
           ? EinsatzControllerFindAllVAlphaOrderDirectionEnum.Desc
           : EinsatzControllerFindAllVAlphaOrderDirectionEnum.Asc,
     }));
-  };
-
-  const handleQuickCreate = () => {
-    setIsCreatePanelOpen(true);
   };
 
   const handleCreateSuccess = (_einsatzId: string) => {
@@ -148,7 +142,7 @@ export function EinsatzDashboard() {
       <div className="flex-shrink-0 border-gray-200 border-b bg-white px-2 py-3 sm:px-4 sm:py-4 lg:px-6 dark:border-gray-700 dark:bg-gray-800">
         <div className="flex items-center justify-between">
           <h1 className="font-bold text-2xl text-gray-900 dark:text-white">Einsatz-Dashboard</h1>
-          <Button onClick={handleQuickCreate} title="Neuer Einsatz (Cmd+N)" kbd="Cmd+N">
+          <Button onClick={() => setIsCreatePanelOpen(true)} title="Neuer Einsatz (Cmd+N)" kbd="Cmd+N">
             <PiPlus className="mr-2 h-5 w-5" />
             Neuer Einsatz
           </Button>
@@ -205,12 +199,12 @@ export function EinsatzDashboard() {
                 <p className="mt-4 text-gray-600 dark:text-gray-400">Lade Einsätze...</p>
               </div>
             </div>
-          ) : einsaetze.length === 0 && !isFetchingNextPage ? (
+          ) : einsaetze.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
                 <p className="mb-4 text-gray-600 dark:text-gray-400">Keine Einsätze gefunden</p>
                 {!statusFilter ? (
-                  <Button onClick={handleQuickCreate}>
+                  <Button onClick={() => setIsCreatePanelOpen(true)}>
                     <PiPlus className="mr-2 h-5 w-5" />
                     Ersten Einsatz erstellen
                   </Button>
@@ -234,17 +228,7 @@ export function EinsatzDashboard() {
                   <EinsatzListItem einsatz={einsatz} />
                 </Link>
               ))}
-
-              {/* Load More Trigger & Indicator */}
-              <div ref={observerTarget} className="mt-4">
-                {isFetchingNextPage && (
-                  <div className="flex items-center justify-center rounded-lg bg-white p-4 dark:bg-gray-800">
-                    <PiSpinner className="h-6 w-6 animate-spin text-blue-600" />
-                    <span className="ml-2 text-gray-600 dark:text-gray-400">Lade weitere Einsätze...</span>
-                  </div>
-                )}
-                {!hasNextPage && einsaetze.length > 0 && <div className="p-4 text-center text-gray-500 text-sm dark:text-gray-400">Alle {einsaetze.length} Einsätze geladen</div>}
-              </div>
+              {einsaetze.length > 0 && <div className="p-4 text-center text-gray-500 text-sm dark:text-gray-400">{einsaetze.length} Einsätze geladen</div>}
             </div>
           )}
         </div>

@@ -1,3 +1,4 @@
+import { api } from '@/api';
 import { CommandTrigger } from '@/components/atoms/command-trigger.atom';
 import { Container } from '@/components/atoms/container.atom';
 import { Dialog } from '@/components/molecules/dialog.molecule';
@@ -8,6 +9,7 @@ import { CommandPalette } from '@/components/organisms/command-palette';
 import { CommandPaletteErrorBoundary } from '@/components/organisms/command-palette/CommandPaletteErrorBoundary';
 import { useEinsatzDetails } from '@/hooks/einsatz/useEinsatzDetails';
 import { useEinsatzModules } from '@/hooks/einsatz/useEinsatzModules';
+import { QUERY_KEYS } from '@/queryKeys';
 import { cn } from '@/utils/cn';
 import { getModuleActiveColor, getModuleColor } from '@/utils/module-colors';
 import { Button } from '@atoms/button.atom';
@@ -43,7 +45,7 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
 
   // Lade kombinierte Einsatzdaten (Einsatz + ETB + Lagekarte)
   // ETB und Lagekarte werden im Cache vorgeladen, sodass Child-Routes diese nutzen können
-  const { einsatz, etb, lagekarte } = useEinsatzDetails(einsatzId);
+  const { einsatz } = useEinsatzDetails(einsatzId);
 
   // Modul-Konfiguration aus Hook
   const modules = useEinsatzModules();

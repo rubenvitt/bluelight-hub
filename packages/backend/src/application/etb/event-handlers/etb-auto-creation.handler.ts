@@ -9,11 +9,11 @@
  * @see EinsatzErstelltEvent - Trigger Event (Service Layer)
  * @see CreateEtbHandler - Delegierter Command Handler
  */
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import type { EinsatzErstelltEvent } from '@/einsatz/events/einsatz-erstellt.event';
-import { CreateEtbHandler } from '../commands/create-etb/create-etb.handler';
+import type { CreateEtbHandler } from '../commands/create-etb/create-etb.handler';
 import { CreateEtbCommand } from '../commands/create-etb/create-etb.command';
 
 /**
@@ -40,7 +40,7 @@ import { CreateEtbCommand } from '../commands/create-etb/create-etb.command';
 export class EtbAutoCreationHandler {
   private readonly logger = new Logger(EtbAutoCreationHandler.name);
 
-  constructor(@Inject(CreateEtbHandler) private readonly createEtbHandler: CreateEtbHandler) {}
+  constructor(private readonly createEtbHandler: CreateEtbHandler) {}
 
   /**
    * Verarbeitet EinsatzErstelltEvent und erstellt automatisch ein ETB.

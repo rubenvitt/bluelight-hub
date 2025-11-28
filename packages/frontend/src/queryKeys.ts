@@ -43,6 +43,10 @@ export const EINSATZ_QUERY_KEYS = {
   next: (id: string) => [...EINSATZ_QUERY_KEYS.all, 'next', id] as const,
   completeness: (id: string) => [...EINSATZ_QUERY_KEYS.detail(id), 'completeness'] as const,
   statusCounts: (includeArchived = false) => [...EINSATZ_QUERY_KEYS.all, 'statusCounts', includeArchived] as const,
+
+  // Combined queries for optimized data fetching
+  activeWithCounts: () => [...EINSATZ_QUERY_KEYS.all, 'activeWithCounts'] as const,
+  detailsCombined: (id: string) => [...EINSATZ_QUERY_KEYS.detail(id), 'combined'] as const,
 } as const;
 
 export const ETB_QUERY_KEYS = {

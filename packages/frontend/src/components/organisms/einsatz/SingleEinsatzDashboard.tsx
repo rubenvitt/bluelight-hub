@@ -14,7 +14,7 @@ import { useParams } from '@tanstack/react-router';
 import { addMinutes, format, formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useEffect } from 'react';
-import { PiCheckCircle, PiClipboard, PiClock, PiFileText, PiMapPin, PiPhone, PiRadio, PiTruck, PiUsers, PiWarning } from 'react-icons/pi';
+import { PiCheckCircle, PiClipboard, PiClock, PiFileText, PiMapPin, PiPhone, PiRadio, PiTruck } from 'react-icons/pi';
 
 /**
  * Dashboard für einen einzelnen aktiven Einsatz
@@ -39,8 +39,8 @@ export function SingleEinsatzDashboard() {
 
   // TODO: Switch to useActiveEinsaetzeWithCounts when available
   // These fields will be available after backend implementation and API regeneration
-  const etbEintraegeCount = einsatz ? (einsatz as any).etbEintraegeCount : undefined;
-  const poisCount = einsatz ? (einsatz as any).poisCount : undefined;
+  const etbEintraegeCount = einsatz && 'etbEintraegeCount' in einsatz ? (einsatz as { etbEintraegeCount: number }).etbEintraegeCount : undefined;
+  const poisCount = einsatz && 'poisCount' in einsatz ? (einsatz as { poisCount: number }).poisCount : undefined;
 
   // Setze diesen Einsatz automatisch als aktiv
   useEffect(() => {

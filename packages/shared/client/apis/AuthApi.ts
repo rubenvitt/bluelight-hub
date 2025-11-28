@@ -23,6 +23,8 @@ import type {
   AuthCheckResponseDto,
   AuthRequestDto,
   AuthResponseDto,
+  LoginDto,
+  LoginResponseDto,
   LogoutResponseDto,
   PublicUsersResponseDto,
   RefreshResponseDto,
@@ -46,6 +48,10 @@ import {
   AuthRequestDtoToJSON,
   AuthResponseDtoFromJSON,
   AuthResponseDtoToJSON,
+  LoginDtoFromJSON,
+  LoginDtoToJSON,
+  LoginResponseDtoFromJSON,
+  LoginResponseDtoToJSON,
   LogoutResponseDtoFromJSON,
   LogoutResponseDtoToJSON,
   PublicUsersResponseDtoFromJSON,
@@ -60,6 +66,10 @@ export interface AuthControllerAdminLoginRequest {
 
 export interface AuthControllerAdminSetupRequest {
   adminSetupDto: AdminSetupDto;
+}
+
+export interface AuthControllerLoginRequest {
+  loginDto: LoginDto;
 }
 
 export interface AuthControllerUnifiedAuthRequest {
@@ -277,10 +287,48 @@ export class AuthApi extends runtime.BaseAPI {
   }
 
   /**
-   * Meldet den Benutzer ab und löscht alle Authentifizierung-Cookies
-   * Benutzer abmelden
+   * Meldet einen User an und gibt JWT Token zurück. PASSWORDLESS Auth für USER Role, PASSWORD-REQUIRED für ADMIN/SUPER_ADMIN.
+   * User Login (PASSWORDLESS für USER, PASSWORD für ADMIN)
    */
-  async authControllerLogoutRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<LogoutResponseDto>> {
+  async authControllerLoginRaw(requestParameters: AuthControllerLoginRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<LoginResponseDto>> {
+    if (requestParameters['loginDto'] == null) {
+      throw new runtime.RequiredError('loginDto', 'Required parameter "loginDto" was null or undefined when calling authControllerLogin().');
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    headerParameters['Content-Type'] = 'application/json';
+
+    const response = await this.request(
+      {
+        path: `/api/auth/login`,
+        method: 'POST',
+        headers: headerParameters,
+        query: queryParameters,
+        body: LoginDtoToJSON(requestParameters['loginDto']),
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response, (jsonValue) => LoginResponseDtoFromJSON(jsonValue));
+  }
+
+  /**
+   * Meldet einen User an und gibt JWT Token zurück. PASSWORDLESS Auth für USER Role, PASSWORD-REQUIRED für ADMIN/SUPER_ADMIN.
+   * User Login (PASSWORDLESS für USER, PASSWORD für ADMIN)
+   */
+  async authControllerLogin(requestParameters: AuthControllerLoginRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<LoginResponseDto> {
+    const response = await this.authControllerLoginRaw(requestParameters, initOverrides);
+    return await response.value();
+  }
+
+  /**
+   * Meldet den User ab und löscht alle Authentifizierung-Cookies. MVP: Token bleibt gültig bis Expiration.
+   * User Logout
+   */
+  async authControllerLogoutRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
     const queryParameters: any = {};
 
     const headerParameters: runtime.HTTPHeaders = {};
@@ -295,16 +343,15 @@ export class AuthApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => LogoutResponseDtoFromJSON(jsonValue));
+    return new runtime.VoidApiResponse(response);
   }
 
   /**
-   * Meldet den Benutzer ab und löscht alle Authentifizierung-Cookies
-   * Benutzer abmelden
+   * Meldet den User ab und löscht alle Authentifizierung-Cookies. MVP: Token bleibt gültig bis Expiration.
+   * User Logout
    */
-  async authControllerLogout(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<LogoutResponseDto> {
-    const response = await this.authControllerLogoutRaw(initOverrides);
-    return await response.value();
+  async authControllerLogout(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+    await this.authControllerLogoutRaw(initOverrides);
   }
 
   /**

@@ -328,7 +328,6 @@ describe('UpdateEinsatzStatusHandler', () => {
       await handler.execute(command);
 
       // Assert - Reihenfolge wichtig: save() vor publishAll()
-      const { calls } = mockRepository.save.mock;
       const publishCalls = mockEventPublisher.publishAll.mock.invocationCallOrder;
       const saveCalls = mockRepository.save.mock.invocationCallOrder;
       expect(saveCalls[0]).toBeLessThan(publishCalls[0]);

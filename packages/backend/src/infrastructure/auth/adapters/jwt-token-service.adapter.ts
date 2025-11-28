@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
 import type { JwtService } from '@nestjs/jwt';
 import type { IJwtAuthServicePort } from '@domain/ports/i-jwt-auth-service.port';
 import { UserId } from '@domain/value-objects/user-id';
@@ -70,10 +69,7 @@ interface JwtPayload {
 export class JwtTokenServiceAdapter implements IJwtAuthServicePort {
   private readonly logger = new Logger(JwtTokenServiceAdapter.name);
 
-  constructor(
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly jwtService: JwtService) {}
 
   /**
    * Generiert einen JWT Access Token für authentifizierten User.
@@ -113,7 +109,7 @@ export class JwtTokenServiceAdapter implements IJwtAuthServicePort {
       iat: Math.floor(Date.now() / 1000),
     };
 
-    const secret = this.configService.get<string>('JWT_SECRET');
+    const secret = process.env.JWT_SECRET;
     if (!secret) {
       throw new Error('JWT_SECRET not configured');
     }
@@ -154,7 +150,7 @@ export class JwtTokenServiceAdapter implements IJwtAuthServicePort {
    */
   async validateToken(token: string): Promise<Result<{ userId: UserId; role: UserRole }>> {
     try {
-      const secret = this.configService.get<string>('JWT_SECRET');
+      const secret = process.env.JWT_SECRET;
       if (!secret) {
         return Result.fail('JWT_SECRET not configured');
       }

@@ -25,7 +25,9 @@ type InfiniteEinsatzData = InfiniteData<EinsatzControllerFindAllVAlpha200Respons
 interface MutationContext {
   previousEinsatz?: EinsatzControllerCreateVAlpha200Response;
   previousEinsaetze?: EinsatzControllerFindAllVAlpha200Response;
+  previousActiveWithCounts?: EinsatzListItemDto[];
   optimisticEinsatz?: EinsatzResponseDto;
+  optimisticListItem?: EinsatzListItemDto;
 }
 
 /**
@@ -140,6 +142,7 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.einsatz.all });
 
       const previousEinsaetze = queryClient.getQueryData<EinsatzControllerFindAllVAlpha200Response>(QUERY_KEYS.einsatz.list(filters));
+      const previousActiveWithCounts = queryClient.getQueryData<EinsatzListItemDto[]>(QUERY_KEYS.einsatz.activeWithCounts());
 
       const optimisticEinsatz: EinsatzResponseDto = {
         id: `temp-${Date.now()}`,
@@ -152,6 +155,18 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
         updatedAt: new Date(),
       };
 
+      // Optimistic list item for activeWithCounts query
+      const optimisticListItem: EinsatzListItemDto = {
+        id: optimisticEinsatz.id,
+        nummer: newEinsatz.nummer || 'E{YEAR}-{ID}',
+        alarmstichwort: newEinsatz.alarmstichwort || 'Einsatz',
+        status: optimisticEinsatz.status as EinsatzListItemDto['status'],
+        einsatzort: newEinsatz.einsatzort || null,
+        createdAt: optimisticEinsatz.createdAt,
+        etbEintraegeCount: 0,
+        poisCount: 0,
+      };
+
       queryClient.setQueryData<EinsatzControllerFindAllVAlpha200Response>(QUERY_KEYS.einsatz.list(filters), (old) => {
         if (!old) return old;
         return {
@@ -159,6 +174,12 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
           data: [optimisticEinsatz, ...(old.data || [])],
           pagination: old.pagination ? { ...old.pagination, total: (old.pagination.total || 0) + 1 } : old.pagination,
         };
+      });
+
+      // Update activeWithCounts cache
+      queryClient.setQueryData<EinsatzListItemDto[]>(QUERY_KEYS.einsatz.activeWithCounts(), (old) => {
+        if (!old) return old;
+        return [optimisticListItem, ...old];
       });
 
       // Also update infinite query cache if it exists
@@ -179,11 +200,14 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
         });
       }
 
-      return { previousEinsaetze, optimisticEinsatz };
+      return { previousEinsaetze, previousActiveWithCounts, optimisticEinsatz, optimisticListItem };
     },
     onError: async (error: ResponseError, _newEinsatz, context?: MutationContext) => {
       if (context?.previousEinsaetze) {
         queryClient.setQueryData(QUERY_KEYS.einsatz.list(filters), context.previousEinsaetze);
+      }
+      if (context?.previousActiveWithCounts) {
+        queryClient.setQueryData(QUERY_KEYS.einsatz.activeWithCounts(), context.previousActiveWithCounts);
       }
 
       const message = await getApiErrorMessage(error, 'Der Einsatz konnte nicht erstellt werden.', 'createEinsatz');
@@ -214,6 +238,7 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
 
       const previousEinsatz = queryClient.getQueryData<EinsatzControllerCreateVAlpha200Response>(QUERY_KEYS.einsatz.detail(id));
       const previousEinsaetze = queryClient.getQueryData<EinsatzControllerFindAllVAlpha200Response>(QUERY_KEYS.einsatz.list(filters));
+      const previousActiveWithCounts = queryClient.getQueryData<EinsatzListItemDto[]>(QUERY_KEYS.einsatz.activeWithCounts());
 
       if (previousEinsatz?.data) {
         const archivedEinsatz: EinsatzResponseDto = {
@@ -235,6 +260,12 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
           };
         });
 
+        // Update activeWithCounts cache - mark as archived
+        queryClient.setQueryData<EinsatzListItemDto[]>(QUERY_KEYS.einsatz.activeWithCounts(), (old) => {
+          if (!old) return old;
+          return old.map((e) => (e.id === id ? { ...e, status: 'ARCHIVIERT' as const } : e));
+        });
+
         // Also update infinite query cache if it exists
         const infiniteData = queryClient.getQueryData<InfiniteEinsatzData>(QUERY_KEYS.einsatz.infinite(filters));
         if (infiniteData?.pages) {
@@ -248,7 +279,7 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
         }
       }
 
-      return { previousEinsatz, previousEinsaetze };
+      return { previousEinsatz, previousEinsaetze, previousActiveWithCounts };
     },
     onError: async (error: ResponseError, { id }, context?: MutationContext) => {
       if (context?.previousEinsatz) {
@@ -256,6 +287,9 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
       }
       if (context?.previousEinsaetze) {
         queryClient.setQueryData(QUERY_KEYS.einsatz.list(filters), context.previousEinsaetze);
+      }
+      if (context?.previousActiveWithCounts) {
+        queryClient.setQueryData(QUERY_KEYS.einsatz.activeWithCounts(), context.previousActiveWithCounts);
       }
 
       const message = await getApiErrorMessage(error, 'Der Einsatz konnte nicht archiviert werden.', 'archiveEinsatz');
@@ -290,6 +324,7 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
 
       const previousEinsatz = queryClient.getQueryData<EinsatzControllerCreateVAlpha200Response>(QUERY_KEYS.einsatz.detail(id));
       const previousEinsaetze = queryClient.getQueryData<EinsatzControllerFindAllVAlpha200Response>(QUERY_KEYS.einsatz.list(filters));
+      const previousActiveWithCounts = queryClient.getQueryData<EinsatzListItemDto[]>(QUERY_KEYS.einsatz.activeWithCounts());
 
       if (previousEinsatz?.data) {
         const updatedEinsatz: EinsatzResponseDto = {
@@ -312,6 +347,22 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
           };
         });
 
+        // Update activeWithCounts cache - preserve counts
+        queryClient.setQueryData<EinsatzListItemDto[]>(QUERY_KEYS.einsatz.activeWithCounts(), (old) => {
+          if (!old) return old;
+          return old.map((e) => {
+            if (e.id !== id) return e;
+            return {
+              ...e,
+              nummer: data.nummer ?? e.nummer,
+              alarmstichwort: data.alarmstichwort ?? e.alarmstichwort,
+              status: (data.status as EinsatzListItemDto['status']) ?? e.status,
+              einsatzort: data.einsatzort !== undefined ? data.einsatzort : e.einsatzort,
+              // Preserve counts - they will be refreshed on invalidation
+            };
+          });
+        });
+
         // Also update infinite query cache if it exists
         const infiniteData = queryClient.getQueryData<InfiniteEinsatzData>(QUERY_KEYS.einsatz.infinite(filters));
         if (infiniteData?.pages) {
@@ -325,7 +376,7 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
         }
       }
 
-      return { previousEinsatz, previousEinsaetze };
+      return { previousEinsatz, previousEinsaetze, previousActiveWithCounts };
     },
     onError: async (error: ResponseError, { id }, context?: MutationContext) => {
       if (context?.previousEinsatz) {
@@ -333,6 +384,9 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
       }
       if (context?.previousEinsaetze) {
         queryClient.setQueryData(QUERY_KEYS.einsatz.list(filters), context.previousEinsaetze);
+      }
+      if (context?.previousActiveWithCounts) {
+        queryClient.setQueryData(QUERY_KEYS.einsatz.activeWithCounts(), context.previousActiveWithCounts);
       }
 
       const message = await getApiErrorMessage(error, 'Der Einsatz konnte nicht aktualisiert werden.', 'updateEinsatz');
@@ -383,17 +437,17 @@ export const useEinsaetze = (options?: UseEinsaetzeOptions) => {
 };
 
 /**
- * Hook for dashboard list with ETB/POI counts.
- * Uses the optimized combined endpoint for better performance.
+ * Hook für Dashboard-Liste mit ETB/POI-Counts.
+ * Nutzt den optimierten kombinierten Endpoint für bessere Performance.
  *
- * This hook fetches all active (non-archived) Einsätze with aggregated counts
- * for ETB entries and POIs, optimized for dashboard display.
+ * Dieser Hook lädt alle aktiven (nicht archivierten) Einsätze mit aggregierten
+ * Zählern für ETB-Einträge und POIs, optimiert für Dashboard-Anzeige.
  *
- * @returns Query result with EinsatzListItemDto[] containing counts
+ * @returns Query-Ergebnis mit EinsatzListItemDto[] inkl. Counts
  */
 export const useActiveEinsaetzeWithCounts = () => {
   return useQuery<EinsatzListItemDto[], ResponseError>({
-    queryKey: [...QUERY_KEYS.einsatz.all, 'activeWithCounts'] as const,
+    queryKey: QUERY_KEYS.einsatz.activeWithCounts(),
     queryFn: async () => {
       try {
         return await api.einsatz().einsatzControllerGetActiveEinsaetzeWithCountsVAlpha();
@@ -492,6 +546,23 @@ export const useEinsatz = (id: string | null) => {
                   data: page.data?.map((e) => (e.id === id ? updatedEinsatz : e)) || [],
                 })),
               };
+            });
+          }
+          // Check if this is the activeWithCounts query
+          if (Array.isArray(queryKey) && queryKey[0] === 'einsatz' && queryKey[1] === 'activeWithCounts') {
+            queryClient.setQueryData<EinsatzListItemDto[]>(queryKey, (old) => {
+              if (!old) return old;
+              return old.map((e) => {
+                if (e.id !== id) return e;
+                return {
+                  ...e,
+                  nummer: data.nummer ?? e.nummer,
+                  alarmstichwort: data.alarmstichwort ?? e.alarmstichwort,
+                  status: (data.status as EinsatzListItemDto['status']) ?? e.status,
+                  einsatzort: data.einsatzort !== undefined ? data.einsatzort : e.einsatzort,
+                  // Preserve counts - they will be refreshed on invalidation
+                };
+              });
             });
           }
         });

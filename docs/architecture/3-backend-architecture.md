@@ -290,4 +290,296 @@ packages/backend/src/
 - **Soft-Delete:** Daten werden nicht physisch gelöscht
 - **Password Hashing:** Bcrypt (nur für Admin-User)
 
+## Testing Architecture
+
+### E2E Test Infrastructure Pattern
+
+Das Backend nutzt **End-to-End Integration Tests** gegen eine echte PostgreSQL Datenbank, um das vollständige Zusammenspiel aller Layer (Domain, Application, Infrastructure) zu validieren.
+
+**Test-Strategie:**
+- **Real Database:** PostgreSQL 17 (KEINE Mocks!)
+- **Direct Handler Invocation:** CQRS Handlers direkt aufrufen
+- **Given-When-Then BDD:** Strukturierter Test-Stil
+- **RBAC Testing:** Alle 3 User-Rollen (USER, ADMIN, SUPER_ADMIN)
+- **Outbox Pattern:** Event Publishing Verification
+- **Performance Baselines:** Kritische Operationen monitoren
+
+### Core Test Patterns
+
+#### 1. EinsatzE2eTestContext Pattern
+
+Zentrale Test-Context Factory für isolierte Test-Umgebungen:
+
+```typescript
+interface EinsatzE2eTestContext {
+  prisma: TestPrismaService;
+  repository: PrismaEinsatzRepository;
+  outboxRepository: PrismaOutboxRepository;
+  eventPublisher: SpyEventPublisher;
+  testUserIds: {
+    user: string;        // CUID2 für USER Rolle
+    admin: string;       // CUID2 für ADMIN Rolle
+    superAdmin: string;  // CUID2 für SUPER_ADMIN Rolle
+  };
+  testRunId: string;     // Unique Timestamp für Test Isolation
+}
+
+// Setup in beforeAll
+const ctx = await createEinsatzE2eModule();
+```
+
+**Was passiert intern:**
+1. PrismaClient für Test-DB erstellen
+2. Alte Test-Daten aufräumen (> 1 Stunde)
+3. Drei Test User anlegen (USER, ADMIN, SUPER_ADMIN)
+4. Repository und SpyEventPublisher instanzieren
+5. Outbox Repository initialisieren
+
+#### 2. SpyEventPublisher Pattern
+
+Mock-Implementation von `IEventPublisher` für Event-Verification ohne echtes Publishing:
+
+```typescript
+// Events publishen (automatisch durch Repository)
+await ctx.repository.save(aggregate);
+
+// Events abrufen und verifizieren
+const events = ctx.eventPublisher.getEventsByName('einsatz.created');
+expect(events).toHaveLength(1);
+expect(events[0].payload.alarmstichwort).toBe('Brand');
+
+// Events zwischen Tests clearen
+ctx.eventPublisher.clear();
+```
+
+**Use Cases:**
+- Domain Event Emission verifizieren
+- Event Payload validieren
+- Event Handler Integration testen
+- Outbox Pattern Integration prüfen
+
+#### 3. SQL Trigger Management Pattern
+
+**Problem:** PostgreSQL Triggers blockieren physisches DELETE (DRK Compliance).
+**Lösung:** `session_replication_role` für Test-Cleanup:
+
+```typescript
+// Trigger temporär deaktivieren
+await ctx.prisma.$executeRawUnsafe('SET session_replication_role = replica;');
+
+try {
+  // DELETE-Operationen ausführen
+  await ctx.prisma.$executeRawUnsafe('DELETE FROM einsaetze WHERE ...');
+} finally {
+  // IMMER re-enablen!
+  await ctx.prisma.$executeRawUnsafe('SET session_replication_role = DEFAULT;');
+}
+```
+
+**Wichtig:**
+- In Produktion NIEMALS `session_replication_role` ändern!
+- Pattern ist in `cleanupTestData()` und `teardownE2eModule()` automatisch implementiert
+- Constants: `DISABLE_TRIGGERS_SQL`, `ENABLE_TRIGGERS_SQL`
+
+#### 4. waitFor() Utility Pattern
+
+Polling-basierte asynchrone Assertions für Event Handler:
+
+```typescript
+// Event Handler läuft asynchron
+await createHandler.execute(command);
+
+// Warten bis Event im Publisher erscheint
+await waitFor(async () => {
+  const events = ctx.eventPublisher.getEventsByName('einsatz.created');
+  expect(events).toHaveLength(1);
+}, 500, 50); // 500ms timeout, 50ms interval
+```
+
+**Use Cases:**
+- Event Handler Verification
+- Outbox Event Persistence warten
+- Asynchrone Side-Effects prüfen
+
+### Integration Test Patterns
+
+#### Outbox Pattern Validation
+
+Testen der atomaren Event-Persistierung und Retry-Logic:
+
+```typescript
+// AC1.1: Einsatz-Events werden in Outbox persistiert
+const result = await createHandler.execute(command);
+const outboxEvents = await ctx.outboxRepository.findPendingEvents(10);
+expect(outboxEvents).toContainEqual(
+  expect.objectContaining({
+    eventName: 'einsatz.created',
+    status: 'PENDING',
+    aggregateId: result.value!,
+  })
+);
+
+// AC1.4: Retry Mechanism
+await ctx.outboxRepository.markAsFailed(eventId, 'Network Error');
+const failedEvent = await ctx.outboxRepository.findById(eventId);
+expect(failedEvent!.retryCount).toBe(1);
+```
+
+#### NO-DELETE Policy Testing
+
+Validierung der Domain-Invariante gegen PostgreSQL Trigger:
+
+```typescript
+// AC2.1: DELETE-Operationen werden blockiert
+await expect(
+  ctx.prisma.einsatz.delete({ where: { id: einsatzId } })
+).rejects.toThrow('DELETE operations are not allowed');
+
+// AC2.2: Soft-Delete Flag wird verwendet
+const command = ArchiveEinsatzCommand.create(einsatzId, userId).value!;
+await archiveHandler.execute(command);
+
+const archived = await ctx.repository.findById(einsatzId);
+expect(archived!.archivedAt).toBeDefined();
+expect(archived!.status.value).toBe('ARCHIVIERT');
+```
+
+#### RBAC Constraint Testing
+
+Multi-User Authorization Tests:
+
+```typescript
+// AC3.1: USER kann nur eigene Einsätze ändern
+const einsatzId = await createTestEinsatz(ctx, {
+  createdBy: ctx.testUserIds.admin,
+});
+
+const userCommand = UpdateEinsatzCommand.create({
+  id: einsatzId,
+  einsatzort: 'Neue Adresse',
+}, ctx.testUserIds.user).value!;
+
+const result = await updateHandler.execute(userCommand);
+expect(result.isFailure).toBe(true);
+expect(result.error).toContain('Unauthorized');
+
+// AC3.2: ADMIN kann alle Einsätze ändern
+const adminCommand = UpdateEinsatzCommand.create({
+  id: einsatzId,
+  einsatzort: 'Neue Adresse',
+}, ctx.testUserIds.admin).value!;
+
+const adminResult = await updateHandler.execute(adminCommand);
+expect(adminResult.isSuccess).toBe(true);
+```
+
+#### HTTP Integration Testing
+
+Controller-Level Tests mit NestJS TestingModule:
+
+```typescript
+// AC5.1: REST Endpoints funktionieren
+const response = await request(app.getHttpServer())
+  .post('/api/alpha/einsaetze')
+  .set('Cookie', authCookie)
+  .send({ alarmstichwort: 'Brand' })
+  .expect(201);
+
+expect(response.body).toMatchObject({
+  data: expect.objectContaining({
+    id: expect.any(String),
+    alarmstichwort: 'Brand',
+  }),
+  statusCode: 201,
+});
+
+// AC5.2: Authentication via JWT
+await request(app.getHttpServer())
+  .get('/api/alpha/einsaetze')
+  .expect(401); // Ohne Cookie
+```
+
+### Performance Baseline Testing
+
+Kritische Operationen mit festgelegten Thresholds:
+
+| Operation | Baseline | Tolerance | Test Threshold | AC |
+|-----------|----------|-----------|----------------|-----|
+| List Active Einsätze | 50ms | ±10% | 55ms | AC4.1 |
+| Get Einsatz Details | 80ms | ±10% | 88ms | AC4.2 |
+| Create Einsatz | 150ms | ±10% | 165ms | AC4.3 |
+| Combined Query Overhead | - | - | <50ms | AC4.4 |
+
+**Test Pattern:**
+
+```typescript
+const start = performance.now();
+await getActiveHandler.execute(query);
+const duration = performance.now() - start;
+
+expect(duration).toBeLessThan(55); // AC4.1
+```
+
+**Hinweis:** Baselines sind Guidelines, keine Hard Limits. CI/CD Pipeline kann langsamer sein.
+
+### Test Lifecycle Hooks
+
+**Setup Pattern (beforeAll):**
+```typescript
+let ctx: EinsatzE2eTestContext;
+
+beforeAll(async () => {
+  ctx = await createEinsatzE2eModule();
+  // - DB-Verbindung erstellen
+  // - Test-User anlegen
+  // - Repositories instanzieren
+});
+```
+
+**Cleanup Pattern (afterEach):**
+```typescript
+afterEach(async () => {
+  await cleanupTestData(ctx);
+  // - Einsatz-Daten löschen (Lagekarten, ETB, Outbox, Einsätze)
+  // - Users behalten für weitere Tests
+  // - EventPublisher Spy clearen
+});
+```
+
+**Teardown Pattern (afterAll):**
+```typescript
+afterAll(async () => {
+  await teardownE2eModule(ctx);
+  // - ALLE Test-Daten löschen (inkl. Users)
+  // - DB-Verbindung schließen
+  // - Cleanup mit disabled Triggers
+});
+```
+
+### Test Helper Functions
+
+| Helper | Verwendung |
+|--------|------------|
+| `generateTestId()` | CUID2-Format IDs für alle Entity Types |
+| `createTestEinsatz(ctx, options?)` | Test-Einsatz mit Custom-Properties erstellen |
+| `createTestUser(ctx, role, username?)` | Zusätzlichen Test-User anlegen |
+| `createTestOutboxEvent(ctx, options?)` | Test-Outbox-Event erstellen |
+| `cleanupEinsatzById(ctx, einsatzId)` | Spezifischen Einsatz mit Dependencies löschen |
+| `waitFor(assertion, timeout?, interval?)` | Asynchrone Assertions pollen |
+
+### Test Coverage
+
+**Implementierte Test-Suites:**
+
+| Test File | Acceptance Criteria | Beschreibung |
+|-----------|-------------------|--------------|
+| `outbox-integration.e2e.spec.ts` | AC1.1-1.7 | Outbox Pattern & Event Publishing |
+| `no-delete-policy.e2e.spec.ts` | AC2.1-2.5 | NO-DELETE Policy Enforcement |
+| `rbac-constraints.e2e.spec.ts` | AC3.1-3.4 | RBAC Authorization Tests |
+| `einsatz-performance.e2e.spec.ts` | AC4.1-4.4 | Performance Baselines |
+| `einsatz-controller.e2e.spec.ts` | AC5.1, 5.3, 5.4 | HTTP REST Integration |
+| `auth-controller.e2e.spec.ts` | AC5.2 | Authentication HTTP Integration |
+
+**Weitere Details:** `/packages/backend/src/infrastructure/einsatz/__tests__/README.md`
+
 ---

@@ -1,6 +1,7 @@
 import { CreateEtbCommand, type CreateEtbHandler } from '@application/etb/commands';
 import { Result } from '@domain/common/result';
 import type { EtbEintrag } from '@domain/entities/etb-eintrag.entity';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { EtbKategorie } from '@domain/value-objects/etb-kategorie';

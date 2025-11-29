@@ -4,6 +4,7 @@ import { Result } from '@domain/common/result';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiId } from '@domain/value-objects/poi-id';
 import { UserId } from '@domain/value-objects/user-id';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { CoordinateConverter } from '@application/common/coordinate-converter';

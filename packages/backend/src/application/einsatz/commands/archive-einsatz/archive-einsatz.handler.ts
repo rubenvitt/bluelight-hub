@@ -1,4 +1,5 @@
 import { Result } from '@domain/common/result';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';

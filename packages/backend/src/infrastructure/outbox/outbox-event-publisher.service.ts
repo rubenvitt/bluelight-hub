@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional, Inject } f
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaOutboxRepository, type OutboxEventDto } from './prisma-outbox.repository';
 import { EventDeserializer } from './event-deserializer';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
+import { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import type { IAlertService } from '@domain/services/ports/i-alert.service';
 
 /**

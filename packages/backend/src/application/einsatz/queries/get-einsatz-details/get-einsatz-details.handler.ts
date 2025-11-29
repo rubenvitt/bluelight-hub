@@ -1,6 +1,7 @@
 import type { IQueryHandler } from '@nestjs/cqrs';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';

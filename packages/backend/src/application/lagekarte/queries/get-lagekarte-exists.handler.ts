@@ -1,4 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { GetLagekarteExistsQuery } from './get-lagekarte-exists.query';

@@ -11,7 +11,7 @@ import { Roles } from '@/auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import type { ValidatedUser } from '@/auth/strategies/jwt.strategy';
-import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
+import { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Logger, NotFoundException, Param, Post, Put, Query, UseGuards, ValidationPipe } from '@nestjs/common';
 import {

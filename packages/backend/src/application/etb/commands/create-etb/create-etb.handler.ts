@@ -3,6 +3,7 @@ import { Result } from '@domain/common/result';
 import { EinsatztagebuchAggregate } from '@domain/aggregates/einsatztagebuch.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { EtbId } from '@domain/value-objects/etb-id';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import type { CreateEtbCommand } from './create-etb.command';

@@ -1,5 +1,6 @@
 import { CoordinateConverter } from '@application/common/coordinate-converter';
 import { Result } from '@domain/common/result';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';

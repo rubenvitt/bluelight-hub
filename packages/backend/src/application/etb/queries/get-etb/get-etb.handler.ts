@@ -1,4 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { Result } from '@domain/common/result';

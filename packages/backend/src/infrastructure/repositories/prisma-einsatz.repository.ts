@@ -1,5 +1,5 @@
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { Einsatz } from '@domain/aggregates/einsatz.aggregate';
+import { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { Result } from '@domain/common/result';
 import { Injectable, Logger } from '@nestjs/common';

@@ -1,5 +1,6 @@
 import type { IQueryHandler } from '@nestjs/cqrs';
 import { Injectable, Inject, Logger } from '@nestjs/common';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import { Result } from '@domain/common/result';
 import type { EinsatzDto } from '@application/einsatz/dto/einsatz.dto';

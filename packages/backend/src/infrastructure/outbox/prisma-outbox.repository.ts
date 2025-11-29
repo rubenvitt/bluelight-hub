@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { Prisma, OutboxEvent, OutboxEventStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { OutboxEvent, OutboxEventStatus } from '@prisma/client';
 import type { DomainEvent } from '@domain/common/domain-event';
 import { PrismaService } from '@/prisma/prisma.service';
 import { EventSerializer, type SerializedEvent } from './event-serializer';

@@ -1,5 +1,5 @@
 import { type CallHandler, type ExecutionContext, Injectable, type NestInterceptor } from '@nestjs/common';
-import type { Reflector } from '@nestjs/core';
+import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { createId } from '@paralleldrive/cuid2';
 import type { Observable } from 'rxjs';

@@ -3,6 +3,7 @@ import { Result } from '@domain/common/result';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { EintragId } from '@domain/value-objects/eintrag-id';
 import { UserId } from '@domain/value-objects/user-id';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import type { UpdateEintragCommand } from './update-eintrag.command';
 

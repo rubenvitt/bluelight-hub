@@ -21,6 +21,8 @@ module.exports = {
     ],
   },
   transformIgnorePatterns: [],
+  // Disable Babel coverage plugin - use SWC instead
+  coverageProvider: 'v8',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@domain/(.*)$': '<rootDir>/src/domain/$1',

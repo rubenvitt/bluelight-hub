@@ -1,5 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiCategory } from '@domain/value-objects/poi-category';

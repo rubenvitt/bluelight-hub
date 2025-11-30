@@ -1,6 +1,7 @@
-import type { INestApplication } from '@nestjs/common';
+import { VersioningType, type INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
+import cookieParser from 'cookie-parser';
 import { type EinsatzE2eTestContext, cleanupTestData, createEinsatzE2eModule, createTestEinsatz, teardownE2eModule } from './einsatz.e2e-setup';
 import { AppModule } from '../../../app.module';
 
@@ -33,11 +34,21 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     }).compile();
 
     app = moduleFixture.createNestApplication();
+
+    // App-Konfiguration wie in main.ts
+    app.enableVersioning({
+      type: VersioningType.URI,
+      prefix: 'v-',
+      defaultVersion: 'alpha',
+    });
+    app.setGlobalPrefix('api', { exclude: ['/'] });
+    app.use(cookieParser());
+
     await app.init();
 
     // Login durchführen und Token für authentifizierte Requests erhalten
     const loginResponse = await request(app.getHttpServer())
-      .post('/api/alpha/auth/login')
+      .post('/api/auth/login')
       .send({
         username: 'admin',
         password: 'password',
@@ -59,7 +70,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     await app.close();
   });
 
-  describe('POST /api/alpha/einsatz (Create)', () => {
+  describe('POST /api/v-alpha/einsatz (Create)', () => {
     /**
      * Testet die erfolgreiche Erstellung eines Einsatzes.
      *
@@ -69,7 +80,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
      */
     it('should return 201 Created with valid request', async () => {
       const response = await request(app.getHttpServer())
-        .post('/api/alpha/einsatz')
+        .post('/api/v-alpha/einsatz')
         .set('Cookie', [`accessToken=${accessToken}`])
         .send({
           alarmstichwort: 'B3 - Wohnungsbrand',
@@ -93,7 +104,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
      */
     it('should return 400 with missing alarmstichwort', async () => {
       const response = await request(app.getHttpServer())
-        .post('/api/alpha/einsatz')
+        .post('/api/v-alpha/einsatz')
         .set('Cookie', [`accessToken=${accessToken}`])
         .send({
           beschreibung: 'Test ohne Alarmstichwort',
@@ -114,7 +125,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
      */
     it('should return 401 without authentication', async () => {
       await request(app.getHttpServer())
-        .post('/api/alpha/einsatz')
+        .post('/api/v-alpha/einsatz')
         .send({
           alarmstichwort: 'Test',
         })
@@ -130,7 +141,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
      */
     it('should return 400 with invalid field types', async () => {
       const response = await request(app.getHttpServer())
-        .post('/api/alpha/einsatz')
+        .post('/api/v-alpha/einsatz')
         .set('Cookie', [`accessToken=${accessToken}`])
         .send({
           alarmstichwort: 'Test',
@@ -142,7 +153,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     });
   });
 
-  describe('GET /api/alpha/einsatz/active-with-counts', () => {
+  describe('GET /api/v-alpha/einsatz/active-with-counts', () => {
     /**
      * Testet Abfrage aller aktiven Einsätze mit Zählern.
      *
@@ -157,7 +168,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       await createTestEinsatz(ctx, { status: 'ABGESCHLOSSEN' }); // Sollte NICHT enthalten sein
 
       const response = await request(app.getHttpServer())
-        .get('/api/alpha/einsatz/active-with-counts')
+        .get('/api/v-alpha/einsatz/active-with-counts')
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 
@@ -196,7 +207,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       });
 
       const response = await request(app.getHttpServer())
-        .get('/api/alpha/einsatz/active-with-counts')
+        .get('/api/v-alpha/einsatz/active-with-counts')
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 
@@ -210,7 +221,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
      * Testet Authentifizierungsschutz.
      */
     it('should return 401 without authentication', async () => {
-      await request(app.getHttpServer()).get('/api/alpha/einsatz/active-with-counts').expect(401);
+      await request(app.getHttpServer()).get('/api/v-alpha/einsatz/active-with-counts').expect(401);
     });
 
     /**
@@ -218,7 +229,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
      */
     it('should return empty array when no active Einsätze exist', async () => {
       const response = await request(app.getHttpServer())
-        .get('/api/alpha/einsatz/active-with-counts')
+        .get('/api/v-alpha/einsatz/active-with-counts')
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 
@@ -226,7 +237,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     });
   });
 
-  describe('GET /api/alpha/einsatz/:id/details', () => {
+  describe('GET /api/v-alpha/einsatz/:id/details', () => {
     /**
      * Testet Abfrage der Einsatz-Details mit Combined Query.
      *
@@ -248,7 +259,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       });
 
       const response = await request(app.getHttpServer())
-        .get(`/api/alpha/einsatz/${einsatzId}/details`)
+        .get(`/api/v-alpha/einsatz/${einsatzId}/details`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 
@@ -270,7 +281,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       const nonExistentId = '00000000-0000-0000-0000-000000000000';
 
       const response = await request(app.getHttpServer())
-        .get(`/api/alpha/einsatz/${nonExistentId}/details`)
+        .get(`/api/v-alpha/einsatz/${nonExistentId}/details`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(404);
 
@@ -283,7 +294,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
      */
     it('should return 400 with invalid UUID format', async () => {
       await request(app.getHttpServer())
-        .get('/api/alpha/einsatz/invalid-uuid/details')
+        .get('/api/v-alpha/einsatz/invalid-uuid/details')
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(400);
     });
@@ -327,7 +338,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       });
 
       const response = await request(app.getHttpServer())
-        .get(`/api/alpha/einsatz/${einsatzId}/details`)
+        .get(`/api/v-alpha/einsatz/${einsatzId}/details`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 
@@ -336,7 +347,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     });
   });
 
-  describe('POST /api/alpha/einsatz/:id/complete', () => {
+  describe('POST /api/v-alpha/einsatz/:id/complete', () => {
     /**
      * Testet erfolgreichen Abschluss eines aktiven Einsatzes.
      */
@@ -346,7 +357,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       });
 
       const response = await request(app.getHttpServer())
-        .post(`/api/alpha/einsatz/${einsatzId}/complete`)
+        .post(`/api/v-alpha/einsatz/${einsatzId}/complete`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 
@@ -367,7 +378,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       });
 
       const response = await request(app.getHttpServer())
-        .post(`/api/alpha/einsatz/${einsatzId}/complete`)
+        .post(`/api/v-alpha/einsatz/${einsatzId}/complete`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(400);
 
@@ -382,7 +393,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       const nonExistentId = '00000000-0000-0000-0000-000000000000';
 
       await request(app.getHttpServer())
-        .post(`/api/alpha/einsatz/${nonExistentId}/complete`)
+        .post(`/api/v-alpha/einsatz/${nonExistentId}/complete`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(404);
     });
@@ -405,7 +416,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
 
       // Einsatz abschließen
       await request(app.getHttpServer())
-        .post(`/api/alpha/einsatz/${einsatzId}/complete`)
+        .post(`/api/v-alpha/einsatz/${einsatzId}/complete`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 
@@ -422,7 +433,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     });
   });
 
-  describe('DELETE /api/alpha/einsatz/:id (NO-DELETE Policy)', () => {
+  describe('DELETE /api/v-alpha/einsatz/:id (NO-DELETE Policy)', () => {
     /**
      * Testet NO-DELETE Policy via HTTP.
      *
@@ -434,7 +445,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       const einsatzId = await createTestEinsatz(ctx);
 
       const response = await request(app.getHttpServer())
-        .delete(`/api/alpha/einsatz/${einsatzId}`)
+        .delete(`/api/v-alpha/einsatz/${einsatzId}`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(400);
 
@@ -452,7 +463,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       const einsatzId = await createTestEinsatz(ctx);
 
       const response = await request(app.getHttpServer())
-        .delete(`/api/alpha/einsatz/${einsatzId}`)
+        .delete(`/api/v-alpha/einsatz/${einsatzId}`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(400);
 
@@ -472,13 +483,13 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
 
       // DELETE-Versuch
       await request(app.getHttpServer())
-        .delete(`/api/alpha/einsatz/${einsatzId}`)
+        .delete(`/api/v-alpha/einsatz/${einsatzId}`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(400);
 
       // Einsatz muss noch existieren
       const response = await request(app.getHttpServer())
-        .get(`/api/alpha/einsatz/${einsatzId}/details`)
+        .get(`/api/v-alpha/einsatz/${einsatzId}/details`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 
@@ -497,7 +508,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     it('should follow consistent error format: { statusCode, message, error }', async () => {
       // Validation Error (400)
       const validationError = await request(app.getHttpServer())
-        .post('/api/alpha/einsatz')
+        .post('/api/v-alpha/einsatz')
         .set('Cookie', [`accessToken=${accessToken}`])
         .send({})
         .expect(400);
@@ -508,7 +519,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
 
       // Not Found Error (404)
       const notFoundError = await request(app.getHttpServer())
-        .get('/api/alpha/einsatz/00000000-0000-0000-0000-000000000000/details')
+        .get('/api/v-alpha/einsatz/00000000-0000-0000-0000-000000000000/details')
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(404);
 
@@ -526,7 +537,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
      */
     it('should include detailed validation errors in message array', async () => {
       const response = await request(app.getHttpServer())
-        .post('/api/alpha/einsatz')
+        .post('/api/v-alpha/einsatz')
         .set('Cookie', [`accessToken=${accessToken}`])
         .send({
           alarmstichwort: '', // Leer (Validierungsfehler)
@@ -552,7 +563,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     });
   });
 
-  describe('PATCH /api/alpha/einsatz/:id (Update)', () => {
+  describe('PATCH /api/v-alpha/einsatz/:id (Update)', () => {
     /**
      * Testet Teilaktualisierung von Einsatz-Daten.
      */
@@ -563,7 +574,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       });
 
       const response = await request(app.getHttpServer())
-        .patch(`/api/alpha/einsatz/${einsatzId}`)
+        .patch(`/api/v-alpha/einsatz/${einsatzId}`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .send({
           ort: 'Neue Straße 456',
@@ -583,7 +594,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       const einsatzId = await createTestEinsatz(ctx);
 
       await request(app.getHttpServer())
-        .patch(`/api/alpha/einsatz/${einsatzId}`)
+        .patch(`/api/v-alpha/einsatz/${einsatzId}`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .send({
           status: 'INVALID_STATUS', // Ungültiger Enum-Wert
@@ -592,7 +603,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     });
   });
 
-  describe('POST /api/alpha/einsatz/:id/archive', () => {
+  describe('POST /api/v-alpha/einsatz/:id/archive', () => {
     /**
      * Testet erfolgreiche Archivierung.
      */
@@ -602,7 +613,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       });
 
       const response = await request(app.getHttpServer())
-        .post(`/api/alpha/einsatz/${einsatzId}/archive`)
+        .post(`/api/v-alpha/einsatz/${einsatzId}/archive`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 
@@ -618,7 +629,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       });
 
       const response = await request(app.getHttpServer())
-        .post(`/api/alpha/einsatz/${einsatzId}/archive`)
+        .post(`/api/v-alpha/einsatz/${einsatzId}/archive`)
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(400);
 
@@ -626,7 +637,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     });
   });
 
-  describe('GET /api/alpha/einsatz (List All)', () => {
+  describe('GET /api/v-alpha/einsatz (List All)', () => {
     /**
      * Testet Pagination bei Einsatz-Liste.
      */
@@ -637,7 +648,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       }
 
       const response = await request(app.getHttpServer())
-        .get('/api/alpha/einsatz?limit=2&offset=0')
+        .get('/api/v-alpha/einsatz?limit=2&offset=0')
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 
@@ -654,7 +665,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
       await createTestEinsatz(ctx, { status: 'ABGESCHLOSSEN' });
 
       const response = await request(app.getHttpServer())
-        .get('/api/alpha/einsatz?status=IN_BEARBEITUNG')
+        .get('/api/v-alpha/einsatz?status=IN_BEARBEITUNG')
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 

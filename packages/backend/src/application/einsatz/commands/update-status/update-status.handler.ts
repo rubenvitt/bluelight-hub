@@ -46,7 +46,7 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
 
   constructor(
     prisma: PrismaService,
-    outboxRepository: IOutboxRepository,
+    @Inject('IOutboxRepository') outboxRepository: IOutboxRepository,
     @Inject('IEinsatzRepository')
     private readonly einsatzRepository: IEinsatzRepository,
   ) {
@@ -143,12 +143,10 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
       throw new Error(error);
     }
 
-    // Step 6: Extract Domain Events BEFORE clearing
+    // Step 6: Extract Domain Events for Outbox
     // Base Handler wird Events in Outbox persistieren (atomar in gleicher TX)
+    // Repository cleared bereits nach Transaction Commit
     const events = einsatz.getDomainEvents();
-
-    // Step 7: Clear Domain Events vom Aggregate (nach Extraktion)
-    einsatz.clearDomainEvents();
 
     this.logger.log('Einsatz status updated successfully', {
       einsatzId: command.einsatzId,
@@ -156,7 +154,7 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
       eventCount: events.length,
     });
 
-    // Step 8: Return result + events für Base Handler
+    // Step 7: Return result + events für Base Handler
     return {
       result: undefined,
       events,

@@ -50,7 +50,7 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
 
   constructor(
     prisma: PrismaService,
-    outboxRepository: IOutboxRepository,
+    @Inject('IOutboxRepository') outboxRepository: IOutboxRepository,
     @Inject('IEinsatzRepository')
     private readonly einsatzRepository: IEinsatzRepository,
   ) {
@@ -161,12 +161,10 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
       throw new Error(error);
     }
 
-    // Step 7: Extract Domain Events BEFORE clearing
+    // Step 7: Extract Domain Events for Outbox
     // Base Handler wird Events in Outbox persistieren (atomar in gleicher TX)
+    // Repository cleared bereits nach Transaction Commit
     const events = einsatz.getDomainEvents();
-
-    // Step 8: Clear Domain Events vom Aggregate (nach Extraktion)
-    einsatz.clearDomainEvents();
 
     this.logger.log('Einsatz archived successfully', {
       einsatzId: command.einsatzId,
@@ -174,7 +172,7 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
       eventCount: events.length,
     });
 
-    // Step 9: Return result + events für Base Handler
+    // Step 8: Return result + events für Base Handler
     return {
       result: undefined,
       events,

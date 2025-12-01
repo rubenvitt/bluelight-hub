@@ -127,14 +127,10 @@ export class CreateEinsatzHandler extends TransactionalCommandHandler<CreateEins
       throw new Error(error);
     }
 
-    // Step 4: Extract Domain Events BEFORE clearing
+    // Step 4: Extract Domain Events for Outbox
     // Base Handler wird Events in Outbox persistieren (atomar in gleicher TX)
+    // Repository cleared bereits nach Transaction Commit
     const events = einsatz.getDomainEvents();
-
-    // Step 5: Clear Domain Events vom Aggregate (nach Extraktion)
-    // WICHTIG: Base Handler persistiert Events, dann clearen wir
-    // Aggregate hat Events bereits produziert, jetzt werden sie via Outbox publiziert
-    einsatz.clearDomainEvents();
 
     this.logger.log('Einsatz created successfully', {
       einsatzId: einsatz.id.value,
@@ -143,7 +139,7 @@ export class CreateEinsatzHandler extends TransactionalCommandHandler<CreateEins
       eventCount: events.length,
     });
 
-    // Step 6: Return result + events für Base Handler
+    // Step 5: Return result + events für Base Handler
     // Base Handler committed Transaction wenn alles erfolgreich
     return {
       result: einsatz.id.value,

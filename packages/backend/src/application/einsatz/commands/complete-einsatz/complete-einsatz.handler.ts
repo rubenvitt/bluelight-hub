@@ -49,7 +49,7 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
 
   constructor(
     prisma: PrismaService,
-    outboxRepository: IOutboxRepository,
+    @Inject('IOutboxRepository') outboxRepository: IOutboxRepository,
     @Inject('IEinsatzRepository')
     private readonly einsatzRepository: IEinsatzRepository,
     @Inject(EinsatzCompletenessService)
@@ -158,12 +158,10 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
       throw new Error(error);
     }
 
-    // Step 7: Extract Domain Events BEFORE clearing
+    // Step 7: Extract Domain Events for Outbox
     // Base Handler wird Events in Outbox persistieren (atomar in gleicher TX)
+    // Repository cleared bereits nach Transaction Commit
     const events = einsatz.getDomainEvents();
-
-    // Step 8: Clear Domain Events vom Aggregate (nach Extraktion)
-    einsatz.clearDomainEvents();
 
     this.logger.log('Einsatz completed successfully', {
       einsatzId: command.einsatzId,
@@ -171,7 +169,7 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
       eventCount: events.length,
     });
 
-    // Step 9: Return result + events für Base Handler
+    // Step 8: Return result + events für Base Handler
     return {
       result: undefined,
       events,

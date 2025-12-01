@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaLagekarteRepository } from './repositories/prisma-lagekarte.repository';
-import { PrismaEinsatzRepositoryAdapter } from './repositories/prisma-einsatz.repository';
+import { PrismaEinsatzRepository } from './einsatz/repositories/prisma-einsatz.repository';
 import { NominatimGeocodingAdapter } from './geocoding/nominatim-geocoding.adapter';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
@@ -75,7 +75,7 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
     },
     {
       provide: 'IEinsatzRepository', // String Token (Interface-Name)
-      useClass: PrismaEinsatzRepositoryAdapter, // Minimal-Implementation für Lagekarte-Abhängigkeit
+      useClass: PrismaEinsatzRepository, // Vollständige Implementation mit Outbox Pattern
     },
     {
       provide: 'IGeocodingPort', // String Token (Interface-Name)

@@ -18,9 +18,9 @@ import {
   UpdateEinsatzDto,
 } from '@/einsatz/dto';
 import { EinsatzDetailsDto, EinsatzListItemDto } from '@/application/einsatz/dto';
-import { CreateEinsatzCommand, UpdateEinsatzCommand, ArchiveEinsatzCommand } from '@/application/einsatz/commands';
+import { CreateEinsatzCommand, UpdateEinsatzCommand, ArchiveEinsatzCommand, CompleteEinsatzCommand } from '@/application/einsatz/commands';
 import { GetEinsatzDetailsQuery, GetActiveEinsaetzeWithCountsQuery, GetEinsatzByIdQuery } from '@/application/einsatz/queries';
-import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, UseGuards, ValidationPipe, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query, UseGuards, ValidationPipe, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { EinsatzService } from './einsatz.service';
@@ -211,9 +211,31 @@ export class EinsatzController {
   }
 
   /**
+   * Schließt einen Einsatz ab via CQRS Command
+   */
+  @Post(':id/complete')
+  @Roles('USER', 'ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Einsatz abschließen', description: 'Markiert einen Einsatz als ABGESCHLOSSEN und sperrt das ETB.' })
+  @ApiOkResponse({ type: EinsatzDto, description: 'Einsatz erfolgreich abgeschlossen' })
+  @ApiNotFoundResponse({ description: 'Einsatz nicht gefunden' })
+  @ApiBadRequestResponse({ description: 'Einsatz kann nicht abgeschlossen werden (z.B. bereits abgeschlossen)' })
+  async complete(@Param('id') id: string, @CurrentUser() user: ValidatedUser): Promise<EinsatzDto> {
+    const commandResult = CompleteEinsatzCommand.create(id, user.userId);
+    if (commandResult.isFailure || !commandResult.value) throw new BadRequestException(commandResult.error);
+
+    const result = await this.commandBus.execute(commandResult.value);
+    if (result.isFailure) {
+      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) throw new NotFoundException(result.error);
+      throw new BadRequestException(result.error);
+    }
+
+    return this.loadEinsatzById(id);
+  }
+
+  /**
    * Archiviert einen Einsatz (Soft-Delete gemäß No-Delete Policy) via CQRS Command
    */
-  @Patch(':id/archive')
+  @Post(':id/archive')
   @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Einsatz archivieren (Soft-Delete)', description: 'Markiert einen Einsatz als ARCHIVIERT. Niemals physisch gelöscht.' })
   @ApiOkResponse({ type: EinsatzDto, description: 'Einsatz erfolgreich archiviert' })
@@ -230,6 +252,22 @@ export class EinsatzController {
     }
 
     return this.loadEinsatzById(id);
+  }
+
+  /**
+   * NO-DELETE Policy Enforcement: DELETE-Requests werden explizit abgelehnt
+   */
+  @Delete(':id')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Einsatz löschen (NICHT ERLAUBT)',
+    description: 'Einsätze dürfen aus Compliance-Gründen NIEMALS gelöscht werden. Nutze stattdessen Archive-Funktion.',
+  })
+  @ApiBadRequestResponse({ description: 'Einsätze können nicht gelöscht werden (NO-DELETE Policy)' })
+  async delete(@Param('id') _id: string): Promise<never> {
+    throw new BadRequestException(
+      'Einsätze können aus rechtlichen Gründen (Aufbewahrungspflicht) nicht gelöscht werden. ' + 'Nutze stattdessen die Archive-Funktion (POST /api/v-alpha/einsatz/:id/archive).',
+    );
   }
 
   /**

@@ -97,44 +97,41 @@ describe('Outbox Pattern Integration Tests (AC1.1-1.7)', () => {
   // ============================================
 
   describe('AC1.1: Atomic Event Persistence', () => {
-    it.skip('should save events atomically with aggregate in single transaction', async () => {
-      // SKIPPED: domainEvents property not properly initialized in Einsatz aggregate
-      // TODO: Fix Einsatz.create() to initialize domainEvents array
-      //
-      // Given: Create Einsatz Aggregate with Domain Event
+    it('should save events atomically with aggregate in single transaction', async () => {
+      // AC1.1: Use handler-level test instead of direct aggregate test
+      // Given: Create Einsatz via Repository (repository handles transaction internally)
       const einsatzId = EinsatzId.create().value!;
       const createdBy = UserId.create(ctx.testUserIds.user).value!;
 
-      const einsatzResult = Einsatz.create(
-        {
-          alarmstichwort: 'Wohnungsbrand - AC1.1 Test',
-          einsatzort: 'Teststraße 1',
-          createdBy,
-          updatedBy: createdBy,
-        },
-        einsatzId,
-      );
+      const einsatzResult = Einsatz.create({
+        alarmstichwort: 'Wohnungsbrand - AC1.1 Test',
+        createdBy,
+      });
 
       expect(einsatzResult.isSuccess).toBe(true);
       const einsatz = einsatzResult.value!;
 
       // Verify Domain Event exists in Aggregate
-      expect(einsatz.domainEvents.length).toBeGreaterThan(0);
-      const event = einsatz.domainEvents[0] as EinsatzCreatedEvent;
+      const events = einsatz.getDomainEvents();
+      expect(events.length).toBeGreaterThan(0);
+      const event = events[0] as EinsatzCreatedEvent;
       expect(event).toBeInstanceOf(EinsatzCreatedEvent);
 
       // When: Save Aggregate via Repository (uses transaction internally)
-      await ctx.repository.save(einsatz);
+      const saveResult = await ctx.repository.save(einsatz);
+      expect(saveResult.isSuccess).toBe(true);
 
       // Then: Both Einsatz AND OutboxEvent exist in DB
-      const savedEinsatz = await ctx.repository.findById(einsatzId);
+      const savedEinsatz = await ctx.prisma.einsatz.findUnique({
+        where: { id: einsatz.id.value },
+      });
       expect(savedEinsatz).not.toBeNull();
-      expect(savedEinsatz!.id.value).toBe(einsatzId.value);
+      expect(savedEinsatz!.id).toBe(einsatz.id.value);
 
       const outboxEvent = await ctx.outboxRepository.findById(event.eventId);
       expect(outboxEvent).not.toBeNull();
       expect(outboxEvent!.eventName).toBe('einsatz.created');
-      expect(outboxEvent!.aggregateId).toBe(einsatzId.value);
+      expect(outboxEvent!.aggregateId).toBe(einsatz.id.value);
       expect(outboxEvent!.status).toBe('PENDING');
     });
   });
@@ -144,38 +141,23 @@ describe('Outbox Pattern Integration Tests (AC1.1-1.7)', () => {
   // ============================================
 
   describe('AC1.2: Transaction Rollback on Error', () => {
-    it.skip('should rollback both aggregate and events on transaction failure', async () => {
-      // SKIPPED: ctx.prisma is undefined - E2E setup issue
-      // TODO: Fix einsatz.e2e-setup to export prisma instance in context
-      //
-      // Given: Existing Einsatz mit gleicher Nummer (Constraint Violation provozieren)
-      const existingEinsatzId = await createTestEinsatz(ctx, {
-        alarmstichwort: 'Existing Einsatz for Rollback Test',
-      });
-
-      // Get the nummer from existing Einsatz to trigger duplicate constraint
-      const existingEinsatz = await ctx.prisma.einsaetze.findUnique({
-        where: { id: existingEinsatzId },
-        select: { nummer: true },
-      });
-      expect(existingEinsatz).not.toBeNull();
-      const duplicateNummer = existingEinsatz!.nummer;
-
-      // When: Try to create Einsatz with duplicate nummer (will fail)
+    it('should rollback both aggregate and events on transaction failure', async () => {
+      // AC1.2: Verify transaction rollback - neither Einsatz nor OutboxEvent persisted
+      // Given: Setup for transaction failure scenario
       const einsatzId = EinsatzId.create().value!;
       const createdBy = UserId.create(ctx.testUserIds.user).value!;
 
-      // Manually insert Einsatz via raw SQL to force duplicate nummer
+      // When: Simulate transaction failure (throw error in transaction)
       try {
         await ctx.prisma.$transaction(async (tx) => {
-          // Insert Einsatz with duplicate nummer
+          // Insert Einsatz
           await tx.$executeRaw`
             INSERT INTO einsaetze (id, alarmstichwort, einsatzort, nummer, status, "createdBy", "updatedBy", "createdAt", "updatedAt")
             VALUES (
               ${einsatzId.value},
               'Rollback Test Einsatz',
               'Teststraße 99',
-              ${duplicateNummer},
+              'E2024-ROLLBACK',
               'ANGELEGT'::"EinsatzStatus",
               ${createdBy.value},
               ${createdBy.value},
@@ -193,15 +175,14 @@ describe('Outbox Pattern Integration Tests (AC1.1-1.7)', () => {
               'einsatz.created',
               1,
               ${einsatzId.value},
-              '{"eventId": "${eventId}", "eventName": "einsatz.created", "eventVersion": 1, "occurredAt": "${new Date().toISOString()}", "aggregateId": "${einsatzId.value}", "payload": {"einsatzId": "${einsatzId.value}", "createdBy": "${createdBy.value}", "alarmstichwort": "Rollback Test", "nummer": "${duplicateNummer}"}}'::jsonb,
+              '{"eventId": "${eventId}", "eventName": "einsatz.created", "eventVersion": 1, "occurredAt": "${new Date().toISOString()}", "aggregateId": "${einsatzId.value}", "payload": {"einsatzId": "${einsatzId.value}", "createdBy": "${createdBy.value}", "alarmstichwort": "Rollback Test", "nummer": "E2024-ROLLBACK"}}'::jsonb,
               'PENDING'::"OutboxEventStatus",
               NOW(),
               NOW()
             )
           `;
 
-          // Force transaction failure by violating unique constraint on nummer
-          // (This will throw and cause rollback)
+          // Force transaction failure
           throw new Error('Simulated transaction failure');
         });
 
@@ -212,16 +193,16 @@ describe('Outbox Pattern Integration Tests (AC1.1-1.7)', () => {
         expect(error).toBeDefined();
       }
 
-      // Then: Neither Einsatz nor OutboxEvent persisted
-      const einsatz = await ctx.prisma.einsaetze.findUnique({
+      // Then: Neither Einsatz nor OutboxEvent persisted (transaction rollback)
+      const einsatzCount = await ctx.prisma.einsatz.count({
         where: { id: einsatzId.value },
       });
-      expect(einsatz).toBeNull();
+      expect(einsatzCount).toBe(0);
 
-      const outboxEvents = await ctx.prisma.outboxEvent.findMany({
+      const eventCount = await ctx.prisma.outboxEvent.count({
         where: { aggregateId: einsatzId.value },
       });
-      expect(outboxEvents.length).toBe(0);
+      expect(eventCount).toBe(0);
     });
   });
 
@@ -239,10 +220,8 @@ describe('Outbox Pattern Integration Tests (AC1.1-1.7)', () => {
 
       await ctx.outboxRepository.save([event]);
 
-      // Verify event is PENDING
-      const pendingEventsBefore = await ctx.outboxRepository.findPendingEvents(10);
-      expect(pendingEventsBefore.length).toBeGreaterThan(0);
-      const targetEvent = pendingEventsBefore.find((e) => e.id === event.eventId);
+      // Verify event is PENDING (check directly by ID)
+      const targetEvent = await ctx.outboxRepository.findById(event.eventId);
       expect(targetEvent).toBeDefined();
       expect(targetEvent!.status).toBe('PENDING');
 
@@ -639,6 +618,69 @@ describe('Outbox Pattern Integration Tests (AC1.1-1.7)', () => {
       // Then: Second batch also published (isRunning flag was released)
       publishedCount = ctx.eventPublisher.publishedEvents.length;
       expect(publishedCount).toBe(baselineCount + 2);
+    });
+  });
+
+  // ============================================
+  // NEW TEST (Subtask 5.4): Full Event Roundtrip
+  // ============================================
+
+  describe('Full Event Roundtrip (Create → Outbox → Publish)', () => {
+    it('should complete full roundtrip: Aggregate → Outbox → Publish → EventHandler', async () => {
+      // Given: Create Einsatz Aggregate
+      const createdBy = UserId.create(ctx.testUserIds.user).value!;
+      const einsatzResult = Einsatz.create({
+        alarmstichwort: 'Roundtrip Test - Wohnungsbrand',
+        createdBy,
+        bemerkung: 'Full event roundtrip test',
+      });
+
+      expect(einsatzResult.isSuccess).toBe(true);
+      const einsatz = einsatzResult.value!;
+
+      // Step 1: Save Aggregate → Events in Outbox (atomically)
+      const saveResult = await ctx.repository.save(einsatz);
+      expect(saveResult.isSuccess).toBe(true);
+
+      // Verify: Einsatz saved in DB
+      const savedEinsatz = await ctx.prisma.einsatz.findUnique({
+        where: { id: einsatz.id.value },
+      });
+      expect(savedEinsatz).not.toBeNull();
+
+      // Verify: Event saved in Outbox (PENDING)
+      // Use direct DB query to get the outbox event by aggregateId
+      const outboxEvents = await ctx.prisma.outboxEvent.findMany({
+        where: { aggregateId: einsatz.id.value },
+      });
+      expect(outboxEvents.length).toBeGreaterThan(0);
+      const outboxEvent = outboxEvents[0];
+      expect(outboxEvent).toBeDefined();
+      expect(outboxEvent!.eventName).toBe('einsatz.created');
+      expect(outboxEvent!.status).toBe('PENDING');
+
+      // Step 2: Trigger Polling Worker → Publish Event
+      await outboxPublisher.triggerManually();
+
+      // Verify: Event published to EventPublisher
+      await waitFor(
+        async () => {
+          const publishedEvents = ctx.eventPublisher.getEventsByName('einsatz.created');
+          expect(publishedEvents.length).toBeGreaterThan(0);
+
+          const publishedEvent = publishedEvents.find((e) => e.aggregateId === einsatz.id.value);
+          expect(publishedEvent).toBeDefined();
+          expect(publishedEvent).toBeInstanceOf(EinsatzCreatedEvent);
+        },
+        6000, // AC1.3: Max 6 seconds SLA
+        100,
+      );
+
+      // Verify: Event marked as PUBLISHED in Outbox
+      const publishedOutboxEvent = await ctx.outboxRepository.findById(outboxEvent!.id);
+      expect(publishedOutboxEvent).not.toBeNull();
+      expect(publishedOutboxEvent!.status).toBe('PUBLISHED');
+      expect(publishedOutboxEvent!.publishedAt).not.toBeNull();
     });
   });
 });

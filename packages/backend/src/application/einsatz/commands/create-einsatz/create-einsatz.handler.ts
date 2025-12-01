@@ -1,21 +1,28 @@
-import { Result } from '@domain/common/result';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { UserId } from '@domain/value-objects/user-id';
-import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { CreateEinsatzCommand } from './create-einsatz.command';
+import { TransactionalCommandHandler } from '@application/common/handlers/transactional-command.handler';
+// biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
+import { PrismaService } from '@/prisma/prisma.service';
+import type { IOutboxRepository, PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
+import type { DomainEvent } from '@domain/common/domain-event';
 
 /**
- * Handler für CreateEinsatzCommand.
+ * Handler für CreateEinsatzCommand mit Transactional Outbox Pattern.
  *
- * Orchestriert die Erstellung eines neuen Einsatzes:
+ * Erweitert TransactionalCommandHandler für atomare Persistierung von
+ * Aggregate und Domain Events in einer Datenbank-Transaktion.
+ *
+ * **Transactional Flow:**
  * 1. Validiert User-ID Format
  * 2. Erstellt EinsatzAggregate via Factory Method
- * 3. Speichert Aggregate über Repository
- * 4. Publiziert Domain Events
+ * 3. Speichert Aggregate in Transaction (via Repository)
+ * 4. Extrahiert Domain Events vom Aggregate
+ * 5. Base Handler speichert Events in Outbox (atomar in gleicher TX)
+ * 6. Transaction Commit → Aggregate + Events persistent
+ * 7. OutboxEventPublisher pollt und publiziert Events asynchron
  *
  * **Business Rules (vom Aggregate enforced):**
  * - Alarmstichwort ist Pflichtfeld
@@ -23,40 +30,66 @@ import type { CreateEinsatzCommand } from './create-einsatz.command';
  * - Einsatznummer wird auto-generiert (E{YEAR}-{CUID-8})
  *
  * **Event Flow:**
- * - EinsatzCreatedEvent wird nach erfolgreicher Speicherung publiziert
- * - Event enthält einsatzId, nummer, alarmstichwort
+ * - EinsatzCreatedEvent wird in Outbox persistiert (PENDING status)
+ * - OutboxEventPublisher pollt und publiziert zu Event Bus (max 7s Latenz)
+ * - EtbAutoCreationHandler reagiert auf Event und erstellt ETB
+ *
+ * **Warum Transactional Outbox Pattern:**
+ * - Garantiert atomare Persistierung: Aggregate + Events committed oder beide rollback
+ * - Keine "lost events" bei DB-Fehlern nach Aggregate-Save
+ * - ETB auto-creation via Outbox statt direkter Event-Emission
+ * - Retry-Safe: Events in Outbox können bei Fehler erneut publiziert werden
  */
 @Injectable()
-export class CreateEinsatzHandler {
+export class CreateEinsatzHandler extends TransactionalCommandHandler<CreateEinsatzCommand, string> {
   private readonly logger = new Logger(CreateEinsatzHandler.name);
 
   constructor(
+    prisma: PrismaService,
+    outboxRepository: IOutboxRepository,
     @Inject('IEinsatzRepository')
     private readonly einsatzRepository: IEinsatzRepository,
-    @Inject('IEventPublisher')
-    private readonly eventPublisher: IEventPublisher,
-  ) {}
+  ) {
+    super(prisma, outboxRepository);
+  }
 
   /**
-   * Führt den CreateEinsatzCommand aus.
+   * Führt die Einsatz-Erstellung innerhalb einer Datenbank-Transaktion aus.
+   *
+   * Diese Methode implementiert die Business Logic für CreateEinsatzCommand:
+   * 1. Validiert User-ID Format
+   * 2. Erstellt Einsatz Aggregate via Factory Method
+   * 3. Speichert Aggregate in Transaction
+   * 4. Extrahiert Domain Events für Outbox
+   *
+   * WICHTIG: Nutzt `tx` Parameter für alle DB-Operationen (NICHT this.prisma).
+   * Base Handler koordiniert Transaction Commit und Outbox-Persistierung.
+   *
+   * **Warum Exceptions statt Result<T> hier:**
+   * - TransactionalCommandHandler erwartet Exceptions für Transaction Rollback
+   * - Result<T> Pattern wird in execute() der Base Class genutzt
+   * - Exceptions triggern automatisch Transaction Rollback
    *
    * @param command - Validierter CreateEinsatzCommand
-   * @returns Result<EinsatzId> - Success mit EinsatzId oder Failure mit Error
+   * @param tx - Prisma Transaction Client (MUSS für DB-Ops verwendet werden)
+   * @returns result: EinsatzId String, events: Domain Events für Outbox
+   * @throws Error bei Business Rule Violations (triggert Transaction Rollback)
    */
-  async execute(command: CreateEinsatzCommand): Promise<Result<EinsatzId>> {
+  protected async executeInTransaction(command: CreateEinsatzCommand, tx: PrismaTransaction): Promise<{ result: string; events: DomainEvent[] }> {
     // Step 1: Validate UserId format
     const userIdResult = UserId.create(command.createdBy);
     if (userIdResult.isFailure) {
-      return Result.fail<EinsatzId>(userIdResult.error ?? 'Ungültige User-ID');
+      const error = userIdResult.error ?? 'Ungültige User-ID';
+      this.logger.warn('UserId validation failed', { error, createdBy: command.createdBy });
+      throw new Error(error);
     }
     const userId = userIdResult.value;
+
     // Defensive Programming: TypeScript kann Result<T>.value nicht automatisch als non-null
     // narrowen nach isSuccess-Prüfung, da das Type-System diese Garantie nicht ausdrücken kann.
-    // Dieser Check schützt vor Runtime-Fehlern falls das Result-Pattern inkorrekt implementiert
-    // wird oder Type-Assertions fehlerhaft sind.
     if (!userId) {
       this.logger.error('Unexpected null UserId after successful validation');
-      return Result.fail<EinsatzId>('Ungültige User-ID');
+      throw new Error('Ungültige User-ID');
     }
 
     // Step 2: Create Aggregate via Factory Method
@@ -69,40 +102,52 @@ export class CreateEinsatzHandler {
     });
 
     if (aggregateResult.isFailure) {
+      const error = aggregateResult.error ?? 'Einsatz konnte nicht erstellt werden';
       this.logger.warn('Einsatz creation failed', {
-        error: aggregateResult.error,
+        error,
         alarmstichwort: command.alarmstichwort,
       });
-      return Result.fail<EinsatzId>(aggregateResult.error ?? 'Einsatz konnte nicht erstellt werden');
+      throw new Error(error);
     }
 
     const einsatz = aggregateResult.value;
     if (!einsatz) {
       this.logger.error('Unexpected null Einsatz after successful creation');
-      return Result.fail<EinsatzId>('Einsatz konnte nicht erstellt werden');
+      throw new Error('Einsatz konnte nicht erstellt werden');
     }
 
-    // Step 3: Save Aggregate via Repository
-    const saveResult = await this.einsatzRepository.save(einsatz);
+    // Step 3: Save Aggregate in Transaction (WICHTIG: Nutze tx, nicht this.prisma)
+    const saveResult = await this.einsatzRepository.save(einsatz, tx);
     if (saveResult.isFailure) {
+      const error = saveResult.error ?? 'Einsatz konnte nicht gespeichert werden';
       this.logger.error('Failed to save Einsatz', {
-        error: saveResult.error,
+        error,
         einsatzId: einsatz.id.value,
       });
-      return Result.fail<EinsatzId>(saveResult.error ?? 'Einsatz konnte nicht gespeichert werden');
+      throw new Error(error);
     }
 
-    // Step 4: Publish Domain Events (AFTER successful save - transactional consistency)
-    // EinsatzCreatedEvent was added by Einsatz.create()
-    await this.eventPublisher.publishAll(einsatz.getDomainEvents());
+    // Step 4: Extract Domain Events BEFORE clearing
+    // Base Handler wird Events in Outbox persistieren (atomar in gleicher TX)
+    const events = einsatz.getDomainEvents();
+
+    // Step 5: Clear Domain Events vom Aggregate (nach Extraktion)
+    // WICHTIG: Base Handler persistiert Events, dann clearen wir
+    // Aggregate hat Events bereits produziert, jetzt werden sie via Outbox publiziert
     einsatz.clearDomainEvents();
 
     this.logger.log('Einsatz created successfully', {
       einsatzId: einsatz.id.value,
       nummer: einsatz.nummer,
       alarmstichwort: einsatz.alarmstichwort,
+      eventCount: events.length,
     });
 
-    return Result.ok(einsatz.id);
+    // Step 6: Return result + events für Base Handler
+    // Base Handler committed Transaction wenn alles erfolgreich
+    return {
+      result: einsatz.id.value,
+      events,
+    };
   }
 }

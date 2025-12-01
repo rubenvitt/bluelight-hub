@@ -64,6 +64,10 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
     // Outbox Infrastructure (Story 4-4)
     EventSerializer,
     PrismaOutboxRepository,
+    {
+      provide: 'IOutboxRepository',
+      useClass: PrismaOutboxRepository,
+    },
 
     {
       provide: 'ILagekarteRepository', // String Token (Interface-Name)
@@ -78,6 +82,6 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
       useClass: NominatimGeocodingAdapter, // Konkrete Implementation
     },
   ],
-  exports: ['ILagekarteRepository', 'IEinsatzRepository', 'IGeocodingPort'], // Export für andere Module
+  exports: ['ILagekarteRepository', 'IEinsatzRepository', 'IGeocodingPort', 'IOutboxRepository'], // Export für andere Module
 })
 export class LagekarteInfrastructureModule {}

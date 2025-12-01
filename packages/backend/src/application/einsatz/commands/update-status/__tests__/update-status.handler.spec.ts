@@ -2,11 +2,13 @@ import { Result } from '@domain/common/result';
 import { UpdateEinsatzStatusHandler } from '../update-status.handler';
 import { UpdateEinsatzStatusCommand } from '../update-status.command';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
+import type { IOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { PrismaService } from '@/prisma/prisma.service';
+import { Test, type TestingModule } from '@nestjs/testing';
 
 /**
  * Helper: Erstellt Mock-Einsatz mit spezifischem Status.
@@ -38,9 +40,14 @@ const createMockEinsatz = (status: EinsatzStatus = EinsatzStatus.ANGELEGT()): Ei
 describe('UpdateEinsatzStatusHandler', () => {
   let handler: UpdateEinsatzStatusHandler;
   let mockRepository: jest.Mocked<IEinsatzRepository>;
-  let mockEventPublisher: jest.Mocked<IEventPublisher>;
+  let mockPrismaService: {
+    $transaction: jest.Mock;
+  };
+  let mockOutboxRepository: {
+    save: jest.Mock;
+  };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockRepository = {
       findById: jest.fn(),
       save: jest.fn(),
@@ -49,12 +56,27 @@ describe('UpdateEinsatzStatusHandler', () => {
       exists: jest.fn(),
     } as jest.Mocked<IEinsatzRepository>;
 
-    mockEventPublisher = {
-      publish: jest.fn(),
-      publishAll: jest.fn(),
-    } as jest.Mocked<IEventPublisher>;
+    mockPrismaService = {
+      $transaction: jest.fn().mockImplementation(async (callback) => {
+        const txMock = {};
+        return callback(txMock);
+      }),
+    };
 
-    handler = new UpdateEinsatzStatusHandler(mockRepository, mockEventPublisher);
+    mockOutboxRepository = {
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UpdateEinsatzStatusHandler,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: 'IOutboxRepository', useValue: mockOutboxRepository },
+        { provide: 'IEinsatzRepository', useValue: mockRepository },
+      ],
+    }).compile();
+
+    handler = module.get<UpdateEinsatzStatusHandler>(UpdateEinsatzStatusHandler);
   });
 
   afterEach(() => {
@@ -69,16 +91,12 @@ describe('UpdateEinsatzStatusHandler', () => {
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isSuccess).toBe(true);
+      // Act & Assert
+      await expect(handler.execute(command)).resolves.not.toThrow();
       expect(einsatz.status.value).toBe('IN_BEARBEITUNG');
-      expect(mockRepository.save).toHaveBeenCalledWith(einsatz);
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      expect(mockRepository.save).toHaveBeenCalledWith(einsatz, {});
+      expect(mockOutboxRepository.save).toHaveBeenCalledTimes(1);
     });
 
     it('sollte IN_BEARBEITUNG → ABGESCHLOSSEN erfolgreich durchführen', async () => {
@@ -88,16 +106,12 @@ describe('UpdateEinsatzStatusHandler', () => {
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isSuccess).toBe(true);
+      // Act & Assert
+      await expect(handler.execute(command)).resolves.not.toThrow();
       expect(einsatz.status.value).toBe('ABGESCHLOSSEN');
-      expect(mockRepository.save).toHaveBeenCalledWith(einsatz);
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      expect(mockRepository.save).toHaveBeenCalledWith(einsatz, {});
+      expect(mockOutboxRepository.save).toHaveBeenCalledTimes(1);
     });
 
     it('sollte ABGESCHLOSSEN → ARCHIVIERT erfolgreich durchführen', async () => {
@@ -107,16 +121,12 @@ describe('UpdateEinsatzStatusHandler', () => {
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isSuccess).toBe(true);
+      // Act & Assert
+      await expect(handler.execute(command)).resolves.not.toThrow();
       expect(einsatz.status.value).toBe('ARCHIVIERT');
-      expect(mockRepository.save).toHaveBeenCalledWith(einsatz);
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      expect(mockRepository.save).toHaveBeenCalledWith(einsatz, {});
+      expect(mockOutboxRepository.save).toHaveBeenCalledTimes(1);
     });
 
     it('sollte ANGELEGT → ABGESCHLOSSEN direkt durchführen (Skip-Transition)', async () => {
@@ -126,16 +136,12 @@ describe('UpdateEinsatzStatusHandler', () => {
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isSuccess).toBe(true);
+      // Act & Assert
+      await expect(handler.execute(command)).resolves.not.toThrow();
       expect(einsatz.status.value).toBe('ABGESCHLOSSEN');
-      expect(mockRepository.save).toHaveBeenCalledWith(einsatz);
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
+      expect(mockRepository.save).toHaveBeenCalledWith(einsatz, {});
+      expect(mockOutboxRepository.save).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -147,14 +153,10 @@ describe('UpdateEinsatzStatusHandler', () => {
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Ungültige Status-Transition');
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Ungültige Status-Transition');
       expect(mockRepository.save).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
     it('sollte ABGESCHLOSSEN → IN_BEARBEITUNG ablehnen (Rückwärts-Transition)', async () => {
@@ -164,14 +166,10 @@ describe('UpdateEinsatzStatusHandler', () => {
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Ungültige Status-Transition');
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Ungültige Status-Transition');
       expect(mockRepository.save).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
     it('sollte ARCHIVIERT → IN_BEARBEITUNG ablehnen (immutable)', async () => {
@@ -181,14 +179,10 @@ describe('UpdateEinsatzStatusHandler', () => {
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Archivierte Einsätze');
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Archivierte Einsätze');
       expect(mockRepository.save).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
     it('sollte ARCHIVIERT → ABGESCHLOSSEN ablehnen (immutable)', async () => {
@@ -198,14 +192,10 @@ describe('UpdateEinsatzStatusHandler', () => {
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Archivierte Einsätze');
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Archivierte Einsätze');
       expect(mockRepository.save).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
     it('sollte ungültigen Status-String ablehnen', async () => {
@@ -216,51 +206,38 @@ describe('UpdateEinsatzStatusHandler', () => {
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Ungültiger Status');
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Ungültiger Status');
       expect(mockRepository.save).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
   });
 
   describe('execute - Fehlerbehandlung', () => {
-    it('sollte Result.fail() zurückgeben wenn Einsatz nicht gefunden', async () => {
+    it('sollte Exception werfen wenn Einsatz nicht gefunden', async () => {
       // Arrange
       const validEinsatzId = EinsatzId.create().value!.value;
       const command = UpdateEinsatzStatusCommand.create(validEinsatzId, 'IN_BEARBEITUNG').value!;
       mockRepository.findById.mockResolvedValue(Result.ok(null));
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('nicht gefunden');
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('nicht gefunden');
       expect(mockRepository.save).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
-    it('sollte Result.fail() zurückgeben bei ungültiger EinsatzId', async () => {
+    it('sollte Exception werfen bei ungültiger EinsatzId', async () => {
       // Arrange
       const command = UpdateEinsatzStatusCommand.create('invalid-id-format', 'IN_BEARBEITUNG').value!;
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      // EinsatzId.create() gibt "Invalid CUID format" zurück
-      expect(result.error).toMatch(/Invalid CUID format|Ungültige Einsatz-ID/);
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow(/Invalid CUID format|Ungültige Einsatz-ID/);
       expect(mockRepository.findById).not.toHaveBeenCalled();
       expect(mockRepository.save).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
-    it('sollte Result.fail() zurückgeben bei Repository.save() Fehler', async () => {
+    it('sollte Exception werfen bei Repository.save() Fehler', async () => {
       // Arrange
       const einsatz = createMockEinsatz(EinsatzStatus.ANGELEGT());
       const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
@@ -268,72 +245,62 @@ describe('UpdateEinsatzStatusHandler', () => {
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockRepository.save.mockResolvedValue(Result.fail('Database connection error'));
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Database connection error');
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Database connection error');
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
-    it('sollte Result.fail() zurückgeben bei Repository.findById() Fehler', async () => {
+    it('sollte Exception werfen bei Repository.findById() Fehler', async () => {
       // Arrange
       const einsatz = createMockEinsatz();
       const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
 
       mockRepository.findById.mockResolvedValue(Result.fail('Database connection error'));
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Database connection error');
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Database connection error');
       expect(mockRepository.save).not.toHaveBeenCalled();
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
   });
 
   describe('execute - Event Publishing', () => {
-    it('sollte EinsatzStatusChangedEvent nach save() publizieren', async () => {
+    it('sollte EinsatzStatusChangedEvent in Outbox persistieren', async () => {
       // Arrange
       const einsatz = createMockEinsatz(EinsatzStatus.ANGELEGT());
       const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
 
       // Act
       await handler.execute(command);
 
       // Assert
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const events = mockEventPublisher.publishAll.mock.calls[0][0];
-      expect(events).toHaveLength(1);
-      expect(events[0].constructor.name).toBe('EinsatzStatusChangedEvent');
+      expect(mockOutboxRepository.save).toHaveBeenCalledTimes(1);
+      const savedEvents = mockOutboxRepository.save.mock.calls[0][0];
+      expect(savedEvents).toHaveLength(1);
+      expect(savedEvents[0].constructor.name).toBe('EinsatzStatusChangedEvent');
     });
 
-    it('sollte Events nach save() publizieren, nicht vorher', async () => {
+    it('sollte Events in Outbox speichern nach save(), nicht vorher', async () => {
       // Arrange
       const einsatz = createMockEinsatz(EinsatzStatus.ANGELEGT());
       const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
 
       // Act
       await handler.execute(command);
 
-      // Assert - Reihenfolge wichtig: save() vor publishAll()
-      const publishCalls = mockEventPublisher.publishAll.mock.invocationCallOrder;
+      // Assert - Reihenfolge wichtig: save() vor Outbox save()
+      const outboxCalls = mockOutboxRepository.save.mock.invocationCallOrder;
       const saveCalls = mockRepository.save.mock.invocationCallOrder;
-      expect(saveCalls[0]).toBeLessThan(publishCalls[0]);
+      expect(saveCalls[0]).toBeLessThan(outboxCalls[0]);
     });
 
-    it('sollte keine Events publizieren bei save() Fehler', async () => {
+    it('sollte keine Events in Outbox speichern bei save() Fehler', async () => {
       // Arrange
       const einsatz = createMockEinsatz(EinsatzStatus.ANGELEGT());
       const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
@@ -341,21 +308,18 @@ describe('UpdateEinsatzStatusHandler', () => {
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockRepository.save.mockResolvedValue(Result.fail('Database error'));
 
-      // Act
-      await handler.execute(command);
-
-      // Assert
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Database error');
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
-    it('sollte Domain Events nach Publish leeren', async () => {
+    it('sollte Domain Events nach Outbox Persistierung leeren', async () => {
       // Arrange
       const einsatz = createMockEinsatz(EinsatzStatus.ANGELEGT());
       const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
 
       // Act
       await handler.execute(command);
@@ -375,11 +339,10 @@ describe('UpdateEinsatzStatusHandler', () => {
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
 
       // Act
-      const result = await handler.execute(command);
+      await expect(handler.execute(command)).resolves.not.toThrow();
 
       // Assert
-      expect(result.isSuccess).toBe(true);
-      expect(mockRepository.save).toHaveBeenCalledWith(einsatz);
+      expect(mockRepository.save).toHaveBeenCalledWith(einsatz, {});
       // No-Op: Aggregate erzeugt kein Event bei gleichem Status
       expect(einsatz.getDomainEvents()).toHaveLength(0);
     });

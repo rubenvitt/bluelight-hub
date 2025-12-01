@@ -46,7 +46,7 @@ export class CreateEinsatzHandler extends TransactionalCommandHandler<CreateEins
 
   constructor(
     prisma: PrismaService,
-    outboxRepository: IOutboxRepository,
+    @Inject('IOutboxRepository') outboxRepository: IOutboxRepository,
     @Inject('IEinsatzRepository')
     private readonly einsatzRepository: IEinsatzRepository,
   ) {

@@ -229,6 +229,295 @@ packages/backend/src/
 - SHA-256 Checksum für Integrität
 - Compliance-konform für DRK-Anforderungen
 
+## Transactional Outbox Pattern
+
+### Overview
+
+Das Backend nutzt das **Transactional Outbox Pattern** für garantiert atomare Persistierung von Aggregates und Domain Events. Dieses Pattern verhindert "lost events" bei Datenbank-Fehlern und ermöglicht Retry-Logic für fehlgeschlagene Event-Publishes.
+
+**Kernproblem:**
+- Aggregate speichern und Events publishen sind zwei separate Operationen
+- Bei Fehler nach Aggregate-Save gehen Events verloren
+- Keine Transaktionsgarantie über Datenbank und Event Bus hinweg
+
+**Lösung:**
+- Aggregate **und** Events werden in einer Datenbank-Transaktion gespeichert
+- Outbox Table als "Event Queue" in derselben DB
+- OutboxEventPublisher pollt Outbox und publiziert Events asynchron
+- Retry-Mechanismus für fehlgeschlagene Publishes
+
+### Architecture Components
+
+#### 1. TransactionalCommandHandler Base Class
+
+Abstrakte Base Class für alle Command Handler mit Outbox-Support:
+
+```typescript
+@Injectable()
+export abstract class TransactionalCommandHandler<TCommand, TResult> {
+  constructor(
+    protected readonly prisma: PrismaService,
+    protected readonly outboxRepository: IOutboxRepository,
+  ) {}
+
+  /**
+   * Template Method Pattern:
+   * 1. Start Transaction
+   * 2. Call executeInTransaction() (implementiert von Child)
+   * 3. Save Events to Outbox (atomar)
+   * 4. Commit Transaction
+   * 5. Wrap Result in Result<T>
+   */
+  async execute(command: TCommand): Promise<Result<TResult>> {
+    try {
+      const { result, events } = await this.prisma.$transaction(async (tx) => {
+        // Child Handler implementiert Business Logic
+        const handlerResult = await this.executeInTransaction(command, tx);
+
+        // Save Events to Outbox (atomically in same TX)
+        if (handlerResult.events.length > 0) {
+          await this.outboxRepository.saveEvents(handlerResult.events, tx);
+        }
+
+        return handlerResult;
+      });
+
+      return Result.ok(result);
+    } catch (error) {
+      // Transaction Rollback (automatic)
+      return Result.fail(error.message);
+    }
+  }
+
+  /**
+   * Child Handler implementiert diese Methode.
+   * WICHTIG: Nutze `tx` Parameter für alle DB-Operationen!
+   */
+  protected abstract executeInTransaction(
+    command: TCommand,
+    tx: PrismaTransaction,
+  ): Promise<{ result: TResult; events: DomainEvent[] }>;
+}
+```
+
+**Verwendung in Command Handlers:**
+
+```typescript
+@Injectable()
+export class CreateEinsatzHandler extends TransactionalCommandHandler<CreateEinsatzCommand, string> {
+  constructor(
+    prisma: PrismaService,
+    outboxRepository: IOutboxRepository,
+    @Inject('IEinsatzRepository') private repository: IEinsatzRepository,
+  ) {
+    super(prisma, outboxRepository);
+  }
+
+  protected async executeInTransaction(
+    command: CreateEinsatzCommand,
+    tx: PrismaTransaction,
+  ): Promise<{ result: string; events: DomainEvent[] }> {
+    // 1. Create Aggregate
+    const einsatz = Einsatz.create({ ... });
+
+    // 2. Save Aggregate in Transaction (WICHTIG: Nutze tx!)
+    await this.repository.save(einsatz, tx);
+
+    // 3. Extract Domain Events
+    const events = einsatz.getDomainEvents();
+    einsatz.clearDomainEvents();
+
+    // 4. Return result + events für Base Handler
+    return { result: einsatz.id.value, events };
+  }
+}
+```
+
+#### 2. Outbox Repository
+
+Verwaltet Event-Persistierung und Polling:
+
+```typescript
+export interface IOutboxRepository {
+  /**
+   * Speichert Domain Events in Outbox Table (atomar in Transaction).
+   */
+  saveEvents(events: DomainEvent[], tx: PrismaTransaction): Promise<void>;
+
+  /**
+   * Lädt PENDING Events für Publishing (max limit).
+   */
+  findPendingEvents(limit: number): Promise<OutboxEvent[]>;
+
+  /**
+   * Markiert Event als PUBLISHED nach erfolgreichem Publish.
+   */
+  markAsPublished(eventId: string): Promise<void>;
+
+  /**
+   * Markiert Event als FAILED bei Publish-Fehler (inkl. Retry-Count).
+   */
+  markAsFailed(eventId: string, error: string): Promise<void>;
+}
+```
+
+**Outbox Table Schema:**
+
+```prisma
+model OutboxEvent {
+  id           String   @id @default(cuid())
+  eventName    String   // z.B. "einsatz.created"
+  aggregateId  String   // Reference zu Aggregate
+  payload      Json     // Event Data (serialisiert)
+  status       String   // PENDING | PUBLISHED | FAILED
+  retryCount   Int      @default(0)
+  lastError    String?
+  createdAt    DateTime @default(now())
+  publishedAt  DateTime?
+
+  @@index([status, createdAt])
+}
+```
+
+#### 3. OutboxEventPublisher
+
+Pollt Outbox Table und publiziert Events zum Event Bus:
+
+```typescript
+@Injectable()
+export class OutboxEventPublisher implements OnModuleInit {
+  private readonly POLL_INTERVAL_MS = 5000; // 5 Sekunden
+  private readonly BATCH_SIZE = 100;
+
+  constructor(
+    private readonly outboxRepository: IOutboxRepository,
+    private readonly eventBus: EventBus,
+  ) {}
+
+  async onModuleInit() {
+    // Start Polling Loop
+    setInterval(() => this.publishPendingEvents(), this.POLL_INTERVAL_MS);
+  }
+
+  private async publishPendingEvents() {
+    const events = await this.outboxRepository.findPendingEvents(this.BATCH_SIZE);
+
+    for (const event of events) {
+      try {
+        // Publish to Event Bus
+        await this.eventBus.publish(event.eventName, event.payload);
+
+        // Mark as Published
+        await this.outboxRepository.markAsPublished(event.id);
+      } catch (error) {
+        // Mark as Failed (mit Retry-Count)
+        await this.outboxRepository.markAsFailed(event.id, error.message);
+      }
+    }
+  }
+}
+```
+
+### Event Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. HTTP Request → Controller → Command Handler                 │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 2. TransactionalCommandHandler.execute()                       │
+│    ├─ Start Transaction ($transaction)                         │
+│    ├─ executeInTransaction() (Child implementiert)             │
+│    │  ├─ Aggregate.create() / Aggregate.update()               │
+│    │  ├─ Repository.save(aggregate, tx) → DB WRITE             │
+│    │  └─ Extract Domain Events                                 │
+│    ├─ OutboxRepository.saveEvents(events, tx) → DB WRITE       │
+│    └─ Commit Transaction (atomar!)                             │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 3. OutboxEventPublisher (Background Job, 5s Interval)          │
+│    ├─ Poll OutboxRepository.findPendingEvents(100)             │
+│    ├─ For each event:                                          │
+│    │  ├─ EventBus.publish(eventName, payload)                  │
+│    │  ├─ SUCCESS → markAsPublished(eventId)                    │
+│    │  └─ ERROR → markAsFailed(eventId, error) + retryCount++   │
+│    └─ Repeat every 5s                                          │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 4. EventBus → Domain Event Handlers (z.B. EtbAutoCreation)     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Transactional Guarantees
+
+**Atomare Persistierung:**
+- Aggregate Save **UND** Outbox Save in einer DB-Transaktion
+- Bei Fehler: Rollback von beiden Operationen
+- **Garantie:** Kein Aggregate ohne Events, keine Events ohne Aggregate
+
+**Retry-Mechanismus:**
+- Events in Outbox haben `retryCount` Feld
+- OutboxEventPublisher erhöht `retryCount` bei Fehler
+- Max Retries konfigurierbar (z.B. 5x, dann Dead Letter Queue)
+
+**Event Latenz:**
+- Max 5-7 Sekunden zwischen Aggregate-Save und Event-Publish
+- Trade-off: Eventual Consistency für Transactional Integrity
+- Akzeptabel für ETB Auto-Creation (nicht kritisch)
+
+### Migrated Handlers
+
+Folgende Command Handlers nutzen TransactionalCommandHandler:
+
+| Handler | Command | Events | Status |
+|---------|---------|--------|--------|
+| `CreateEinsatzHandler` | CreateEinsatzCommand | EinsatzCreatedEvent | ✅ Migriert |
+| `UpdateEinsatzHandler` | UpdateEinsatzCommand | EinsatzUpdatedEvent | ✅ Migriert |
+| `ArchiveEinsatzHandler` | ArchiveEinsatzCommand | EinsatzArchivedEvent, EinsatzStatusChangedEvent | ✅ Migriert |
+| `CompleteEinsatzHandler` | CompleteEinsatzCommand | EinsatzCompletedEvent, EinsatzStatusChangedEvent | ✅ Migriert |
+| `UpdateEinsatzStatusHandler` | UpdateEinsatzStatusCommand | EinsatzStatusChangedEvent | ✅ Migriert |
+
+**Vorteile:**
+- Keine direkten `eventEmitter.emit()` oder `eventBus.publish()` Calls in Handlern
+- Vollständige Test-Coverage für Outbox Integration
+- Retry-Safe bei Event Bus Failures
+- Audit-Trail in Outbox Table
+
+### Testing Strategy
+
+**Outbox Integration Tests:**
+
+```typescript
+// AC1.1: Events werden in Outbox persistiert
+const result = await createHandler.execute(command);
+const outboxEvents = await outboxRepository.findPendingEvents(10);
+expect(outboxEvents).toContainEqual(
+  expect.objectContaining({
+    eventName: 'einsatz.created',
+    status: 'PENDING',
+    aggregateId: result.value!,
+  })
+);
+
+// AC1.4: Retry Mechanism
+await outboxRepository.markAsFailed(eventId, 'Network Error');
+const failedEvent = await outboxRepository.findById(eventId);
+expect(failedEvent!.retryCount).toBe(1);
+```
+
+**Event Emission Verification:**
+
+Keine duplicate Event-Emissions:
+- ❌ Kein `eventEmitter.emit()` in Command Handlers
+- ❌ Kein `this.eventBus.publish()` in Command Handlers
+- ✅ Nur `return { result, events }` in `executeInTransaction()`
+- ✅ Base Handler koordiniert Outbox-Persistierung
+
+**Siehe:** `/packages/backend/src/infrastructure/einsatz/__tests__/outbox-integration.e2e.spec.ts`
+
 ## Security Architecture
 
 ### Authentication Flow

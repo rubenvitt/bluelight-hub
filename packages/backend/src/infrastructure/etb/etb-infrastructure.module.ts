@@ -50,6 +50,10 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
     // Outbox Infrastructure (Story 4-4)
     EventSerializer,
     PrismaOutboxRepository,
+    {
+      provide: 'IOutboxRepository',
+      useClass: PrismaOutboxRepository,
+    },
 
     // Repository Implementation bound to Interface Token
     {
@@ -60,6 +64,7 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
   exports: [
     // Export Interface Token for Application Layer injection
     'IEtbRepository',
+    'IOutboxRepository',
   ],
 })
 export class EtbInfrastructureModule {}

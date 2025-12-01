@@ -9,7 +9,7 @@ import { EventSerializer, type SerializedEvent } from './event-serializer';
  * Prisma Transaction Type für atomare Operationen.
  * Wird verwendet, um Events in derselben Transaktion wie das Aggregate zu persistieren.
  */
-export type PrismaTransaction = Omit<PrismaService, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+export type PrismaTransaction = Omit<PrismaService, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends' | 'onModuleInit' | 'onModuleDestroy'>;
 
 /**
  * Outbox Event DTO für Repository-Rückgaben.

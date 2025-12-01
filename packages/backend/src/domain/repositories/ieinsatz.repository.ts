@@ -1,6 +1,7 @@
 import type { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import type { Result } from '@domain/common/result';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
+import type { PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
 
 /**
  * Repository Port Interface für Einsatz Aggregate Persistence.
@@ -53,23 +54,39 @@ export interface IEinsatzRepository {
    * - Infrastructure Layer prüft ob ID existiert und führt INSERT/UPDATE aus
    * - Vereinfacht Domain API (ein Method für beide Operationen)
    *
-   * Event Publishing:
-   * - Infrastructure Layer ist verantwortlich für Event Publishing nach save()
-   * - Via Transactional Outbox Pattern (Epic 4)
+   * Transaction Support (Transactional Outbox Pattern):
+   * - Optional `tx` Parameter für atomare Persistierung mit Outbox Events
+   * - Wenn `tx` vorhanden: Nutze Transaction Client (Application Layer Koordination)
+   * - Wenn `tx` nicht vorhanden: Nutze Standard Prisma Client (Auto-Commit)
+   * - Repository ist NICHT verantwortlich für Event Publishing - nur Persistierung!
+   *
+   * WICHTIG - Repository Responsibility:
+   * - Repository persistiert NUR das Aggregate (Einsatz Domain Model → DB Row)
+   * - KEINE Event-Serialisierung oder Outbox-Persistierung im Repository!
+   * - Event Handling ist Application Layer Responsibility (Command Handler)
    *
    * @param aggregate - Das zu speichernde Einsatz Aggregate
+   * @param tx - Optional: Prisma Transaction für atomare Operationen mit Outbox
    * @returns Result<void> - Success (void) oder Failure mit Error Message
    *
    * @example
    * ```typescript
+   * // Without Transaction (Auto-Commit)
    * const einsatz = Einsatz.create({ alarmstichwort: 'Brand', createdBy: userId }).value!;
    * const result = await repository.save(einsatz);
    * if (result.isFailure) {
    *   console.error(result.error); // "Database connection failed"
    * }
+   *
+   * // With Transaction (Transactional Outbox Pattern - Application Layer)
+   * await prisma.$transaction(async (tx) => {
+   *   await repository.save(aggregate, tx);
+   *   await outboxRepository.save(aggregate.domainEvents, tx);
+   * });
+   * aggregate.clearDomainEvents();
    * ```
    */
-  save(aggregate: Einsatz): Promise<Result<void>>;
+  save(aggregate: Einsatz, tx?: PrismaTransaction): Promise<Result<void>>;
 
   /**
    * Findet ein Einsatz Aggregate by ID.

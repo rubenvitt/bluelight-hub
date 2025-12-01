@@ -23,7 +23,10 @@ jest.mock('@paralleldrive/cuid2', () => ({
   isCuid: jest.fn((id: string) => {
     if (typeof id !== 'string') return false;
     if (id.length < 20 || id.length > 30) return false;
-    return /^[a-z][a-z0-9]+$/.test(id);
+    // CUID2 Format: lowercase a-z and 0-9 only, starts with letter
+    // Nanoid/CUID Format (für UserId): mixed case alphanumeric + underscore/hyphen
+    // Wir akzeptieren beide Formate für Kompatibilität
+    return /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(id);
   }),
 }));
 

@@ -254,16 +254,22 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   /**
-   * Zählt aktive (nicht gesperrte) SUPER_ADMIN User.
+   * Zählt aktive (nicht gesperrte, nicht gelöschte) SUPER_ADMIN User.
    *
    * KRITISCH für Min-1-SUPER_ADMIN Constraint:
    * - Nur role = 'SUPER_ADMIN'
    * - Nur isLocked = false
+   * - Nur isDeleted = false
    *
    * **Warum isLocked Filter:**
    * - Gesperrte SUPER_ADMINs zählen NICHT für Min-1-SUPER_ADMIN Constraint
    * - Verhindert Lock-Out Scenario: letzter aktiver SUPER_ADMIN kann nicht gesperrt werden
    * - Ermöglicht temporäres Sperren von SUPER_ADMINs wenn mindestens 1 anderer aktiv ist
+   *
+   * **Warum isDeleted Filter:**
+   * - Soft-gelöschte SUPER_ADMINs zählen NICHT für Min-1-SUPER_ADMIN Constraint
+   * - Verhindert System-Lockout nach versehentlicher Soft-Delete Operation
+   * - Konsistent mit isLocked Filter (beide sind "deaktiviert" States)
    *
    * @param tx - Optional Transaction Context (WICHTIG für Atomizität mit save())
    * @returns Result<number> - Success mit Anzahl aktiver SUPER_ADMINs (>= 1 expected)
@@ -276,6 +282,7 @@ export class PrismaUserRepository implements IUserRepository {
         where: {
           role: 'SUPER_ADMIN',
           isLocked: false,
+          isDeleted: false,
         },
       });
 

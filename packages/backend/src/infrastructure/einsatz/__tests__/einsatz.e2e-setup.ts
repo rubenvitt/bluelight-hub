@@ -280,7 +280,7 @@ export async function createEinsatzE2eModule(): Promise<EinsatzE2eTestContext> {
     await safeDeleteOld(prisma, 'einsaetze', '"createdAt"');
 
     // Test Users
-    await prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE username LIKE 'test-einsatz-e2e-%'`);
+    await prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE username LIKE 'test_einsatz_e2e_%'`);
   } finally {
     await prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
   }
@@ -297,7 +297,7 @@ export async function createEinsatzE2eModule(): Promise<EinsatzE2eTestContext> {
     INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")
     VALUES (
       ${userId},
-      ${`test-einsatz-e2e-user-${testRunId}`},
+      ${`test_einsatz_e2e_user_${testRunId}`},
       'dummy-hash',
       'USER'::"UserRole",
       true,
@@ -311,7 +311,7 @@ export async function createEinsatzE2eModule(): Promise<EinsatzE2eTestContext> {
     INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")
     VALUES (
       ${adminId},
-      ${`test-einsatz-e2e-admin-${testRunId}`},
+      ${`test_einsatz_e2e_admin_${testRunId}`},
       'dummy-hash',
       'ADMIN'::"UserRole",
       true,
@@ -325,7 +325,7 @@ export async function createEinsatzE2eModule(): Promise<EinsatzE2eTestContext> {
     INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")
     VALUES (
       ${superAdminId},
-      ${`test-einsatz-e2e-superadmin-${testRunId}`},
+      ${`test_einsatz_e2e_superadmin_${testRunId}`},
       'dummy-hash',
       'SUPER_ADMIN'::"UserRole",
       true,
@@ -563,7 +563,7 @@ export async function createTestEinsatz(ctx: EinsatzE2eTestContext, options?: Cr
  */
 export async function createTestUser(ctx: EinsatzE2eTestContext, role: 'USER' | 'ADMIN' | 'SUPER_ADMIN', username?: string): Promise<string> {
   const userId = generateTestId();
-  const generatedUsername = username ?? `test-einsatz-e2e-${role.toLowerCase()}-${ctx.testRunId}-${Date.now()}`;
+  const generatedUsername = username ?? `test_einsatz_e2e_${role.toLowerCase()}_${ctx.testRunId}_${Date.now()}`;
 
   await ctx.prisma.$executeRaw`
     INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")

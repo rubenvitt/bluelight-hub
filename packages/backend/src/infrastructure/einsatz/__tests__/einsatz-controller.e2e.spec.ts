@@ -1,6 +1,6 @@
 import { VersioningType, type INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
-import * as request from 'supertest';
+import request from 'supertest';
 import cookieParser from 'cookie-parser';
 import { type EinsatzE2eTestContext, cleanupTestData, createEinsatzE2eModule, createTestEinsatz, teardownE2eModule } from './einsatz.e2e-setup';
 import { AppModule } from '../../../app.module';
@@ -45,6 +45,24 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     app.use(cookieParser());
 
     await app.init();
+
+    // Admin-User mit echtem bcrypt-Hash erstellen
+    const bcrypt = await import('bcrypt');
+    const passwordHash = await bcrypt.hash('password', 10);
+    await ctx.prisma.user.upsert({
+      where: { username: 'admin' },
+      create: {
+        id: ctx.testUserId,
+        username: 'admin',
+        passwordHash,
+        role: 'ADMIN',
+        isActive: true,
+      },
+      update: {
+        passwordHash,
+        isActive: true,
+      },
+    });
 
     // Login durchführen und Token für authentifizierte Requests erhalten
     const loginResponse = await request(app.getHttpServer())

@@ -53,10 +53,10 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
     // Cleanup Test Data (behält Test Users)
     await cleanupTestData(ctx);
 
-    // Cleanup zusätzliche Test Users (test-rbac-*)
+    // Cleanup zusätzliche Test Users (test_rbac_*)
     await ctx.prisma.$executeRawUnsafe(DISABLE_TRIGGERS_SQL);
     try {
-      await ctx.prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE username LIKE 'test-rbac-%'`);
+      await ctx.prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE username LIKE 'test_rbac_%'`);
     } finally {
       await ctx.prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
     }
@@ -66,7 +66,7 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
     try {
       await ctx.prisma.$executeRaw`
         UPDATE "User" SET "isLocked" = false
-        WHERE username LIKE 'test-einsatz-e2e-%'
+        WHERE username LIKE 'test_einsatz_e2e_%'
       `;
     } finally {
       await ctx.prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
@@ -94,11 +94,21 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
      * - User bleibt unlocked
      */
     it('should prevent locking the last SUPER_ADMIN', async () => {
-      // Given: Nur 1 SUPER_ADMIN existiert
+      // Given: Stelle sicher dass NUR 1 SUPER_ADMIN existiert
+      // (Lock alle anderen SUPER_ADMINs, dann zählen sie nicht mehr)
+      await ctx.prisma.$executeRaw`
+        UPDATE "User"
+        SET "isLocked" = true
+        WHERE role = 'SUPER_ADMIN'
+          AND id != ${ctx.testUserIds.superAdmin}
+          AND "isDeleted" = false
+      `;
+
+      // Verify: Jetzt sollte nur noch 1 SUPER_ADMIN gezählt werden
       const countResult = await userRepository.countSuperAdmins();
       expect(countResult.isSuccess).toBe(true);
       const initialCount = countResult.value!;
-      expect(initialCount).toBeGreaterThanOrEqual(1);
+      expect(initialCount).toBe(1);
 
       // When: Versuche den letzten SUPER_ADMIN zu locken
       const userId = UserId.create(ctx.testUserIds.superAdmin).value!;
@@ -115,6 +125,13 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
 
       // Verify User ist NICHT gelockt
       expect(user.isLocked).toBe(false);
+
+      // Cleanup: Unlock alle SUPER_ADMINs wieder
+      await ctx.prisma.$executeRaw`
+        UPDATE "User"
+        SET "isLocked" = false
+        WHERE role = 'SUPER_ADMIN'
+      `;
     });
 
     /**
@@ -133,7 +150,7 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
      */
     it('should allow locking SUPER_ADMIN when 2+ exist', async () => {
       // Given: Erstelle zweiten SUPER_ADMIN
-      const secondSuperAdminId = await createTestUser(ctx, 'SUPER_ADMIN', 'test-rbac-super2');
+      const secondSuperAdminId = await createTestUser(ctx, 'SUPER_ADMIN', 'test_rbac_super2');
 
       // Verify count ist jetzt >= 2
       const countResult = await userRepository.countSuperAdmins();
@@ -174,7 +191,22 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
      * - User behält SUPER_ADMIN Role
      */
     it('should prevent downgrading the last SUPER_ADMIN role', async () => {
-      // Given: Nur 1 SUPER_ADMIN
+      // Given: Stelle sicher dass NUR 1 SUPER_ADMIN existiert
+      // (Lock alle anderen SUPER_ADMINs, dann zählen sie nicht mehr)
+      await ctx.prisma.$executeRaw`
+        UPDATE "User"
+        SET "isLocked" = true
+        WHERE role = 'SUPER_ADMIN'
+          AND id != ${ctx.testUserIds.superAdmin}
+          AND "isDeleted" = false
+      `;
+
+      // Verify: Jetzt sollte nur noch 1 SUPER_ADMIN gezählt werden
+      const countResult = await userRepository.countSuperAdmins();
+      expect(countResult.isSuccess).toBe(true);
+      expect(countResult.value!).toBe(1);
+
+      // When: Lade den letzten SUPER_ADMIN
       const userId = UserId.create(ctx.testUserIds.superAdmin).value!;
       const userResult = await userRepository.findById(userId);
       expect(userResult.isSuccess).toBe(true);
@@ -195,6 +227,13 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
 
       // Verify Role ist unverändert
       expect(user.hasRole(UserRole.SUPER_ADMIN())).toBe(true);
+
+      // Cleanup: Unlock alle SUPER_ADMINs wieder
+      await ctx.prisma.$executeRaw`
+        UPDATE "User"
+        SET "isLocked" = false
+        WHERE role = 'SUPER_ADMIN'
+      `;
     });
 
     /**
@@ -213,7 +252,7 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
      */
     it('should allow downgrading SUPER_ADMIN when 2+ exist', async () => {
       // Given: Erstelle zweiten SUPER_ADMIN
-      const secondSuperAdminId = await createTestUser(ctx, 'SUPER_ADMIN', 'test-rbac-super-downgrade');
+      const secondSuperAdminId = await createTestUser(ctx, 'SUPER_ADMIN', 'test_rbac_super_downgrade');
 
       // Verify count
       const countResult = await userRepository.countSuperAdmins();
@@ -257,7 +296,7 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
      */
     it('should exclude locked SUPER_ADMIN from count', async () => {
       // Given: Erstelle zweiten SUPER_ADMIN
-      const secondId = await createTestUser(ctx, 'SUPER_ADMIN', 'test-rbac-super-locked');
+      const secondId = await createTestUser(ctx, 'SUPER_ADMIN', 'test_rbac_super_locked');
 
       // Initial count (beide unlocked)
       const initialCountResult = await userRepository.countSuperAdmins();
@@ -298,7 +337,7 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
      */
     it('should exclude soft-deleted SUPER_ADMIN from count', async () => {
       // Given: Erstelle SUPER_ADMIN
-      const deletedId = await createTestUser(ctx, 'SUPER_ADMIN', 'test-rbac-super-deleted');
+      const deletedId = await createTestUser(ctx, 'SUPER_ADMIN', 'test_rbac_super_deleted');
 
       // Initial count
       const initialCountResult = await userRepository.countSuperAdmins();
@@ -341,9 +380,9 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
      */
     it('should count only active SUPER_ADMINs', async () => {
       // Given: Erstelle 3 zusätzliche SUPER_ADMINs
-      await createTestUser(ctx, 'SUPER_ADMIN', 'test-rbac-active-1');
-      await createTestUser(ctx, 'SUPER_ADMIN', 'test-rbac-active-2');
-      const locked = await createTestUser(ctx, 'SUPER_ADMIN', 'test-rbac-locked-3');
+      await createTestUser(ctx, 'SUPER_ADMIN', 'test_rbac_active_1');
+      await createTestUser(ctx, 'SUPER_ADMIN', 'test_rbac_active_2');
+      const locked = await createTestUser(ctx, 'SUPER_ADMIN', 'test_rbac_locked_3');
 
       // Lock einer
       await ctx.prisma.$executeRaw`
@@ -390,7 +429,7 @@ describe('RBAC Constraint Tests (AC3.1-AC3.4)', () => {
      */
     it('should exclude SUPER_ADMIN that is both locked and deleted', async () => {
       // Given: Erstelle SUPER_ADMIN
-      const bothId = await createTestUser(ctx, 'SUPER_ADMIN', 'test-rbac-both-locked-deleted');
+      const bothId = await createTestUser(ctx, 'SUPER_ADMIN', 'test_rbac_both_locked_deleted');
 
       // Initial count
       const initialCountResult = await userRepository.countSuperAdmins();

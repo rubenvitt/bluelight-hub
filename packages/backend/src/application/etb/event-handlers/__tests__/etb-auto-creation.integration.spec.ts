@@ -35,7 +35,10 @@ jest.mock('@paralleldrive/cuid2', () => ({
   isCuid: jest.fn((id: string) => {
     if (typeof id !== 'string') return false;
     if (id.length < 20 || id.length > 30) return false;
-    return /^[a-z][a-z0-9]+$/.test(id);
+    // CUID2 Format: lowercase a-z and 0-9 only, starts with letter
+    // Nanoid/CUID Format (für UserId): mixed case alphanumeric + underscore/hyphen
+    // Wir akzeptieren beide Formate für Kompatibilität
+    return /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(id);
   }),
 }));
 
@@ -172,6 +175,7 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
     testUserId = userResult[0].id;
 
     // Create SYSTEM user for ETBs created without Eintraege
+    // ON CONFLICT (username) weil username unique ist, nicht id
     await prisma.$executeRaw`
       INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")
       VALUES (
@@ -183,7 +187,7 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
         NOW(),
         NOW()
       )
-      ON CONFLICT (id) DO NOTHING
+      ON CONFLICT (username) DO NOTHING
     `;
 
     // Create test Einsatz for ETB FK

@@ -177,7 +177,8 @@ describe('ArchiveEinsatzHandler', () => {
 
       // Assert
       expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('bereits archiviert');
+      // Fehlermeldung prüft Status (ARCHIVIERT ist nicht ABGESCHLOSSEN)
+      expect(result.error).toContain('Status muss ABGESCHLOSSEN sein');
     });
 
     it('sollte EinsatzArchivedEvent nach save() publizieren', async () => {

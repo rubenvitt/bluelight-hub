@@ -14,7 +14,10 @@ jest.mock('@paralleldrive/cuid2', () => ({
   isCuid: jest.fn((id: string) => {
     if (typeof id !== 'string') return false;
     if (id.length < 20 || id.length > 30) return false;
-    return /^[a-z][a-z0-9]+$/.test(id);
+    // CUID2 Format: lowercase a-z and 0-9 only, starts with letter
+    // Nanoid/CUID Format (für UserId): mixed case alphanumeric + underscore/hyphen
+    // Wir akzeptieren beide Formate für Kompatibilität
+    return /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(id);
   }),
 }));
 
@@ -110,9 +113,9 @@ describe('UserId', () => {
       expect(result.value?.value).toBe(validMixedChars);
     });
 
-    it('should fail with invalid characters in CUID2', () => {
-      // Given: Invalid characters (uppercase or special chars)
-      const invalidChars = 'cABCDEF123456789012345';
+    it('should fail with invalid special characters', () => {
+      // Given: Invalid special characters (neither alphanumeric nor _ or -)
+      const invalidChars = 'c@#$%^&*()!123456789';
 
       // When: Creating UserId with invalid characters
       const result = UserId.create(invalidChars);
@@ -120,6 +123,18 @@ describe('UserId', () => {
       // Then: Failure with error message
       expect(result.isFailure).toBe(true);
       expect(result.error).toContain('Invalid Cuid format for UserId');
+    });
+
+    it('should accept mixed-case alphanumeric (Nanoid format for UserId)', () => {
+      // Given: Mixed case ID (valid Nanoid format used for User.id in Prisma schema)
+      const mixedCaseId = 'cABCDEF123456789012345';
+
+      // When: Creating UserId with mixed case
+      const result = UserId.create(mixedCaseId);
+
+      // Then: Success (Nanoid format is valid for UserId)
+      expect(result.isSuccess).toBe(true);
+      expect(result.value?.value).toBe(mixedCaseId);
     });
   });
 

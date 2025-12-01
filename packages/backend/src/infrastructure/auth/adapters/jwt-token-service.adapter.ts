@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { JwtService } from '@nestjs/jwt';
 import type { IJwtAuthServicePort } from '@domain/ports/i-jwt-auth-service.port';
 import { UserId } from '@domain/value-objects/user-id';

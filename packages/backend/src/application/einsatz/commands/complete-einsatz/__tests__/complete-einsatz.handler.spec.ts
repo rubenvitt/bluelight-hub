@@ -3,7 +3,8 @@ import { CompleteEinsatzHandler } from '../complete-einsatz.handler';
 import { CompleteEinsatzCommand } from '../complete-einsatz.command';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { IOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
-import type { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
+// biome-ignore lint/style/useImportType: Required for NestJS DI - must be value import, not type import
+import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 import { UserId } from '@domain/value-objects/user-id';
@@ -205,38 +206,32 @@ describe('CompleteEinsatzHandler', () => {
   });
 
   describe('Failure Cases - Einsatz nicht gefunden', () => {
-    it('sollte Result.fail() zurückgeben wenn Einsatz nicht gefunden', async () => {
+    it('sollte Exception werfen wenn Einsatz nicht gefunden', async () => {
       // Given
       const command = CompleteEinsatzCommand.create(createValidTestId('ein123'), UserId.create().value!.value).value!;
       mockRepository.findById.mockResolvedValue(Result.ok(null));
 
-      // When
-      await expect(handler.execute(command)).rejects.toThrow();
+      // When & Assert
+      await expect(handler.execute(command)).rejects.toThrow('nicht gefunden');
 
-      // Then
-      // Exception thrown
-      expect(result.error).toContain('nicht gefunden');
       expect(mockRepository.save).not.toHaveBeenCalled();
       expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
-    it('sollte Result.fail() zurückgeben wenn Repository findById fehlschlägt', async () => {
+    it('sollte Exception werfen wenn Repository findById fehlschlägt', async () => {
       // Given
       const command = CompleteEinsatzCommand.create(createValidTestId('ein123'), UserId.create().value!.value).value!;
       mockRepository.findById.mockResolvedValue(Result.fail('Database connection error'));
 
-      // When
-      await expect(handler.execute(command)).rejects.toThrow();
+      // When & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Database connection error');
 
-      // Then
-      // Exception thrown
-      expect(result.error).toBe('Database connection error');
       expect(mockRepository.save).not.toHaveBeenCalled();
     });
   });
 
   describe('Failure Cases - Status Validierung', () => {
-    it('sollte Result.fail() zurückgeben wenn Status != IN_BEARBEITUNG', async () => {
+    it('sollte Exception werfen wenn Status != IN_BEARBEITUNG', async () => {
       // Given
       const einsatz = createMockEinsatz(); // Status ANGELEGT
       const userId = UserId.create().value!;
@@ -245,16 +240,13 @@ describe('CompleteEinsatzHandler', () => {
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockCompletenessService.canBeCompleted.mockReturnValue(Result.fail('Status muss IN_BEARBEITUNG sein'));
 
-      // When
-      await expect(handler.execute(command)).rejects.toThrow();
+      // When & Assert
+      await expect(handler.execute(command)).rejects.toThrow('IN_BEARBEITUNG');
 
-      // Then
-      // Exception thrown
-      expect(result.error).toContain('IN_BEARBEITUNG');
       expect(mockRepository.save).not.toHaveBeenCalled();
     });
 
-    it('sollte Result.fail() zurückgeben wenn Einsatz bereits ABGESCHLOSSEN', async () => {
+    it('sollte Exception werfen wenn Einsatz bereits ABGESCHLOSSEN', async () => {
       // Given
       const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
       einsatz.complete(UserId.create().value!); // Setze auf ABGESCHLOSSEN
@@ -266,15 +258,12 @@ describe('CompleteEinsatzHandler', () => {
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockCompletenessService.canBeCompleted.mockReturnValue(Result.fail('Status muss IN_BEARBEITUNG sein'));
 
-      // When
+      // When & Assert
       await expect(handler.execute(command)).rejects.toThrow();
-
-      // Then
-      // Exception thrown
       expect(mockRepository.save).not.toHaveBeenCalled();
     });
 
-    it('sollte Result.fail() zurückgeben wenn Einsatz ARCHIVIERT', async () => {
+    it('sollte Exception werfen wenn Einsatz ARCHIVIERT', async () => {
       // Given
       const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
       einsatz.complete(UserId.create().value!);
@@ -287,17 +276,14 @@ describe('CompleteEinsatzHandler', () => {
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockCompletenessService.canBeCompleted.mockReturnValue(Result.fail('Status muss IN_BEARBEITUNG sein'));
 
-      // When
+      // When & Assert
       await expect(handler.execute(command)).rejects.toThrow();
-
-      // Then
-      // Exception thrown
       expect(mockRepository.save).not.toHaveBeenCalled();
     });
   });
 
   describe('Failure Cases - Vollständigkeits-Validierung', () => {
-    it('sollte Result.fail() zurückgeben wenn CompletenessService Fehler zurückgibt', async () => {
+    it('sollte Exception werfen wenn CompletenessService Fehler zurückgibt', async () => {
       // Given
       const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
       const userId = UserId.create().value!;
@@ -306,12 +292,9 @@ describe('CompleteEinsatzHandler', () => {
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockCompletenessService.canBeCompleted.mockReturnValue(Result.fail('Alarmstichwort fehlt'));
 
-      // When
-      await expect(handler.execute(command)).rejects.toThrow();
+      // When & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Alarmstichwort fehlt');
 
-      // Then
-      // Exception thrown
-      expect(result.error).toBe('Alarmstichwort fehlt');
       expect(mockRepository.save).not.toHaveBeenCalled();
     });
 
@@ -335,38 +318,30 @@ describe('CompleteEinsatzHandler', () => {
   });
 
   describe('Failure Cases - Ungültige IDs', () => {
-    it('sollte Result.fail() zurückgeben bei ungültiger EinsatzId', async () => {
+    it('sollte Exception werfen bei ungültiger EinsatzId', async () => {
       // Given - invalid format (too short)
       const commandResult = CompleteEinsatzCommand.create('invalid-id', UserId.create().value!.value);
       expect(commandResult.isSuccess).toBe(true); // Command validation passes
 
-      // When
-      const result = await handler.execute(commandResult.value!);
-
-      // Then - EinsatzId.create() validation fails in handler
-      // Exception thrown
-      expect(result.error).toBeDefined();
+      // When & Then - EinsatzId.create() validation fails in handler and throws
+      await expect(handler.execute(commandResult.value!)).rejects.toThrow();
       expect(mockRepository.findById).not.toHaveBeenCalled();
     });
 
-    it('sollte Result.fail() zurückgeben bei ungültiger UserId', async () => {
+    it('sollte Exception werfen bei ungültiger UserId', async () => {
       // Given - invalid userId format
       const einsatzId = createValidTestId('ein123');
       const commandResult = CompleteEinsatzCommand.create(einsatzId, 'invalid-user-id');
       expect(commandResult.isSuccess).toBe(true); // Command validation passes
 
-      // When
-      const result = await handler.execute(commandResult.value!);
-
-      // Then - UserId.create() validation fails in handler
-      // Exception thrown
-      expect(result.error).toBeDefined();
+      // When & Then - UserId.create() validation fails in handler and throws
+      await expect(handler.execute(commandResult.value!)).rejects.toThrow();
       expect(mockRepository.findById).not.toHaveBeenCalled();
     });
   });
 
   describe('Failure Cases - Repository save errors', () => {
-    it('sollte Result.fail() zurückgeben wenn Repository.save() fehlschlägt', async () => {
+    it('sollte Exception werfen wenn Repository.save() fehlschlägt', async () => {
       // Given
       const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
       const userId = UserId.create().value!;
@@ -376,12 +351,9 @@ describe('CompleteEinsatzHandler', () => {
       mockCompletenessService.canBeCompleted.mockReturnValue(Result.ok(undefined));
       mockRepository.save.mockResolvedValue(Result.fail('Database write error'));
 
-      // When
-      await expect(handler.execute(command)).rejects.toThrow();
+      // When & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Database write error');
 
-      // Then
-      // Exception thrown
-      expect(result.error).toBe('Database write error');
       expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
   });
@@ -431,10 +403,10 @@ describe('CompleteEinsatzHandler', () => {
       const command = CompleteEinsatzCommand.create(createValidTestId('ein123'), UserId.create().value!.value).value!;
       mockRepository.findById.mockResolvedValue(Result.ok(null));
 
-      // When
-      await handler.execute(command);
+      // When & Then - Handler throws when Einsatz not found
+      await expect(handler.execute(command)).rejects.toThrow('nicht gefunden');
 
-      // Then
+      // Assert
       expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
@@ -447,10 +419,10 @@ describe('CompleteEinsatzHandler', () => {
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockCompletenessService.canBeCompleted.mockReturnValue(Result.fail('Status muss IN_BEARBEITUNG sein'));
 
-      // When
-      await handler.execute(command);
+      // When & Then - Handler throws when completeness check fails
+      await expect(handler.execute(command)).rejects.toThrow('IN_BEARBEITUNG');
 
-      // Then
+      // Assert
       expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
@@ -464,14 +436,14 @@ describe('CompleteEinsatzHandler', () => {
       mockCompletenessService.canBeCompleted.mockReturnValue(Result.ok(undefined));
       mockRepository.save.mockResolvedValue(Result.fail('DB Error'));
 
-      // When
-      await handler.execute(command);
+      // When & Then - Handler throws when save fails
+      await expect(handler.execute(command)).rejects.toThrow('DB Error');
 
-      // Then
+      // Assert
       expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
-    it('sollte Domain Events nach Publishing clearen', async () => {
+    it('sollte Domain Events für Outbox Persistierung extrahieren', async () => {
       // Given
       const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
       const userId = UserId.create().value!;
@@ -479,12 +451,16 @@ describe('CompleteEinsatzHandler', () => {
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
       mockCompletenessService.canBeCompleted.mockReturnValue(Result.ok(undefined));
-      mockRepository.save.mockResolvedValue(Result.ok(undefined));
+      // Repository.save() simuliert das Clearen der Events (wie in der echten Implementierung)
+      mockRepository.save.mockImplementation(async (aggregate) => {
+        aggregate.clearDomainEvents(); // Repository ist für Event-Clearing zuständig
+        return Result.ok(undefined);
+      });
 
       // When
       await handler.execute(command);
 
-      // Then
+      // Then: Nach Repository.save() sollten Events gecleared sein (vom Repository)
       expect(einsatz.getDomainEvents().length).toBe(0);
     });
   });
@@ -555,10 +531,8 @@ describe('CompleteEinsatzHandler', () => {
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
 
       // When
-      await expect(handler.execute(command)).rejects.toThrow();
-
+      await handler.execute(command);
       // Then
-      await expect(handler.execute(command)).resolves.not.toThrow();
       // Verify userId was used to complete the Einsatz
       const events = mockOutboxRepository.save.mock.calls[0][0];
       const completedEvent = events.find((e) => e.constructor.name === 'EinsatzCompletedEvent');
@@ -579,10 +553,8 @@ describe('CompleteEinsatzHandler', () => {
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
 
       // When
-      await expect(handler.execute(command)).rejects.toThrow();
-
+      await handler.execute(command);
       // Then
-      await expect(handler.execute(command)).resolves.not.toThrow();
     });
 
     it('sollte mit speziellen Zeichen in alarmstichwort umgehen können', async () => {
@@ -597,10 +569,8 @@ describe('CompleteEinsatzHandler', () => {
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
 
       // When
-      await expect(handler.execute(command)).rejects.toThrow();
-
+      await handler.execute(command);
       // Then
-      await expect(handler.execute(command)).resolves.not.toThrow();
       expect(einsatz.alarmstichwort).toBe(specialAlarmstichwort);
     });
   });

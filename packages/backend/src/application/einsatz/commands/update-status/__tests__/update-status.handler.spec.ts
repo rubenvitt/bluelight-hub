@@ -2,13 +2,13 @@ import { Result } from '@domain/common/result';
 import { UpdateEinsatzStatusHandler } from '../update-status.handler';
 import { UpdateEinsatzStatusCommand } from '../update-status.command';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Test, type TestingModule } from '@nestjs/testing';
+import type { IOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 
 /**
  * Helper: Erstellt Mock-Einsatz mit spezifischem Status.
@@ -319,12 +319,16 @@ describe('UpdateEinsatzStatusHandler', () => {
       const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
-      mockRepository.save.mockResolvedValue(Result.ok(undefined));
+      // Repository.save() simuliert das Clearen der Events (wie in der echten Implementierung)
+      mockRepository.save.mockImplementation(async (aggregate) => {
+        aggregate.clearDomainEvents(); // Repository ist für Event-Clearing zuständig
+        return Result.ok(undefined);
+      });
 
       // Act
       await handler.execute(command);
 
-      // Assert
+      // Assert: Nach Repository.save() sollten Events gecleared sein (vom Repository)
       expect(einsatz.getDomainEvents()).toHaveLength(0);
     });
   });

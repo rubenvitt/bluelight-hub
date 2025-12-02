@@ -2,12 +2,14 @@ import { Result } from '@domain/common/result';
 import { ArchiveEinsatzHandler } from '../archive-einsatz.handler';
 import { ArchiveEinsatzCommand } from '../archive-einsatz.command';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
-import type { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
+import type { IOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
+import { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzArchivedEvent } from '@domain/events/einsatz-archived.event';
+import { PrismaService } from '@/prisma/prisma.service';
+import { Test, type TestingModule } from '@nestjs/testing';
 
 /**
  * Helper: Erstellt Mock-Einsatz mit spezifischem Status und abgeschlossenAt Date.
@@ -47,10 +49,14 @@ const createMockEinsatz = (options: { status?: EinsatzStatus; abgeschlossenYears
 describe('ArchiveEinsatzHandler', () => {
   let handler: ArchiveEinsatzHandler;
   let mockRepository: jest.Mocked<IEinsatzRepository>;
-  let mockEventPublisher: jest.Mocked<IEventPublisher>;
-  let mockArchivalPolicy: jest.Mocked<EinsatzArchivalPolicy>;
+  let mockPrismaService: {
+    $transaction: jest.Mock;
+  };
+  let mockOutboxRepository: {
+    save: jest.Mock;
+  };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockRepository = {
       findById: jest.fn(),
       save: jest.fn(),
@@ -59,18 +65,27 @@ describe('ArchiveEinsatzHandler', () => {
       exists: jest.fn(),
     };
 
-    mockEventPublisher = {
-      publish: jest.fn(),
-      publishAll: jest.fn(),
+    mockPrismaService = {
+      $transaction: jest.fn().mockImplementation(async (callback) => {
+        const txMock = {};
+        return callback(txMock);
+      }),
     };
 
-    mockArchivalPolicy = {
-      canBeArchived: jest.fn(),
-      getArchivalDate: jest.fn(),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
+    mockOutboxRepository = {
+      save: jest.fn().mockResolvedValue(undefined),
+    };
 
-    handler = new ArchiveEinsatzHandler(mockRepository, mockEventPublisher, mockArchivalPolicy);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ArchiveEinsatzHandler,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: 'IOutboxRepository', useValue: mockOutboxRepository },
+        { provide: 'IEinsatzRepository', useValue: mockRepository },
+      ],
+    }).compile();
+
+    handler = module.get<ArchiveEinsatzHandler>(ArchiveEinsatzHandler);
   });
 
   afterEach(() => {
@@ -88,52 +103,40 @@ describe('ArchiveEinsatzHandler', () => {
       const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
-      mockArchivalPolicy.canBeArchived.mockReturnValue(true);
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
+      mockOutboxRepository.save.mockResolvedValue(undefined);
 
       // Act
-      const result = await handler.execute(command);
-
+      await handler.execute(command);
       // Assert
-      expect(result.isSuccess).toBe(true);
-      expect(mockRepository.save).toHaveBeenCalledWith(einsatz);
+      expect(mockRepository.save).toHaveBeenCalledWith(einsatz, {});
       expect(einsatz.status.value).toBe('ARCHIVIERT');
       expect(einsatz.archivedAt).toBeDefined();
     });
 
-    it('sollte Result.fail() zurückgeben wenn Einsatz nicht gefunden', async () => {
+    it('sollte Exception werfen wenn Einsatz nicht gefunden', async () => {
       // Arrange
       const userId = UserId.create().value!;
       const command = ArchiveEinsatzCommand.create('clxxxxxxxxxxxxxxxxxx01', userId.value).value!;
       mockRepository.findById.mockResolvedValue(Result.ok(null));
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('nicht gefunden');
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('nicht gefunden');
     });
 
-    it('sollte Result.fail() zurückgeben wenn Status != ABGESCHLOSSEN', async () => {
+    it('sollte Exception werfen wenn Status != ABGESCHLOSSEN', async () => {
       // Arrange
       const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
       const userId = UserId.create().value!;
       const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
-      mockArchivalPolicy.canBeArchived.mockReturnValue(false);
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('ABGESCHLOSSEN');
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('ABGESCHLOSSEN');
     });
 
-    it('sollte Result.fail() zurückgeben wenn 10-Jahres-Frist nicht abgelaufen', async () => {
+    it('sollte Exception werfen wenn 10-Jahres-Frist nicht abgelaufen', async () => {
       // Arrange
       const einsatz = createMockEinsatz({
         status: EinsatzStatus.ABGESCHLOSSEN(),
@@ -143,17 +146,12 @@ describe('ArchiveEinsatzHandler', () => {
       const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
-      mockArchivalPolicy.canBeArchived.mockReturnValue(false);
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('10-Jahres');
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('10-Jahres');
     });
 
-    it('sollte Result.fail() zurückgeben wenn Einsatz bereits ARCHIVIERT', async () => {
+    it('sollte Exception werfen wenn Einsatz bereits ARCHIVIERT', async () => {
       // Arrange
       const einsatz = createMockEinsatz({
         status: EinsatzStatus.ABGESCHLOSSEN(),
@@ -163,22 +161,17 @@ describe('ArchiveEinsatzHandler', () => {
       const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
-      mockArchivalPolicy.canBeArchived.mockReturnValue(true);
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
+      mockOutboxRepository.save.mockResolvedValue(undefined);
 
       // Einsatz archivieren (erster Aufruf)
       await handler.execute(command);
       einsatz.clearDomainEvents();
 
-      // Act: Versuche erneut zu archivieren
+      // Act & Assert: Versuche erneut zu archivieren - Handler wirft Exception
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
+      await expect(handler.execute(command)).rejects.toThrow('ABGESCHLOSSEN');
       // Fehlermeldung prüft Status (ARCHIVIERT ist nicht ABGESCHLOSSEN)
-      expect(result.error).toContain('Status muss ABGESCHLOSSEN sein');
     });
 
     it('sollte EinsatzArchivedEvent nach save() publizieren', async () => {
@@ -191,16 +184,15 @@ describe('ArchiveEinsatzHandler', () => {
       const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
-      mockArchivalPolicy.canBeArchived.mockReturnValue(true);
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
+      mockOutboxRepository.save.mockResolvedValue(undefined);
 
       // Act
       await handler.execute(command);
 
       // Assert
-      expect(mockEventPublisher.publishAll).toHaveBeenCalledTimes(1);
-      const events = mockEventPublisher.publishAll.mock.calls[0][0];
+      expect(mockOutboxRepository.save).toHaveBeenCalledTimes(1);
+      const events = mockOutboxRepository.save.mock.calls[0][0];
       expect(events.some((e) => e instanceof EinsatzArchivedEvent)).toBe(true);
     });
 
@@ -214,16 +206,15 @@ describe('ArchiveEinsatzHandler', () => {
       const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
-      mockArchivalPolicy.canBeArchived.mockReturnValue(true);
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
+      mockOutboxRepository.save.mockResolvedValue(undefined);
 
       // Act
       await handler.execute(command);
 
       // Assert
       expect(mockRepository.save).toHaveBeenCalledTimes(1);
-      expect(mockRepository.save).toHaveBeenCalledWith(einsatz);
+      expect(mockRepository.save).toHaveBeenCalledWith(einsatz, {});
     });
 
     it('sollte archivedAt Timestamp setzen bei erfolgreicher Archivierung', async () => {
@@ -236,9 +227,8 @@ describe('ArchiveEinsatzHandler', () => {
       const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
-      mockArchivalPolicy.canBeArchived.mockReturnValue(true);
       mockRepository.save.mockResolvedValue(Result.ok(undefined));
-      mockEventPublisher.publishAll.mockResolvedValue(undefined);
+      mockOutboxRepository.save.mockResolvedValue(undefined);
 
       // Act
       const beforeArchive = new Date();
@@ -249,7 +239,7 @@ describe('ArchiveEinsatzHandler', () => {
       expect(einsatz.archivedAt!.getTime()).toBeGreaterThanOrEqual(beforeArchive.getTime());
     });
 
-    it('sollte Result.fail() zurückgeben bei Repository save Fehler', async () => {
+    it('sollte Exception werfen bei Repository save Fehler', async () => {
       // Arrange
       const einsatz = createMockEinsatz({
         status: EinsatzStatus.ABGESCHLOSSEN(),
@@ -259,33 +249,24 @@ describe('ArchiveEinsatzHandler', () => {
       const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
 
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
-      mockArchivalPolicy.canBeArchived.mockReturnValue(true);
       mockRepository.save.mockResolvedValue(Result.fail('Database error'));
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toContain('Database error');
-      expect(mockEventPublisher.publishAll).not.toHaveBeenCalled();
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow('Database error');
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
     });
 
-    it('sollte Result.fail() zurückgeben bei ungültiger EinsatzId', async () => {
+    it('sollte Exception werfen bei ungültiger EinsatzId', async () => {
       // Arrange
       const userId = UserId.create().value!;
       const command = ArchiveEinsatzCommand.create('invalid-id', userId.value).value!;
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toBeTruthy();
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow();
       expect(mockRepository.findById).not.toHaveBeenCalled();
     });
 
-    it('sollte Result.fail() zurückgeben bei ungültiger UserId', async () => {
+    it('sollte Exception werfen bei ungültiger UserId', async () => {
       // Arrange
       const einsatz = createMockEinsatz({
         status: EinsatzStatus.ABGESCHLOSSEN(),
@@ -293,12 +274,8 @@ describe('ArchiveEinsatzHandler', () => {
       });
       const command = ArchiveEinsatzCommand.create(einsatz.id.value, 'invalid-user-id').value!;
 
-      // Act
-      const result = await handler.execute(command);
-
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toBeTruthy();
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow();
       expect(mockRepository.findById).not.toHaveBeenCalled();
     });
   });

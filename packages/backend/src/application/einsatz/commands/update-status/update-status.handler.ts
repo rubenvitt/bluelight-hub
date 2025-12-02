@@ -1,13 +1,16 @@
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
+import { CommandHandler } from '@nestjs/cqrs';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { UpdateEinsatzStatusCommand } from './update-status.command';
+import { UpdateEinsatzStatusCommand } from './update-status.command';
 import { TransactionalCommandHandler } from '@application/common/handlers/transactional-command.handler';
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
 import { PrismaService } from '@/prisma/prisma.service';
-import type { IOutboxRepository, PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
+import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import type { DomainEvent } from '@domain/common/domain-event';
+import type { TransactionContext } from '@domain/common/transaction';
+import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
 
 /**
  * Handler für UpdateEinsatzStatusCommand mit Transactional Outbox Pattern.
@@ -40,6 +43,7 @@ import type { DomainEvent } from '@domain/common/domain-event';
  * - Keine "lost events" bei DB-Fehlern nach Aggregate-Save
  * - Retry-Safe: Events in Outbox können bei Fehler erneut publiziert werden
  */
+@CommandHandler(UpdateEinsatzStatusCommand)
 @Injectable()
 export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<UpdateEinsatzStatusCommand, void> {
   private readonly logger = new Logger(UpdateEinsatzStatusHandler.name);
@@ -73,35 +77,55 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
    * - Exceptions triggern automatisch Transaction Rollback
    *
    * @param command - Validierter UpdateEinsatzStatusCommand
-   * @param tx - Prisma Transaction Client (MUSS für save() verwendet werden)
+   * @param tx - Transaction Context (framework-agnostisch, Infrastructure castet zu Prisma) (MUSS für save() verwendet werden)
    * @returns result: void, events: Domain Events für Outbox
    * @throws Error bei Business Rule Violations (triggert Transaction Rollback)
    */
-  protected async executeInTransaction(command: UpdateEinsatzStatusCommand, tx: PrismaTransaction): Promise<{ result: undefined; events: DomainEvent[] }> {
+  protected async executeInTransaction(command: UpdateEinsatzStatusCommand, tx: TransactionContext): Promise<{ result: undefined; events: DomainEvent[] }> {
     // Step 1: Validate EinsatzId format
     const einsatzIdResult = EinsatzId.create(command.einsatzId);
     if (einsatzIdResult.isFailure) {
       const error = einsatzIdResult.error ?? 'Ungültige Einsatz-ID';
-      this.logger.warn('EinsatzId validation failed', { error, einsatzId: command.einsatzId });
-      throw new Error(error);
+      this.logger.warn('EinsatzId validation failed', {
+        error,
+        einsatzId: command.einsatzId,
+        operation: 'updateStatus',
+        phase: 'validation',
+        errorType: 'validation',
+      });
+      throw new EinsatzValidationException(error, 'einsatzId', command.einsatzId);
     }
     const einsatzId = einsatzIdResult.value;
     if (!einsatzId) {
-      this.logger.error('Unexpected null EinsatzId after successful validation');
-      throw new Error('Ungültige Einsatz-ID');
+      this.logger.error('Unexpected null EinsatzId after successful validation', {
+        operation: 'updateStatus',
+        phase: 'validation',
+        errorType: 'validation',
+      });
+      throw new EinsatzValidationException('Ungültige Einsatz-ID', 'einsatzId', command.einsatzId);
     }
 
     // Step 2: Convert newStatus String to EinsatzStatus Value Object
     const statusResult = EinsatzStatus.create(command.newStatus);
     if (statusResult.isFailure) {
       const error = statusResult.error ?? `Ungültiger Status: ${command.newStatus}`;
-      this.logger.warn('EinsatzStatus validation failed', { error, newStatus: command.newStatus });
-      throw new Error(error);
+      this.logger.warn('EinsatzStatus validation failed', {
+        error,
+        newStatus: command.newStatus,
+        operation: 'updateStatus',
+        phase: 'validation',
+        errorType: 'validation',
+      });
+      throw new EinsatzValidationException(error, 'newStatus');
     }
     const newStatus = statusResult.value;
     if (!newStatus) {
-      this.logger.error('Unexpected null EinsatzStatus after successful validation');
-      throw new Error(`Ungültiger Status: ${command.newStatus}`);
+      this.logger.error('Unexpected null EinsatzStatus after successful validation', {
+        operation: 'updateStatus',
+        phase: 'validation',
+        errorType: 'validation',
+      });
+      throw new EinsatzValidationException(`Ungültiger Status: ${command.newStatus}`, 'newStatus');
     }
 
     // Step 3: Load Aggregate via Repository
@@ -109,14 +133,25 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
     const findResult = await this.einsatzRepository.findById(einsatzId);
     if (findResult.isFailure) {
       const error = findResult.error ?? 'Einsatz konnte nicht geladen werden';
-      this.logger.error('Failed to load Einsatz', { error, einsatzId: command.einsatzId });
-      throw new Error(error);
+      this.logger.error('Failed to load Einsatz', {
+        error,
+        einsatzId: command.einsatzId,
+        operation: 'updateStatus',
+        phase: 'load',
+        errorType: 'persistence',
+      });
+      throw new EinsatzPersistenceException(error, command.einsatzId);
     }
 
     const einsatz = findResult.value;
     if (!einsatz) {
-      this.logger.warn('Einsatz not found', { einsatzId: command.einsatzId });
-      throw new Error('Einsatz nicht gefunden');
+      this.logger.warn('Einsatz not found', {
+        einsatzId: command.einsatzId,
+        operation: 'updateStatus',
+        phase: 'load',
+        errorType: 'notFound',
+      });
+      throw new EinsatzNotFoundException(command.einsatzId);
     }
 
     // Step 4: Call aggregate.updateStatus() - State Machine Validation happens inside
@@ -128,8 +163,11 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
         currentStatus: einsatz.status.value,
         newStatus: command.newStatus,
         error,
+        operation: 'updateStatus',
+        phase: 'businessLogic',
+        errorType: 'businessRule',
       });
-      throw new Error(error);
+      throw new EinsatzBusinessRuleException(error, command.einsatzId, 'statusTransition');
     }
 
     // Step 5: Save Aggregate in Transaction (WICHTIG: Nutze tx, nicht this.prisma)
@@ -139,8 +177,11 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
       this.logger.error('Failed to save Einsatz', {
         error,
         einsatzId: command.einsatzId,
+        operation: 'updateStatus',
+        phase: 'save',
+        errorType: 'persistence',
       });
-      throw new Error(error);
+      throw new EinsatzPersistenceException(error, command.einsatzId);
     }
 
     // Step 6: Extract Domain Events for Outbox

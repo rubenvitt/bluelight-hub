@@ -1,25 +1,8 @@
 import type { EinsatztagebuchAggregate } from '@domain/aggregates/einsatztagebuch.aggregate';
+import type { TransactionContext } from '@domain/common/transaction';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { EtbId } from '@domain/value-objects/etb-id';
 import type { EtbSnapshot } from '@domain/value-objects/etb-snapshot';
-
-/**
- * Opaque Transaction Context Type für Framework-Agnostische Transaction Support.
- *
- * Dieser Typ erlaubt Infrastructure Layer (Epic 4) die Transaktion als konkreten
- * Type zu casten (z.B. Prisma.TransactionClient), ohne dass Domain Layer
- * Prisma-Dependencies hat.
- *
- * @example
- * ```typescript
- * // Infrastructure Layer (Epic 4):
- * async save(aggregate: EinsatztagebuchAggregate, tx?: TransactionContext) {
- *   const prismaClient = tx as Prisma.TransactionClient ?? this.prisma;
- *   // ... use prismaClient
- * }
- * ```
- */
-export type TransactionContext = unknown;
 
 /**
  * Repository Interface für ETB Aggregate (Port nach Hexagonaler Architektur).

@@ -26,12 +26,10 @@ export { EventSerializer, type SerializedEvent } from './event-serializer';
 export { EventDeserializer } from './event-deserializer';
 
 // Repository
-export {
-  PrismaOutboxRepository,
-  type IOutboxRepository,
-  type OutboxEventDto,
-  type PrismaTransaction,
-} from './prisma-outbox.repository';
+export { PrismaOutboxRepository, type PrismaTransaction } from './prisma-outbox.repository';
+
+// Domain Interface (re-exported for backwards compatibility)
+export type { IOutboxRepository, OutboxEventDto } from '@domain/repositories/i-outbox.repository';
 
 // Polling Worker
 export {

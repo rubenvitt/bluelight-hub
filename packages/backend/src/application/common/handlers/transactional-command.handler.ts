@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { DomainEvent } from '@domain/common/domain-event';
+import type { TransactionContext } from '@domain/common/transaction';
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
 import { PrismaService } from '@/prisma/prisma.service';
-import type { IOutboxRepository, PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
+import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
+import type { PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
 
 /**
  * Abstract Base Class für transaktionale Command Handler im Transactional Outbox Pattern.
@@ -107,11 +109,11 @@ export abstract class TransactionalCommandHandler<TCommand, TResult> {
    * 6. [Base Handler] aggregate.clearDomainEvents() - Nach erfolgreicher TX
    *
    * @param command - Validierter Command DTO
-   * @param tx - Prisma Transaction Client (MUSS für DB-Ops verwendet werden)
+   * @param tx - Transaction Context (framework-agnostisch, Infrastructure castet zu Prisma)
    * @returns result: Business Logic Result, events: Domain Events für Outbox
    * @throws Error bei Business Rule Violations oder DB-Fehlern (triggert Rollback)
    */
-  protected abstract executeInTransaction(command: TCommand, tx: PrismaTransaction): Promise<{ result: TResult; events: DomainEvent[] }>;
+  protected abstract executeInTransaction(command: TCommand, tx: TransactionContext): Promise<{ result: TResult; events: DomainEvent[] }>;
 
   /**
    * Public Entry Point - Führt Command in Transaction aus und persistiert Events im Outbox.
@@ -140,12 +142,15 @@ export abstract class TransactionalCommandHandler<TCommand, TResult> {
     return this.prisma.$transaction(
       async (tx) => {
         // 1. Business Logic ausführen (Aggregate erstellen/ändern + persistieren)
-        const { result, events } = await this.executeInTransaction(command, tx);
+        // WICHTIG: tx wird als TransactionContext übergeben (Opaque Type)
+        // Infrastructure Repositories casten zu PrismaTransaction
+        const { result, events } = await this.executeInTransaction(command, tx as TransactionContext);
 
         // 2. Domain Events atomar im Outbox persistieren
         // Nur wenn Events vorhanden (z.B. Read-Only Queries haben keine Events)
         if (events.length > 0) {
-          await this.outboxRepository.save(events, tx);
+          // Cast zu PrismaTransaction für Infrastructure Layer
+          await this.outboxRepository.save(events, tx as PrismaTransaction);
         }
 
         // 3. Result zurückgeben (Transaction wird committed)

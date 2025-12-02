@@ -1,19 +1,7 @@
 import type { LagekarteAggregate } from '../aggregates/lagekarte.aggregate';
+import type { TransactionContext } from '../common/transaction';
 import type { LagekarteId } from '../value-objects/lagekarte-id';
 import type { EinsatzId } from '../value-objects/einsatz-id';
-
-/**
- * Opaque type für Transaktionskontext.
- *
- * Domain Layer bleibt framework-agnostisch durch diesen Opaque Type.
- * Infrastructure Layer kann zu Prisma.TransactionClient casten, wenn nötig.
- *
- * Warum Opaque Type?
- * - Domain Layer braucht nichts über die konkrete Implementierung zu wissen
- * - Infrastructure Layer kann TransactionContext zu Prisma, TypeORM, MongoDB etc. casten
- * - Ermöglicht Austausch der Persistence-Technologie ohne Domain-Änderungen
- */
-type TransactionContext = unknown;
 
 /**
  * Repository Port Interface für Lagekarte-Aggregate (Hexagonal Architecture).
@@ -235,5 +223,3 @@ export interface ILagekarteRepository {
    * - NIEMALS aus Domain Layer, da "nicht gedacht" (Separation of Concerns)
    */
 }
-
-export type { TransactionContext };

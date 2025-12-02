@@ -1,6 +1,7 @@
 import { PrismaService } from '@/prisma/prisma.service';
 import type { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { TransactionContext } from '@domain/common/transaction';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { Result } from '@domain/common/result';
 import { Injectable, Logger } from '@nestjs/common';
@@ -13,12 +14,6 @@ import { PrismaOutboxRepository, type PrismaTransaction } from '@/infrastructure
  * Kombiniert den Standard PrismaService mit Prisma's TransactionClient.
  */
 type PrismaTransactionClient = Prisma.TransactionClient;
-
-/**
- * Opaque Transaction Context Type für Hexagonal Architecture.
- * Domain Layer kennt NUR diesen abstrakten Type, nicht Prisma-Details.
- */
-type TransactionContext = unknown;
 
 /**
  * Prisma Implementation des IEinsatzRepository (Hexagonal Architecture).

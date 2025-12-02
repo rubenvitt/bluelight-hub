@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { TransactionContext } from '@domain/common/transaction-context';
+import type { TransactionContext } from '@domain/common/transaction';
 import type { IUserRepository } from '@domain/repositories/i-user.repository';
 import type { UserAggregate } from '@domain/aggregates/user.aggregate';
 import type { UserId } from '@domain/value-objects/user-id';

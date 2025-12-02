@@ -622,7 +622,18 @@ export async function createTestOutboxEvent(ctx: EinsatzE2eTestContext, options?
   const aggregateId = options?.aggregateId ?? generateTestId();
   const status = options?.status ?? 'PENDING';
   const retryCount = options?.retryCount ?? 0;
-  const payload = options?.payload ?? {};
+  const innerPayload = options?.payload ?? {};
+
+  // Wrap innerPayload in SerializedEvent structure
+  // Der EventDeserializer erwartet: { eventId, eventName, eventVersion, occurredAt, aggregateId?, payload }
+  const serializedEvent = {
+    eventId,
+    eventName,
+    eventVersion: 1,
+    occurredAt: new Date().toISOString(),
+    aggregateId,
+    payload: innerPayload,
+  };
 
   await ctx.prisma.$executeRaw`
     INSERT INTO outbox_events (id, "eventName", "aggregateId", payload, status, "retryCount", "createdAt", "occurredAt", "eventVersion")
@@ -630,7 +641,7 @@ export async function createTestOutboxEvent(ctx: EinsatzE2eTestContext, options?
       ${eventId},
       ${eventName},
       ${aggregateId},
-      ${JSON.stringify(payload)}::jsonb,
+      ${JSON.stringify(serializedEvent)}::jsonb,
       ${status}::"OutboxEventStatus",
       ${retryCount},
       NOW(),

@@ -1,9 +1,10 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
-import type { IOutboxRepository, PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
+import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import { DomainEvent } from '@domain/common/domain-event';
 import { TransactionalCommandHandler } from '../transactional-command.handler';
+import type { TransactionContext } from '@domain/common/transaction';
 
 /**
  * Mock Domain Event für Testing.
@@ -46,7 +47,7 @@ class TestCommandHandler extends TransactionalCommandHandler<TestCommand, TestRe
     super(prisma, outboxRepository);
   }
 
-  protected async executeInTransaction(command: TestCommand, _tx: PrismaTransaction): Promise<{ result: TestResult; events: DomainEvent[] }> {
+  protected async executeInTransaction(command: TestCommand, _tx: TransactionContext): Promise<{ result: TestResult; events: DomainEvent[] }> {
     if (this.shouldThrowError) {
       throw new Error('Business logic error');
     }

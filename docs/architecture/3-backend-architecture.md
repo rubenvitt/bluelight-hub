@@ -451,6 +451,38 @@ export class OutboxEventPublisher implements OnModuleInit {
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### Transaction Configuration
+
+Die Transaktionsgrenzen für Command Handler sind wie folgt konfiguriert:
+
+| Parameter | Wert | Beschreibung |
+|-----------|------|--------------|
+| `maxWait` | 5000ms | Maximale Wartezeit für Transaction Lock Acquisition (DB-Lock bei Concurrent Writes) |
+| `timeout` | 10000ms | Maximale Transaktionsdauer (Deadlock Prevention + Resource Cleanup) |
+
+**Warum diese Werte:**
+- **`maxWait` (5s):** Verhindert Deadlocks bei hoher Last durch concurrent writes
+  - Wenn DB-Lock nicht innerhalb 5s verfügbar → Transaction wird abgebrochen
+  - Trade-off: Höhere Werte = mehr Toleranz für Contention, aber höheres Deadlock-Risiko
+- **`timeout` (10s):** Schützt vor Long-Running Transactions die DB-Ressourcen blockieren
+  - Erzwingt schnelle Command Handler Execution
+  - Trade-off: Niedrigere Werte = schnellere Fehler-Erkennung, aber höhere Retry-Rate
+
+**Bei Überschreitung:**
+- Transaction wird automatisch zurückgerollt (Aggregate **UND** Outbox Events)
+- Prisma wirft `TransactionTimeoutError` oder `TransactionLockTimeoutError`
+- Retry über Outbox-Pattern möglich (Command erneut ausführen)
+- HTTP Response: `500 Internal Server Error` mit Error-Details
+
+**Konfiguration:**
+Werte sind in `TransactionalCommandHandler.execute()` hardcoded:
+```typescript
+await this.prisma.$transaction(async (tx) => { ... }, {
+  maxWait: 5000,   // Lock Acquisition Timeout
+  timeout: 10000,  // Transaction Duration Timeout
+});
+```
+
 ### Transactional Guarantees
 
 **Atomare Persistierung:**
@@ -517,6 +549,185 @@ Keine duplicate Event-Emissions:
 - ✅ Base Handler koordiniert Outbox-Persistierung
 
 **Siehe:** `/packages/backend/src/infrastructure/einsatz/__tests__/outbox-integration.e2e.spec.ts`
+
+### Scheduler Concurrency Control (Story 0-2)
+
+#### Problem: Race Conditions bei parallelen Scheduler-Instanzen
+
+Wenn mehrere OutboxEventPublisher-Instanzen parallel laufen (z.B. bei horizontaler Skalierung oder nach Pod-Restart), können Race Conditions auftreten:
+
+```
+❌ RACE CONDITION (ohne Locking):
+┌─────────────────┐     ┌─────────────────┐
+│ Scheduler A     │     │ Scheduler B     │
+├─────────────────┤     ├─────────────────┤
+│ 1. SELECT *     │     │ 1. SELECT *     │
+│    WHERE status │     │    WHERE status │
+│    = 'PENDING'  │     │    = 'PENDING'  │
+│    → Event X    │     │    → Event X    │ ← BEIDE bekommen Event X!
+│                 │     │                 │
+│ 2. Publish X    │     │ 2. Publish X    │ ← Event X wird ZWEIMAL publiziert!
+│ 3. Mark DONE    │     │ 3. Mark DONE    │
+└─────────────────┘     └─────────────────┘
+```
+
+**Ergebnis:** Duplicate Events im Event Bus → Inkonsistente Zustände möglich.
+
+#### Lösung: PostgreSQL FOR UPDATE SKIP LOCKED
+
+```
+✅ MIT FOR UPDATE SKIP LOCKED:
+┌─────────────────┐     ┌─────────────────┐
+│ Scheduler A     │     │ Scheduler B     │
+├─────────────────┤     ├─────────────────┤
+│ 1. SELECT *     │     │ 1. SELECT *     │
+│    FOR UPDATE   │     │    FOR UPDATE   │
+│    SKIP LOCKED  │     │    SKIP LOCKED  │
+│    → Event X 🔒 │     │    → (empty)    │ ← B überspringt gelockte Rows!
+│                 │     │                 │
+│ 2. Publish X    │     │ 2. (nothing)    │
+│ 3. Mark DONE    │     │                 │
+│ 4. COMMIT 🔓    │     │                 │
+└─────────────────┘     └─────────────────┘
+```
+
+**Ergebnis:** Jedes Event wird exakt einmal verarbeitet, keine Duplikate.
+
+#### Implementierung
+
+**Repository Interface:**
+```typescript
+interface IOutboxRepository {
+  /**
+   * Findet und sperrt PENDING Events für exklusive Verarbeitung.
+   * Nutzt PostgreSQL FOR UPDATE SKIP LOCKED für Race Condition Prevention.
+   */
+  findAndLockPending(limit?: number, tx?: TransactionContext): Promise<OutboxEventDto[]>;
+
+  // Aktualisierte Signaturen mit Transaction Support:
+  markAsPublished(eventId: string, tx?: TransactionContext): Promise<void>;
+  markAsFailed(eventId: string, error: string, tx?: TransactionContext): Promise<void>;
+}
+```
+
+**Raw SQL Query:**
+```sql
+SELECT * FROM outbox_events
+WHERE status = 'PENDING'
+ORDER BY "createdAt" ASC
+LIMIT ${limit}
+FOR UPDATE SKIP LOCKED
+```
+
+| Klausel | Bedeutung |
+|---------|-----------|
+| `FOR UPDATE` | Exklusiver Row-Level Lock (andere Transactions warten oder überspringen) |
+| `SKIP LOCKED` | Bereits gesperrte Rows überspringen (nicht blockieren) |
+| `ORDER BY createdAt ASC` | FIFO-Ordering für Event-Reihenfolge |
+
+**Publisher Refactoring:**
+```typescript
+async processPendingEvents(): Promise<void> {
+  await this.prisma.$transaction(async (tx) => {
+    // 1. Lock Events (andere Scheduler überspringen diese)
+    const events = await this.outboxRepository.findAndLockPending(
+      this.config.batchSize,
+      tx,
+    );
+
+    // 2. Process innerhalb der Transaction (Lock gehalten)
+    for (const event of events) {
+      try {
+        await this.eventPublisher.publish(event);
+        await this.outboxRepository.markAsPublished(event.id, tx);
+      } catch (error) {
+        await this.outboxRepository.markAsFailed(event.id, error.message, tx);
+      }
+    }
+    // 3. COMMIT → Locks werden freigegeben
+  }, { timeout: 10000, maxWait: 5000 });
+}
+```
+
+#### Sequence Diagram: Concurrent Scheduler Flow
+
+```
+┌─────────┐  ┌─────────┐  ┌────────────────┐  ┌─────────────┐
+│Scheduler│  │Scheduler│  │ PostgreSQL DB  │  │ Event Bus   │
+│    A    │  │    B    │  │                │  │             │
+└────┬────┘  └────┬────┘  └───────┬────────┘  └──────┬──────┘
+     │            │               │                  │
+     │ BEGIN TX   │               │                  │
+     │─────────────────────────── ▶│                  │
+     │            │               │                  │
+     │ SELECT FOR UPDATE          │                  │
+     │ SKIP LOCKED (Event 1-3)    │                  │
+     │─────────────────────────── ▶│                  │
+     │            │               │                  │
+     │◀─ Rows 1,2,3 (LOCKED) ─────│                  │
+     │            │               │                  │
+     │            │ BEGIN TX      │                  │
+     │            │───────────────▶│                  │
+     │            │               │                  │
+     │            │ SELECT FOR    │                  │
+     │            │ UPDATE SKIP   │                  │
+     │            │ LOCKED        │                  │
+     │            │───────────────▶│                  │
+     │            │               │                  │
+     │            │◀─ (empty) ────│ ← Rows 1-3 gesperrt!
+     │            │               │                  │
+     │ Publish Event 1            │                  │
+     │─────────────────────────────────────────────── ▶│
+     │            │               │                  │
+     │ markAsPublished(1, tx)     │                  │
+     │─────────────────────────── ▶│                  │
+     │            │               │                  │
+     │            │ COMMIT (empty)│                  │
+     │            │───────────────▶│                  │
+     │            │               │                  │
+     │ ... Publish 2, 3 ...       │                  │
+     │            │               │                  │
+     │ COMMIT     │               │                  │
+     │─────────────────────────── ▶│ ← Locks freigegeben
+     │            │               │                  │
+```
+
+#### Vorteile
+
+| Aspekt | Beschreibung |
+|--------|--------------|
+| **Keine Duplikate** | Jedes Event wird exakt einmal verarbeitet |
+| **Horizontal Scalable** | Mehrere Scheduler können parallel arbeiten |
+| **Kein In-Memory State** | Nur DB-Level Locking (keine shared state Probleme) |
+| **Graceful Degradation** | SKIP LOCKED blockt nicht, sondern überspringt |
+| **FIFO erhalten** | ORDER BY createdAt ASC + Lock = Reihenfolge garantiert |
+
+#### Defense in Depth
+
+Zusätzlich zum DB-Level Locking behält der Publisher das `isRunning` Flag:
+
+```typescript
+@Cron(CronExpression.EVERY_5_SECONDS)
+async publishPendingEvents(): Promise<void> {
+  // In-Process Guard (zusätzliche Sicherheit)
+  if (this.isRunning) {
+    return;
+  }
+  this.isRunning = true;
+
+  try {
+    await this.processPendingEvents(); // DB-Level Locking hier
+  } finally {
+    this.isRunning = false;
+  }
+}
+```
+
+**Warum beide?**
+- `isRunning`: Verhindert overlapping Cron-Calls im selben Prozess
+- `FOR UPDATE SKIP LOCKED`: Verhindert Race Conditions über Prozesse/Container hinweg
+
+**Siehe:** `/packages/backend/src/infrastructure/outbox/__tests__/outbox-race-condition.integration.spec.ts`
 
 ## Security Architecture
 

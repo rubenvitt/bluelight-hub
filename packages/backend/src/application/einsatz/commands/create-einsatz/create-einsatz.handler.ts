@@ -1,13 +1,16 @@
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import { UserId } from '@domain/value-objects/user-id';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
+import { CommandHandler } from '@nestjs/cqrs';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { CreateEinsatzCommand } from './create-einsatz.command';
+import { CreateEinsatzCommand } from './create-einsatz.command';
 import { TransactionalCommandHandler } from '@application/common/handlers/transactional-command.handler';
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
 import { PrismaService } from '@/prisma/prisma.service';
-import type { IOutboxRepository, PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
+import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import type { DomainEvent } from '@domain/common/domain-event';
+import type { TransactionContext } from '@domain/common/transaction';
+import { EinsatzValidationException, EinsatzPersistenceException } from '@domain/common/exceptions';
 
 /**
  * Handler für CreateEinsatzCommand mit Transactional Outbox Pattern.
@@ -40,6 +43,7 @@ import type { DomainEvent } from '@domain/common/domain-event';
  * - ETB auto-creation via Outbox statt direkter Event-Emission
  * - Retry-Safe: Events in Outbox können bei Fehler erneut publiziert werden
  */
+@CommandHandler(CreateEinsatzCommand)
 @Injectable()
 export class CreateEinsatzHandler extends TransactionalCommandHandler<CreateEinsatzCommand, string> {
   private readonly logger = new Logger(CreateEinsatzHandler.name);
@@ -71,25 +75,36 @@ export class CreateEinsatzHandler extends TransactionalCommandHandler<CreateEins
    * - Exceptions triggern automatisch Transaction Rollback
    *
    * @param command - Validierter CreateEinsatzCommand
-   * @param tx - Prisma Transaction Client (MUSS für DB-Ops verwendet werden)
+   * @param tx - Transaction Context (framework-agnostisch, Infrastructure castet zu Prisma)
    * @returns result: EinsatzId String, events: Domain Events für Outbox
-   * @throws Error bei Business Rule Violations (triggert Transaction Rollback)
+   * @throws EinsatzValidationException bei Business Rule Violations (triggert Transaction Rollback)
+   * @throws EinsatzPersistenceException bei Persistierungs-Fehlern (triggert Transaction Rollback)
    */
-  protected async executeInTransaction(command: CreateEinsatzCommand, tx: PrismaTransaction): Promise<{ result: string; events: DomainEvent[] }> {
+  protected async executeInTransaction(command: CreateEinsatzCommand, tx: TransactionContext): Promise<{ result: string; events: DomainEvent[] }> {
     // Step 1: Validate UserId format
     const userIdResult = UserId.create(command.createdBy);
     if (userIdResult.isFailure) {
       const error = userIdResult.error ?? 'Ungültige User-ID';
-      this.logger.warn('UserId validation failed', { error, createdBy: command.createdBy });
-      throw new Error(error);
+      this.logger.warn('UserId validation failed', {
+        error,
+        createdBy: command.createdBy,
+        operation: 'createEinsatz',
+        phase: 'validation',
+        errorType: 'EinsatzValidationException',
+      });
+      throw new EinsatzValidationException(error, 'createdBy');
     }
     const userId = userIdResult.value;
 
     // Defensive Programming: TypeScript kann Result<T>.value nicht automatisch als non-null
     // narrowen nach isSuccess-Prüfung, da das Type-System diese Garantie nicht ausdrücken kann.
     if (!userId) {
-      this.logger.error('Unexpected null UserId after successful validation');
-      throw new Error('Ungültige User-ID');
+      this.logger.error('Unexpected null UserId after successful validation', {
+        operation: 'createEinsatz',
+        phase: 'validation',
+        errorType: 'EinsatzValidationException',
+      });
+      throw new EinsatzValidationException('Ungültige User-ID', 'createdBy');
     }
 
     // Step 2: Create Aggregate via Factory Method
@@ -106,14 +121,21 @@ export class CreateEinsatzHandler extends TransactionalCommandHandler<CreateEins
       this.logger.warn('Einsatz creation failed', {
         error,
         alarmstichwort: command.alarmstichwort,
+        operation: 'createEinsatz',
+        phase: 'validation',
+        errorType: 'EinsatzValidationException',
       });
-      throw new Error(error);
+      throw new EinsatzValidationException(error, 'alarmstichwort');
     }
 
     const einsatz = aggregateResult.value;
     if (!einsatz) {
-      this.logger.error('Unexpected null Einsatz after successful creation');
-      throw new Error('Einsatz konnte nicht erstellt werden');
+      this.logger.error('Unexpected null Einsatz after successful creation', {
+        operation: 'createEinsatz',
+        phase: 'validation',
+        errorType: 'EinsatzValidationException',
+      });
+      throw new EinsatzValidationException('Einsatz konnte nicht erstellt werden');
     }
 
     // Step 3: Save Aggregate in Transaction (WICHTIG: Nutze tx, nicht this.prisma)
@@ -123,8 +145,11 @@ export class CreateEinsatzHandler extends TransactionalCommandHandler<CreateEins
       this.logger.error('Failed to save Einsatz', {
         error,
         einsatzId: einsatz.id.value,
+        operation: 'createEinsatz',
+        phase: 'persistence',
+        errorType: 'EinsatzPersistenceException',
       });
-      throw new Error(error);
+      throw new EinsatzPersistenceException(error, einsatz.id.value);
     }
 
     // Step 4: Extract Domain Events for Outbox

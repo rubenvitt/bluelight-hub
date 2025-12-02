@@ -1,5 +1,5 @@
 import { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
-import type { TransactionContext } from '@domain/repositories/i-lagekarte.repository';
+import type { TransactionContext } from '@domain/common/transaction';
 import type { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import type { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';

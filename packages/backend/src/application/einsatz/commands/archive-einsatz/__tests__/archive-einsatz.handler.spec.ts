@@ -2,14 +2,13 @@ import { Result } from '@domain/common/result';
 import { ArchiveEinsatzHandler } from '../archive-einsatz.handler';
 import { ArchiveEinsatzCommand } from '../archive-einsatz.command';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
-import { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzArchivedEvent } from '@domain/events/einsatz-archived.event';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Test, type TestingModule } from '@nestjs/testing';
+import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
 
 /**
  * Helper: Erstellt Mock-Einsatz mit spezifischem Status und abgeschlossenAt Date.
@@ -277,6 +276,129 @@ describe('ArchiveEinsatzHandler', () => {
       // Act & Assert
       await expect(handler.execute(command)).rejects.toThrow();
       expect(mockRepository.findById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Error Handling', () => {
+    describe('Validation Errors', () => {
+      it('sollte EinsatzValidationException werfen bei ungültiger EinsatzId', async () => {
+        // Arrange
+        const userId = UserId.create().value!;
+        const command = ArchiveEinsatzCommand.create('invalid-id-format', userId.value).value!;
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzValidationException);
+        expect(mockRepository.findById).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzValidationException werfen bei ungültiger UserId', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz({
+          status: EinsatzStatus.ABGESCHLOSSEN(),
+          abgeschlossenYearsAgo: 11,
+        });
+        const command = ArchiveEinsatzCommand.create(einsatz.id.value, 'invalid-user-id').value!;
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzValidationException);
+        expect(mockRepository.findById).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('Entity Not Found', () => {
+      it('sollte EinsatzNotFoundException werfen wenn Einsatz nicht existiert', async () => {
+        // Arrange
+        const userId = UserId.create().value!;
+        const command = ArchiveEinsatzCommand.create('clxxxxxxxxxxxxxxxxxx01', userId.value).value!;
+        mockRepository.findById.mockResolvedValue(Result.ok(null));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzNotFoundException);
+        expect(mockRepository.save).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('Business Rule Violations', () => {
+      it('sollte EinsatzBusinessRuleException werfen wenn Status nicht ABGESCHLOSSEN', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
+        const userId = UserId.create().value!;
+        const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzBusinessRuleException);
+        expect(mockRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzBusinessRuleException werfen wenn 10-Jahres-Frist nicht erreicht', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz({
+          status: EinsatzStatus.ABGESCHLOSSEN(),
+          abgeschlossenYearsAgo: 5,
+        });
+        const userId = UserId.create().value!;
+        const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzBusinessRuleException);
+        expect(mockRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzBusinessRuleException werfen bei bereits archiviertem Einsatz', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz({
+          status: EinsatzStatus.ABGESCHLOSSEN(),
+          abgeschlossenYearsAgo: 11,
+        });
+        const userId = UserId.create().value!;
+        const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+        mockRepository.save.mockResolvedValue(Result.ok(undefined));
+        mockOutboxRepository.save.mockResolvedValue(undefined);
+
+        // Einsatz archivieren (erster Aufruf)
+        await handler.execute(command);
+        einsatz.clearDomainEvents();
+
+        // Act & Assert: Versuche erneut zu archivieren
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzBusinessRuleException);
+      });
+    });
+
+    describe('Repository/DB Errors', () => {
+      it('sollte EinsatzPersistenceException werfen bei Repository.save() Fehler', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz({
+          status: EinsatzStatus.ABGESCHLOSSEN(),
+          abgeschlossenYearsAgo: 11,
+        });
+        const userId = UserId.create().value!;
+        const command = ArchiveEinsatzCommand.create(einsatz.id.value, userId.value).value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+        mockRepository.save.mockResolvedValue(Result.fail('Database error'));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzPersistenceException);
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzPersistenceException werfen bei Repository.findById() Fehler', async () => {
+        // Arrange
+        const userId = UserId.create().value!;
+        const command = ArchiveEinsatzCommand.create('clxxxxxxxxxxxxxxxxxx01', userId.value).value!;
+        mockRepository.findById.mockResolvedValue(Result.fail('Database connection error'));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzPersistenceException);
+        expect(mockRepository.save).not.toHaveBeenCalled();
+      });
     });
   });
 });

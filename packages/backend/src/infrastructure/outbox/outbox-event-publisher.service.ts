@@ -1,9 +1,12 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional, Inject } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaOutboxRepository, type OutboxEventDto } from './prisma-outbox.repository';
-import { EventDeserializer } from './event-deserializer';
+import type { TransactionContext } from '@domain/common/transaction';
 import { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
+import type { OutboxEventDto } from '@domain/repositories/i-outbox.repository';
 import type { IAlertService } from '@domain/services/ports/i-alert.service';
+import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaOutboxRepository } from './prisma-outbox.repository';
+import { EventDeserializer } from './event-deserializer';
 
 /**
  * Konfiguration für den Outbox Event Publisher.
@@ -40,8 +43,11 @@ export const OUTBOX_PUBLISHER_CONFIG = 'OUTBOX_PUBLISHER_CONFIG';
  * Der Polling Worker holt diese Events und publiziert sie asynchron.
  * → Keine Event-Verluste bei App-Crash zwischen save() und publish().
  *
- * **Concurrent Prevention:**
- * Ein `isRunning` Flag verhindert parallele Durchläufe bei langen Verarbeitungszeiten.
+ * **Race Condition Prevention (Story 0-2):**
+ * - PostgreSQL FOR UPDATE SKIP LOCKED verhindert Duplikate bei parallelen Schedulern
+ * - Scheduler A sperrt Events 1-50, Scheduler B bekommt Events 51-100
+ * - Lock wird erst bei Transaction COMMIT freigegeben
+ * - `isRunning` Flag bleibt als zusätzliche In-Process-Sicherheit (Defense in Depth)
  *
  * **Error Handling:**
  * - Deserialization Errors → Event wird direkt FAILED (nicht retry-bar)
@@ -66,6 +72,7 @@ export class OutboxEventPublisher implements OnModuleInit, OnModuleDestroy {
   private readonly config: OutboxPublisherConfig;
 
   constructor(
+    private readonly prisma: PrismaService,
     private readonly outboxRepository: PrismaOutboxRepository,
     private readonly eventDeserializer: EventDeserializer,
     @Inject('IEventPublisher') private readonly eventPublisher: IEventPublisher,
@@ -124,77 +131,109 @@ export class OutboxEventPublisher implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Verarbeitet PENDING Events aus der Outbox.
+   * Verarbeitet PENDING Events aus der Outbox mit Pessimistic Locking.
+   *
+   * Warum Transaction mit FOR UPDATE SKIP LOCKED?
+   * - Verhindert Race Conditions bei parallelen Scheduler-Instanzen
+   * - Jedes Event wird exakt einmal verarbeitet, auch bei horizontaler Skalierung
+   * - Lock wird bei Transaction COMMIT/ROLLBACK automatisch freigegeben
    *
    * Flow:
-   * 1. Lade PENDING Events (FIFO nach createdAt)
-   * 2. Für jedes Event:
+   * 1. Starte Transaction
+   * 2. Lade und LOCKE PENDING Events (FOR UPDATE SKIP LOCKED)
+   * 3. Für jedes Event (innerhalb der TX):
    *    a. Deserialize JSON → DomainEvent
    *    b. Publish via EventEmitter2
    *    c. Mark as PUBLISHED oder handle Failure
+   * 4. Commit Transaction → Locks werden freigegeben
    */
   private async processPendingEvents(): Promise<void> {
-    const events = await this.outboxRepository.findPendingEvents(this.config.batchSize);
+    await this.prisma.$transaction(
+      async (tx) => {
+        // findAndLockPending() verwendet FOR UPDATE SKIP LOCKED
+        // Andere Scheduler-Instanzen überspringen diese Events automatisch
+        const events = await this.outboxRepository.findAndLockPending(this.config.batchSize, tx as TransactionContext);
 
-    if (events.length === 0) {
-      return;
-    }
+        if (events.length === 0) {
+          return;
+        }
 
-    this.logger.debug(`Processing ${events.length} pending events`);
+        this.logger.debug(`Processing ${events.length} pending events (locked)`);
 
-    for (const event of events) {
-      await this.processEvent(event);
-    }
+        for (const event of events) {
+          await this.processEvent(event, tx as TransactionContext);
+        }
 
-    this.logger.debug(`Finished processing ${events.length} events`);
+        this.logger.debug(`Finished processing ${events.length} events`);
+      },
+      {
+        // Transaction Timeout: 10 Sekunden (wie in TransactionalCommandHandler)
+        timeout: 10000,
+        maxWait: 5000,
+      },
+    );
   }
 
   /**
-   * Verarbeitet ein einzelnes Outbox Event.
+   * Verarbeitet ein einzelnes Outbox Event innerhalb einer Transaction.
    *
    * Error Handling:
    * - Deserialization Error → Mark as FAILED immediately (non-retryable)
    * - Handler Error → Increment retryCount, mark FAILED after maxRetries
+   *
+   * WICHTIG: Alle DB-Operationen nutzen den übergebenen Transaction Context,
+   * damit der Row-Level Lock bis zum COMMIT gehalten wird.
+   *
+   * @param outboxEvent - Das zu verarbeitende Event
+   * @param tx - Transaction Context für atomare Operationen
    */
-  private async processEvent(outboxEvent: OutboxEventDto): Promise<void> {
+  private async processEvent(outboxEvent: OutboxEventDto, tx: TransactionContext): Promise<void> {
     const { id, eventName, retryCount } = outboxEvent;
 
     try {
       // Step 1: Deserialize JSON → DomainEvent
-      const deserializeResult = this.eventDeserializer.deserialize(outboxEvent.payload);
+      // Cast payload zu SerializedEvent (im Domain Interface als unknown deklariert für Framework-Agnostik)
+      const deserializeResult = this.eventDeserializer.deserialize(outboxEvent.payload as Parameters<typeof this.eventDeserializer.deserialize>[0]);
 
       if (deserializeResult.isFailure) {
         // Non-retryable: Deserialization failed (corrupt data)
+        // WICHTIG: Kein markAsFailed() → retryCount bleibt bei 0 (AC3: Deserialization Errors Non-Retryable)
+        const errorMessage = deserializeResult.error ?? 'Unknown deserialization error';
         this.logger.error(`Deserialization failed for event ${id}`, {
           eventName,
-          error: deserializeResult.error,
+          error: errorMessage,
         });
-        await this.outboxRepository.markAsFailed(id, deserializeResult.error ?? 'Unknown deserialization error');
-        await this.outboxRepository.markAsPermanentlyFailed(id);
-        await this.notifyFailure(outboxEvent, deserializeResult.error ?? 'Deserialization failed');
+        await this.outboxRepository.markAsPermanentlyFailed(id, tx, errorMessage);
+        await this.notifyFailure(outboxEvent, errorMessage);
         return;
       }
 
-      const domainEvent = deserializeResult.value!;
+      // Guard: Nach isFailure-Check ist value garantiert definiert
+      // (Result Pattern: isFailure === false impliziert value !== undefined)
+      const domainEvent = deserializeResult.value;
+      if (!domainEvent) {
+        // Sollte nie erreicht werden, aber TypeScript braucht den Check
+        throw new Error(`Unexpected: deserializeResult.value is undefined after success check`);
+      }
 
       // Step 2: Publish via EventEmitter2
       await this.eventPublisher.publish(domainEvent);
 
-      // Step 3: Mark as PUBLISHED
-      await this.outboxRepository.markAsPublished(id);
+      // Step 3: Mark as PUBLISHED (innerhalb der Transaction → Lock bleibt gehalten)
+      await this.outboxRepository.markAsPublished(id, tx);
       this.logger.debug(`Event ${id} published successfully`, { eventName });
     } catch (error) {
       // Handler Error: Retryable
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Event ${id} failed`, { eventName, error: errorMessage, retryCount });
 
-      await this.outboxRepository.markAsFailed(id, errorMessage);
+      await this.outboxRepository.markAsFailed(id, errorMessage, tx);
 
       // Check if max retries reached
       const newRetryCount = retryCount + 1;
       if (newRetryCount >= this.config.maxRetries) {
         this.logger.error(`Event ${id} exceeded max retries (${this.config.maxRetries})`, { eventName });
-        await this.outboxRepository.markAsPermanentlyFailed(id);
+        await this.outboxRepository.markAsPermanentlyFailed(id, tx);
         await this.notifyFailure(outboxEvent, errorMessage);
       }
     }

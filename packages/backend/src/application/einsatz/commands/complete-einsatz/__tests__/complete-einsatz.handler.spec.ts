@@ -2,7 +2,7 @@ import { Result } from '@domain/common/result';
 import { CompleteEinsatzHandler } from '../complete-einsatz.handler';
 import { CompleteEinsatzCommand } from '../complete-einsatz.command';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
+import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 // biome-ignore lint/style/useImportType: Required for NestJS DI - must be value import, not type import
 import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
@@ -572,6 +572,196 @@ describe('CompleteEinsatzHandler', () => {
       await handler.execute(command);
       // Then
       expect(einsatz.alarmstichwort).toBe(specialAlarmstichwort);
+    });
+  });
+
+  describe('Error Handling - Comprehensive', () => {
+    describe('Validation Errors', () => {
+      it('sollte EinsatzValidationException bei ungültiger EinsatzId werfen', async () => {
+        // Given
+        const command = CompleteEinsatzCommand.create('invalid-id', UserId.create().value!.value).value!;
+
+        // When & Then
+        const error = await handler.execute(command).catch((e) => e);
+        expect(error).toBeInstanceOf(EinsatzValidationException);
+        expect(error.name).toBe('EinsatzValidationException');
+        expect(error.field).toBe('einsatzId');
+        expect(mockRepository.findById).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzValidationException bei ungültiger UserId werfen', async () => {
+        // Given
+        const einsatzId = createValidTestId('ein123');
+        const command = CompleteEinsatzCommand.create(einsatzId, 'invalid-user-id').value!;
+
+        // When & Then
+        const error = await handler.execute(command).catch((e) => e);
+        expect(error).toBeInstanceOf(EinsatzValidationException);
+        expect(error.name).toBe('EinsatzValidationException');
+        expect(error.field).toBe('completedBy');
+        expect(mockRepository.findById).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzValidationException mit operation validate werfen', async () => {
+        // Given
+        const command = CompleteEinsatzCommand.create('bad', 'bad').value!;
+
+        // When
+        const error = await handler.execute(command).catch((e) => e);
+
+        // Then
+        expect(error).toBeInstanceOf(EinsatzValidationException);
+        expect(error.operation).toBe('validate');
+      });
+    });
+
+    describe('Entity Not Found', () => {
+      it('sollte EinsatzNotFoundException werfen wenn Einsatz nicht existiert', async () => {
+        // Given
+        const command = CompleteEinsatzCommand.create(createValidTestId('ein123'), UserId.create().value!.value).value!;
+        mockRepository.findById.mockResolvedValue(Result.ok(null));
+
+        // When & Then
+        const error = await handler.execute(command).catch((e) => e);
+        expect(error).toBeInstanceOf(EinsatzNotFoundException);
+        expect(error.name).toBe('EinsatzNotFoundException');
+        expect(mockRepository.save).not.toHaveBeenCalled();
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzNotFoundException mit einsatzId werfen', async () => {
+        // Given
+        const einsatzId = createValidTestId('ein456');
+        const command = CompleteEinsatzCommand.create(einsatzId, UserId.create().value!.value).value!;
+        mockRepository.findById.mockResolvedValue(Result.ok(null));
+
+        // When
+        const error = await handler.execute(command).catch((e) => e);
+
+        // Then
+        expect(error).toBeInstanceOf(EinsatzNotFoundException);
+        expect(error.aggregateId).toBe(einsatzId);
+        expect(error.operation).toBe('find');
+      });
+    });
+
+    describe('Business Rule Violations', () => {
+      it('sollte EinsatzBusinessRuleException bei falschem Status werfen', async () => {
+        // Given
+        const einsatz = createMockEinsatz(); // Status ANGELEGT
+        const userId = UserId.create().value!;
+        const command = CompleteEinsatzCommand.create(einsatz.id.value, userId.value).value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+        mockCompletenessService.canBeCompleted.mockReturnValue(Result.fail('Status muss IN_BEARBEITUNG sein'));
+
+        // When & Then
+        const error = await handler.execute(command).catch((e) => e);
+        expect(error).toBeInstanceOf(EinsatzBusinessRuleException);
+        expect(error.name).toBe('EinsatzBusinessRuleException');
+        expect(error.rule).toBe('completeness');
+        expect(mockRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzBusinessRuleException bei unvollständigem Einsatz werfen', async () => {
+        // Given
+        const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
+        const userId = UserId.create().value!;
+        const command = CompleteEinsatzCommand.create(einsatz.id.value, userId.value).value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+        mockCompletenessService.canBeCompleted.mockReturnValue(Result.fail('Alarmstichwort fehlt'));
+
+        // When & Then
+        const error = await handler.execute(command).catch((e) => e);
+        expect(error).toBeInstanceOf(EinsatzBusinessRuleException);
+        expect(error.rule).toBe('completeness');
+      });
+
+      it('sollte EinsatzBusinessRuleException bei Status-Transition Fehler werfen', async () => {
+        // Given
+        const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
+        einsatz.complete(UserId.create().value!); // Setze auf ABGESCHLOSSEN
+        einsatz.clearDomainEvents();
+
+        const userId = UserId.create().value!;
+        const command = CompleteEinsatzCommand.create(einsatz.id.value, userId.value).value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+        mockCompletenessService.canBeCompleted.mockReturnValue(Result.fail('Status muss IN_BEARBEITUNG sein'));
+
+        // When & Then
+        const error = await handler.execute(command).catch((e) => e);
+        expect(error).toBeInstanceOf(EinsatzBusinessRuleException);
+      });
+
+      it('sollte EinsatzBusinessRuleException mit einsatzId und rule enthalten', async () => {
+        // Given
+        const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
+        const userId = UserId.create().value!;
+        const command = CompleteEinsatzCommand.create(einsatz.id.value, userId.value).value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+        mockCompletenessService.canBeCompleted.mockReturnValue(Result.fail('Test rule violation'));
+
+        // When
+        const error = await handler.execute(command).catch((e) => e);
+
+        // Then
+        expect(error).toBeInstanceOf(EinsatzBusinessRuleException);
+        expect(error.aggregateId).toBe(einsatz.id.value);
+        expect(error.rule).toBe('completeness');
+      });
+    });
+
+    describe('Repository/DB Errors', () => {
+      it('sollte EinsatzPersistenceException bei Repository.findById Fehler werfen', async () => {
+        // Given
+        const command = CompleteEinsatzCommand.create(createValidTestId('ein123'), UserId.create().value!.value).value!;
+        mockRepository.findById.mockResolvedValue(Result.fail('Database connection error'));
+
+        // When & Then
+        const error = await handler.execute(command).catch((e) => e);
+        expect(error).toBeInstanceOf(EinsatzPersistenceException);
+        expect(error.name).toBe('EinsatzPersistenceException');
+        expect(mockRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzPersistenceException bei Repository.save Fehler werfen', async () => {
+        // Given
+        const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
+        const userId = UserId.create().value!;
+        const command = CompleteEinsatzCommand.create(einsatz.id.value, userId.value).value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+        mockCompletenessService.canBeCompleted.mockReturnValue(Result.ok(undefined));
+        mockRepository.save.mockResolvedValue(Result.fail('Database write error'));
+
+        // When & Then
+        const error = await handler.execute(command).catch((e) => e);
+        expect(error).toBeInstanceOf(EinsatzPersistenceException);
+        expect(error.name).toBe('EinsatzPersistenceException');
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzPersistenceException mit einsatzId und operation werfen', async () => {
+        // Given
+        const einsatz = createMockEinsatz({ status: EinsatzStatus.IN_BEARBEITUNG() });
+        const userId = UserId.create().value!;
+        const command = CompleteEinsatzCommand.create(einsatz.id.value, userId.value).value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+        mockCompletenessService.canBeCompleted.mockReturnValue(Result.ok(undefined));
+        mockRepository.save.mockResolvedValue(Result.fail('Constraint violation'));
+
+        // When
+        const error = await handler.execute(command).catch((e) => e);
+
+        // Then
+        expect(error).toBeInstanceOf(EinsatzPersistenceException);
+        expect(error.aggregateId).toBe(einsatz.id.value);
+        expect(error.operation).toBe('persist');
+      });
     });
   });
 });

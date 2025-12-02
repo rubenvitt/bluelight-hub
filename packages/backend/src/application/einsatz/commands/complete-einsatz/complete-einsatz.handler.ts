@@ -2,13 +2,16 @@ import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repositor
 import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { CommandHandler } from '@nestjs/cqrs';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { CompleteEinsatzCommand } from './complete-einsatz.command';
+import { CompleteEinsatzCommand } from './complete-einsatz.command';
 import { TransactionalCommandHandler } from '@application/common/handlers/transactional-command.handler';
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
 import { PrismaService } from '@/prisma/prisma.service';
-import type { IOutboxRepository, PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
+import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import type { DomainEvent } from '@domain/common/domain-event';
+import type { TransactionContext } from '@domain/common/transaction';
+import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
 
 /**
  * Handler für CompleteEinsatzCommand mit Transactional Outbox Pattern.
@@ -43,6 +46,7 @@ import type { DomainEvent } from '@domain/common/domain-event';
  * - Keine "lost events" bei DB-Fehlern nach Aggregate-Save
  * - Retry-Safe: Events in Outbox können bei Fehler erneut publiziert werden
  */
+@CommandHandler(CompleteEinsatzCommand)
 @Injectable()
 export class CompleteEinsatzHandler extends TransactionalCommandHandler<CompleteEinsatzCommand, void> {
   private readonly logger = new Logger(CompleteEinsatzHandler.name);
@@ -78,35 +82,55 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
    * - Exceptions triggern automatisch Transaction Rollback
    *
    * @param command - Validierter CompleteEinsatzCommand
-   * @param tx - Prisma Transaction Client (MUSS für save() verwendet werden)
+   * @param tx - Transaction Context (framework-agnostisch, Infrastructure castet zu Prisma) (MUSS für save() verwendet werden)
    * @returns result: void, events: Domain Events für Outbox
    * @throws Error bei Business Rule Violations (triggert Transaction Rollback)
    */
-  protected async executeInTransaction(command: CompleteEinsatzCommand, tx: PrismaTransaction): Promise<{ result: undefined; events: DomainEvent[] }> {
+  protected async executeInTransaction(command: CompleteEinsatzCommand, tx: TransactionContext): Promise<{ result: undefined; events: DomainEvent[] }> {
     // Step 1: Validate EinsatzId format
     const einsatzIdResult = EinsatzId.create(command.einsatzId);
     if (einsatzIdResult.isFailure) {
       const error = einsatzIdResult.error ?? 'Ungültige Einsatz-ID';
-      this.logger.warn('EinsatzId validation failed', { error, einsatzId: command.einsatzId });
-      throw new Error(error);
+      this.logger.warn('EinsatzId validation failed', {
+        operation: 'completeEinsatz',
+        phase: 'validation',
+        errorType: 'EinsatzValidationException',
+        error,
+        einsatzId: command.einsatzId,
+      });
+      throw new EinsatzValidationException(error, 'einsatzId', command.einsatzId);
     }
     const einsatzId = einsatzIdResult.value;
     if (!einsatzId) {
-      this.logger.error('Unexpected null EinsatzId after successful validation');
-      throw new Error('Ungültige Einsatz-ID');
+      this.logger.error('Unexpected null EinsatzId after successful validation', {
+        operation: 'completeEinsatz',
+        phase: 'validation',
+        errorType: 'EinsatzValidationException',
+      });
+      throw new EinsatzValidationException('Ungültige Einsatz-ID', 'einsatzId', command.einsatzId);
     }
 
     // Step 2: Validate UserId format
     const userIdResult = UserId.create(command.completedBy);
     if (userIdResult.isFailure) {
       const error = userIdResult.error ?? 'Ungültige User-ID';
-      this.logger.warn('UserId validation failed', { error, completedBy: command.completedBy });
-      throw new Error(error);
+      this.logger.warn('UserId validation failed', {
+        operation: 'completeEinsatz',
+        phase: 'validation',
+        errorType: 'EinsatzValidationException',
+        error,
+        completedBy: command.completedBy,
+      });
+      throw new EinsatzValidationException(error, 'completedBy');
     }
     const userId = userIdResult.value;
     if (!userId) {
-      this.logger.error('Unexpected null UserId after successful validation');
-      throw new Error('Ungültige User-ID');
+      this.logger.error('Unexpected null UserId after successful validation', {
+        operation: 'completeEinsatz',
+        phase: 'validation',
+        errorType: 'EinsatzValidationException',
+      });
+      throw new EinsatzValidationException('Ungültige User-ID', 'completedBy');
     }
 
     // Step 3: Load Aggregate via Repository
@@ -114,14 +138,25 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
     const findResult = await this.einsatzRepository.findById(einsatzId);
     if (findResult.isFailure) {
       const error = findResult.error ?? 'Einsatz konnte nicht geladen werden';
-      this.logger.error('Failed to load Einsatz', { error, einsatzId: command.einsatzId });
-      throw new Error(error);
+      this.logger.error('Failed to load Einsatz', {
+        operation: 'completeEinsatz',
+        phase: 'load',
+        errorType: 'EinsatzPersistenceException',
+        error,
+        einsatzId: command.einsatzId,
+      });
+      throw new EinsatzPersistenceException(error, command.einsatzId);
     }
 
     const einsatz = findResult.value;
     if (!einsatz) {
-      this.logger.warn('Einsatz not found', { einsatzId: command.einsatzId });
-      throw new Error('Einsatz nicht gefunden');
+      this.logger.warn('Einsatz not found', {
+        operation: 'completeEinsatz',
+        phase: 'load',
+        errorType: 'EinsatzNotFoundException',
+        einsatzId: command.einsatzId,
+      });
+      throw new EinsatzNotFoundException(command.einsatzId);
     }
 
     // Step 4: Validate Completeness via Domain Service
@@ -130,10 +165,13 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
     if (completenessResult.isFailure) {
       const error = completenessResult.error ?? 'Einsatz kann nicht abgeschlossen werden';
       this.logger.warn('Einsatz cannot be completed', {
+        operation: 'completeEinsatz',
+        phase: 'businessRule',
+        errorType: 'EinsatzBusinessRuleException',
         einsatzId: command.einsatzId,
         reason: error,
       });
-      throw new Error(error);
+      throw new EinsatzBusinessRuleException(error, command.einsatzId, 'completeness');
     }
 
     // Step 5: Call aggregate.complete()
@@ -141,10 +179,13 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
     if (completeResult.isFailure) {
       const error = completeResult.error ?? 'Einsatz konnte nicht abgeschlossen werden';
       this.logger.warn('Einsatz complete failed', {
+        operation: 'completeEinsatz',
+        phase: 'businessRule',
+        errorType: 'EinsatzBusinessRuleException',
         einsatzId: command.einsatzId,
         error,
       });
-      throw new Error(error);
+      throw new EinsatzBusinessRuleException(error, command.einsatzId, 'statusTransition');
     }
 
     // Step 6: Save Aggregate in Transaction (WICHTIG: Nutze tx, nicht this.prisma)
@@ -152,10 +193,13 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
     if (saveResult.isFailure) {
       const error = saveResult.error ?? 'Einsatz konnte nicht gespeichert werden';
       this.logger.error('Failed to save Einsatz', {
+        operation: 'completeEinsatz',
+        phase: 'persist',
+        errorType: 'EinsatzPersistenceException',
         error,
         einsatzId: command.einsatzId,
       });
-      throw new Error(error);
+      throw new EinsatzPersistenceException(error, command.einsatzId);
     }
 
     // Step 7: Extract Domain Events for Outbox

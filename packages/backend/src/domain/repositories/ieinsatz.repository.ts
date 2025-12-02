@@ -1,7 +1,7 @@
 import type { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import type { Result } from '@domain/common/result';
+import type { TransactionContext } from '@domain/common/transaction';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
-import type { PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
 
 /**
  * Repository Port Interface für Einsatz Aggregate Persistence.
@@ -66,7 +66,7 @@ export interface IEinsatzRepository {
    * - Event Handling ist Application Layer Responsibility (Command Handler)
    *
    * @param aggregate - Das zu speichernde Einsatz Aggregate
-   * @param tx - Optional: Prisma Transaction für atomare Operationen mit Outbox
+   * @param tx - Optional: Transaction Context für atomare Operationen mit Outbox
    * @returns Result<void> - Success (void) oder Failure mit Error Message
    *
    * @example
@@ -86,7 +86,7 @@ export interface IEinsatzRepository {
    * aggregate.clearDomainEvents();
    * ```
    */
-  save(aggregate: Einsatz, tx?: PrismaTransaction): Promise<Result<void>>;
+  save(aggregate: Einsatz, tx?: TransactionContext): Promise<Result<void>>;
 
   /**
    * Findet ein Einsatz Aggregate by ID.

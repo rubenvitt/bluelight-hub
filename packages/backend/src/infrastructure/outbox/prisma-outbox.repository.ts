@@ -1,78 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { OutboxEvent, OutboxEventStatus } from '@prisma/client';
+import type { OutboxEvent } from '@prisma/client';
 import type { DomainEvent } from '@domain/common/domain-event';
+import type { TransactionContext } from '@domain/common/transaction';
+import type { IOutboxRepository, OutboxEventDto } from '@domain/repositories/i-outbox.repository';
 import { PrismaService } from '@/prisma/prisma.service';
 import { EventSerializer, type SerializedEvent } from './event-serializer';
 
 /**
- * Prisma Transaction Type für atomare Operationen.
- * Wird verwendet, um Events in derselben Transaktion wie das Aggregate zu persistieren.
+ * Prisma Transaction Client Type für atomare Operationen.
+ * Cast-Ziel für TransactionContext aus dem Domain Layer.
  */
-export type PrismaTransaction = Omit<PrismaService, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends' | 'onModuleInit' | 'onModuleDestroy'>;
+type PrismaTransactionClient = Omit<PrismaService, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends' | 'onModuleInit' | 'onModuleDestroy'>;
 
 /**
- * Outbox Event DTO für Repository-Rückgaben.
- * Enthält alle Felder der OutboxEvent-Tabelle.
+ * Prisma Transaction Type für atomare Operationen (Legacy Export).
+ * @deprecated Verwende TransactionContext aus @domain/common/transaction
  */
-export interface OutboxEventDto {
-  id: string;
-  eventName: string;
-  eventVersion: number;
-  aggregateId: string;
-  payload: SerializedEvent;
-  status: OutboxEventStatus;
-  retryCount: number;
-  lastFailureReason: string | null;
-  createdAt: Date;
-  occurredAt: Date;
-  publishedAt: Date | null;
-}
+export type PrismaTransaction = PrismaTransactionClient;
 
-/**
- * Repository Interface für Outbox Pattern (Port).
- * Definiert die Schnittstelle für Outbox-Operationen.
- */
-export interface IOutboxRepository {
-  /**
-   * Persistiert Domain Events atomar in der Outbox-Tabelle.
-   *
-   * @param events - Domain Events zum Persistieren
-   * @param tx - Optional: Prisma Transaction für atomare Operationen
-   */
-  save(events: DomainEvent[], tx?: PrismaTransaction): Promise<void>;
-
-  /**
-   * Lädt PENDING Events für Polling-Worker.
-   *
-   * @param limit - Maximale Anzahl Events (Default: 100)
-   * @returns PENDING Events sortiert nach createdAt ASC
-   */
-  findPendingEvents(limit?: number): Promise<OutboxEventDto[]>;
-
-  /**
-   * Markiert ein Event als erfolgreich publiziert.
-   *
-   * @param eventId - ID des Events (Outbox ID, nicht Domain Event ID)
-   */
-  markAsPublished(eventId: string): Promise<void>;
-
-  /**
-   * Markiert ein Event als fehlgeschlagen mit Retry-Increment.
-   *
-   * @param eventId - ID des Events (Outbox ID, nicht Domain Event ID)
-   * @param error - Fehlermeldung für lastFailureReason
-   */
-  markAsFailed(eventId: string, error: string): Promise<void>;
-
-  /**
-   * Findet die Anzahl der aktuellen Retries für ein Event.
-   *
-   * @param eventId - ID des Events
-   * @returns Aktueller retryCount
-   */
-  getRetryCount(eventId: string): Promise<number>;
-}
+// Re-export OutboxEventDto from domain for backwards compatibility
+export type { OutboxEventDto } from '@domain/repositories/i-outbox.repository';
 
 /**
  * Prisma Implementation des Outbox Repositories.
@@ -115,14 +63,14 @@ export class PrismaOutboxRepository implements IOutboxRepository {
    * TX wie das Aggregate committed → Garantiert Konsistenz (kein Event-Verlust).
    *
    * @param events - Domain Events zum Persistieren
-   * @param tx - Optional: Prisma Transaction für atomare Operationen
+   * @param tx - Optional: Transaction Context für atomare Operationen
    */
-  async save(events: DomainEvent[], tx?: PrismaTransaction): Promise<void> {
+  async save(events: DomainEvent[], tx?: TransactionContext): Promise<void> {
     if (events.length === 0) {
       return;
     }
 
-    const client = tx ?? this.prisma;
+    const client = (tx as PrismaTransactionClient | undefined) ?? this.prisma;
 
     // Serialize all events
     const outboxRecords: Prisma.OutboxEventCreateInput[] = events.map((event) => {
@@ -150,7 +98,9 @@ export class PrismaOutboxRepository implements IOutboxRepository {
   }
 
   /**
-   * Lädt PENDING Events für Polling-Worker.
+   * Lädt PENDING Events für Polling-Worker (ohne Locking).
+   *
+   * @deprecated Verwende findAndLockPending() für Race-Condition-sichere Verarbeitung
    *
    * Events werden nach createdAt ASC sortiert (FIFO), um Event-Ordering zu gewährleisten.
    * Der Index auf [status, createdAt] optimiert diese Query.
@@ -173,15 +123,74 @@ export class PrismaOutboxRepository implements IOutboxRepository {
   }
 
   /**
+   * Findet und sperrt PENDING Events für exklusive Verarbeitung.
+   *
+   * Warum FOR UPDATE SKIP LOCKED statt normaler Query?
+   * - Verhindert Race Conditions bei parallelen Scheduler-Instanzen
+   * - Scheduler A sperrt Events 1-50, Scheduler B bekommt Events 51-100
+   * - Kein Event wird doppelt verarbeitet, keines blockiert
+   * - Skalierbar: Mehrere Worker können parallel arbeiten
+   *
+   * PostgreSQL-spezifisch: FOR UPDATE SKIP LOCKED
+   * - FOR UPDATE: Exklusiver Row-Level Lock für die selektierten Zeilen
+   * - SKIP LOCKED: Überspringt bereits gesperrte Zeilen (kein Warten)
+   * - Lock wird bei TX COMMIT/ROLLBACK automatisch freigegeben
+   *
+   * WICHTIG: Lock ist nur innerhalb der Transaction gültig!
+   * - Events MÜSSEN innerhalb derselben TX als published/failed markiert werden
+   * - Ohne TX-Parameter werden Events NICHT gesperrt (kein Lock ohne Transaction)
+   *
+   * @param limit - Maximale Anzahl Events (Default: 100, Batch Size)
+   * @param tx - Transaction Context für Row-Level Lock (empfohlen für Locking)
+   * @returns PENDING Events sortiert nach createdAt ASC (FIFO)
+   */
+  async findAndLockPending(limit = 100, tx?: TransactionContext): Promise<OutboxEventDto[]> {
+    const client = (tx as PrismaTransactionClient | undefined) ?? this.prisma;
+
+    // Raw Query mit FOR UPDATE SKIP LOCKED für Pessimistic Locking
+    // Der Index idx_outbox_pending_poll [status, createdAt] optimiert diese Query
+    const events = await client.$queryRaw<OutboxEvent[]>`
+      SELECT
+        id,
+        "eventName",
+        "eventVersion",
+        "aggregateId",
+        payload,
+        status,
+        "retryCount",
+        "lastFailureReason",
+        "createdAt",
+        "occurredAt",
+        "publishedAt"
+      FROM outbox_events
+      WHERE status = 'PENDING'
+      ORDER BY "createdAt" ASC
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
+    `;
+
+    this.logger.debug(`Found and locked ${events.length} pending events (limit: ${limit})`);
+
+    return events.map((event) => this.mapToDto(event));
+  }
+
+  /**
    * Markiert ein Event als erfolgreich publiziert.
    *
    * Setzt status = PUBLISHED und publishedAt auf aktuellen Timestamp.
    * Das Event wird nicht mehr vom Polling Worker abgeholt.
    *
+   * Transaction Support:
+   * - Bei tx vorhanden: Update erfolgt in derselben TX wie Lock
+   * - Lock wird erst bei TX COMMIT freigegeben
+   *
    * @param eventId - ID des Events (Outbox ID = Domain Event ID)
+   * @param tx - Optional: Transaction Context für atomare Operationen
    */
-  async markAsPublished(eventId: string): Promise<void> {
-    await this.prisma.outboxEvent.update({
+  async markAsPublished(eventId: string, tx?: TransactionContext): Promise<void> {
+    const client = (tx as PrismaTransactionClient | undefined) ?? this.prisma;
+
+    await client.outboxEvent.update({
       where: { id: eventId },
       data: {
         status: 'PUBLISHED',
@@ -199,11 +208,18 @@ export class PrismaOutboxRepository implements IOutboxRepository {
    * Status bleibt PENDING für weitere Retry-Versuche (bis MAX_RETRIES).
    * Die Entscheidung ob status = FAILED wird, liegt beim Polling Worker.
    *
+   * Transaction Support:
+   * - Bei tx vorhanden: Update erfolgt in derselben TX wie Lock
+   * - Lock wird erst bei TX COMMIT freigegeben
+   *
    * @param eventId - ID des Events
    * @param error - Fehlermeldung für lastFailureReason
+   * @param tx - Optional: Transaction Context für atomare Operationen
    */
-  async markAsFailed(eventId: string, error: string): Promise<void> {
-    await this.prisma.outboxEvent.update({
+  async markAsFailed(eventId: string, error: string, tx?: TransactionContext): Promise<void> {
+    const client = (tx as PrismaTransactionClient | undefined) ?? this.prisma;
+
+    await client.outboxEvent.update({
       where: { id: eventId },
       data: {
         retryCount: { increment: 1 },
@@ -215,22 +231,29 @@ export class PrismaOutboxRepository implements IOutboxRepository {
   }
 
   /**
-   * Markiert ein Event als FAILED (nach Max Retries).
+   * Markiert ein Event als FAILED (Dead Letter Queue).
    *
-   * Setzt status = FAILED. Das Event wird nicht mehr vom Polling Worker
-   * abgeholt und erfordert manuelle Intervention oder Alert-Benachrichtigung.
+   * Wird aufgerufen bei Non-Retryable Errors (Deserialization) oder nach Max Retries.
+   * Setzt status = FAILED. retryCount wird NICHT inkrementiert.
+   * Optional kann eine Fehlermeldung für lastFailureReason übergeben werden.
    *
    * @param eventId - ID des Events
+   * @param tx - Optional: Transaction Context für atomare Operationen
+   * @param error - Optional: Fehlermeldung für lastFailureReason (für Non-Retryable Errors)
    */
-  async markAsPermanentlyFailed(eventId: string): Promise<void> {
-    await this.prisma.outboxEvent.update({
+  async markAsPermanentlyFailed(eventId: string, tx?: TransactionContext, error?: string): Promise<void> {
+    const client = (tx as PrismaTransactionClient | undefined) ?? this.prisma;
+
+    await client.outboxEvent.update({
       where: { id: eventId },
       data: {
         status: 'FAILED',
+        // Nur setzen wenn error übergeben wurde (für Non-Retryable Errors)
+        ...(error && { lastFailureReason: error.substring(0, 1000) }),
       },
     });
 
-    this.logger.error(`Event ${eventId} permanently FAILED`);
+    this.logger.error(`Event ${eventId} permanently FAILED${error ? `: ${error.substring(0, 100)}` : ''}`);
   }
 
   /**

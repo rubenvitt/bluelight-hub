@@ -8,7 +8,8 @@ import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Test, type TestingModule } from '@nestjs/testing';
-import type { IOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
+import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
+import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
 
 /**
  * Helper: Erstellt Mock-Einsatz mit spezifischem Status.
@@ -349,6 +350,150 @@ describe('UpdateEinsatzStatusHandler', () => {
       expect(mockRepository.save).toHaveBeenCalledWith(einsatz, {});
       // No-Op: Aggregate erzeugt kein Event bei gleichem Status
       expect(einsatz.getDomainEvents()).toHaveLength(0);
+    });
+  });
+
+  describe('Error Handling', () => {
+    describe('Validation Errors', () => {
+      it('sollte EinsatzValidationException werfen bei ungültiger EinsatzId', async () => {
+        // Arrange
+        const command = UpdateEinsatzStatusCommand.create('invalid-id-format', 'IN_BEARBEITUNG').value!;
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzValidationException);
+        expect(mockRepository.findById).not.toHaveBeenCalled();
+        expect(mockRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzValidationException werfen bei ungültigem Status-String', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz();
+        const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'INVALID_STATUS').value!;
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzValidationException);
+        expect(mockRepository.findById).not.toHaveBeenCalled();
+        expect(mockRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte Command-Erstellung fehlschlagen bei leerem Status-String', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz();
+        const commandResult = UpdateEinsatzStatusCommand.create(einsatz.id.value, '');
+
+        // Act & Assert
+        expect(commandResult.isFailure).toBe(true);
+        expect(commandResult.error).toContain('newStatus');
+      });
+    });
+
+    describe('Entity Not Found', () => {
+      it('sollte EinsatzNotFoundException werfen wenn Einsatz nicht existiert', async () => {
+        // Arrange
+        const validEinsatzId = EinsatzId.create().value!.value;
+        const command = UpdateEinsatzStatusCommand.create(validEinsatzId, 'IN_BEARBEITUNG').value!;
+        mockRepository.findById.mockResolvedValue(Result.ok(null));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzNotFoundException);
+        expect(mockRepository.save).not.toHaveBeenCalled();
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('Business Rule Violations - Status Transitions', () => {
+      it('sollte EinsatzBusinessRuleException werfen bei ungültiger Rückwärts-Transition (ABGESCHLOSSEN → ANGELEGT)', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz(EinsatzStatus.ABGESCHLOSSEN());
+        const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'ANGELEGT').value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzBusinessRuleException);
+        expect(mockRepository.save).not.toHaveBeenCalled();
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzBusinessRuleException werfen bei ungültiger Rückwärts-Transition (ABGESCHLOSSEN → IN_BEARBEITUNG)', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz(EinsatzStatus.ABGESCHLOSSEN());
+        const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzBusinessRuleException);
+        expect(mockRepository.save).not.toHaveBeenCalled();
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzBusinessRuleException werfen bei Änderung von ARCHIVIERT (immutable)', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz(EinsatzStatus.ARCHIVIERT());
+        const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzBusinessRuleException);
+        expect(mockRepository.save).not.toHaveBeenCalled();
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzBusinessRuleException werfen bei ungültiger Transition (IN_BEARBEITUNG → ANGELEGT)', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz(EinsatzStatus.IN_BEARBEITUNG());
+        const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'ANGELEGT').value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzBusinessRuleException);
+        expect(mockRepository.save).not.toHaveBeenCalled();
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('Repository/DB Errors', () => {
+      it('sollte EinsatzPersistenceException werfen bei Repository.save() Fehler', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz(EinsatzStatus.ANGELEGT());
+        const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+        mockRepository.save.mockResolvedValue(Result.fail('Database connection error'));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzPersistenceException);
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzPersistenceException werfen bei Repository.findById() Fehler', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz();
+        const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
+
+        mockRepository.findById.mockResolvedValue(Result.fail('Database connection error'));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzPersistenceException);
+        expect(mockRepository.save).not.toHaveBeenCalled();
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzPersistenceException werfen bei Datenbank-Timeout', async () => {
+        // Arrange
+        const einsatz = createMockEinsatz(EinsatzStatus.ANGELEGT());
+        const command = UpdateEinsatzStatusCommand.create(einsatz.id.value, 'IN_BEARBEITUNG').value!;
+
+        mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
+        mockRepository.save.mockResolvedValue(Result.fail('Query timeout'));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzPersistenceException);
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
     });
   });
 });

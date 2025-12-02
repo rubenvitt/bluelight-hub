@@ -4,6 +4,7 @@ import { CreateEinsatzCommand } from '../create-einsatz.command';
 import { Result } from '@domain/common/result';
 import { UserId } from '@domain/value-objects/user-id';
 import { PrismaService } from '@/prisma/prisma.service';
+import { EinsatzValidationException, EinsatzPersistenceException } from '@domain/common/exceptions';
 
 describe('CreateEinsatzHandler', () => {
   let handler: CreateEinsatzHandler;
@@ -187,6 +188,66 @@ describe('CreateEinsatzHandler', () => {
       // Assert
       expect(result.isFailure).toBe(true);
       expect(result.error).toBe('createdBy ist erforderlich');
+    });
+  });
+
+  describe('Error Handling', () => {
+    describe('Validation Errors', () => {
+      it('sollte EinsatzValidationException bei ungültiger User-ID werfen', async () => {
+        // Arrange
+        const command = CreateEinsatzCommand.create('Wohnungsbrand', 'invalid-user-id-format').value!;
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzValidationException);
+        await expect(handler.execute(command)).rejects.toMatchObject({
+          name: 'EinsatzValidationException',
+          field: 'createdBy',
+        });
+        expect(mockRepository.save).not.toHaveBeenCalled();
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte Command Validation fehlschlagen bei leerem alarmstichwort', () => {
+        // Arrange & Act - Command Validation sollte bereits fehlschlagen
+        const userId = UserId.create().value!;
+        const result = CreateEinsatzCommand.create('   ', userId.value);
+
+        // Assert - Command creation fails before handler execution
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('Alarmstichwort ist erforderlich');
+      });
+    });
+
+    describe('Repository/DB Errors', () => {
+      it('sollte EinsatzPersistenceException bei Repository.save Fehler werfen', async () => {
+        // Arrange
+        const userId = UserId.create().value!;
+        const command = CreateEinsatzCommand.create('Wohnungsbrand', userId.value).value!;
+        mockRepository.save.mockResolvedValue(Result.fail('DB connection error'));
+
+        // Act & Assert
+        await expect(handler.execute(command)).rejects.toThrow(EinsatzPersistenceException);
+        await expect(handler.execute(command)).rejects.toMatchObject({
+          name: 'EinsatzPersistenceException',
+        });
+        // Repository wurde aufgerufen, aber Fehler führt zu Transaction Rollback
+        expect(mockRepository.save).toHaveBeenCalled();
+        // Events werden nicht gespeichert bei Fehler
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+
+      it('sollte EinsatzPersistenceException mit einsatzId bei DB Fehler werfen', async () => {
+        // Arrange
+        const userId = UserId.create().value!;
+        const command = CreateEinsatzCommand.create('Verkehrsunfall', userId.value).value!;
+        mockRepository.save.mockResolvedValue(Result.fail('Database write failed'));
+
+        // Act & Assert
+        const error = await handler.execute(command).catch((e) => e);
+        expect(error).toBeInstanceOf(EinsatzPersistenceException);
+        expect(error.aggregateId).toBeDefined();
+        expect(error.operation).toBe('persist');
+      });
     });
   });
 });

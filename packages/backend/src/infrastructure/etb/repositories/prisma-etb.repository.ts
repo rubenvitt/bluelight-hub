@@ -1,6 +1,7 @@
 import { PrismaService } from '@/prisma/prisma.service';
 import type { EinsatztagebuchAggregate } from '@domain/aggregates/einsatztagebuch.aggregate';
-import type { IEtbRepository, TransactionContext } from '@domain/repositories/i-etb.repository';
+import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
+import type { TransactionContext } from '@domain/common/transaction';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { EtbId } from '@domain/value-objects/etb-id';
 import { type EtbEintragSnapshot, EtbSnapshot } from '@domain/value-objects/etb-snapshot';

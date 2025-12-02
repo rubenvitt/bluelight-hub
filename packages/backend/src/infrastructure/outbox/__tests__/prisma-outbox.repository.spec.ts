@@ -4,12 +4,14 @@
  * Diese Tests validieren die Outbox-Repository-Implementierung:
  * - save() persistiert Events korrekt in der Outbox-Tabelle
  * - findPendingEvents() lädt PENDING Events sortiert nach createdAt ASC
+ * - findAndLockPending() mit FOR UPDATE SKIP LOCKED (Story 0-2)
  * - markAsPublished() setzt status = PUBLISHED und publishedAt
  * - markAsFailed() incrementiert retryCount und setzt lastFailureReason
  * - markAsPermanentlyFailed() setzt status = FAILED
  * - Transaction-Support für atomare Operationen
  *
  * Epic 4 Story 4.4 | AC 2.1-2.6
+ * Story 0-2 | AC 2, 5 (findAndLockPending Tests)
  */
 
 import { Test, type TestingModule } from '@nestjs/testing';
@@ -236,6 +238,85 @@ describe('PrismaOutboxRepository', () => {
     });
   });
 
+  // ===== FIND AND LOCK PENDING TESTS (Story 0-2: Race Condition Prevention) =====
+
+  describe('findAndLockPending()', () => {
+    beforeEach(() => {
+      // Add $queryRaw mock for findAndLockPending
+      (prismaService as unknown as { $queryRaw: jest.Mock }).$queryRaw = jest.fn().mockResolvedValue([mockOutboxEvent]);
+    });
+
+    it('should use raw query with FOR UPDATE SKIP LOCKED', async () => {
+      await repository.findAndLockPending(100);
+
+      expect((prismaService as unknown as { $queryRaw: jest.Mock }).$queryRaw).toHaveBeenCalled();
+
+      // Get the template literal call
+      const queryCall = (prismaService as unknown as { $queryRaw: jest.Mock }).$queryRaw.mock.calls[0];
+      expect(queryCall).toBeDefined();
+    });
+
+    it('should respect custom limit parameter', async () => {
+      await repository.findAndLockPending(50);
+
+      const queryCall = (prismaService as unknown as { $queryRaw: jest.Mock }).$queryRaw.mock.calls[0];
+      // The limit is passed as the second element in the tagged template call
+      expect(queryCall[1]).toBe(50);
+    });
+
+    it('should use default limit of 100', async () => {
+      await repository.findAndLockPending();
+
+      const queryCall = (prismaService as unknown as { $queryRaw: jest.Mock }).$queryRaw.mock.calls[0];
+      expect(queryCall[1]).toBe(100);
+    });
+
+    it('should return empty array when no pending events', async () => {
+      (prismaService as unknown as { $queryRaw: jest.Mock }).$queryRaw.mockResolvedValue([]);
+
+      const events = await repository.findAndLockPending();
+
+      expect(events).toEqual([]);
+    });
+
+    it('should map raw query results to OutboxEventDto correctly', async () => {
+      const events = await repository.findAndLockPending();
+
+      expect(events).toHaveLength(1);
+      expect(events[0]).toEqual({
+        id: 'event-123',
+        eventName: 'einsatz.created',
+        eventVersion: 1,
+        aggregateId: 'agg-123',
+        payload: mockSerializedEvent,
+        status: 'PENDING',
+        retryCount: 0,
+        lastFailureReason: null,
+        createdAt: new Date('2024-11-26T10:00:00.000Z'),
+        occurredAt: new Date('2024-11-26T10:00:00.000Z'),
+        publishedAt: null,
+      });
+    });
+
+    it('should use provided transaction client when available', async () => {
+      const txQueryRaw = jest.fn().mockResolvedValue([mockOutboxEvent]);
+      const mockTx = {
+        $queryRaw: txQueryRaw,
+      } as unknown as PrismaTransaction;
+
+      await repository.findAndLockPending(100, mockTx);
+
+      expect(txQueryRaw).toHaveBeenCalled();
+      expect((prismaService as unknown as { $queryRaw: jest.Mock }).$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('should use PrismaService when no transaction provided', async () => {
+      await repository.findAndLockPending();
+
+      expect((prismaService as unknown as { $queryRaw: jest.Mock }).$queryRaw).toHaveBeenCalled();
+    });
+  });
+
   // ===== MARK AS PUBLISHED TESTS =====
 
   describe('markAsPublished()', () => {
@@ -259,6 +340,24 @@ describe('PrismaOutboxRepository', () => {
       const publishedAt = callArgs.data.publishedAt.getTime();
       expect(publishedAt).toBeGreaterThanOrEqual(beforeCall);
       expect(publishedAt).toBeLessThanOrEqual(afterCall);
+    });
+
+    it('should use provided transaction client when available (Story 0-2)', async () => {
+      const txUpdate = jest.fn().mockResolvedValue(mockOutboxEvent);
+      const mockTx = {
+        outboxEvent: { update: txUpdate },
+      } as unknown as PrismaTransaction;
+
+      await repository.markAsPublished('event-123', mockTx);
+
+      expect(txUpdate).toHaveBeenCalledWith({
+        where: { id: 'event-123' },
+        data: {
+          status: 'PUBLISHED',
+          publishedAt: expect.any(Date),
+        },
+      });
+      expect(prismaService.outboxEvent.update).not.toHaveBeenCalled();
     });
   });
 
@@ -290,17 +389,75 @@ describe('PrismaOutboxRepository', () => {
         },
       });
     });
+
+    it('should use provided transaction client when available (Story 0-2)', async () => {
+      const txUpdate = jest.fn().mockResolvedValue(mockOutboxEvent);
+      const mockTx = {
+        outboxEvent: { update: txUpdate },
+      } as unknown as PrismaTransaction;
+
+      await repository.markAsFailed('event-123', 'Connection timeout', mockTx);
+
+      expect(txUpdate).toHaveBeenCalledWith({
+        where: { id: 'event-123' },
+        data: {
+          retryCount: { increment: 1 },
+          lastFailureReason: 'Connection timeout',
+        },
+      });
+      expect(prismaService.outboxEvent.update).not.toHaveBeenCalled();
+    });
   });
 
   // ===== MARK AS PERMANENTLY FAILED TESTS =====
 
   describe('markAsPermanentlyFailed()', () => {
-    it('should set status to FAILED', async () => {
+    it('should set status to FAILED without error message', async () => {
       await repository.markAsPermanentlyFailed('event-123');
 
       expect(prismaService.outboxEvent.update).toHaveBeenCalledWith({
         where: { id: 'event-123' },
         data: { status: 'FAILED' },
+      });
+    });
+
+    it('should set status to FAILED with lastFailureReason when error provided', async () => {
+      await repository.markAsPermanentlyFailed('event-123', undefined, 'Invalid einsatzId');
+
+      expect(prismaService.outboxEvent.update).toHaveBeenCalledWith({
+        where: { id: 'event-123' },
+        data: {
+          status: 'FAILED',
+          lastFailureReason: 'Invalid einsatzId',
+        },
+      });
+    });
+
+    it('should truncate long error messages to 1000 chars', async () => {
+      const longError = 'A'.repeat(1500);
+      await repository.markAsPermanentlyFailed('event-123', undefined, longError);
+
+      expect(prismaService.outboxEvent.update).toHaveBeenCalledWith({
+        where: { id: 'event-123' },
+        data: {
+          status: 'FAILED',
+          lastFailureReason: 'A'.repeat(1000),
+        },
+      });
+    });
+
+    it('should use transaction client when tx provided', async () => {
+      const mockTx = {
+        outboxEvent: { update: jest.fn().mockResolvedValue({}) },
+      };
+      await repository.markAsPermanentlyFailed('event-123', mockTx as never, 'Error');
+
+      expect(mockTx.outboxEvent.update).toHaveBeenCalledWith({
+        where: { id: 'event-123' },
+        data: {
+          status: 'FAILED',
+          lastFailureReason: 'Error',
+        },
       });
     });
   });

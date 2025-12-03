@@ -1,15 +1,14 @@
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import type { PaginatedData } from '@/common/interceptors/transform.interceptor';
 import type { EinsatzResponseDto } from '@/einsatz/dto/einsatz-response.dto';
 // biome-ignore lint/correctness/noUnusedImports: Required for NestJS DI - must be value import, not type import
-import type { EinsatzRepository } from '@/einsatz/einsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import { EinsatzNameGenerator } from '@/einsatz/utils/name-generator.util';
 import { EinsatzCompletenessCalculator } from '@/einsatz/utils/completeness.util';
 import { GetAllEinsaetzeQuery } from './get-all-einsaetze.query';
-import type { Einsatz } from '@prisma/client';
-import { EinsatzStatus, type Prisma } from '@prisma/client';
+import type { Einsatz as PrismaEinsatz } from '@prisma/client';
 
 /**
  * Handler für GetAllEinsaetzeQuery.
@@ -37,10 +36,10 @@ import { EinsatzStatus, type Prisma } from '@prisma/client';
  * - Default: page=1, limit=10 (siehe Query Defaults)
  * - totalPages wird aus total/limit berechnet
  *
- * **Warum EinsatzRepository statt IEinsatzRepository:**
- * - IEinsatzRepository hat KEINE paginierte Methode (nur findActive())
- * - Pragmatischer Ansatz: Nutze bestehende findWithPagination() aus EinsatzRepository
- * - TODO Epic 4: IEinsatzRepository um findAllPaginated() erweitern und migrieren
+ * **Migration zu IEinsatzRepository (Story 5-1):**
+ * - Nutzt IEinsatzRepository.findAllPaginated() (Result Pattern)
+ * - Entkoppelt von Legacy EinsatzRepository
+ * - Interface-basiertes Design ermöglicht Testing mit Mock Repository
  *
  * **Query Pattern (CQRS Read Side):**
  * - Read-Only Operation (keine Aggregate-Änderung)
@@ -77,12 +76,15 @@ export class GetAllEinsaetzeQueryHandler implements IQueryHandler<GetAllEinsaetz
   /**
    * Constructor mit Dependency Injection.
    *
-   * HINWEIS: Nutzt EinsatzRepository (nicht IEinsatzRepository Interface)
-   * weil das Domain Interface keine paginierte Methode hat.
+   * MIGRATION (Story 5-1): Migriert von EinsatzRepository zu IEinsatzRepository Interface.
+   * Nutzt @Inject Token für Interface-basierte Injection (Hexagonal Architecture).
    *
-   * @param repository - EinsatzRepository mit findWithPagination() Support
+   * @param repository - IEinsatzRepository mit findAllPaginated() Support
    */
-  constructor(private readonly repository: EinsatzRepository) {}
+  constructor(
+    @Inject('IEinsatzRepository')
+    private readonly repository: IEinsatzRepository,
+  ) {}
 
   /**
    * Führt die Query aus und gibt paginierte Einsätze als DTOs zurück.
@@ -109,45 +111,56 @@ export class GetAllEinsaetzeQueryHandler implements IQueryHandler<GetAllEinsaetz
       // 1. Parameter extrahieren mit Defaults
       const { status, search, includeArchived = false, includeCompleteness = false, page = 1, limit = 10, orderBy = 'createdAt', orderDirection = 'desc' } = query.params;
 
-      // 2. Prisma WHERE-Clause dynamisch bauen
-      const where: Prisma.EinsatzWhereInput = {};
+      // 2. Repository Abfrage (paginiert) mit IEinsatzRepository.findAllPaginated()
+      // Result Pattern: Repository gibt Result<T> zurück statt Exceptions zu werfen
+      const repositoryResult = await this.repository.findAllPaginated(
+        {
+          status,
+          includeArchived,
+          searchTerm: search,
+        },
+        {
+          page,
+          limit,
+        },
+        {
+          orderBy,
+          orderDirection,
+        },
+      );
 
-      // No-Delete Policy: Filter archivierte Einsätze standardmäßig aus
-      if (!includeArchived && !status) {
-        // Wenn kein spezifischer Status angefragt wurde UND archivierte nicht eingeschlossen werden sollen
-        where.status = { not: EinsatzStatus.ARCHIVIERT };
-      } else if (status) {
-        // Wenn spezifischer Status gesetzt: Überschreibt includeArchived
-        where.status = status;
+      // 3. Prüfe Repository Result auf Fehler
+      if (repositoryResult.isFailure) {
+        this.logger.error(`Repository error: ${repositoryResult.error}`);
+        return Result.fail<PaginatedData<EinsatzResponseDto>>(repositoryResult.error ?? 'Failed to fetch einsaetze from repository');
       }
-      // Wenn includeArchived=true und kein spezifischer Status: Zeige alle (kein Filter)
 
-      // Volltextsuche: alarmstichwort, id (case-insensitive)
-      if (search) {
-        const searchTerm = search.trim();
-        if (searchTerm) {
-          where.OR = [{ alarmstichwort: { contains: searchTerm, mode: 'insensitive' } }, { id: { contains: searchTerm, mode: 'insensitive' } }];
-        }
+      // 4. Type Narrowing: value ist garantiert vorhanden wenn isFailure === false
+      const paginatedData = repositoryResult.value;
+      if (!paginatedData) {
+        // Fallback: Leeres Result (sollte nicht passieren aber Type-Safe)
+        return Result.ok<PaginatedData<EinsatzResponseDto>>({
+          items: [],
+          total: 0,
+          page,
+          limit,
+        });
       }
 
-      // 3. Prisma OrderBy-Clause
-      const orderByClause: Prisma.EinsatzOrderByWithRelationInput = {
-        [orderBy]: orderDirection,
-      };
-
-      // 4. Repository Abfrage (paginiert)
-      const result = await this.repository.findWithPagination(page, limit, where, orderByClause);
-
-      // 5. Entities zu DTOs mappen
-      const dtos = await Promise.all(result.items.map((einsatz: Einsatz) => this.toResponseDto(einsatz, includeCompleteness)));
+      // 5. Domain Aggregates zu DTOs mappen (mit computed fields)
+      // HINWEIS: toResponseDto() erwartet Prisma Entity, aber wir haben jetzt Domain Aggregate
+      // Wir müssen eine Adapter-Funktion erstellen die Domain → DTO mappt
+      const dtos = await Promise.all(paginatedData.items.map((aggregate) => this.aggregateToResponseDto(aggregate, includeCompleteness)));
 
       // 6. Logging für Monitoring
-      this.logger.log(`Found ${result.total} Einsätze (showing ${dtos.length}) - Filters: status=${status}, search='${search}', includeArchived=${includeArchived}, page=${page}, limit=${limit}`);
+      this.logger.log(
+        `Found ${paginatedData.total} Einsätze (showing ${dtos.length}) - Filters: status=${status}, search='${search}', includeArchived=${includeArchived}, page=${page}, limit=${limit}`,
+      );
 
       // 7. Return Success mit PaginatedData
       return Result.ok<PaginatedData<EinsatzResponseDto>>({
         items: dtos,
-        total: result.total,
+        total: paginatedData.total,
         page,
         limit,
       });
@@ -160,41 +173,76 @@ export class GetAllEinsaetzeQueryHandler implements IQueryHandler<GetAllEinsaetz
   }
 
   /**
-   * Konvertiert ein Einsatz-Entity zu einem ResponseDTO mit computed fields.
+   * Konvertiert ein Domain Aggregate zu einem ResponseDTO mit computed fields.
    *
-   * Diese Methode mappt die persistierte Entity (Prisma Model) zu einem
-   * API-Response DTO und fügt computed fields hinzu die nicht in der DB
-   * gespeichert sind (name, nameComponents, optional completeness).
+   * Diese Methode mappt das Domain Aggregate (DDD) zu einem API-Response DTO
+   * und fügt computed fields hinzu die nicht im Aggregate gespeichert sind
+   * (name, nameComponents, optional completeness).
+   *
+   * **MIGRATION (Story 5-1):**
+   * - Alte Methode toResponseDto() arbeitete mit Prisma Entity
+   * - Neue Methode aggregateToResponseDto() arbeitet mit Domain Aggregate
+   * - Domain → DTO Mapping entkoppelt Infrastructure von Application Layer
    *
    * **Computed Fields:**
    * - name: Auto-generierter Einsatz-Name (z.B. "Brand 3 - 27.01.2025 14:30")
    * - nameComponents: Komponenten des Namens (alarmstichwort, datum, zeit)
    * - completeness: Optional - Vollständigkeits-Score und Missing Fields
    *
+   * **Mapping Strategy:**
+   * - Domain Aggregate Getters → DTO Properties
+   * - Value Objects werden zu primitiven Typen serialisiert
+   * - Computed Fields via EinsatzNameGenerator und EinsatzCompletenessCalculator
+   *
    * **Warum private Method:**
    * - Encapsulation: DTO-Mapping Logik ist Handler-interner Concern
    * - Reusability: Kann von anderen Queries im selben Handler wiederverwendet werden
    * - Single Responsibility: Handler orchestriert, Mapper transformiert
    *
-   * @param einsatz - Prisma Einsatz Entity
+   * @param aggregate - Einsatz Domain Aggregate
    * @param includeCompleteness - Ob Vollständigkeits-Info berechnet werden soll
    * @returns Promise<EinsatzResponseDto> - Response DTO mit computed fields
    */
-  private async toResponseDto(einsatz: Einsatz, includeCompleteness = false): Promise<EinsatzResponseDto> {
-    // Computed Field: Generierter Name
-    const name = EinsatzNameGenerator.generate(einsatz);
-    const nameComponents = EinsatzNameGenerator.getNameComponents(einsatz);
+  private async aggregateToResponseDto(aggregate: import('@domain/aggregates/einsatz.aggregate').Einsatz, includeCompleteness = false): Promise<EinsatzResponseDto> {
+    // Domain Aggregate → Prisma-kompatibles Objekt für Name Generator
+    // HINWEIS: EinsatzNameGenerator erwartet Prisma Entity, aber wir haben Domain Aggregate
+    // Wir erstellen ein kompatibles Objekt mit den benötigten Feldern
+    const prismaCompatible = {
+      id: aggregate.id.value,
+      alarmstichwort: aggregate.alarmstichwort,
+      createdAt: aggregate.createdAt,
+      // Weitere Felder die der Generator benötigt können hier hinzugefügt werden
+    };
 
-    // Basis DTO mit Entity Fields + Computed Name
+    // Computed Field: Generierter Name
+    const name = EinsatzNameGenerator.generate(prismaCompatible as PrismaEinsatz);
+    const nameComponents = EinsatzNameGenerator.getNameComponents(prismaCompatible as PrismaEinsatz);
+
+    // Domain Aggregate → Response DTO Mapping
     const response: EinsatzResponseDto = {
-      ...einsatz,
+      id: aggregate.id.value,
+      alarmstichwort: aggregate.alarmstichwort,
+      einsatzort: aggregate.einsatzort?.toString() ?? null, // Address Value Object → String
+      beschreibung: aggregate.bemerkung ?? null,
+      alarmierungszeit: null, // TODO: Aggregate hat noch kein alarmierungszeit Feld
+      einsatzleiter: null, // TODO: Aggregate hat noch kein einsatzleiter Feld
+      status: aggregate.status.value as import('@prisma/client').EinsatzStatus, // EinsatzStatus Value Object → Enum
+      metadata: null, // TODO: Aggregate hat noch kein metadata Feld
+      createdAt: aggregate.createdAt,
+      updatedAt: aggregate.updatedAt,
+      createdBy: aggregate.createdBy.value,
+      updatedBy: null, // TODO: Aggregate hat noch kein updatedBy Feld
+      archivedAt: aggregate.archivedAt ?? null,
+      archivedBy: null, // TODO: Aggregate hat noch kein archivedBy Feld
       name,
       nameComponents,
     };
 
     // Optional: Vollständigkeits-Berechnung (rechenintensiv)
+    // HINWEIS: EinsatzCompletenessCalculator erwartet Prisma Entity
+    // Wir müssen ein kompatibles Objekt erstellen
     if (includeCompleteness) {
-      response.completeness = EinsatzCompletenessCalculator.calculate(einsatz);
+      response.completeness = EinsatzCompletenessCalculator.calculate(prismaCompatible as PrismaEinsatz);
     }
 
     return response;

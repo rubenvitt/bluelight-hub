@@ -5,6 +5,7 @@ import { Result } from '@domain/common/result';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException } from '@domain/common/exceptions';
 
 describe('DeleteEinsatzHandler', () => {
   let handler: DeleteEinsatzHandler;
@@ -40,19 +41,24 @@ describe('DeleteEinsatzHandler', () => {
   });
 
   describe('NO-DELETE Policy', () => {
-    it('sollte IMMER Result.fail zurückgeben (NO-DELETE Policy)', async () => {
+    it('sollte IMMER EinsatzBusinessRuleException werfen (NO-DELETE Policy)', async () => {
       // Arrange
       const einsatz = createTestEinsatz();
       mockRepository.findById.mockResolvedValue(Result.ok(einsatz));
 
       const command = DeleteEinsatzCommand.create(einsatz.id.value).value!;
 
-      // Act
-      const result = await handler.execute(command);
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow(EinsatzBusinessRuleException);
+      await expect(handler.execute(command)).rejects.toThrow('Einsätze können nicht gelöscht werden. Verwende Archivieren stattdessen.');
 
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toBe('Einsätze können nicht gelöscht werden. Verwende Archivieren stattdessen.');
+      // Verify exception details
+      try {
+        await handler.execute(command);
+      } catch (error) {
+        expect(error).toBeInstanceOf(EinsatzBusinessRuleException);
+        expect((error as EinsatzBusinessRuleException).rule).toBe('noDeletePolicy');
+      }
     });
 
     it('sollte canBeDeleted() aufrufen und false erwarten', async () => {
@@ -63,8 +69,8 @@ describe('DeleteEinsatzHandler', () => {
 
       const command = DeleteEinsatzCommand.create(einsatz.id.value).value!;
 
-      // Act
-      await handler.execute(command);
+      // Act - expect exception
+      await expect(handler.execute(command)).rejects.toThrow(EinsatzBusinessRuleException);
 
       // Assert
       expect(canBeDeletedSpy).toHaveBeenCalled();
@@ -78,8 +84,8 @@ describe('DeleteEinsatzHandler', () => {
 
       const command = DeleteEinsatzCommand.create(einsatz.id.value).value!;
 
-      // Act
-      await handler.execute(command);
+      // Act - expect exception
+      await expect(handler.execute(command)).rejects.toThrow(EinsatzBusinessRuleException);
 
       // Assert
       expect(mockRepository.delete).not.toHaveBeenCalled();
@@ -102,31 +108,43 @@ describe('DeleteEinsatzHandler', () => {
   });
 
   describe('Error Cases', () => {
-    it('sollte Result.fail bei Einsatz nicht gefunden zurückgeben', async () => {
+    it('sollte EinsatzNotFoundException werfen bei Einsatz nicht gefunden', async () => {
       // Arrange
       const einsatzId = EinsatzId.create().value!;
       mockRepository.findById.mockResolvedValue(Result.ok(null));
 
       const command = DeleteEinsatzCommand.create(einsatzId.value).value!;
 
-      // Act
-      const result = await handler.execute(command);
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow(EinsatzNotFoundException);
+      await expect(handler.execute(command)).rejects.toThrow(`Einsatz nicht gefunden: ${einsatzId.value}`);
 
-      // Assert
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toBe('Einsatz not found');
+      // Verify exception details
+      try {
+        await handler.execute(command);
+      } catch (error) {
+        expect(error).toBeInstanceOf(EinsatzNotFoundException);
+        expect((error as EinsatzNotFoundException).aggregateId).toBe(einsatzId.value);
+      }
     });
 
-    it('sollte Result.fail bei ungültiger Einsatz-ID zurückgeben', async () => {
+    it('sollte EinsatzValidationException werfen bei ungültiger Einsatz-ID', async () => {
       // Arrange
       const command = DeleteEinsatzCommand.create('invalid-id').value!;
 
-      // Act
-      const result = await handler.execute(command);
+      // Act & Assert
+      await expect(handler.execute(command)).rejects.toThrow(EinsatzValidationException);
 
-      // Assert
-      expect(result.isFailure).toBe(true);
+      // Verify repository was never called
       expect(mockRepository.findById).not.toHaveBeenCalled();
+
+      // Verify exception details
+      try {
+        await handler.execute(command);
+      } catch (error) {
+        expect(error).toBeInstanceOf(EinsatzValidationException);
+        expect((error as EinsatzValidationException).field).toBe('einsatzId');
+      }
     });
   });
 

@@ -729,6 +729,44 @@ async publishPendingEvents(): Promise<void> {
 
 **Siehe:** `/packages/backend/src/infrastructure/outbox/__tests__/outbox-race-condition.integration.spec.ts`
 
+## Repository Interface Patterns
+
+### Return-Type Consistency
+
+Domain Repository Interfaces verwenden das **Result<T> Pattern** für explizites, type-safe Error Handling:
+
+```typescript
+// ✅ Korrekt: Result<T> Pattern für Domain Repositories
+interface IEinsatzRepository {
+  save(aggregate: Einsatz, tx?: TransactionContext): Promise<Result<void>>;
+  findById(id: EinsatzId): Promise<Result<Einsatz | null>>;
+  findActive(): Promise<Result<Einsatz[]>>;
+}
+
+// ❌ Inkonsistent: Promise<T> ohne Result (Legacy, zu migrieren)
+interface IEtbRepository {
+  save(aggregate: EinsatztagebuchAggregate, tx?: TransactionContext): Promise<void>;
+  findById(id: EtbId, tx?: TransactionContext): Promise<EinsatztagebuchAggregate | null>;
+}
+```
+
+**Aktuelle Konsistenz:**
+
+| Repository | Pattern | Status |
+|------------|---------|--------|
+| `IEinsatzRepository` | `Result<T>` | ✅ Konsistent |
+| `IUserRepository` | `Result<T>` | ✅ Konsistent |
+| `IEtbRepository` | `Promise<T>` | ⚠️ Zu migrieren |
+| `ILagekarteRepository` | `Promise<T>` | ⚠️ Zu migrieren |
+| `IOutboxRepository` | `Promise<T>` | ℹ️ Sonderfall |
+
+**Sonderfall IOutboxRepository:**
+- Infrastructure-internes Repository (kein Domain-Repository)
+- Consumer: Nur `OutboxEventPublisher` Service
+- Bleibt bei `Promise<T>` da Infrastructure-Concern
+
+**Siehe:** [ADR-024: Repository Interface Return-Type Pattern](../adr/ADR-024-repository-interface-pattern.md) für vollständige Entscheidungsdokumentation und Migrationsplan.
+
 ## Security Architecture
 
 ### Authentication Flow

@@ -440,6 +440,7 @@ model OutboxEvent {
   // Indexes für effizientes Polling
   @@index([status, createdAt], map: "idx_outbox_pending_poll") // Polling-Query: WHERE status=PENDING ORDER BY createdAt
   @@index([eventName], map: "idx_outbox_event_name") // Event-Type-Filterung
+  @@index([aggregateId], map: "idx_outbox_aggregate_id") // Aggregate-basierte Queries
   @@map("outbox_events")
 }
 

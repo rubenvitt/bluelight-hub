@@ -167,4 +167,21 @@ export interface IOutboxRepository {
    * @returns Aktueller retryCount
    */
   getRetryCount(eventId: string): Promise<number>;
+
+  /**
+   * Findet alle OutboxEvents für ein bestimmtes Aggregate.
+   *
+   * Nützlich für:
+   * - Event Replay/Debugging: Alle Events eines Aggregates anzeigen
+   * - Audit Trail: Vollständige History eines Aggregates
+   * - Fehleranalyse: Events eines betroffenen Aggregates inspizieren
+   *
+   * Die Query nutzt den Index `idx_outbox_aggregate_id` für optimale Performance.
+   * Events werden nach createdAt ASC sortiert (chronologische Reihenfolge).
+   *
+   * @param aggregateId - ID des Aggregates (z.B. Einsatz ID)
+   * @param tx - Optional: Transaction Context für atomare Operationen
+   * @returns Alle OutboxEvents für das Aggregate, sortiert nach createdAt ASC
+   */
+  findByAggregateId(aggregateId: string, tx?: TransactionContext): Promise<OutboxEventDto[]>;
 }

@@ -236,6 +236,88 @@ export interface IEinsatzRepository {
   >;
 
   /**
+   * Findet alle Einsaetze mit Pagination, Filterung und Sortierung.
+   *
+   * Warum separate findAllPaginated() Method?
+   * - Performance: Pagination verhindert Memory Overflow bei grossen Datensets
+   * - Flexibility: Erlaubt dynamische Filter ohne N Methoden im Interface
+   * - Use Case: API Endpoints mit optionalen Query Parameters
+   * - User Experience: Frontend kann lazy-loading implementieren
+   *
+   * Filter Parameter:
+   * - status: Optional - Filtert nach spezifischem EinsatzStatus
+   * - includeArchived: Boolean - Inkludiert archivierte Einsaetze (default: false)
+   * - searchTerm: Optional - Volltextsuche auf Alarmstichwort/ID (case-insensitive)
+   *
+   * Pagination:
+   * - page: Seitennummer (1-based, default: 1)
+   * - limit: Anzahl Items pro Seite (default: 10)
+   * - totalPages wird aus total/limit berechnet
+   *
+   * Sortierung:
+   * - orderBy: Feld-Name (z.B. 'createdAt', 'alarmstichwort')
+   * - orderDirection: 'asc' oder 'desc' (default: 'desc')
+   *
+   * Rueckgabewert:
+   * - items: Array von Einsatz Aggregates fuer aktuelle Seite
+   * - total: Gesamtanzahl Einsaetze (alle Seiten)
+   * - page: Aktuelle Seitennummer
+   * - limit: Items pro Seite
+   * - totalPages: Gesamtanzahl Seiten (berechnet aus total/limit)
+   *
+   * @param filters - Filter-Optionen (status, includeArchived, searchTerm)
+   * @param pagination - Pagination-Optionen (page, limit)
+   * @param sorting - Sortier-Optionen (orderBy, orderDirection)
+   * @returns Result mit PaginatedResult Object oder Failure bei DB-Fehler
+   *
+   * @example
+   * ```typescript
+   * // Alle aktiven Einsaetze (erste Seite)
+   * const result = await repository.findAllPaginated(
+   *   { includeArchived: false },
+   *   { page: 1, limit: 10 },
+   *   { orderBy: 'createdAt', orderDirection: 'desc' }
+   * );
+   *
+   * // Mit Status-Filter und Suche
+   * const filtered = await repository.findAllPaginated(
+   *   { status: EinsatzStatus.IN_BEARBEITUNG, searchTerm: 'Brand' },
+   *   { page: 2, limit: 20 },
+   *   { orderBy: 'alarmstichwort', orderDirection: 'asc' }
+   * );
+   *
+   * if (result.isSuccess) {
+   *   const data = result.value!;
+   *   console.log(`Showing ${data.items.length} of ${data.total} total`);
+   *   console.log(`Page ${data.page}/${data.totalPages}`);
+   * }
+   * ```
+   */
+  findAllPaginated(
+    filters: {
+      status?: string;
+      includeArchived?: boolean;
+      searchTerm?: string;
+    },
+    pagination: {
+      page: number;
+      limit: number;
+    },
+    sorting: {
+      orderBy: string;
+      orderDirection: 'asc' | 'desc';
+    },
+  ): Promise<
+    Result<{
+      items: Einsatz[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    }>
+  >;
+
+  /**
    * HINWEIS: KEINE delete() Method!
    *
    * Warum kein delete()?

@@ -365,4 +365,123 @@ export class PrismaEinsatzRepository implements IEinsatzRepository {
       return Result.fail(`Database error: ${message}`);
     }
   }
+
+  /**
+   * Findet alle Einsaetze mit Pagination, Filterung und Sortierung.
+   *
+   * Diese Methode implementiert flexible Einsatz-Suche mit dynamischen Filtern.
+   * Sie ersetzt die alte findWithPagination() aus dem Legacy EinsatzRepository.
+   *
+   * **Filter-Logik:**
+   * - status: Optional - Filtert nach spezifischem Status (überschreibt includeArchived)
+   * - includeArchived: false (default) - Filtert ARCHIVIERT Status aus
+   * - searchTerm: Optional - Case-insensitive LIKE auf alarmstichwort und id
+   *
+   * **Pagination:**
+   * - page (1-based): Skip berechnet als (page - 1) * limit
+   * - limit: Take parameter für Prisma
+   * - totalPages: Math.ceil(total / limit)
+   *
+   * **Sortierung:**
+   * - orderBy: Dynamisches Feld (z.B. 'createdAt', 'alarmstichwort')
+   * - orderDirection: 'asc' oder 'desc'
+   * - Default: createdAt desc (neueste zuerst)
+   *
+   * **Performance:**
+   * - Parallele Queries: findMany() + count() via Promise.all()
+   * - Index-Optimierung: status Column ist indexed
+   * - Pagination verhindert Memory Overflow bei grossen Datensets
+   *
+   * @param filters - Filter-Optionen (status, includeArchived, searchTerm)
+   * @param pagination - Pagination-Optionen (page, limit)
+   * @param sorting - Sortier-Optionen (orderBy, orderDirection)
+   * @returns Promise<Result<PaginatedResult>> - Success mit paginierten Aggregates oder Failure
+   */
+  async findAllPaginated(
+    filters: {
+      status?: string;
+      includeArchived?: boolean;
+      searchTerm?: string;
+    },
+    pagination: {
+      page: number;
+      limit: number;
+    },
+    sorting: {
+      orderBy: string;
+      orderDirection: 'asc' | 'desc';
+    },
+  ): Promise<
+    Result<{
+      items: Einsatz[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    }>
+  > {
+    try {
+      const { status, includeArchived = false, searchTerm } = filters;
+      const { page, limit } = pagination;
+      const { orderBy, orderDirection } = sorting;
+
+      // Berechne Skip für Pagination (1-based page number)
+      const skip = (page - 1) * limit;
+
+      // Baue dynamische WHERE-Clause
+      const where: Prisma.EinsatzWhereInput = {};
+
+      // Status-Filter
+      if (status) {
+        // Spezifischer Status überschreibt includeArchived
+        // Cast string zu EinsatzStatus Enum für Type Safety
+        where.status = status as unknown as Prisma.EnumEinsatzStatusFilter;
+      } else if (!includeArchived) {
+        // Default: Filtere archivierte Einsätze aus
+        where.status = { not: 'ARCHIVIERT' };
+      }
+      // Wenn includeArchived=true und kein Status: Zeige alle (kein Filter)
+
+      // Volltextsuche (case-insensitive)
+      if (searchTerm?.trim()) {
+        where.OR = [{ alarmstichwort: { contains: searchTerm.trim(), mode: 'insensitive' } }, { id: { contains: searchTerm.trim(), mode: 'insensitive' } }];
+      }
+
+      // Baue OrderBy-Clause
+      const orderByClause: Prisma.EinsatzOrderByWithRelationInput = {
+        [orderBy]: orderDirection,
+      };
+
+      // Parallele Queries für optimale Performance
+      const [items, total] = await Promise.all([
+        this.prisma.einsatz.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: orderByClause,
+        }),
+        this.prisma.einsatz.count({ where }),
+      ]);
+
+      // Prisma → Domain Mapping für alle Ergebnisse
+      const aggregates = items.map((e) => PrismaEinsatzMapper.toAggregate(e));
+
+      // Berechne totalPages (mindestens 1 wenn total > 0)
+      const totalPages = total > 0 ? Math.ceil(total / Math.max(1, limit)) : 0;
+
+      this.logger.log(`Found ${total} Einsätze (showing ${aggregates.length}) - Filters: status=${status}, search='${searchTerm}', includeArchived=${includeArchived}, page=${page}, limit=${limit}`);
+
+      return Result.ok({
+        items: aggregates,
+        total,
+        page,
+        limit,
+        totalPages,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to find paginated Einsätze: ${message}`);
+      return Result.fail(`Database error: ${message}`);
+    }
+  }
 }

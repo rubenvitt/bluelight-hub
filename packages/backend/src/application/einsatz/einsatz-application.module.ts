@@ -5,7 +5,6 @@ import { LagekarteInfrastructureModule } from '@infrastructure/lagekarte-infrast
 import { EtbInfrastructureModule } from '@infrastructure/etb/etb-infrastructure.module';
 import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
-import { EinsatzRepository } from '@/einsatz/einsatz.repository';
 import { CreateEinsatzHandler, UpdateEinsatzHandler, DeleteEinsatzHandler, CompleteEinsatzHandler, ArchiveEinsatzHandler, UpdateEinsatzStatusHandler } from './commands';
 import {
   GetActiveEinsaetzeQueryHandler,
@@ -67,8 +66,6 @@ import {
     EtbInfrastructureModule,
   ],
   providers: [
-    // Legacy Repository (für GetAllEinsaetzeQueryHandler - TODO: migrieren zu IEinsatzRepository)
-    EinsatzRepository,
     // Domain Services (Story 4-2)
     EinsatzCompletenessService,
     EinsatzArchivalPolicy,

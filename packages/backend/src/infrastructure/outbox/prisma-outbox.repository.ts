@@ -286,6 +286,33 @@ export class PrismaOutboxRepository implements IOutboxRepository {
   }
 
   /**
+   * Findet alle OutboxEvents für ein bestimmtes Aggregate.
+   *
+   * Nützlich für Event Replay, Debugging, Audit Trail und Fehleranalyse.
+   * Die Query nutzt den Index `idx_outbox_aggregate_id` für optimale Performance.
+   *
+   * @param aggregateId - ID des Aggregates (z.B. Einsatz ID)
+   * @param tx - Optional: Transaction Context für atomare Operationen
+   * @returns Alle OutboxEvents für das Aggregate, sortiert nach createdAt ASC (FIFO)
+   */
+  async findByAggregateId(aggregateId: string, tx?: TransactionContext): Promise<OutboxEventDto[]> {
+    const client = (tx as PrismaTransactionClient | undefined) ?? this.prisma;
+
+    const events = await client.outboxEvent.findMany({
+      where: {
+        aggregateId,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    this.logger.debug(`Found ${events.length} events for aggregate ${aggregateId}`);
+
+    return events.map((event) => this.mapToDto(event));
+  }
+
+  /**
    * Mappt Prisma OutboxEvent zu OutboxEventDto.
    */
   private mapToDto(event: OutboxEvent): OutboxEventDto {

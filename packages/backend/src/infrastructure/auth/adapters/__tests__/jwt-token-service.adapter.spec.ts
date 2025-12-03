@@ -101,7 +101,7 @@ describe('JwtTokenServiceAdapter', () => {
       expect(options.expiresIn).toBe('24h');
     });
 
-    it('should use JWT_SECRET from ConfigService', async () => {
+    it('should use JWT_SECRET from process.env', async () => {
       // Given
       const userId = UserId.create().value as UserId;
       const role = UserRole.USER();
@@ -110,15 +110,14 @@ describe('JwtTokenServiceAdapter', () => {
       // When
       await adapter.generateToken(userId, role);
 
-      // Then
-      expect(mockConfigService.get).toHaveBeenCalledWith('JWT_SECRET');
+      // Then - Adapter nutzt process.env.JWT_SECRET direkt (nicht ConfigService)
       const [, options] = mockJwtService.signAsync.mock.calls[0];
       expect(options.secret).toBe(TEST_SECRET);
     });
 
     it('should throw error if JWT_SECRET not configured', async () => {
-      // Given
-      mockConfigService.get.mockReturnValue(undefined);
+      // Given - Entferne JWT_SECRET aus process.env
+      delete process.env.JWT_SECRET;
       const userId = UserId.create().value as UserId;
       const role = UserRole.USER();
 
@@ -216,8 +215,8 @@ describe('JwtTokenServiceAdapter', () => {
     });
 
     it('should return Result.fail if JWT_SECRET not configured', async () => {
-      // Given
-      mockConfigService.get.mockReturnValue(undefined);
+      // Given - Entferne JWT_SECRET aus process.env
+      delete process.env.JWT_SECRET;
 
       // When
       const result = await adapter.validateToken('any.token');

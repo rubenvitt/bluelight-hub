@@ -5,6 +5,7 @@
  * - save() persistiert Events korrekt in der Outbox-Tabelle
  * - findPendingEvents() lädt PENDING Events sortiert nach createdAt ASC
  * - findAndLockPending() mit FOR UPDATE SKIP LOCKED (Story 0-2)
+ * - findByAggregateId() lädt alle Events für ein Aggregate (Story 0-5)
  * - markAsPublished() setzt status = PUBLISHED und publishedAt
  * - markAsFailed() incrementiert retryCount und setzt lastFailureReason
  * - markAsPermanentlyFailed() setzt status = FAILED
@@ -12,6 +13,7 @@
  *
  * Epic 4 Story 4.4 | AC 2.1-2.6
  * Story 0-2 | AC 2, 5 (findAndLockPending Tests)
+ * Story 0-5 | AC 3 (findByAggregateId Tests)
  */
 
 import { Test, type TestingModule } from '@nestjs/testing';
@@ -507,6 +509,82 @@ describe('PrismaOutboxRepository', () => {
       const event = await repository.findById('non-existent');
 
       expect(event).toBeNull();
+    });
+  });
+
+  // ===== FIND BY AGGREGATE ID TESTS (Story 0-5: Aggregate-based Queries) =====
+
+  describe('findByAggregateId()', () => {
+    const mockEventsForAggregate = [
+      { ...mockOutboxEvent, id: 'event-1', createdAt: new Date('2024-11-26T10:00:00.000Z') },
+      { ...mockOutboxEvent, id: 'event-2', createdAt: new Date('2024-11-26T10:01:00.000Z') },
+      { ...mockOutboxEvent, id: 'event-3', createdAt: new Date('2024-11-26T10:02:00.000Z') },
+    ];
+
+    it('should return all events for a given aggregateId sorted by createdAt ASC', async () => {
+      (prismaService.outboxEvent.findMany as jest.Mock).mockResolvedValue(mockEventsForAggregate);
+
+      const events = await repository.findByAggregateId('agg-123');
+
+      expect(prismaService.outboxEvent.findMany).toHaveBeenCalledWith({
+        where: { aggregateId: 'agg-123' },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(events).toHaveLength(3);
+      expect(events[0].id).toBe('event-1');
+      expect(events[1].id).toBe('event-2');
+      expect(events[2].id).toBe('event-3');
+    });
+
+    it('should return empty array when no events exist for aggregateId', async () => {
+      (prismaService.outboxEvent.findMany as jest.Mock).mockResolvedValue([]);
+
+      const events = await repository.findByAggregateId('non-existent-aggregate');
+
+      expect(events).toEqual([]);
+    });
+
+    it('should use provided transaction client when available', async () => {
+      const txFindMany = jest.fn().mockResolvedValue(mockEventsForAggregate);
+      const mockTx = {
+        outboxEvent: { findMany: txFindMany },
+      } as unknown as PrismaTransaction;
+
+      await repository.findByAggregateId('agg-123', mockTx);
+
+      expect(txFindMany).toHaveBeenCalledWith({
+        where: { aggregateId: 'agg-123' },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(prismaService.outboxEvent.findMany).not.toHaveBeenCalled();
+    });
+
+    it('should use PrismaService when no transaction provided', async () => {
+      (prismaService.outboxEvent.findMany as jest.Mock).mockResolvedValue([mockOutboxEvent]);
+
+      await repository.findByAggregateId('agg-123');
+
+      expect(prismaService.outboxEvent.findMany).toHaveBeenCalled();
+    });
+
+    it('should map Prisma OutboxEvent to OutboxEventDto correctly', async () => {
+      (prismaService.outboxEvent.findMany as jest.Mock).mockResolvedValue([mockOutboxEvent]);
+
+      const events = await repository.findByAggregateId('agg-123');
+
+      expect(events[0]).toEqual({
+        id: 'event-123',
+        eventName: 'einsatz.created',
+        eventVersion: 1,
+        aggregateId: 'agg-123',
+        payload: mockSerializedEvent,
+        status: 'PENDING',
+        retryCount: 0,
+        lastFailureReason: null,
+        createdAt: new Date('2024-11-26T10:00:00.000Z'),
+        occurredAt: new Date('2024-11-26T10:00:00.000Z'),
+        publishedAt: null,
+      });
     });
   });
 

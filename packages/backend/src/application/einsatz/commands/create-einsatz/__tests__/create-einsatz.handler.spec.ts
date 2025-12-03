@@ -5,6 +5,9 @@ import { Result } from '@domain/common/result';
 import { UserId } from '@domain/value-objects/user-id';
 import { PrismaService } from '@/prisma/prisma.service';
 import { EinsatzValidationException, EinsatzPersistenceException } from '@domain/common/exceptions';
+import { Address } from '@domain/value-objects/address';
+import { EINSATZ_FIELD_LIMITS } from '@application/common/validators/string-validator';
+import { EinsatzCreatedEvent } from '@domain/events/einsatz-created.event';
 
 describe('CreateEinsatzHandler', () => {
   let handler: CreateEinsatzHandler;
@@ -144,6 +147,95 @@ describe('CreateEinsatzHandler', () => {
       expect(savedAggregate.status.value).toBe('ANGELEGT');
     });
 
+    it('sollte Einsatz mit optionalen Feldern erstellen (einsatzort, bemerkung)', async () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const einsatzort = Address.create({
+        strasse: 'Musterstraße',
+        hausnummer: '42',
+        plz: '80331',
+        ort: 'München',
+      }).value!;
+      const bemerkung = 'Dachstuhl brennt';
+      const command = CreateEinsatzCommand.create('Wohnungsbrand', userId.value, einsatzort, bemerkung).value!;
+
+      // Act (When)
+      const einsatzId = await handler.execute(command);
+
+      // Assert (Then)
+      expect(einsatzId).toBeDefined();
+      const savedAggregate = mockRepository.save.mock.calls[0][0];
+      expect(savedAggregate.einsatzort).toBeDefined();
+      expect(savedAggregate.einsatzort.strasse).toBe('Musterstraße');
+      expect(savedAggregate.bemerkung).toBe('Dachstuhl brennt');
+    });
+
+    it('sollte Repository.save() einmal aufrufen mit Aggregate und Transaction-Context', async () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const command = CreateEinsatzCommand.create('Brand', userId.value).value!;
+
+      // Act (When)
+      await handler.execute(command);
+
+      // Assert (Then)
+      expect(mockRepository.save).toHaveBeenCalledTimes(1);
+      // Erster Parameter ist das Aggregate
+      const savedAggregate = mockRepository.save.mock.calls[0][0];
+      expect(savedAggregate.alarmstichwort).toBe('Brand');
+      // Zweiter Parameter ist der tx-Context (leeres Objekt in Mock)
+      const txContext = mockRepository.save.mock.calls[0][1];
+      expect(txContext).toBeDefined();
+    });
+
+    it('sollte OutboxRepository.save() einmal aufrufen mit Domain Events und tx-Context', async () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const command = CreateEinsatzCommand.create('Verkehrsunfall', userId.value).value!;
+
+      // Act (When)
+      await handler.execute(command);
+
+      // Assert (Then)
+      expect(mockOutboxRepository.save).toHaveBeenCalledTimes(1);
+      // Erster Parameter ist das Event-Array
+      const savedEvents = mockOutboxRepository.save.mock.calls[0][0];
+      expect(Array.isArray(savedEvents)).toBe(true);
+      expect(savedEvents.length).toBe(1);
+      // Zweiter Parameter ist der tx-Context
+      const txContext = mockOutboxRepository.save.mock.calls[0][1];
+      expect(txContext).toBeDefined();
+    });
+
+    it('sollte EinsatzCreatedEvent mit korrektem Payload erstellen', async () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const alarmstichwort = 'THL Ölspur';
+      const command = CreateEinsatzCommand.create(alarmstichwort, userId.value).value!;
+
+      // Act (When)
+      await handler.execute(command);
+
+      // Assert (Then)
+      const savedEvents = mockOutboxRepository.save.mock.calls[0][0];
+      expect(savedEvents.length).toBe(1);
+      const createdEvent = savedEvents[0];
+
+      // Event-Typ prüfen
+      expect(createdEvent).toBeInstanceOf(EinsatzCreatedEvent);
+
+      // Event-Payload prüfen
+      expect(createdEvent.einsatzId).toBeDefined();
+      expect(createdEvent.createdBy).toBeDefined();
+      expect(createdEvent.createdBy.value).toBe(userId.value);
+      expect(createdEvent.alarmstichwort).toBe(alarmstichwort);
+      expect(createdEvent.nummer).toBeDefined();
+
+      // Nummer-Format prüfen
+      const currentYear = new Date().getFullYear();
+      expect(createdEvent.nummer).toMatch(new RegExp(`^E${currentYear}-[a-z0-9]{8}$`));
+    });
+
     it('sollte Exception werfen bei ungültiger User-ID', async () => {
       // Arrange
       const command = CreateEinsatzCommand.create('Wohnungsbrand', 'invalid-user-id-format').value!;
@@ -188,6 +280,57 @@ describe('CreateEinsatzHandler', () => {
       // Assert
       expect(result.isFailure).toBe(true);
       expect(result.error).toBe('createdBy ist erforderlich');
+    });
+
+    it('sollte Result.fail bei zu langem alarmstichwort zurückgeben', () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const tooLongAlarmstichwort = 'A'.repeat(EINSATZ_FIELD_LIMITS.ALARMSTICHWORT_MAX_LENGTH + 1);
+
+      // Act (When)
+      const result = CreateEinsatzCommand.create(tooLongAlarmstichwort, userId.value);
+
+      // Assert (Then)
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe(`Alarmstichwort darf maximal ${EINSATZ_FIELD_LIMITS.ALARMSTICHWORT_MAX_LENGTH} Zeichen lang sein`);
+    });
+
+    it('sollte Result.fail bei zu langer bemerkung zurückgeben', () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const tooLongBemerkung = 'B'.repeat(EINSATZ_FIELD_LIMITS.BEMERKUNG_MAX_LENGTH + 1);
+
+      // Act (When)
+      const result = CreateEinsatzCommand.create('Wohnungsbrand', userId.value, undefined, tooLongBemerkung);
+
+      // Assert (Then)
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe(`Bemerkung darf maximal ${EINSATZ_FIELD_LIMITS.BEMERKUNG_MAX_LENGTH} Zeichen lang sein`);
+    });
+
+    it('sollte Result.fail bei whitespace-only alarmstichwort zurückgeben', () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+
+      // Act (When)
+      const result = CreateEinsatzCommand.create('   ', userId.value);
+
+      // Assert (Then)
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('Alarmstichwort ist erforderlich');
+    });
+
+    it('sollte Command erfolgreich erstellen bei maximal erlaubter alarmstichwort Länge', () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const maxLengthAlarmstichwort = 'A'.repeat(EINSATZ_FIELD_LIMITS.ALARMSTICHWORT_MAX_LENGTH);
+
+      // Act (When)
+      const result = CreateEinsatzCommand.create(maxLengthAlarmstichwort, userId.value);
+
+      // Assert (Then)
+      expect(result.isSuccess).toBe(true);
+      expect(result.value?.alarmstichwort).toBe(maxLengthAlarmstichwort);
     });
   });
 
@@ -248,6 +391,146 @@ describe('CreateEinsatzHandler', () => {
         expect(error.aggregateId).toBeDefined();
         expect(error.operation).toBe('persist');
       });
+
+      it('sollte Outbox.save() NICHT aufrufen bei Repository Fehler', async () => {
+        // Arrange (Given)
+        const userId = UserId.create().value!;
+        const command = CreateEinsatzCommand.create('Wohnungsbrand', userId.value).value!;
+        mockRepository.save.mockResolvedValue(Result.fail('Database error'));
+
+        // Act (When)
+        await handler.execute(command).catch(() => {});
+
+        // Assert (Then)
+        expect(mockRepository.save).toHaveBeenCalled();
+        expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Transaction Behavior', () => {
+    it('sollte prisma.$transaction() einmal aufrufen', async () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const command = CreateEinsatzCommand.create('Wohnungsbrand', userId.value).value!;
+
+      // Act (When)
+      await handler.execute(command);
+
+      // Assert (Then)
+      expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('sollte Transaction-Callback mit tx-Context ausführen', async () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const command = CreateEinsatzCommand.create('Verkehrsunfall', userId.value).value!;
+      let receivedTxContext: unknown;
+      mockPrismaService.$transaction.mockImplementation(async (callback) => {
+        const txMock = { isTxMock: true };
+        receivedTxContext = txMock;
+        return callback(txMock);
+      });
+
+      // Act (When)
+      await handler.execute(command);
+
+      // Assert (Then)
+      expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
+      expect(receivedTxContext).toBeDefined();
+      expect((receivedTxContext as { isTxMock: boolean }).isTxMock).toBe(true);
+    });
+
+    it('sollte Repository.save() mit tx-Context als zweiten Parameter aufrufen', async () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const command = CreateEinsatzCommand.create('Brand', userId.value).value!;
+      const txMarker = { txMarker: 'test-tx' };
+      mockPrismaService.$transaction.mockImplementation(async (callback) => callback(txMarker));
+
+      // Act (When)
+      await handler.execute(command);
+
+      // Assert (Then)
+      expect(mockRepository.save).toHaveBeenCalledTimes(1);
+      const txContext = mockRepository.save.mock.calls[0][1];
+      expect(txContext).toBe(txMarker);
+    });
+
+    it('sollte OutboxRepository.save() mit tx-Context als zweiten Parameter aufrufen', async () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const command = CreateEinsatzCommand.create('Hilfeleistung', userId.value).value!;
+      const txMarker = { txMarker: 'outbox-tx' };
+      mockPrismaService.$transaction.mockImplementation(async (callback) => callback(txMarker));
+
+      // Act (When)
+      await handler.execute(command);
+
+      // Assert (Then)
+      expect(mockOutboxRepository.save).toHaveBeenCalledTimes(1);
+      const txContext = mockOutboxRepository.save.mock.calls[0][1];
+      expect(txContext).toBe(txMarker);
+    });
+
+    it('sollte bei Exception keine Events speichern (Transaction Rollback)', async () => {
+      // Arrange (Given)
+      const command = CreateEinsatzCommand.create('Wohnungsbrand', 'invalid-user-id').value!;
+
+      // Act (When)
+      await handler.execute(command).catch(() => {});
+
+      // Assert (Then)
+      // Bei Validation-Fehler wird Transaction abgebrochen
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Outbox Integration', () => {
+    it('sollte genau ein EinsatzCreatedEvent im Event-Array haben', async () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const command = CreateEinsatzCommand.create('Brand', userId.value).value!;
+
+      // Act (When)
+      await handler.execute(command);
+
+      // Assert (Then)
+      const savedEvents = mockOutboxRepository.save.mock.calls[0][0];
+      expect(savedEvents.length).toBe(1);
+      expect(savedEvents[0]).toBeInstanceOf(EinsatzCreatedEvent);
+    });
+
+    it('sollte Event mit aggregateId speichern', async () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const command = CreateEinsatzCommand.create('Verkehrsunfall', userId.value).value!;
+
+      // Act (When)
+      const einsatzId = await handler.execute(command);
+
+      // Assert (Then)
+      const savedEvents = mockOutboxRepository.save.mock.calls[0][0];
+      const createdEvent = savedEvents[0] as EinsatzCreatedEvent;
+      expect(createdEvent.einsatzId.value).toBe(einsatzId);
+    });
+
+    it('sollte Event innerhalb der gleichen Transaction speichern', async () => {
+      // Arrange (Given)
+      const userId = UserId.create().value!;
+      const command = CreateEinsatzCommand.create('Hilfeleistung', userId.value).value!;
+      const txMarker = { txId: 'same-tx' };
+      mockPrismaService.$transaction.mockImplementation(async (callback) => callback(txMarker));
+
+      // Act (When)
+      await handler.execute(command);
+
+      // Assert (Then)
+      // Beide Saves sollten den gleichen tx-Context erhalten
+      const repoTxContext = mockRepository.save.mock.calls[0][1];
+      const outboxTxContext = mockOutboxRepository.save.mock.calls[0][1];
+      expect(repoTxContext).toBe(txMarker);
+      expect(outboxTxContext).toBe(txMarker);
     });
   });
 });

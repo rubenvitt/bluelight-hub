@@ -52,6 +52,168 @@ const fetchAlerts = async () => {
   - Check: `pnpm --filter @bluelight-hub/backend check:jsdoc:public`
   - Erkläre "warum", nicht "was"
 
+### Code Review Checklist (Backend Architecture)
+
+**Diese Checks sind bei JEDEM Code Review zu prüfen:**
+
+#### 1. DI Import Check (AC1)
+
+`import type` NUR für Typen, NICHT für Injectable Classes:
+
+```typescript
+// ✅ RICHTIG: import für DI-Injectable Classes
+import { MyService } from './my.service';
+import { IRepository } from '../domain/repositories/i-repository';
+
+// ❌ FALSCH: import type bricht NestJS DI zur Laufzeit!
+import type { MyService } from './my.service';
+```
+
+**Warum:** TypeScript's `import type` wird zur Compile-Zeit entfernt. NestJS DI benötigt das Runtime-Symbol für Dependency Injection.
+
+#### 2. DI Token Constants Check (AC2)
+
+DI Token Strings als Constants definiert (nicht inline String-Literals):
+
+```typescript
+// ✅ RICHTIG: Zentralisierte Token Constants
+// packages/backend/src/infrastructure/di-tokens.ts
+export const DI_TOKENS = {
+  REPOSITORIES: {
+    EINSATZ: Symbol('IEinsatzRepository'),
+    USER: Symbol('IUserRepository'),
+  },
+} as const;
+
+// Verwendung im Handler
+@Inject(DI_TOKENS.REPOSITORIES.EINSATZ)
+private readonly repository: IEinsatzRepository
+
+// ❌ FALSCH: Inline String-Literals
+@Inject('IEinsatzRepository') // Typo-anfällig, keine IDE-Unterstützung
+```
+
+#### 3. Framework-Agnostizität Check (AC3)
+
+Application Layer darf keine NestJS-spezifischen Decorators importieren (außer `@Injectable`):
+
+```typescript
+// ✅ RICHTIG: Application Layer (src/application/)
+import { Injectable } from '@nestjs/common'; // OK: nur @Injectable
+import { Result } from '@domain/common/result';
+
+@Injectable()
+export class CreateEinsatzHandler {
+  async execute(command: CreateEinsatzCommand): Promise<Result<string>> {
+    // Pure business logic, keine HTTP-Konzepte
+  }
+}
+
+// ❌ FALSCH: Framework-spezifische Imports in Application Layer
+import { HttpException, BadRequestException } from '@nestjs/common';
+import { Response } from 'express';
+```
+
+**Erlaubt in Application Layer:** `@Injectable`, `@Inject`, `@Optional`
+**Verboten in Application Layer:** `@Controller`, `@Get/Post/...`, `HttpException`, `Response`, etc.
+
+#### 4. Result Pattern Check (AC4)
+
+`Result<T>` statt Exceptions im Domain/Application Layer:
+
+```typescript
+// ✅ RICHTIG: Result Pattern für erwartete Fehler
+export class CreateEinsatzHandler {
+  async execute(command: CreateEinsatzCommand): Promise<Result<string>> {
+    const validation = command.validate();
+    if (validation.isFailure) {
+      return Result.fail(validation.error); // Kein throw!
+    }
+
+    const einsatz = Einsatz.create(command);
+    if (einsatz.isFailure) {
+      return Result.fail(einsatz.error);
+    }
+
+    return Result.ok(einsatz.value.id.value);
+  }
+}
+
+// ❌ FALSCH: Exceptions für erwartete Business-Fehler
+throw new EinsatzValidationException('Invalid nummer');
+```
+
+**Domain Exceptions nur für:** Unerwartete Fehler (DB-Fehler, Netzwerk-Fehler, Programming Errors)
+
+#### 5. Outbox Integration Check (AC5)
+
+Outbox-Events atomar mit Domain-Operationen gespeichert:
+
+```typescript
+// ✅ RICHTIG: TransactionalCommandHandler Pattern
+export class CreateEinsatzHandler extends TransactionalCommandHandler<
+  CreateEinsatzCommand,
+  string
+> {
+  protected async executeInTransaction(
+    command: CreateEinsatzCommand,
+    tx: TransactionContext
+  ): Promise<{ result: string; events: DomainEvent[] }> {
+    const einsatz = Einsatz.create(command);
+    await this.repository.save(einsatz, tx); // In gleicher TX
+
+    const events = einsatz.getDomainEvents();
+    einsatz.clearDomainEvents();
+
+    return { result: einsatz.id.value, events }; // Base class speichert in Outbox
+  }
+}
+
+// ❌ FALSCH: Events direkt emittieren
+await this.eventEmitter.emit('einsatz.created', event); // Nicht atomar!
+```
+
+**Verweis:** `TransactionalCommandHandler` in `src/application/common/handlers/`
+
+#### 6. Test Pattern Check (AC6)
+
+Unit Tests folgen AAA Pattern mit Given-When-Then Kommentaren:
+
+```typescript
+// ✅ RICHTIG: AAA Pattern mit Given-When-Then
+describe('CreateEinsatzHandler', () => {
+  let handler: CreateEinsatzHandler;
+  let mockRepository: jest.Mocked<IEinsatzRepository>;
+
+  beforeEach(() => {
+    jest.clearAllMocks(); // WICHTIG: Mock Reset
+    mockRepository = createMockRepository();
+    handler = new CreateEinsatzHandler(mockRepository);
+  });
+
+  it('should create einsatz successfully', async () => {
+    // Given (Arrange)
+    const command = CreateEinsatzCommand.create({
+      nummer: 'E-2025-001',
+      stichwort: 'Brand',
+    }).value!;
+    mockRepository.save.mockResolvedValue(undefined);
+
+    // When (Act)
+    const result = await handler.execute(command);
+
+    // Then (Assert)
+    expect(result.isSuccess).toBe(true);
+    expect(mockRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ nummer: 'E-2025-001' }),
+      expect.any(Object)
+    );
+  });
+});
+```
+
+**Verweis:** `jest.Mocked<T>` für NestJS Service Mocks, `jest.clearAllMocks()` in beforeEach
+
 ### Commit Rules
 
 - **NIEMALS** `--no-verify` verwenden

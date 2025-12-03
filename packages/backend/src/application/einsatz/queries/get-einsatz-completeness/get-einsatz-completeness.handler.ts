@@ -4,7 +4,7 @@ import { Result } from '@domain/common/result';
 // biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
-import type { CompletenessResponseDto } from '@/einsatz/dto/completeness-response.dto';
+import type { CompletenessResponseDto } from '@/application/einsatz/dto/completeness-response.dto';
 import { EinsatzCompletenessCalculator } from '@/einsatz/utils/completeness.util';
 import type { GetEinsatzCompletenessQuery } from './get-einsatz-completeness.query';
 
@@ -123,7 +123,7 @@ export class GetEinsatzCompletenessQueryHandler implements IQueryHandler<GetEins
       const responseDto: CompletenessResponseDto = {
         score: completeness.score,
         isComplete: completeness.isComplete,
-        missingFields: completeness.missingFields.map((field) => ({
+        missingFields: completeness.missingFields.map((field: import('@/application/einsatz/dto/einsatz-response.dto').MissingField) => ({
           field: field.field,
           fieldPath: field.fieldPath,
           priority: field.priority,

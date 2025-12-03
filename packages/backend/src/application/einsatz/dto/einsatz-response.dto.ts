@@ -2,12 +2,21 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { EinsatzStatus, type Prisma } from '@prisma/client';
 import { IsEnum } from 'class-validator';
 
+/**
+ * Interface fuer Einsatz-Vollstaendigkeitsinformationen.
+ *
+ * Repraesentiert die Vollstaendigkeit eines Einsatzes inkl. Score
+ * und Liste fehlender Felder.
+ */
 export interface EinsatzCompleteness {
   score: number;
   isComplete: boolean;
   missingFields: MissingField[];
 }
 
+/**
+ * Interface fuer fehlende Felder in der Vollstaendigkeits-Berechnung.
+ */
 export interface MissingField {
   field: string;
   fieldPath: string;
@@ -16,12 +25,18 @@ export interface MissingField {
   suggestedAction?: string;
 }
 
+/**
+ * Interface fuer die Komponenten des generierten Einsatz-Namens.
+ */
 export interface NameComponents {
   alarmstichwort?: string;
   zeit?: string;
   datum: string;
 }
 
+/**
+ * Interface fuer HATEOAS-Links in der API-Response.
+ */
 export interface EinsatzLinks {
   self: string;
   update: string;
@@ -29,12 +44,54 @@ export interface EinsatzLinks {
 }
 
 /**
- * Response-DTO für einen Einsatz.
+ * Response-DTO fuer einen Einsatz.
  *
- * Zweck: Entkoppelt die persistente Entität (Prisma) von der API-Antwort
- * und erlaubt ergänzende/berechnete Felder ohne DB-spezifische Logik.
- * Dieses DTO beschreibt ausschließlich die nach außen exponierten Felder
- * und enthält keine Geschäfts- oder Persistenzlogik.
+ * Entkoppelt die persistente Entitaet (Prisma) von der API-Antwort
+ * und erlaubt ergaenzende/berechnete Felder ohne DB-spezifische Logik.
+ * Dieses DTO beschreibt ausschliesslich die nach aussen exponierten Felder
+ * und enthaelt keine Geschaefts- oder Persistenzlogik.
+ *
+ * **Computed Fields:**
+ * - name: Automatisch generierter Einsatz-Name
+ * - nameComponents: Komponenten des Namens (alarmstichwort, datum, zeit)
+ * - completeness: Optional - Vollstaendigkeits-Info (nur wenn angefordert)
+ *
+ * **Verwendung:**
+ * - GET /api/einsatz (paginierte Liste)
+ * - GET /api/einsatz/:id (einzelner Einsatz)
+ * - POST /api/einsatz (nach Erstellung)
+ * - PATCH /api/einsatz/:id (nach Update)
+ *
+ * @example
+ * ```json
+ * {
+ *   "id": "cm4xyzabc123456789",
+ *   "alarmstichwort": "Wohnungsbrand",
+ *   "einsatzort": "Musterstrasse 123, 80331 Muenchen",
+ *   "beschreibung": "Rauchentwicklung im 2. OG",
+ *   "alarmierungszeit": "2024-01-15T10:30:00.000Z",
+ *   "einsatzleiter": "Max Mustermann",
+ *   "status": "IN_BEARBEITUNG",
+ *   "metadata": null,
+ *   "createdAt": "2024-01-15T10:30:00.000Z",
+ *   "updatedAt": "2024-01-15T10:30:00.000Z",
+ *   "createdBy": "user123",
+ *   "updatedBy": null,
+ *   "archivedAt": null,
+ *   "archivedBy": null,
+ *   "name": "Wohnungsbrand - 15.01.2024 10:30",
+ *   "nameComponents": {
+ *     "alarmstichwort": "Wohnungsbrand",
+ *     "datum": "15.01.2024",
+ *     "zeit": "10:30"
+ *   },
+ *   "completeness": {
+ *     "score": 75,
+ *     "isComplete": false,
+ *     "missingFields": [...]
+ *   }
+ * }
+ * ```
  */
 export class EinsatzResponseDto {
   @ApiProperty({
@@ -45,13 +102,13 @@ export class EinsatzResponseDto {
 
   @ApiPropertyOptional({
     description: 'Das Alarmstichwort des Einsatzes',
-    example: 'Brand 3',
+    example: 'Wohnungsbrand',
   })
   alarmstichwort!: string | null;
 
   @ApiPropertyOptional({
     description: 'Der Einsatzort',
-    example: 'Musterstraße 123, 12345 Musterstadt',
+    example: 'Musterstrasse 123, 80331 Muenchen',
   })
   einsatzort!: string | null;
 
@@ -63,7 +120,7 @@ export class EinsatzResponseDto {
 
   @ApiPropertyOptional({
     description: 'Zeitpunkt der Alarmierung',
-    example: '2025-01-27T14:30:00.000Z',
+    example: '2024-01-15T10:30:00.000Z',
     type: String,
     format: 'date-time',
   })
@@ -84,7 +141,7 @@ export class EinsatzResponseDto {
   status!: EinsatzStatus;
 
   @ApiPropertyOptional({
-    description: 'Zusätzliche Metadaten als JSON',
+    description: 'Zusaetzliche Metadaten als JSON',
     type: 'object',
     additionalProperties: true,
     nullable: true,
@@ -93,7 +150,7 @@ export class EinsatzResponseDto {
 
   @ApiProperty({
     description: 'Erstellungszeitpunkt',
-    example: '2025-01-27T14:30:00.000Z',
+    example: '2024-01-15T10:30:00.000Z',
     type: String,
     format: 'date-time',
   })
@@ -101,7 +158,7 @@ export class EinsatzResponseDto {
 
   @ApiProperty({
     description: 'Zeitpunkt der letzten Aktualisierung',
-    example: '2025-01-27T14:30:00.000Z',
+    example: '2024-01-15T10:30:00.000Z',
     type: String,
     format: 'date-time',
   })
@@ -121,7 +178,7 @@ export class EinsatzResponseDto {
 
   @ApiPropertyOptional({
     description: 'Zeitpunkt der Archivierung (No-Delete Policy)',
-    example: '2025-01-27T16:30:00.000Z',
+    example: '2024-01-15T16:30:00.000Z',
     type: String,
     format: 'date-time',
   })
@@ -135,12 +192,12 @@ export class EinsatzResponseDto {
 
   @ApiProperty({
     description: 'Automatisch generierter Name des Einsatzes',
-    example: 'Brand 3 - 27.01.2025 14:30',
+    example: 'Wohnungsbrand - 15.01.2024 10:30',
   })
   name!: string;
 
   @ApiPropertyOptional({
-    description: 'Vollständigkeits-Information',
+    description: 'Vollstaendigkeits-Information',
     type: 'object',
     additionalProperties: true,
   })

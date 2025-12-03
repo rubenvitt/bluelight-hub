@@ -1,5 +1,5 @@
 import type { Einsatz } from '@prisma/client';
-import type { EinsatzCompleteness, MissingField } from '../dto/einsatz-response.dto';
+import type { EinsatzCompleteness, MissingField } from '@/application/einsatz/dto/einsatz-response.dto';
 
 /**
  * Berechnet die Vollständigkeit eines Einsatzes

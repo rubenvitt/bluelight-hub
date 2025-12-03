@@ -2,7 +2,7 @@ import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import type { PaginatedData } from '@/common/interceptors/transform.interceptor';
-import type { EinsatzResponseDto } from '@/einsatz/dto/einsatz-response.dto';
+import type { EinsatzResponseDto } from '@/application/einsatz/dto/einsatz-response.dto';
 // biome-ignore lint/correctness/noUnusedImports: Required for NestJS DI - must be value import, not type import
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import { EinsatzNameGenerator } from '@/einsatz/utils/name-generator.util';

@@ -2,10 +2,40 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsDateString, IsOptional, IsString, MaxLength } from 'class-validator';
 
+/**
+ * DTO fuer das Erstellen eines neuen Einsatzes.
+ *
+ * Enthaelt die optionalen Felder die beim Erstellen eines Einsatzes
+ * angegeben werden koennen. Alle Felder sind optional, da ein Einsatz
+ * initial nur minimal angelegt wird (Status: ANGELEGT).
+ *
+ * **Validierungsregeln:**
+ * - alarmstichwort: max. 255 Zeichen, wird getrimmt
+ * - einsatzort: max. 500 Zeichen, wird getrimmt
+ * - beschreibung: Freitext, wird getrimmt
+ * - alarmierungszeit: ISO 8601 DateTime String
+ * - einsatzleiter: max. 255 Zeichen, wird getrimmt
+ *
+ * **Business Rules:**
+ * - createdBy wird aus JWT Token extrahiert (nicht im DTO)
+ * - Status ist initial ANGELEGT (nicht im DTO)
+ * - Einsatznummer wird automatisch generiert (nicht im DTO)
+ *
+ * @example
+ * ```json
+ * {
+ *   "alarmstichwort": "Wohnungsbrand",
+ *   "einsatzort": "Musterstrasse 123, 80331 Muenchen",
+ *   "beschreibung": "Rauchentwicklung im 2. OG",
+ *   "alarmierungszeit": "2024-01-15T10:30:00.000Z",
+ *   "einsatzleiter": "Max Mustermann"
+ * }
+ * ```
+ */
 export class CreateEinsatzDto {
   @ApiPropertyOptional({
     description: 'Das Alarmstichwort des Einsatzes',
-    example: 'Brand 3',
+    example: 'Wohnungsbrand',
     maxLength: 255,
   })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -16,7 +46,7 @@ export class CreateEinsatzDto {
 
   @ApiPropertyOptional({
     description: 'Der initiale Einsatzort',
-    example: 'Musterstraße 123, 12345 Musterstadt',
+    example: 'Musterstrasse 123, 80331 Muenchen',
     maxLength: 500,
   })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -36,7 +66,7 @@ export class CreateEinsatzDto {
 
   @ApiPropertyOptional({
     description: 'Zeitpunkt der Alarmierung',
-    example: '2025-01-27T14:30:00.000Z',
+    example: '2024-01-15T10:30:00.000Z',
     type: String,
     format: 'date-time',
   })

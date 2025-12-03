@@ -4,7 +4,9 @@ import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 /**
- * Enum für Sortierfelder
+ * Enum fuer Sortierfelder in Einsatz-Abfragen.
+ *
+ * Definiert die erlaubten Felder nach denen Einsaetze sortiert werden koennen.
  */
 export enum EinsatzOrderByField {
   createdAt = 'createdAt',
@@ -15,7 +17,9 @@ export enum EinsatzOrderByField {
 }
 
 /**
- * Enum für Sortierrichtung
+ * Enum fuer Sortierrichtung.
+ *
+ * Definiert die Sortierrichtung (aufsteigend/absteigend).
  */
 export enum OrderDirection {
   asc = 'asc',
@@ -23,7 +27,39 @@ export enum OrderDirection {
 }
 
 /**
- * DTO für Query-Parameter beim Abrufen von Einsätzen
+ * DTO fuer Query-Parameter beim Abrufen von Einsaetzen.
+ *
+ * Enthaelt alle Filter- und Paginierungs-Parameter die bei GET /api/einsatz
+ * verwendet werden koennen.
+ *
+ * **Filter-Parameter:**
+ * - status: Filter nach Einsatz-Status (z.B. nur IN_BEARBEITUNG)
+ * - search: Volltextsuche in alarmstichwort, einsatzort und ID
+ * - includeArchived: Archivierte Einsaetze einschliessen (default: false)
+ * - includeCompleteness: Vollstaendigkeits-Info berechnen (default: false)
+ *
+ * **Pagination-Parameter:**
+ * - page: Seitennummer (startet bei 1)
+ * - limit: Anzahl Eintraege pro Seite (max. 100)
+ *
+ * **Sortierung:**
+ * - orderBy: Sortierfeld (default: createdAt)
+ * - orderDirection: Sortierrichtung (default: desc = neueste zuerst)
+ *
+ * **Defaults:**
+ * - page: 1
+ * - limit: 10
+ * - includeArchived: false
+ * - includeCompleteness: false
+ * - orderBy: createdAt
+ * - orderDirection: desc
+ *
+ * @example
+ * ```
+ * GET /api/einsatz?status=IN_BEARBEITUNG&page=2&limit=20&orderBy=alarmstichwort&orderDirection=asc
+ * GET /api/einsatz?search=Brand&includeArchived=true
+ * GET /api/einsatz?includeCompleteness=true
+ * ```
  */
 export class EinsatzQueryDto {
   @ApiPropertyOptional({
@@ -36,7 +72,7 @@ export class EinsatzQueryDto {
   status?: EinsatzStatus;
 
   @ApiPropertyOptional({
-    description: 'Vollständigkeits-Information einschließen',
+    description: 'Vollstaendigkeits-Information einschliessen',
     example: false,
     type: Boolean,
   })
@@ -44,24 +80,24 @@ export class EinsatzQueryDto {
   @Transform(({ value }) => {
     if (value === 'true' || value === true || value === '1' || value === 1) return true;
     if (value === 'false' || value === false || value === '0' || value === 0) return false;
-    return undefined; // Keep undefined for optional field
+    return undefined;
   })
   @IsBoolean()
   includeCompleteness?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Seitennummer für Pagination (startet bei 1)',
+    description: 'Seitennummer fuer Pagination (startet bei 1)',
     example: 1,
     minimum: 1,
   })
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Transform(({ value }) => (value ? parseInt(value, 10) : undefined))
+  @Transform(({ value }) => (value ? Number.parseInt(value, 10) : undefined))
   page?: number;
 
   @ApiPropertyOptional({
-    description: 'Anzahl Einträge pro Seite',
+    description: 'Anzahl Eintraege pro Seite',
     example: 20,
     minimum: 1,
     maximum: 100,
@@ -70,11 +106,11 @@ export class EinsatzQueryDto {
   @IsInt()
   @Min(1)
   @Max(100)
-  @Transform(({ value }) => (value ? parseInt(value, 10) : undefined))
+  @Transform(({ value }) => (value ? Number.parseInt(value, 10) : undefined))
   limit?: number;
 
   @ApiPropertyOptional({
-    description: 'Suchbegriff für Alarmstichwort oder ID (durchsucht auch den generierten Namen)',
+    description: 'Suchbegriff fuer Alarmstichwort oder ID (durchsucht auch den generierten Namen)',
     example: 'Wohnungsbrand',
   })
   @IsOptional()
@@ -82,7 +118,7 @@ export class EinsatzQueryDto {
   search?: string;
 
   @ApiPropertyOptional({
-    description: 'Archivierte Einsätze einschließen (Standard: false - gemäß No-Delete Policy)',
+    description: 'Archivierte Einsaetze einschliessen (Standard: false - gemaess No-Delete Policy)',
     example: false,
     type: Boolean,
     default: false,
@@ -91,7 +127,7 @@ export class EinsatzQueryDto {
   @Transform(({ value }) => {
     if (value === 'true' || value === true || value === '1' || value === 1) return true;
     if (value === 'false' || value === false || value === '0' || value === 0) return false;
-    return false; // Default to false for includeArchived
+    return false;
   })
   @IsBoolean()
   includeArchived?: boolean = false;

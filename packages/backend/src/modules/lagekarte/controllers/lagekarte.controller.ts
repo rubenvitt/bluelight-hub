@@ -41,7 +41,6 @@ import {
 import { diskStorage } from 'multer';
 import { join } from 'node:path';
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
-import { LagekarteService } from '../services/lagekarte.service';
 import { SaveLagekarteStateDto } from '../dto/save-lagekarte-state.dto';
 import { Lagekarte } from '@prisma/client';
 import { CreateLagekarteDto, AddPoiDto, UpdatePoiPositionDto } from '@/application/lagekarte/dto';
@@ -53,6 +52,7 @@ import { PoiMapper } from '@/application/lagekarte/mappers/poi.mapper';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { Inject } from '@nestjs/common';
+import { LagekarteRepository } from '../repositories/lagekarte.repository';
 
 /**
  * Controller für Lagekarten-Management (Hybrid: CQRS + Legacy)
@@ -98,7 +98,7 @@ export class LagekarteController {
   constructor(
     private readonly queryBus: QueryBus,
     private readonly configService: ConfigService,
-    private readonly lagekarteService: LagekarteService, // KEPT for legacy endpoints only
+    private readonly lagekarteRepository: LagekarteRepository, // Direct repository access for legacy endpoints
   ) {
     // Get uploads path from ENV or use default (relative to project root)
     const uploadsBase = this.configService.get<string>('UPLOADS_PATH') || 'uploads';
@@ -177,15 +177,15 @@ export class LagekarteController {
   ): Promise<Lagekarte> {
     this.logger.log(`Saving Lagekarte state for Einsatz ${einsatzId} by user ${user.userId}`);
 
-    // Get existing Lagekarte
-    const lagekarte = await this.lagekarteService.findByEinsatzId(einsatzId);
+    // Get existing Lagekarte using repository directly
+    const lagekarte = await this.lagekarteRepository.findByEinsatzId(einsatzId);
     if (!lagekarte) {
       this.logger.error(`Lagekarte not found for Einsatz ${einsatzId}`);
       throw new NotFoundException(`Lagekarte for Einsatz ${einsatzId} not found`);
     }
 
-    // Update state
-    const updated = await this.lagekarteService.updateState(lagekarte.id, dto.state);
+    // Update state using repository directly
+    const updated = await this.lagekarteRepository.update(lagekarte.id, dto.state);
     this.logger.log(`Lagekarte ${lagekarte.id} state updated for Einsatz ${einsatzId}`);
     return updated;
   }
@@ -376,15 +376,15 @@ export class LagekarteController {
   async deleteLagekarte(@Param('einsatzId') einsatzId: string, @CurrentUser() user: ValidatedUser): Promise<void> {
     this.logger.warn(`Deleting Lagekarte for Einsatz ${einsatzId} by user ${user.userId}`);
 
-    // Get existing Lagekarte
-    const lagekarte = await this.lagekarteService.findByEinsatzId(einsatzId);
+    // Get existing Lagekarte using repository directly
+    const lagekarte = await this.lagekarteRepository.findByEinsatzId(einsatzId);
     if (!lagekarte) {
       this.logger.error(`Lagekarte not found for Einsatz ${einsatzId}`);
       throw new NotFoundException(`Lagekarte for Einsatz ${einsatzId} not found`);
     }
 
-    // Delete (cascade to POIs)
-    await this.lagekarteService.deleteLagekarte(lagekarte.id);
+    // Delete using repository directly (cascade to POIs)
+    await this.lagekarteRepository.delete(lagekarte.id);
     this.logger.warn(`Lagekarte ${lagekarte.id} deleted for Einsatz ${einsatzId} (CASCADE to POIs)`);
   }
 }

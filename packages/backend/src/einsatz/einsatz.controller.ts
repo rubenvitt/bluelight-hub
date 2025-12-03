@@ -19,11 +19,19 @@ import {
 } from '@/einsatz/dto';
 import { EinsatzDetailsDto, EinsatzListItemDto } from '@/application/einsatz/dto';
 import { CreateEinsatzCommand, UpdateEinsatzCommand, ArchiveEinsatzCommand, CompleteEinsatzCommand } from '@/application/einsatz/commands';
-import { GetEinsatzDetailsQuery, GetActiveEinsaetzeWithCountsQuery, GetEinsatzByIdQuery } from '@/application/einsatz/queries';
+import {
+  GetEinsatzDetailsQuery,
+  GetActiveEinsaetzeWithCountsQuery,
+  GetEinsatzByIdQuery,
+  GetAllEinsaetzeQuery,
+  GetStatusCountsQuery,
+  GetPreviousEinsatzIdQuery,
+  GetNextEinsatzIdQuery,
+  GetEinsatzCompletenessQuery,
+} from '@/application/einsatz/queries';
 import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query, UseGuards, ValidationPipe, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { EinsatzService } from './einsatz.service';
 import { EinsatzDto } from '@/application/einsatz/dto/einsatz.dto';
 
 /**
@@ -63,9 +71,6 @@ export class EinsatzController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
-    // EinsatzService temporär beibehalten für Endpoints die noch nicht migriert sind
-    // TODO Story 4-10: Vollständig zu CQRS migrieren
-    private readonly einsatzService: EinsatzService,
   ) {}
 
   /**
@@ -87,15 +92,16 @@ export class EinsatzController {
   }
 
   /**
-   * Lädt paginierte Einsatz-Liste
-   * TODO Story 4-10: Migration zu GetAllEinsaetzeQuery
+   * Lädt paginierte Einsatz-Liste via CQRS Query
    */
   @Get()
   @ApiOperation({ summary: 'Alle Einsätze abrufen', description: 'Paginierte Liste aller Einsätze. Archivierte standardmäßig ausgeschlossen.' })
   @ApiWrappedResponse(EinsatzResponseDto, { description: 'Paginierte Liste der Einsätze', isArray: true })
   @ApiBadRequestResponse({ description: 'Ungültige Query-Parameter' })
   async findAll(@Query(new ValidationPipe({ transform: true, whitelist: true })) query: EinsatzQueryDto): Promise<PaginatedData<EinsatzResponseDto>> {
-    return this.einsatzService.findAll(query);
+    const result = await this.queryBus.execute(new GetAllEinsaetzeQuery(query));
+    if (result.isFailure) throw new BadRequestException(result.error ?? 'Fehler beim Abrufen der Einsätze');
+    return result.value ?? { items: [], total: 0, page: query.page ?? 1, limit: query.limit ?? 10 };
   }
 
   /**
@@ -113,43 +119,52 @@ export class EinsatzController {
   }
 
   /**
-   * Status-Statistiken
-   * TODO Story 4-10: Migration zu GetStatusCountsQuery
+   * Status-Statistiken via CQRS Query
    */
   @Get('stats/status-counts')
   @ApiOperation({ summary: 'Status-Statistiken abrufen', description: 'Anzahl der Einsätze pro Status.' })
   @ApiWrappedResponse(StatusCountsResponseDto, { description: 'Status-Statistiken erfolgreich abgerufen' })
   async getStatusCounts(@Query(new ValidationPipe({ transform: true, whitelist: true })) query: StatusCountsQueryDto): Promise<StatusCountsResponseDto> {
-    return this.einsatzService.getStatusCounts(query.includeArchived);
+    const result = await this.queryBus.execute(new GetStatusCountsQuery(query.includeArchived));
+    if (result.isFailure) throw new BadRequestException(result.error ?? 'Fehler beim Abrufen der Status-Statistiken');
+    if (!result.value) throw new InternalServerErrorException('Keine Status-Statistiken zurückgegeben');
+    return result.value;
   }
 
   /**
-   * Navigation: Vorheriger Einsatz
-   * TODO Story 4-10: Migration zu GetPreviousEinsatzIdQuery
+   * Navigation: Vorheriger Einsatz via CQRS Query
    */
   @Get(':id/navigation/previous')
   @ApiOperation({ summary: 'ID des vorherigen Einsatzes abrufen', description: 'Gibt die ID des vorherigen Einsatzes basierend auf createdAt zurück.' })
   @ApiWrappedResponse(NavigationResponseDto, { description: 'ID des vorherigen Einsatzes oder null' })
   @ApiNotFoundResponse({ description: 'Einsatz nicht gefunden' })
   async getPrevious(@Param('id') id: string): Promise<NavigationResponseDto> {
-    return this.einsatzService.getPreviousId(id);
+    const result = await this.queryBus.execute(new GetPreviousEinsatzIdQuery(id));
+    if (result.isFailure) {
+      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) throw new NotFoundException(result.error);
+      throw new BadRequestException(result.error ?? 'Fehler beim Abrufen des vorherigen Einsatzes');
+    }
+    return result.value ?? { id: null };
   }
 
   /**
-   * Navigation: Nächster Einsatz
-   * TODO Story 4-10: Migration zu GetNextEinsatzIdQuery
+   * Navigation: Nächster Einsatz via CQRS Query
    */
   @Get(':id/navigation/next')
   @ApiOperation({ summary: 'ID des nächsten Einsatzes abrufen', description: 'Gibt die ID des nächsten Einsatzes basierend auf createdAt zurück.' })
   @ApiWrappedResponse(NavigationResponseDto, { description: 'ID des nächsten Einsatzes oder null' })
   @ApiNotFoundResponse({ description: 'Einsatz nicht gefunden' })
   async getNext(@Param('id') id: string): Promise<NavigationResponseDto> {
-    return this.einsatzService.getNextId(id);
+    const result = await this.queryBus.execute(new GetNextEinsatzIdQuery(id));
+    if (result.isFailure) {
+      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) throw new NotFoundException(result.error);
+      throw new BadRequestException(result.error ?? 'Fehler beim Abrufen des nächsten Einsatzes');
+    }
+    return result.value ?? { id: null };
   }
 
   /**
-   * Vollständigkeits-Check
-   * TODO Story 4-10: Migration zu GetEinsatzCompletenessQuery
+   * Vollständigkeits-Check via CQRS Query
    */
   @Get(':id/completeness')
   @ApiOperation({ summary: 'Vollständigkeits-Check für Einsatz', description: 'Berechnet und gibt die Vollständigkeit eines Einsatzes zurück.' })
@@ -157,7 +172,10 @@ export class EinsatzController {
   @ApiNotFoundResponse({ description: 'Einsatz nicht gefunden' })
   @ApiBadRequestResponse({ description: 'Ungültige Einsatz-ID oder Query-Parameter' })
   async getCompleteness(@Param('id') id: string, @Query(new ValidationPipe({ transform: true, whitelist: true })) query: CompletenessQueryDto): Promise<CompletenessResponseDto> {
-    return this.einsatzService.getCompleteness(id, query.refresh);
+    const result = await this.queryBus.execute(new GetEinsatzCompletenessQuery(id, query.refresh));
+    if (result.isFailure) throw new BadRequestException(result.error ?? 'Fehler beim Berechnen der Vollständigkeit');
+    if (result.value === null) throw new NotFoundException(`Einsatz mit ID ${id} nicht gefunden`);
+    return result.value;
   }
 
   /**
@@ -177,6 +195,10 @@ export class EinsatzController {
 
   /**
    * Einzelnen Einsatz abrufen via CQRS Query
+   *
+   * HINWEIS: Nutzt GetAllEinsaetzeQuery mit ID-Filter weil dieser Handler
+   * bereits die computed fields (name, nameComponents) korrekt berechnet.
+   * GetEinsatzByIdQuery gibt EinsatzDto zurück, nicht EinsatzResponseDto.
    */
   @Get(':id')
   @ApiOperation({ summary: 'Einzelnen Einsatz abrufen', description: 'Gibt einen einzelnen Einsatz mit allen Details zurück.' })
@@ -184,8 +206,23 @@ export class EinsatzController {
   @ApiNotFoundResponse({ description: 'Einsatz nicht gefunden' })
   @ApiBadRequestResponse({ description: 'Ungültige Einsatz-ID' })
   async findOne(@Param('id') id: string): Promise<EinsatzResponseDto> {
-    // TODO Story 4-10: Migration zu vollständigem GetEinsatzByIdQuery mit allen ResponseDto-Feldern
-    return this.einsatzService.findOne(id);
+    // GetAllEinsaetzeQuery mit Suche nach ID - gibt EinsatzResponseDto mit computed fields zurück
+    const result = await this.queryBus.execute(
+      new GetAllEinsaetzeQuery({
+        search: id,
+        includeArchived: true,
+        includeCompleteness: true,
+        limit: 1,
+      }),
+    );
+
+    if (result.isFailure) throw new BadRequestException(result.error ?? 'Fehler beim Abrufen des Einsatzes');
+
+    // Finde exakten ID-Match (search ist case-insensitive LIKE)
+    const einsatz = result.value?.items?.find((e: EinsatzResponseDto) => e.id === id);
+    if (!einsatz) throw new NotFoundException(`Einsatz mit ID ${id} nicht gefunden`);
+
+    return einsatz;
   }
 
   /**

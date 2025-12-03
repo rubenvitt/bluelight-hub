@@ -1,4 +1,3 @@
-import { EinsatzModule } from '@/einsatz/einsatz.module';
 import { LagekarteInfrastructureModule } from '@/infrastructure/lagekarte-infrastructure.module';
 import { LagekarteEventsModule } from '@/infrastructure/events/lagekarte-events.module';
 import { PrismaModule } from '@/prisma/prisma.module';
@@ -15,10 +14,7 @@ import { PoiController } from './controllers/poi.controller';
 import { LagekarteRepository } from './repositories/lagekarte.repository';
 import { PoiRepository } from './repositories/poi.repository';
 import { GeocodingService } from './services/geocoding.service';
-
-import { LagekarteService } from './services/lagekarte.service';
 import { MgrsConverterService } from './services/mgrs-converter.service';
-import { PoiService } from './services/poi.service';
 
 // Command Handlers
 import { AddPoiCommandHandler } from '@/application/lagekarte/commands/add-poi.handler';
@@ -31,10 +27,15 @@ import { GetLagekarteQueryHandler } from '@/application/lagekarte/queries/get-la
 import { GetPoisQueryHandler } from '@/application/lagekarte/queries/get-pois.handler';
 
 /**
- * Lagekarte Module
+ * Lagekarte Module (Hexagonal Architecture)
  *
  * Stellt POI-Management und Geocoding-Funktionalität für Einsatz-Lagekarten bereit.
  * Nutzt Nominatim-API für Geocoding (Rate-Limited auf 1 req/s).
+ *
+ * **Architektur (Story 5-1):**
+ * - Controller nutzt CQRS Handler (CommandBus/QueryBus) und Repository direkt
+ * - Alle Business-Logik in Application Layer (CQRS Handlers)
+ * - Infrastructure via LagekarteInfrastructureModule (ILagekarteRepository)
  *
  * @module LagekarteModule
  */
@@ -42,7 +43,6 @@ import { GetPoisQueryHandler } from '@/application/lagekarte/queries/get-pois.ha
   imports: [
     CqrsModule, // Provides CommandBus and QueryBus for CQRS pattern
     PrismaModule,
-    EinsatzModule, // Import for EinsatzService (read-only access to einsatzort)
     LagekarteInfrastructureModule, // Provides ILagekarteRepository, IEinsatzRepository, IGeocodingPort
     LagekarteEventsModule, // Provides IEventPublisher for Command Handlers
     HttpModule.register({
@@ -58,9 +58,7 @@ import { GetPoisQueryHandler } from '@/application/lagekarte/queries/get-pois.ha
   ],
   controllers: [LagekarteController, LagekarteCqrsController, PoiController, GeocodingController],
   providers: [
-    // Legacy Services (kept for rollback safety, will be removed in Epic 5 Story 5-1)
-    LagekarteService,
-    PoiService,
+    // Infrastructure Services (kept for legacy endpoints)
     GeocodingService,
     MgrsConverterService,
     LagekarteRepository,
@@ -74,6 +72,6 @@ import { GetPoisQueryHandler } from '@/application/lagekarte/queries/get-pois.ha
     GetLagekarteQueryHandler,
     GetPoisQueryHandler,
   ],
-  exports: [LagekarteService, PoiService, GeocodingService, MgrsConverterService, LagekarteRepository, PoiRepository],
+  exports: [GeocodingService, MgrsConverterService, LagekarteRepository, PoiRepository],
 })
 export class LagekarteModule {}

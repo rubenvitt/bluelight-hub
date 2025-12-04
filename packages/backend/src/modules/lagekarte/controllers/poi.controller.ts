@@ -14,7 +14,24 @@ import { GeocodingService } from '../services/geocoding.service';
 import { MgrsConverterService } from '../services/mgrs-converter.service';
 
 /**
- * Controller für POI-Management (Points of Interest)
+ * Controller für POI-Management (Points of Interest) - DEPRECATED
+ *
+ * **DEPRECATED (Migration Story 5-1):**
+ * - Alle Endpoints sind als DEPRECATED markiert
+ * - Verwende stattdessen die CQRS-Endpoints unter `/lagekarte/:id/pois`
+ * - Dieser Controller wird in einer zukünftigen Version entfernt
+ *
+ * **Migration Path:**
+ * - GET /einsatz/:einsatzId/lagekarte/pois → GET /lagekarte/:lagekarteId/pois
+ * - POST /einsatz/:einsatzId/lagekarte/pois → POST /lagekarte/:lagekarteId/poi
+ * - GET /einsatz/:einsatzId/lagekarte/pois/:poiId → GET /lagekarte/:lagekarteId/poi/:poiId (über CQRS Query)
+ * - PUT /einsatz/:einsatzId/lagekarte/pois/:poiId → PUT /lagekarte/:lagekarteId/poi/:poiId
+ * - DELETE /einsatz/:einsatzId/lagekarte/pois/:poiId → DELETE /lagekarte/:lagekarteId/poi/:poiId
+ *
+ * **Warum DEPRECATED:**
+ * - Alte Repositories (LagekarteRepository, PoiRepository) werden entfernt
+ * - CQRS-Endpoints bieten bessere Architektur (CommandBus/QueryBus)
+ * - Neue Endpoints nutzen ILagekarteRepository (Hexagonal Architecture)
  *
  * **POI-Typen:**
  * - EINSATZORT, EINSATZABSCHNITT, EINSATZLEITUNG
@@ -24,12 +41,13 @@ import { MgrsConverterService } from '../services/mgrs-converter.service';
  * - UNTERKUNFT, SONSTIGES
  *
  * **Route Structure:**
- * - Base: `/einsatz/:einsatzId/lagekarte/pois`
+ * - Base: `/einsatz/:einsatzId/lagekarte/pois` (DEPRECATED)
  * - Alle Routes sind JWT-geschützt via `JwtAuthGuard`
  *
  * @security Alle Endpunkte erfordern valides JWT Token
+ * @deprecated Verwende CQRS-Endpoints unter `/lagekarte/:id/pois`
  */
-@ApiTags('POI')
+@ApiTags('POI (DEPRECATED)')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @ApiUnauthorizedResponse({ description: 'Nicht authentifiziert - JWT Token fehlt oder ungültig' })
@@ -50,15 +68,17 @@ export class PoiController {
   ) {}
 
   /**
-   * Alle POIs einer Lagekarte abrufen
+   * Alle POIs einer Lagekarte abrufen - DEPRECATED
    *
    * @param einsatzId - ID des Einsatzes
    * @returns Array aller POIs der Lagekarte
+   * @deprecated Verwende GET /lagekarte/:lagekarteId/pois (CQRS Query)
    */
   @Get()
   @ApiOperation({
-    summary: 'POIs abrufen',
-    description: 'Gibt alle POIs einer Lagekarte zurück. POIs werden nach Typ gruppiert zurückgegeben. Lazy Creation: Wenn keine Lagekarte existiert, wird sie automatisch erstellt.',
+    summary: 'POIs abrufen (DEPRECATED)',
+    description: 'DEPRECATED: Verwende GET /lagekarte/:lagekarteId/pois. Gibt alle POIs einer Lagekarte zurück.',
+    deprecated: true,
   })
   @ApiWrappedResponse(PoiResponseDto, { description: 'POIs erfolgreich abgerufen', isArray: true })
   @ApiNotFoundResponse({ description: 'Einsatz nicht gefunden' })
@@ -79,7 +99,7 @@ export class PoiController {
   }
 
   /**
-   * POI erstellen
+   * POI erstellen - DEPRECATED
    *
    * **Geocoding:**
    * - Wenn `adresse` angegeben: Nominatim API wird aufgerufen
@@ -88,11 +108,13 @@ export class PoiController {
    * @param dto - CreatePoiDto mit POI-Daten
    * @param user - Authentifizierter User
    * @returns Erstellter POI
+   * @deprecated Verwende POST /lagekarte/:lagekarteId/poi (CQRS Command)
    */
   @Post()
   @ApiOperation({
-    summary: 'POI erstellen',
-    description: 'Erstellt einen neuen POI. Wenn eine Adresse angegeben ist, wird sie automatisch geocoded. Bei Geocoding-Fehlern müssen manuelle Koordinaten angegeben werden.',
+    summary: 'POI erstellen (DEPRECATED)',
+    description: 'DEPRECATED: Verwende POST /lagekarte/:lagekarteId/poi. Erstellt einen neuen POI mit automatischem Geocoding.',
+    deprecated: true,
   })
   @ApiWrappedResponse(PoiResponseDto, { description: 'POI erfolgreich erstellt' })
   @ApiNotFoundResponse({ description: 'Lagekarte nicht gefunden' })
@@ -173,15 +195,17 @@ export class PoiController {
   }
 
   /**
-   * Einzelnen POI abrufen
+   * Einzelnen POI abrufen - DEPRECATED
    *
    * @param poiId - ID des POI
    * @returns POI-Daten
+   * @deprecated Verwende GET /lagekarte/:lagekarteId/pois mit Filter (CQRS Query)
    */
   @Get(':poiId')
   @ApiOperation({
-    summary: 'POI abrufen',
-    description: 'Gibt einen einzelnen POI mit allen Details zurück.',
+    summary: 'POI abrufen (DEPRECATED)',
+    description: 'DEPRECATED: Verwende GET /lagekarte/:lagekarteId/pois mit Filter. Gibt einen einzelnen POI zurück.',
+    deprecated: true,
   })
   @ApiWrappedResponse(PoiResponseDto, { description: 'POI gefunden' })
   @ApiNotFoundResponse({ description: 'POI nicht gefunden' })
@@ -197,7 +221,7 @@ export class PoiController {
   }
 
   /**
-   * POI aktualisieren
+   * POI aktualisieren - DEPRECATED
    *
    * **Geocoding Update:**
    * - Wenn neue `adresse` angegeben: Re-Geocoding wird durchgeführt
@@ -207,11 +231,13 @@ export class PoiController {
    * @param dto - UpdatePoiDto mit zu ändernden Feldern
    * @param user - Authentifizierter User
    * @returns Aktualisierter POI
+   * @deprecated Verwende PUT /lagekarte/:lagekarteId/poi/:poiId (CQRS Command)
    */
   @Put(':poiId')
   @ApiOperation({
-    summary: 'POI aktualisieren',
-    description: 'Aktualisiert einen bestehenden POI. Wenn die Adresse geändert wird, wird automatisch ein Re-Geocoding durchgeführt.',
+    summary: 'POI aktualisieren (DEPRECATED)',
+    description: 'DEPRECATED: Verwende PUT /lagekarte/:lagekarteId/poi/:poiId. Aktualisiert einen bestehenden POI mit automatischem Re-Geocoding.',
+    deprecated: true,
   })
   @ApiWrappedResponse(PoiResponseDto, { description: 'POI erfolgreich aktualisiert' })
   @ApiNotFoundResponse({ description: 'POI nicht gefunden' })
@@ -303,15 +329,17 @@ export class PoiController {
   }
 
   /**
-   * POI löschen
+   * POI löschen - DEPRECATED
    *
    * @param poiId - ID des POI
    * @param user - Authentifizierter User
+   * @deprecated Verwende DELETE /lagekarte/:lagekarteId/poi/:poiId (CQRS Command)
    */
   @Delete(':poiId')
   @ApiOperation({
-    summary: 'POI löschen',
-    description: 'Löscht einen POI permanent. Diese Aktion kann nicht rückgängig gemacht werden.',
+    summary: 'POI löschen (DEPRECATED)',
+    description: 'DEPRECATED: Verwende DELETE /lagekarte/:lagekarteId/poi/:poiId. Löscht einen POI permanent.',
+    deprecated: true,
   })
   @ApiWrappedResponse(PoiResponseDto, { description: 'POI erfolgreich gelöscht' })
   @ApiNotFoundResponse({ description: 'POI nicht gefunden' })

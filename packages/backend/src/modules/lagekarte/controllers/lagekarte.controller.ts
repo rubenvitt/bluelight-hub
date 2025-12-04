@@ -52,14 +52,13 @@ import { PoiMapper } from '@/application/lagekarte/mappers/poi.mapper';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { Inject } from '@nestjs/common';
-import { LagekarteRepository } from '../repositories/lagekarte.repository';
-
+import { LagekarteRepository as LegacyLagekarteRepository } from '../repositories/lagekarte.repository';
 /**
  * Controller für Lagekarten-Management (Hybrid: CQRS + Legacy)
  *
  * **Architecture:**
  * - CQRS Endpoints: Verwenden CommandBus/QueryBus (Story 2-6 Scope)
- * - Legacy Endpoints: Verwenden LagekarteService direkt (Screenshot/State Management - Out of Scope)
+ * - Legacy Endpoints: Verwenden ILagekarteRepository direkt (Screenshot/State Management - Out of Scope)
  *
  * **CQRS Endpoints (Refactored):**
  * - GET /einsatz/:einsatzId/lagekarte → GetLagekarteQuery
@@ -73,7 +72,7 @@ import { LagekarteRepository } from '../repositories/lagekarte.repository';
  * - POST /einsatz/:einsatzId/lagekarte → saveLagekarteState (GeoJSON)
  * - POST /einsatz/:einsatzId/lagekarte/screenshot → uploadScreenshot
  * - DELETE /einsatz/:einsatzId/lagekarte/screenshot/:filename → deleteScreenshot
- * - DELETE /einsatz/:einsatzId/lagekarte → deleteLagekarte
+ * - DELETE /einsatz/:einsatzId/lagekarte → deleteLagekarte (DEPRECATED - NO-DELETE Policy)
  *
  * **Route Structure:**
  * - Legacy Base: `/einsatz/:einsatzId/lagekarte` (für Screenshot/State)
@@ -98,7 +97,9 @@ export class LagekarteController {
   constructor(
     private readonly queryBus: QueryBus,
     private readonly configService: ConfigService,
-    private readonly lagekarteRepository: LagekarteRepository, // Direct repository access for legacy endpoints
+    @Inject('ILagekarteRepository')
+    private readonly lagekarteRepository: ILagekarteRepository,
+    private readonly legacyLagekarteRepository: LegacyLagekarteRepository,
   ) {
     // Get uploads path from ENV or use default (relative to project root)
     const uploadsBase = this.configService.get<string>('UPLOADS_PATH') || 'uploads';
@@ -153,13 +154,24 @@ export class LagekarteController {
   /**
    * Lagekarte-State speichern (GeoJSON Zeichnungen) - LEGACY ENDPOINT
    *
-   * **OUT OF SCOPE:** Diese Methode bleibt unverändert und nutzt weiterhin LagekarteService.
-   * GeoJSON State Management ist nicht Teil der CQRS-Refactoring Story 2-6.
+   * **Migration (Story 5-1):** Nutzt Legacy LagekarteRepository für State Management.
+   *
+   * **WICHTIG:**
+   * - GeoJSON State ist NICHT Teil des Domain Models (LagekarteAggregate)
+   * - State Management ist reine Persistence-Layer Concern
+   * - Bewusst KEINE CQRS Integration (kein Command/Event)
+   * - Nutzt Legacy Repository direkt für diese spezielle Funktionalität
+   *
+   * **Begründung:**
+   * - GeoJSON State enthält Frontend-spezifische Zeichnungsdaten (Layer, Styles, etc.)
+   * - Keine Business Rules für State (nur Persistierung)
+   * - Nicht Teil der DDD-Bounded Context "Einsatzleitung"
+   * - Legacy Feature für Abwärtskompatibilität mit altem Frontend
    *
    * @param einsatzId - ID des Einsatzes
    * @param dto - SaveLagekarteStateDto mit state (GeoJSON FeatureCollection)
    * @param user - Authentifizierter User
-   * @returns Aktualisierte Lagekarte
+   * @returns Aktualisierte Lagekarte (als Prisma Model)
    */
   @Post()
   @ApiOperation({
@@ -177,15 +189,15 @@ export class LagekarteController {
   ): Promise<Lagekarte> {
     this.logger.log(`Saving Lagekarte state for Einsatz ${einsatzId} by user ${user.userId}`);
 
-    // Get existing Lagekarte using repository directly
-    const lagekarte = await this.lagekarteRepository.findByEinsatzId(einsatzId);
+    // Get existing Lagekarte using legacy repository (State ist nicht Teil des Domain Models)
+    const lagekarte = await this.legacyLagekarteRepository.findByEinsatzId(einsatzId);
     if (!lagekarte) {
       this.logger.error(`Lagekarte not found for Einsatz ${einsatzId}`);
       throw new NotFoundException(`Lagekarte for Einsatz ${einsatzId} not found`);
     }
 
-    // Update state using repository directly
-    const updated = await this.lagekarteRepository.update(lagekarte.id, dto.state);
+    // Update state using legacy repository (direkte Prisma-Persistierung)
+    const updated = await this.legacyLagekarteRepository.update(lagekarte.id, dto.state);
     this.logger.log(`Lagekarte ${lagekarte.id} state updated for Einsatz ${einsatzId}`);
     return updated;
   }
@@ -357,35 +369,42 @@ export class LagekarteController {
   }
 
   /**
-   * Lagekarte löschen (CASCADE: POIs werden automatisch mitgelöscht) - LEGACY ENDPOINT
+   * Lagekarte löschen - DEPRECATED (NO-DELETE Policy)
    *
-   * **OUT OF SCOPE:** Diese Methode bleibt unverändert und nutzt weiterhin LagekarteService.
-   * Delete-Operations sind nicht Teil der CQRS-Refactoring Story 2-6.
+   * **Migration (Story 5-1):** Endpoint als DEPRECATED markiert.
+   *
+   * **NO-DELETE Policy:**
+   * - ILagekarteRepository hat KEINE delete() Methode
+   * - DRK-Compliance erfordert Datenretention für Audit/Legal
+   * - Lagekartenhistorie ist rechtlich relevant für Nachbereitung
+   * - HTTP 410 Gone: Endpoint existiert nicht mehr
+   *
+   * **Alternative:**
+   * - Archive Flag (wenn nötig) statt Hard-Delete
+   * - Separater Admin-Batch-Job für DSGVO-Löschungen (mit Audit-Log)
    *
    * @param einsatzId - ID des Einsatzes
    * @param user - Authentifizierter User
+   * @deprecated NO-DELETE Policy - Endpoint entfernt (HTTP 410 Gone)
    */
   @Delete()
+  @HttpCode(410)
   @ApiOperation({
-    summary: 'Lagekarte löschen (Legacy)',
-    description: 'Löscht die Lagekarte eines Einsatzes. CASCADE: Alle zugehörigen POIs werden automatisch mitgelöscht.',
+    summary: 'Lagekarte löschen (DEPRECATED)',
+    description: 'DEPRECATED: Endpoint wurde entfernt aufgrund NO-DELETE Policy (DRK-Compliance). Lagekartenhistorie muss für rechtliche Nachbereitung erhalten bleiben.',
+    deprecated: true,
   })
-  @ApiWrappedResponse(Object, { description: 'Lagekarte erfolgreich gelöscht' })
+  @ApiResponse({ status: 410, description: 'Endpoint nicht mehr verfügbar (NO-DELETE Policy)' })
   @ApiNotFoundResponse({ description: 'Lagekarte nicht gefunden' })
   @ApiBadRequestResponse({ description: 'Ungültige Einsatz-ID' })
-  async deleteLagekarte(@Param('einsatzId') einsatzId: string, @CurrentUser() user: ValidatedUser): Promise<void> {
-    this.logger.warn(`Deleting Lagekarte for Einsatz ${einsatzId} by user ${user.userId}`);
+  async deleteLagekarte(@Param('einsatzId') einsatzId: string, @CurrentUser() user: ValidatedUser): Promise<{ message: string; reason: string }> {
+    this.logger.warn(`DELETE request for Lagekarte (Einsatz ${einsatzId}) by user ${user.userId} - REJECTED due to NO-DELETE Policy`);
 
-    // Get existing Lagekarte using repository directly
-    const lagekarte = await this.lagekarteRepository.findByEinsatzId(einsatzId);
-    if (!lagekarte) {
-      this.logger.error(`Lagekarte not found for Einsatz ${einsatzId}`);
-      throw new NotFoundException(`Lagekarte for Einsatz ${einsatzId} not found`);
-    }
-
-    // Delete using repository directly (cascade to POIs)
-    await this.lagekarteRepository.delete(lagekarte.id);
-    this.logger.warn(`Lagekarte ${lagekarte.id} deleted for Einsatz ${einsatzId} (CASCADE to POIs)`);
+    // NO-DELETE Policy: Immer HTTP 410 Gone zurückgeben
+    return {
+      message: 'Lagekarte deletion is not supported',
+      reason: 'NO-DELETE Policy: Lagekartenhistorie muss für rechtliche Nachbereitung erhalten bleiben (DRK-Compliance)',
+    };
   }
 }
 

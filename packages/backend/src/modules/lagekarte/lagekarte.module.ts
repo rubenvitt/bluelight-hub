@@ -32,10 +32,16 @@ import { GetPoisQueryHandler } from '@/application/lagekarte/queries/get-pois.ha
  * Stellt POI-Management und Geocoding-Funktionalität für Einsatz-Lagekarten bereit.
  * Nutzt Nominatim-API für Geocoding (Rate-Limited auf 1 req/s).
  *
- * **Architektur (Story 5-1):**
- * - Controller nutzt CQRS Handler (CommandBus/QueryBus) und Repository direkt
+ * **Architektur (Story 5-1 - Migration Complete):**
+ * - Controller nutzt CQRS Handler (CommandBus/QueryBus) und ILagekarteRepository
  * - Alle Business-Logik in Application Layer (CQRS Handlers)
  * - Infrastructure via LagekarteInfrastructureModule (ILagekarteRepository)
+ * - Alte Repositories (LagekarteRepository, PoiRepository) nur für DEPRECATED PoiController
+ *
+ * **DEPRECATED Services:**
+ * - LagekarteRepository: Nur noch für PoiController (DEPRECATED)
+ * - PoiRepository: Nur noch für PoiController (DEPRECATED)
+ * - Werden in Story 5-2 vollständig entfernt wenn PoiController entfernt wird
  *
  * @module LagekarteModule
  */
@@ -58,9 +64,10 @@ import { GetPoisQueryHandler } from '@/application/lagekarte/queries/get-pois.ha
   ],
   controllers: [LagekarteController, LagekarteCqrsController, PoiController, GeocodingController],
   providers: [
-    // Infrastructure Services (kept for legacy endpoints)
+    // Infrastructure Services (shared with legacy endpoints)
     GeocodingService,
     MgrsConverterService,
+    // DEPRECATED: Alte Repositories nur noch für PoiController (wird in Story 5-2 entfernt)
     LagekarteRepository,
     PoiRepository,
     // Command Handlers (CQRS Write Operations)
@@ -72,6 +79,12 @@ import { GetPoisQueryHandler } from '@/application/lagekarte/queries/get-pois.ha
     GetLagekarteQueryHandler,
     GetPoisQueryHandler,
   ],
-  exports: [GeocodingService, MgrsConverterService, LagekarteRepository, PoiRepository],
+  exports: [
+    // Public API: Geocoding/MGRS Services können von anderen Modulen genutzt werden
+    GeocodingService,
+    MgrsConverterService,
+    // DEPRECATED: Alte Repositories werden nicht mehr exportiert (keine neuen Dependencies erlaubt)
+    // LagekarteRepository, PoiRepository werden in Story 5-2 entfernt
+  ],
 })
 export class LagekarteModule {}

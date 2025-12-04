@@ -13,8 +13,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import type { EinsatzErstelltEvent } from '@/einsatz/events/einsatz-erstellt.event';
-// biome-ignore lint/correctness/noUnusedImports: Required for NestJS DI - must be value import, not type import
-import type { CreateEtbHandler } from '../commands/create-etb/create-etb.handler';
+// biome-ignore lint/style/useImportType: CreateEtbHandler needed for DI at runtime
+import { CreateEtbHandler } from '../commands/create-etb/create-etb.handler';
 import { CreateEtbCommand } from '../commands/create-etb/create-etb.command';
 
 /**

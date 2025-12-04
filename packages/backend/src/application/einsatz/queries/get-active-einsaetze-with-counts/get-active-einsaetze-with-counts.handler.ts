@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { Result } from '../../../../domain/common/result';
-// biome-ignore lint/correctness/noUnusedImports: Required for NestJS DI - must be value import, not type import
-import type { PrismaService } from '../../../../prisma/prisma.service';
+// biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
+import { PrismaService } from '../../../../prisma/prisma.service';
 import type { EinsatzListItemDto } from '../../dto/einsatz-list-item.dto';
 import { GetActiveEinsaetzeWithCountsQuery } from './get-active-einsaetze-with-counts.query';
 

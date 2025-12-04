@@ -7,7 +7,6 @@ import { TransactionalCommandHandler } from '@application/common/handlers/transa
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
 import { PrismaService } from '@/prisma/prisma.service';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
-// biome-ignore lint/style/useImportType: PrismaOutboxRepository needed for DI at runtime
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { TransactionContext } from '@domain/common/transaction';
@@ -51,7 +50,6 @@ export class UpdateEinsatzHandler extends TransactionalCommandHandler<UpdateEins
 
   constructor(
     prisma: PrismaService,
-    // biome-ignore lint/style/useImportType: PrismaOutboxRepository needed for DI at runtime
     @Inject(PrismaOutboxRepository) outboxRepository: IOutboxRepository,
     @Inject('IEinsatzRepository')
     private readonly einsatzRepository: IEinsatzRepository,

@@ -3,6 +3,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
 import { LagekarteEventsModule } from '@infrastructure/events/lagekarte-events.module';
 import { LagekarteInfrastructureModule } from '@infrastructure/lagekarte-infrastructure.module';
 import { EtbInfrastructureModule } from '@infrastructure/etb/etb-infrastructure.module';
+import { OutboxModule } from '@infrastructure/outbox/outbox.module';
 import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
 import { CreateEinsatzHandler, UpdateEinsatzHandler, DeleteEinsatzHandler, CompleteEinsatzHandler, ArchiveEinsatzHandler, UpdateEinsatzStatusHandler } from './commands';
@@ -64,6 +65,8 @@ import {
     LagekarteInfrastructureModule,
     // Repository Infrastructure (IEtbRepository) - für Cross-Aggregate Queries (Story 4-3b)
     EtbInfrastructureModule,
+    // Outbox Infrastructure (PrismaOutboxRepository) - für Transactional Outbox Pattern
+    OutboxModule,
   ],
   providers: [
     // Domain Services (Story 4-2)

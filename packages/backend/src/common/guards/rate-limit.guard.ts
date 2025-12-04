@@ -1,9 +1,9 @@
 import { type CanActivate, type ExecutionContext, Injectable, Logger } from '@nestjs/common';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { Reflector } from '@nestjs/core';
+// biome-ignore lint/style/useImportType: Reflector needed for DI at runtime
+import { Reflector } from '@nestjs/core';
 import * as crypto from 'node:crypto';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { CacheRateLimiterService } from '../services/cache-rate-limiter.service';
+// biome-ignore lint/style/useImportType: CacheRateLimiterService needed for DI at runtime
+import { CacheRateLimiterService } from '../services/cache-rate-limiter.service';
 
 export const RATE_LIMIT_KEY = 'rateLimit';
 

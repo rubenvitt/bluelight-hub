@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { JwtService } from '@nestjs/jwt';
+// biome-ignore lint/style/useImportType: JwtService needed for NestJS DI at runtime (AC1)
+import { JwtService } from '@nestjs/jwt';
 import type { IJwtAuthServicePort } from '@domain/ports/i-jwt-auth-service.port';
 import { UserId } from '@domain/value-objects/user-id';
 import { UserRole } from '@domain/value-objects/user-role';

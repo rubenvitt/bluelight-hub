@@ -1,8 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
+// biome-ignore lint/style/useImportType: ConfigService needed for DI at runtime
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { isAdmin } from '@/auth/utils/auth.utils';
-import type { PrismaService } from '@/prisma/prisma.service';
+// biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
+import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
 export class AdminResetPasswordCommand {

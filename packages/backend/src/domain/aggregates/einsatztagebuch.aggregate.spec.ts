@@ -3,6 +3,7 @@ import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { UserId } from '@domain/value-objects/user-id';
 import { EtbStatus } from '@domain/value-objects/etb-status';
 import { EintragId } from '@domain/value-objects/eintrag-id';
+import { EtbKategorie } from '@domain/value-objects/etb-kategorie';
 import { EtbCreatedEvent } from '@domain/events/etb-created.event';
 import type { DomainEvent } from '@domain/common/domain-event';
 
@@ -418,6 +419,213 @@ describe('EinsatztagebuchAggregate', () => {
       const result = etb.deleteEintrag(eintrag.id, userId);
       expect(result.isSuccess).toBe(true);
       expect(etb.eintraege[0].isDeleted).toBe(true);
+    });
+  });
+
+  describe('kategorie support', () => {
+    it('should create entry with LAGE kategorie by default', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+      const result = etb.addEintrag('Test', userId);
+
+      expect(result.isSuccess).toBe(true);
+      expect(result.value?.kategorie.value).toBe('LAGE');
+    });
+
+    it('should create entry with custom kategorie', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+      const kategorie = EtbKategorie.MASSNAHME();
+
+      const result = etb.addEintrag('Test', userId, kategorie);
+
+      expect(result.isSuccess).toBe(true);
+      expect(result.value?.kategorie.equals(kategorie)).toBe(true);
+    });
+
+    it('should support all available kategorien', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+
+      const kategorien = [
+        EtbKategorie.ALARMIERUNG(),
+        EtbKategorie.ANKUNFT(),
+        EtbKategorie.BEFEHL(),
+        EtbKategorie.ERKUNDUNG(),
+        EtbKategorie.MASSNAHME(),
+        EtbKategorie.PERSONAL(),
+        EtbKategorie.FAHRZEUG(),
+        EtbKategorie.MATERIAL(),
+        EtbKategorie.KOMMUNIKATION(),
+        EtbKategorie.WETTER(),
+        EtbKategorie.DOKUMENTATION(),
+        EtbKategorie.SONSTIGES(),
+        EtbKategorie.SYSTEM(),
+      ];
+
+      kategorien.forEach((kategorie) => {
+        const result = etb.addEintrag(`Entry for ${kategorie.value}`, userId, kategorie);
+        expect(result.isSuccess).toBe(true);
+        expect(result.value?.kategorie.equals(kategorie)).toBe(true);
+      });
+    });
+
+    it('should reject addEintrag with custom kategorie when locked', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+      etb.lock(userId);
+
+      const result = etb.addEintrag('Test', userId, EtbKategorie.MASSNAHME());
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toContain('gesperrt');
+    });
+  });
+
+  describe('snapshot management', () => {
+    it('should create snapshot on addEintrag', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+
+      // Before add: no snapshots
+      expect(etb.hasUncommittedSnapshots()).toBe(false);
+
+      // Add entry
+      etb.addEintrag('Test', userId);
+
+      // After add: should have snapshot
+      expect(etb.hasUncommittedSnapshots()).toBe(true);
+      expect(etb.getUncommittedSnapshots()).toHaveLength(1);
+    });
+
+    it('should create snapshot on updateEintrag', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+      const eintrag = etb.addEintrag('Original', userId).value!;
+
+      // Clear snapshots from add operation
+      etb.clearSnapshots();
+      expect(etb.hasUncommittedSnapshots()).toBe(false);
+
+      // Update entry
+      etb.updateEintrag(eintrag.id, 'Updated', userId);
+
+      // After update: should have new snapshot
+      expect(etb.hasUncommittedSnapshots()).toBe(true);
+      expect(etb.getUncommittedSnapshots()).toHaveLength(1);
+    });
+
+    it('should create snapshot on deleteEintrag', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+      const eintrag = etb.addEintrag('Test', userId).value!;
+
+      // Clear snapshots from add operation
+      etb.clearSnapshots();
+      expect(etb.hasUncommittedSnapshots()).toBe(false);
+
+      // Delete entry
+      etb.deleteEintrag(eintrag.id, userId);
+
+      // After delete: should have new snapshot
+      expect(etb.hasUncommittedSnapshots()).toBe(true);
+      expect(etb.getUncommittedSnapshots()).toHaveLength(1);
+    });
+
+    it('should accumulate snapshots across multiple operations', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+
+      etb.addEintrag('Entry 1', userId);
+      etb.addEintrag('Entry 2', userId);
+      etb.addEintrag('Entry 3', userId);
+
+      // Should have 3 snapshots (one per add)
+      expect(etb.getUncommittedSnapshots()).toHaveLength(3);
+    });
+
+    it('should clear snapshots', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+
+      etb.addEintrag('Test 1', userId);
+      etb.addEintrag('Test 2', userId);
+      expect(etb.getUncommittedSnapshots()).toHaveLength(2);
+
+      // Clear snapshots (simulates repository save)
+      etb.clearSnapshots();
+
+      expect(etb.hasUncommittedSnapshots()).toBe(false);
+      expect(etb.getUncommittedSnapshots()).toHaveLength(0);
+    });
+
+    it('should return shallow copy of snapshots array (mutation safety)', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+      etb.addEintrag('Test', userId);
+
+      const snapshots1 = etb.getUncommittedSnapshots();
+      const snapshots2 = etb.getUncommittedSnapshots();
+
+      // Different array instances
+      expect(snapshots1).not.toBe(snapshots2);
+      // Same content
+      expect(snapshots1).toHaveLength(snapshots2.length);
+    });
+
+    it('should create snapshot BEFORE mutation', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+
+      // Add first entry
+      etb.addEintrag('Entry 1', userId);
+      const firstSnapshot = etb.getUncommittedSnapshots()[0];
+
+      // Snapshot should be empty (before first add)
+      expect(firstSnapshot.getEintragCount()).toBe(0);
+
+      // Clear and add second entry
+      etb.clearSnapshots();
+      etb.addEintrag('Entry 2', userId);
+      const secondSnapshot = etb.getUncommittedSnapshots()[0];
+
+      // Snapshot should contain only first entry (before second add)
+      expect(secondSnapshot.getEintragCount()).toBe(1);
+    });
+
+    it('should include snapshot data in getSnapshotData()', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+      const eintrag = etb.addEintrag('Test entry', userId).value!;
+
+      const snapshotData = etb.getSnapshotData();
+
+      expect(snapshotData).toHaveLength(1);
+      expect(snapshotData[0].id).toBe(eintrag.id.value);
+      expect(snapshotData[0].sequenceNumber).toBe(1);
+      expect(snapshotData[0].text).toBe('Test entry');
+      expect(snapshotData[0].isDeleted).toBe(false);
+    });
+
+    it('should include soft-deleted entries in snapshot data', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+      const eintrag = etb.addEintrag('Test', userId).value!;
+      etb.deleteEintrag(eintrag.id, userId);
+
+      const snapshotData = etb.getSnapshotData();
+
+      expect(snapshotData).toHaveLength(1);
+      expect(snapshotData[0].isDeleted).toBe(true);
+    });
+
+    it('should serialize snapshot data with ISO timestamps', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+      etb.addEintrag('Test', userId);
+
+      const snapshotData = etb.getSnapshotData();
+
+      expect(snapshotData[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    });
+
+    it('should not create snapshot when locked', () => {
+      const etb = EinsatztagebuchAggregate.create(einsatzId).value!;
+      etb.lock(userId);
+
+      // Clear event from lock
+      etb.clearSnapshots();
+
+      // Try to add (should fail before snapshot creation)
+      const result = etb.addEintrag('Test', userId);
+
+      expect(result.isFailure).toBe(true);
+      expect(etb.hasUncommittedSnapshots()).toBe(false);
     });
   });
 });

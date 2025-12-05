@@ -21,3 +21,6 @@ export { ArchiveEinsatzHandler } from './archive-einsatz/archive-einsatz.handler
 // Update Status (Story 4-2)
 export { UpdateEinsatzStatusCommand } from './update-status/update-status.command';
 export { UpdateEinsatzStatusHandler } from './update-status/update-status.handler';
+
+// Archive Old Einsaetze (Story 5-6: Bulk Archive)
+export { ArchiveOldEinsaetzeCommand, ArchiveOldEinsaetzeHandler, type BulkArchiveResult } from './archive-old-einsaetze';

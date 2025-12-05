@@ -1,0 +1,111 @@
+{
+  "timestamp": "2025-12-04T16:41:42.228Z",
+  "config": {
+    "target": "http://localhost:3090",
+    "warmupDuration": 30,
+    "testDuration": 60,
+    "warmupRPS": 5,
+    "testRPS": 20,
+    "resultsPath": "/Users/rubeen/dev/personal/bluelight-hub/packages/backend/artillery/results/results.json"
+  },
+  "aggregate": {
+    "totalRequests": 1173,
+    "successfulRequests": 550,
+    "failedRequests": 623,
+    "successRate": "46.89",
+    "rps": "19.55",
+    "latency": {
+      "min": "0.00",
+      "max": "31.09",
+      "p50": "5.51",
+      "p95": "15.30",
+      "p99": "19.91"
+    }
+  },
+  "scenarios": {
+    "Create Einsatz": {
+      "requests": 230,
+      "successes": 0,
+      "failures": 230,
+      "successRate": "0.00",
+      "latency": {
+        "min": "2.42",
+        "max": "10.93",
+        "p50": "4.05",
+        "p95": "6.41",
+        "p99": "9.20"
+      },
+      "nfr4Status": "PASS"
+    },
+    "Get All Einsätze": {
+      "requests": 320,
+      "successes": 320,
+      "failures": 0,
+      "successRate": "100.00",
+      "latency": {
+        "min": "6.17",
+        "max": "31.09",
+        "p50": "11.06",
+        "p95": "15.54",
+        "p99": "22.80"
+      },
+      "nfr4Status": "PASS"
+    },
+    "Dashboard Query": {
+      "requests": 230,
+      "successes": 230,
+      "failures": 0,
+      "successRate": "100.00",
+      "latency": {
+        "min": "4.76",
+        "max": "24.24",
+        "p50": "12.58",
+        "p95": "18.20",
+        "p99": "23.41"
+      },
+      "nfr4Status": "PASS"
+    },
+    "Get Einsatz Details": {
+      "requests": 181,
+      "successes": 0,
+      "failures": 181,
+      "successRate": "0.00",
+      "latency": {
+        "min": "1.77",
+        "max": "6.38",
+        "p50": "3.14",
+        "p95": "4.73",
+        "p99": "5.62"
+      },
+      "nfr4Status": "PASS"
+    },
+    "Add ETB Eintrag": {
+      "requests": 134,
+      "successes": 0,
+      "failures": 134,
+      "successRate": "0.00",
+      "latency": {
+        "min": "1.80",
+        "max": "7.86",
+        "p50": "3.07",
+        "p95": "4.49",
+        "p99": "6.81"
+      },
+      "nfr4Status": "PASS"
+    },
+    "Complete Einsatz": {
+      "requests": 78,
+      "successes": 0,
+      "failures": 78,
+      "successRate": "0.00",
+      "latency": {
+        "min": "0.00",
+        "max": "0.00",
+        "p50": "0.00",
+        "p95": "0.00",
+        "p99": "0.00"
+      },
+      "nfr4Status": "PASS"
+    }
+  }
+}

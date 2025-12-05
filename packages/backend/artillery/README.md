@@ -31,12 +31,12 @@ pnpm --filter @bluelight-hub/backend perf:report
 
 | Szenario | Weight | Endpoint | Beschreibung |
 |----------|--------|----------|--------------|
-| Create Einsatz | 20% | POST /api/alpha/einsatz | Neuen Einsatz erstellen |
-| Get All Einsätze | 30% | GET /api/alpha/einsatz | Einsatz-Liste abrufen |
-| Dashboard Query | 20% | GET /api/alpha/einsatz/active-with-counts | Dashboard Aggregation |
-| Get Einsatz Details | 15% | GET /api/alpha/einsatz/:id/details | Einsatz + ETB + Lagekarte |
-| Add ETB Eintrag | 10% | POST /api/alpha/etb/:etbId/eintrag | Neuen ETB-Eintrag erstellen |
-| Complete Einsatz | 5% | POST /api/alpha/einsatz/:id/complete | Einsatz abschließen |
+| Create Einsatz | 20% | POST /api/v-alpha/einsatz | Neuen Einsatz erstellen |
+| Get All Einsätze | 30% | GET /api/v-alpha/einsatz | Einsatz-Liste abrufen |
+| Dashboard Query | 20% | GET /api/v-alpha/einsatz/active-with-counts | Dashboard Aggregation |
+| Get Einsatz Details | 15% | GET /api/v-alpha/einsatz/:id/details | Einsatz + ETB + Lagekarte |
+| Add ETB Eintrag | 10% | POST /api/v-alpha/etb/:etbId/eintrag | Neuen ETB-Eintrag erstellen |
+| Complete Einsatz | 5% | POST /api/v-alpha/einsatz/:id/complete | Einsatz abschließen |
 
 ## NFR-4 Acceptance Criteria
 
@@ -50,14 +50,33 @@ pnpm --filter @bluelight-hub/backend perf:report
 
 ```
 artillery/
-├── artillery-performance.yml   # Haupt-Testkonfiguration
+├── artillery-performance.yml   # Artillery Testkonfiguration
 ├── artillery-helpers.js        # Auth & Payload Generator
+├── run-performance-test.js     # Node.js Performance Test (Alternative)
 ├── seed-performance-data.ts    # Testdaten-Seeding
 ├── results/                    # Generierte Reports
-│   ├── results.json            # Rohdaten
-│   └── report.html             # HTML Report
+│   ├── results.json            # Rohdaten (JSON)
+│   ├── PERFORMANCE-REPORT.md   # Markdown Report
+│   └── report.html             # HTML Report (Artillery)
 └── README.md                   # Diese Datei
 ```
+
+## Alternative: Node.js Performance Test
+
+Falls Artillery aufgrund von Dependency-Konflikten (js-yaml v4) nicht funktioniert,
+kann das Node.js-basierte Test-Script verwendet werden:
+
+```bash
+cd packages/backend
+node artillery/run-performance-test.js
+```
+
+Dieses Script:
+- Führt 30s Warmup @ 5 RPS durch
+- Testet 60s @ 20 RPS
+- Sammelt p50, p95, p99, Max Latenzen
+- Speichert Ergebnisse in `artillery/results/results.json`
+- Gibt NFR-4 Status für jeden Endpoint aus
 
 ## Authentifizierung
 

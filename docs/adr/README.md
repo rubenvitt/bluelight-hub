@@ -15,6 +15,10 @@ Architecture Decision Records dokumentieren wichtige architekturelle Entscheidun
 | ADR | Titel | Status | Datum |
 |-----|-------|--------|-------|
 | [ADR-024](./ADR-024-repository-interface-pattern.md) | Repository Interface Return-Type Pattern | Accepted | 2025-12-03 |
+| [ADR-025](./ADR-025-hexagonal-architecture.md) | Hexagonale Architektur | Accepted | 2025-12-05 |
+| [ADR-026](./ADR-026-strangler-fig-migration-pattern.md) | Strangler Fig Migration Pattern | Accepted | 2025-12-05 |
+| [ADR-027](./ADR-027-cqrs-command-query-separation.md) | CQRS (Command Query Responsibility Segregation) | Accepted | 2025-12-05 |
+| [ADR-028](./ADR-028-transactional-outbox-pattern.md) | Transactional Outbox Pattern | Accepted | 2025-12-05 |
 
 ## ADR Status
 

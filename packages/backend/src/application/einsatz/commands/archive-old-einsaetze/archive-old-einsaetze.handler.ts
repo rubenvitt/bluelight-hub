@@ -80,6 +80,8 @@ export class ArchiveOldEinsaetzeHandler {
 
     for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
       const batch = batches[batchIndex];
+      if (!batch) continue; // TypeScript guard (should never happen)
+
       this.logger.debug(`Processing batch ${batchIndex + 1}/${batches.length}`);
 
       for (const einsatz of batch) {

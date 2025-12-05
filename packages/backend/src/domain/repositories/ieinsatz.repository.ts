@@ -318,6 +318,43 @@ export interface IEinsatzRepository {
   >;
 
   /**
+   * Findet Einsaetze die fuer Archivierung eligible sind (DRK 10-Jahres-Policy).
+   *
+   * Eligible Criteria:
+   * - Status = ABGESCHLOSSEN (nicht ANGELEGT, IN_BEARBEITUNG, oder bereits ARCHIVIERT)
+   * - createdAt <= olderThan (aelter als Threshold)
+   *
+   * Warum nur ABGESCHLOSSEN Status:
+   * - ANGELEGT/IN_BEARBEITUNG: Noch aktiv, duerfen nicht archiviert werden
+   * - ARCHIVIERT: Bereits archiviert (vermeidet Duplikate)
+   * - ABGESCHLOSSEN: Einsatz beendet, eligible fuer Langzeit-Archivierung
+   *
+   * Warum createdAt als Threshold:
+   * - Infrastructure Layer Constraint: Prisma Schema hat kein abgeschlossenAt Feld
+   * - createdAt ist konservativer Proxy: Wenn Einsatz vor N Jahren erstellt wurde, ist er definitiv alt genug
+   * - Domain Layer kann spaeter abgeschlossenAt hinzufuegen (Schema Migration)
+   *
+   * Use Case:
+   * - Bulk Archive Command (Story 5-6): Finde alte Einsaetze fuer Archivierung
+   * - DRK Policy: 10-Jahres-Aufbewahrungspflicht, dann archivieren
+   *
+   * @param olderThan - Threshold Date (Einsaetze erstellt VOR diesem Datum)
+   * @returns Result<Einsatz[]> - Success mit Array eligible Einsaetze (leer wenn keine)
+   *
+   * @example
+   * ```typescript
+   * // Finde alle Einsaetze aelter als 10 Jahre
+   * const tenYearsAgo = new Date();
+   * tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+   * const result = await repository.findEligibleForArchival(tenYearsAgo);
+   * if (result.isSuccess) {
+   *   console.log(`${result.value.length} Einsaetze eligible fuer Archivierung`);
+   * }
+   * ```
+   */
+  findEligibleForArchival(olderThan: Date): Promise<Result<Einsatz[]>>;
+
+  /**
    * HINWEIS: KEINE delete() Method!
    *
    * Warum kein delete()?

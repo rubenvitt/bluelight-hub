@@ -694,4 +694,180 @@ describe('PrismaEinsatzRepository', () => {
       expect(result.error).toContain('Count query failed');
     });
   });
+
+  describe('findEligibleForArchival()', () => {
+    it('sollte Einsaetze mit status ABGESCHLOSSEN aelter als threshold zurueckgeben', async () => {
+      // Given (Arrange)
+      const olderThan = new Date('2015-01-01T00:00:00Z');
+
+      const prismaData1 = createMockPrismaData({
+        id: 'einsatz_old_1',
+        status: 'ABGESCHLOSSEN' as PrismaEinsatzStatus,
+        createdAt: new Date('2014-01-01T10:00:00Z'),
+        updatedAt: new Date('2014-06-15T14:00:00Z'),
+      });
+
+      const prismaData2 = createMockPrismaData({
+        id: 'einsatz_old_2',
+        status: 'ABGESCHLOSSEN' as PrismaEinsatzStatus,
+        createdAt: new Date('2013-03-10T08:00:00Z'),
+        updatedAt: new Date('2013-12-20T16:30:00Z'),
+      });
+
+      const mockAggregate1 = createMockAggregate({
+        id: 'einsatz_old_1',
+        status: EinsatzStatus.ABGESCHLOSSEN(),
+        createdAt: new Date('2014-01-01T10:00:00Z'),
+      });
+
+      const mockAggregate2 = createMockAggregate({
+        id: 'einsatz_old_2',
+        status: EinsatzStatus.ABGESCHLOSSEN(),
+        createdAt: new Date('2013-03-10T08:00:00Z'),
+      });
+
+      mockPrismaService.einsatz.findMany.mockResolvedValue([prismaData2, prismaData1]); // Sortiert: aelteste zuerst
+
+      const toAggregateSpy = jest.spyOn(PrismaEinsatzMapper, 'toAggregate');
+      toAggregateSpy.mockReturnValueOnce(mockAggregate2).mockReturnValueOnce(mockAggregate1);
+
+      // When (Act)
+      const result = await repository.findEligibleForArchival(olderThan);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toHaveLength(2);
+      expect(result.value).toEqual([mockAggregate2, mockAggregate1]);
+
+      expect(mockPrismaService.einsatz.findMany).toHaveBeenCalledWith({
+        where: {
+          status: 'ABGESCHLOSSEN',
+          createdAt: { lte: olderThan },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+    });
+
+    it('sollte leeres Array zurueckgeben wenn keine eligible Einsaetze existieren', async () => {
+      // Given (Arrange)
+      const olderThan = new Date('2025-01-01T00:00:00Z'); // Future date
+      mockPrismaService.einsatz.findMany.mockResolvedValue([]);
+
+      // When (Act)
+      const result = await repository.findEligibleForArchival(olderThan);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toEqual([]);
+      expect(mockPrismaService.einsatz.findMany).toHaveBeenCalledWith({
+        where: {
+          status: 'ABGESCHLOSSEN',
+          createdAt: { lte: olderThan },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+    });
+
+    it('sollte NUR Einsaetze mit status ABGESCHLOSSEN zurueckgeben (nicht ANGELEGT, IN_BEARBEITUNG, ARCHIVIERT)', async () => {
+      // Given (Arrange)
+      const olderThan = new Date('2015-01-01T00:00:00Z');
+
+      // NUR abgeschlossene Einsaetze werden von DB zurueckgegeben (WHERE filter)
+      const prismaData = createMockPrismaData({
+        id: 'einsatz_abgeschlossen',
+        status: 'ABGESCHLOSSEN' as PrismaEinsatzStatus,
+      });
+
+      const mockAggregate = createMockAggregate({
+        id: 'einsatz_abgeschlossen',
+        status: EinsatzStatus.ABGESCHLOSSEN(),
+      });
+
+      mockPrismaService.einsatz.findMany.mockResolvedValue([prismaData]);
+      jest.spyOn(PrismaEinsatzMapper, 'toAggregate').mockReturnValue(mockAggregate);
+
+      // When (Act)
+      const result = await repository.findEligibleForArchival(olderThan);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toHaveLength(1);
+
+      // Verify WHERE clause: NUR status ABGESCHLOSSEN
+      expect(mockPrismaService.einsatz.findMany).toHaveBeenCalledWith({
+        where: {
+          status: 'ABGESCHLOSSEN',
+          createdAt: { lte: olderThan },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+    });
+
+    it('sollte Result.fail() zurueckgeben bei DB Fehler', async () => {
+      // Given (Arrange)
+      const olderThan = new Date('2015-01-01T00:00:00Z');
+      const dbError = new Error('DB connection failed');
+      mockPrismaService.einsatz.findMany.mockRejectedValue(dbError);
+
+      // When (Act)
+      const result = await repository.findEligibleForArchival(olderThan);
+
+      // Then (Assert)
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toContain('Database error');
+      expect(result.error).toContain('DB connection failed');
+    });
+
+    it('sollte Einsaetze nach createdAt ASC sortieren (aelteste zuerst)', async () => {
+      // Given (Arrange)
+      const olderThan = new Date('2015-01-01T00:00:00Z');
+
+      const prismaDataOldest = createMockPrismaData({
+        id: 'einsatz_oldest',
+        status: 'ABGESCHLOSSEN' as PrismaEinsatzStatus,
+        createdAt: new Date('2012-01-01T10:00:00Z'),
+      });
+
+      const prismaDataNewer = createMockPrismaData({
+        id: 'einsatz_newer',
+        status: 'ABGESCHLOSSEN' as PrismaEinsatzStatus,
+        createdAt: new Date('2014-06-15T14:00:00Z'),
+      });
+
+      // Mock returns in ASCENDING order (oldest first)
+      mockPrismaService.einsatz.findMany.mockResolvedValue([prismaDataOldest, prismaDataNewer]);
+
+      const mockAggregateOldest = createMockAggregate({
+        id: 'einsatz_oldest',
+        status: EinsatzStatus.ABGESCHLOSSEN(),
+        createdAt: new Date('2012-01-01T10:00:00Z'),
+      });
+
+      const mockAggregateNewer = createMockAggregate({
+        id: 'einsatz_newer',
+        status: EinsatzStatus.ABGESCHLOSSEN(),
+        createdAt: new Date('2014-06-15T14:00:00Z'),
+      });
+
+      const toAggregateSpy = jest.spyOn(PrismaEinsatzMapper, 'toAggregate');
+      toAggregateSpy.mockReturnValueOnce(mockAggregateOldest).mockReturnValueOnce(mockAggregateNewer);
+
+      // When (Act)
+      const result = await repository.findEligibleForArchival(olderThan);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+      expect(result.value[0]?.id.value).toBe('einsatz_oldest');
+      expect(result.value[1]?.id.value).toBe('einsatz_newer');
+
+      // Verify ORDER BY clause
+      expect(mockPrismaService.einsatz.findMany).toHaveBeenCalledWith({
+        where: {
+          status: 'ABGESCHLOSSEN',
+          createdAt: { lte: olderThan },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+    });
+  });
 });

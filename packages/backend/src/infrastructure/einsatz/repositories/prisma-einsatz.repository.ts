@@ -484,4 +484,78 @@ export class PrismaEinsatzRepository implements IEinsatzRepository {
       return Result.fail(`Database error: ${message}`);
     }
   }
+
+  /**
+   * Findet Einsaetze die fuer Archivierung eligible sind (DRK 10-Jahres-Policy).
+   *
+   * Diese Methode implementiert die Query-Logik fuer Bulk-Archivierung.
+   * Sie findet alle abgeschlossenen Einsaetze, die aelter als ein
+   * gegebenes Threshold-Datum sind.
+   *
+   * **Filter Criteria:**
+   * - status = ABGESCHLOSSEN (nur abgeschlossene, nicht bereits archivierte)
+   * - createdAt <= olderThan (aelter als Schwellwert)
+   *
+   * **Warum nur ABGESCHLOSSEN:**
+   * - ANGELEGT/IN_BEARBEITUNG: Noch aktiv (duerfen NICHT archiviert werden)
+   * - ABGESCHLOSSEN: Einsatz beendet (eligible fuer Archivierung)
+   * - ARCHIVIERT: Bereits archiviert (vermeidet Duplikate und Race Conditions)
+   *
+   * **Warum createdAt statt abgeschlossenAt:**
+   * - Prisma Schema hat kein abgeschlossenAt Feld (nur createdAt, updatedAt, archivedAt)
+   * - createdAt ist konservativer Proxy: Wenn Einsatz vor 10 Jahren erstellt wurde, ist er definitiv alt genug
+   * - Domain Layer kann spaeter abgeschlossenAt hinzufuegen (Schema Migration)
+   *
+   * **Sortierung:**
+   * - Aelteste Einsaetze zuerst (createdAt ASC)
+   * - Use Case: Bulk Archive Command verarbeitet aelteste Einsaetze first
+   *
+   * **Performance:**
+   * - Index auf (status, createdAt) existiert bereits im Schema
+   * - Pagination kann in Application Layer hinzugefuegt werden (Take/Skip)
+   *
+   * @param olderThan - Threshold Date (Einsaetze erstellt VOR diesem Datum)
+   * @returns Promise<Result<Einsatz[]>> - Success mit Array eligible Einsaetze (leer wenn keine)
+   *
+   * @example
+   * ```typescript
+   * // Finde Einsaetze aelter als 10 Jahre
+   * const tenYearsAgo = new Date();
+   * tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+   * const result = await repository.findEligibleForArchival(tenYearsAgo);
+   *
+   * if (result.isSuccess) {
+   *   for (const einsatz of result.value) {
+   *     // Archive logic
+   *   }
+   * }
+   * ```
+   */
+  async findEligibleForArchival(olderThan: Date): Promise<Result<Einsatz[]>> {
+    try {
+      // Query: Status = ABGESCHLOSSEN && createdAt <= olderThan
+      const einsaetze = await this.prisma.einsatz.findMany({
+        where: {
+          status: 'ABGESCHLOSSEN',
+          createdAt: {
+            lte: olderThan,
+          },
+        },
+        orderBy: {
+          createdAt: 'asc', // Aelteste zuerst
+        },
+      });
+
+      // Prisma → Domain Mapping für alle Ergebnisse
+      const aggregates = einsaetze.map((e) => PrismaEinsatzMapper.toAggregate(e));
+
+      this.logger.log(`Found ${aggregates.length} Einsaetze eligible for archival (older than ${olderThan.toISOString()})`);
+
+      return Result.ok(aggregates);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to find eligible Einsaetze for archival: ${message}`);
+      return Result.fail(`Database error: ${message}`);
+    }
+  }
 }

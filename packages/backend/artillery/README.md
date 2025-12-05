@@ -18,6 +18,26 @@ pnpm --filter @bluelight-hub/backend test:perf
 pnpm --filter @bluelight-hub/backend perf:report
 ```
 
+## Verfügbare Scripts (Story 5-3)
+
+| Script | Dauer | Verwendung | Beschreibung |
+|--------|-------|------------|--------------|
+| `test:perf` | ~180s | Vollständiger Test | Vollständiger Performance-Test (60s Warmup + 120s Load @ 20 RPS) |
+| `test:perf:quick` | ~30s | Lokale Entwicklung | Schneller Smoke-Test (10s Warmup + 20s Load @ 5 RPS) |
+| `test:perf:ci` | ~180s | CI/CD Pipeline | Volltest mit `--quiet` Flag, Exit-Code 1 bei Threshold-Verletzung |
+
+### CI/CD Integration
+
+Der `test:perf:ci` Script gibt Exit-Code 1 zurück, wenn:
+- p95 Latenz > 200ms (NFR-4 Violation)
+- Fehlerrate > 5%
+
+```yaml
+# GitHub Actions Beispiel
+- name: Performance Regression Check
+  run: pnpm --filter @bluelight-hub/backend test:perf:ci
+```
+
 ## Test-Konfiguration
 
 ### Phasen
@@ -50,12 +70,15 @@ pnpm --filter @bluelight-hub/backend perf:report
 
 ```
 artillery/
-├── artillery-performance.yml   # Artillery Testkonfiguration
+├── artillery-performance.yml   # Vollständige Testkonfiguration (180s)
+├── artillery-quick.yml         # Schnelle Testkonfiguration (30s)
 ├── artillery-helpers.js        # Auth & Payload Generator
 ├── run-performance-test.js     # Node.js Performance Test (Alternative)
 ├── seed-performance-data.ts    # Testdaten-Seeding
 ├── results/                    # Generierte Reports
-│   ├── results.json            # Rohdaten (JSON)
+│   ├── results.json            # Rohdaten Volltest (JSON)
+│   ├── quick-results.json      # Rohdaten Schnelltest (JSON)
+│   ├── ci-results.json         # Rohdaten CI-Test (JSON)
 │   ├── PERFORMANCE-REPORT.md   # Markdown Report
 │   └── report.html             # HTML Report (Artillery)
 └── README.md                   # Diese Datei

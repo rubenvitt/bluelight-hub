@@ -1,0 +1,46 @@
+# Artillery Quick Performance Test Configuration
+# Story 5-3: Performance Benchmarking & Optimization
+#
+# Purpose: Schneller Smoke-Test für lokale Entwicklung
+# Duration: 30s (statt 180s beim Volltest)
+# Load: 5 RPS (statt 20 RPS)
+#
+# Usage: pnpm --filter @bluelight-hub/backend test:perf:quick
+
+config:
+  target: 'http://localhost:3090'
+  phases:
+    - duration: 10
+      arrivalRate: 2
+      name: "Quick Warmup (10s @ 2 RPS)"
+    - duration: 20
+      arrivalRate: 5
+      name: "Quick Load (20s @ 5 RPS)"
+  processor: "./artillery-helpers.js"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  # NFR-4 Compliance Thresholds
+  ensure:
+    p95: 200       # NFR-4: <200ms p95
+    maxErrorRate: 5 # Max 5% Fehlerrate
+
+scenarios:
+  # Nur Read-Operations für schnellen Check
+  - name: "Get All Einsätze"
+    weight: 50
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v-alpha/einsatz"
+          qs:
+            page: 1
+            limit: 10
+            includeArchived: false
+
+  - name: "Dashboard Query (Active with Counts)"
+    weight: 50
+    flow:
+      - function: "setAuthHeader"
+      - get:
+          url: "/api/v-alpha/einsatz/active-with-counts"

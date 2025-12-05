@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-04T16:41:42.228Z",
+  "timestamp": "2025-12-05T10:08:25.299Z",
   "config": {
     "target": "http://localhost:3090",
     "warmupDuration": 30,
@@ -9,94 +9,94 @@
     "resultsPath": "/Users/rubeen/dev/personal/bluelight-hub/packages/backend/artillery/results/results.json"
   },
   "aggregate": {
-    "totalRequests": 1173,
-    "successfulRequests": 550,
-    "failedRequests": 623,
-    "successRate": "46.89",
-    "rps": "19.55",
+    "totalRequests": 1175,
+    "successfulRequests": 589,
+    "failedRequests": 586,
+    "successRate": "50.13",
+    "rps": "19.58",
     "latency": {
       "min": "0.00",
-      "max": "31.09",
-      "p50": "5.51",
-      "p95": "15.30",
-      "p99": "19.91"
+      "max": "35.71",
+      "p50": "7.06",
+      "p95": "18.21",
+      "p99": "26.20"
     }
   },
   "scenarios": {
     "Create Einsatz": {
-      "requests": 230,
+      "requests": 248,
       "successes": 0,
-      "failures": 230,
+      "failures": 248,
       "successRate": "0.00",
       "latency": {
-        "min": "2.42",
-        "max": "10.93",
-        "p50": "4.05",
-        "p95": "6.41",
-        "p99": "9.20"
+        "min": "2.23",
+        "max": "13.09",
+        "p50": "2.71",
+        "p95": "5.11",
+        "p99": "6.04"
       },
       "nfr4Status": "PASS"
     },
     "Get All Einsätze": {
-      "requests": 320,
-      "successes": 320,
+      "requests": 357,
+      "successes": 357,
       "failures": 0,
       "successRate": "100.00",
       "latency": {
-        "min": "6.17",
-        "max": "31.09",
-        "p50": "11.06",
-        "p95": "15.54",
-        "p99": "22.80"
+        "min": "6.65",
+        "max": "27.88",
+        "p50": "8.31",
+        "p95": "15.97",
+        "p99": "18.71"
       },
       "nfr4Status": "PASS"
     },
     "Dashboard Query": {
-      "requests": 230,
-      "successes": 230,
+      "requests": 232,
+      "successes": 232,
       "failures": 0,
       "successRate": "100.00",
       "latency": {
-        "min": "4.76",
-        "max": "24.24",
-        "p50": "12.58",
-        "p95": "18.20",
-        "p99": "23.41"
+        "min": "10.38",
+        "max": "35.71",
+        "p50": "14.65",
+        "p95": "25.93",
+        "p99": "29.97"
       },
       "nfr4Status": "PASS"
     },
     "Get Einsatz Details": {
-      "requests": 181,
+      "requests": 178,
       "successes": 0,
-      "failures": 181,
+      "failures": 178,
       "successRate": "0.00",
       "latency": {
-        "min": "1.77",
-        "max": "6.38",
-        "p50": "3.14",
-        "p95": "4.73",
-        "p99": "5.62"
+        "min": "1.48",
+        "max": "4.76",
+        "p50": "2.05",
+        "p95": "4.12",
+        "p99": "4.67"
       },
       "nfr4Status": "PASS"
     },
     "Add ETB Eintrag": {
-      "requests": 134,
+      "requests": 106,
       "successes": 0,
-      "failures": 134,
+      "failures": 106,
       "successRate": "0.00",
       "latency": {
-        "min": "1.80",
-        "max": "7.86",
-        "p50": "3.07",
-        "p95": "4.49",
-        "p99": "6.81"
+        "min": "1.66",
+        "max": "5.21",
+        "p50": "2.15",
+        "p95": "4.05",
+        "p99": "4.45"
       },
       "nfr4Status": "PASS"
     },
     "Complete Einsatz": {
-      "requests": 78,
+      "requests": 54,
       "successes": 0,
-      "failures": 78,
+      "failures": 54,
       "successRate": "0.00",
       "latency": {
         "min": "0.00",

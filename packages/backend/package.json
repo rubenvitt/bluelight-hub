@@ -30,6 +30,8 @@
     "check:deps": "madge --circular src/domain/",
     "admin:reset": "ts-node -r tsconfig-paths/register src/main-cli.ts",
     "test:perf": "artillery run artillery/artillery-performance.yml --output artillery/results/results.json",
+    "test:perf:quick": "artillery run artillery/artillery-quick.yml --output artillery/results/quick-results.json",
+    "test:perf:ci": "artillery run artillery/artillery-performance.yml --output artillery/results/ci-results.json --quiet",
     "seed:perf": "ts-node artillery/seed-performance-data.ts",
     "perf:report": "artillery report artillery/results/results.json -o artillery/results/report.html"
   },

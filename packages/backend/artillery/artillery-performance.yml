@@ -29,6 +29,11 @@ config:
   defaults:
     headers:
       Content-Type: "application/json"
+  # NFR-4 Compliance Thresholds (Story 5-3)
+  # Automatische Validierung für CI/CD Integration
+  ensure:
+    p95: 200       # NFR-4: <200ms p95 für alle Endpoints
+    maxErrorRate: 5 # Max 5% Fehlerrate toleriert
 
 scenarios:
   # Scenario 1: Create Einsatz (Weight: 20%)

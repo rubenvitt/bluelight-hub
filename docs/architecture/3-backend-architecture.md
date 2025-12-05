@@ -1,5 +1,462 @@
 # 3. Backend Architecture
 
+## Hexagonale Architektur (Aktuelle Architektur)
+
+Das Backend nutzt seit der Migration **Hexagonale Architektur** (Ports & Adapters) mit **Domain-Driven Design (DDD)** und **CQRS**-Pattern. Die Architektur basiert auf strikter Dependency-Direction und Framework-Agnostizität im Domain Layer.
+
+### Layer-Diagramm
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Infrastructure Layer                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
+│  │ Controllers │  │   Prisma    │  │   Outbox    │  │  External   │ │
+│  │  (REST API) │  │ Repositories│  │  Publisher  │  │  Services   │ │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘ │
+│         │                │                │                │         │
+└─────────┼────────────────┼────────────────┼────────────────┼─────────┘
+          │                │                │                │
+          ▼                ▼                ▼                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Application Layer                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
+│  │  Commands   │  │   Queries   │  │   Event     │  │    DTOs     │ │
+│  │  Handlers   │  │   Handlers  │  │  Handlers   │  │             │ │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └─────────────┘ │
+│         │                │                │                          │
+└─────────┼────────────────┼────────────────┼──────────────────────────┘
+          │                │                │
+          ▼                ▼                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Domain Layer                                │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
+│  │ Aggregates  │  │   Value     │  │  Domain     │  │ Repository  │ │
+│  │   (Roots)   │  │  Objects    │  │   Events    │  │   Ports     │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │
+│                                                                      │
+│                    ▲ NO OUTGOING DEPENDENCIES ▲                      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### Domain Layer (Framework-Agnostic Core)
+
+Der Domain Layer ist das **Herz der Anwendung** und enthält die gesamte Business-Logik. Er ist vollständig framework-agnostisch und hat **keine ausgehenden Abhängigkeiten**.
+
+**Location:** `packages/backend/src/domain/`
+
+**4 Aggregate Roots:**
+
+| Aggregate | Verantwortlichkeit | Entities | Value Objects |
+|-----------|-------------------|----------|---------------|
+| **Einsatz** | Einsatzmanagement | - | EinsatzId, EinsatzStatus, Alarmstichwort, Einsatzort, Fahrzeuge |
+| **Einsatztagebuch** | Tagebuch-Logik | EtbEintrag | EtbId, EtbKategorie, EtbAutor, EtbInhalt |
+| **User** | Benutzerverwaltung | - | UserId, Username, Role |
+| **Lagekarte** | Karten-Management | LagekartePoi | LagekarteId, PoiId, Koordinaten |
+
+**Komponenten:**
+
+```
+domain/
+├── aggregates/           # Aggregate Roots (Consistency Boundaries)
+│   ├── einsatz/         # Einsatz Aggregate mit Business Rules
+│   ├── etb/             # Einsatztagebuch Aggregate
+│   ├── user/            # User Aggregate
+│   └── lagekarte/       # Lagekarte Aggregate
+├── value-objects/       # Value Objects (Immutable)
+│   ├── einsatz-id.value-object.ts
+│   ├── einsatz-status.value-object.ts
+│   └── ...
+├── events/              # Domain Events (Aggregate State Changes)
+│   ├── einsatz-created.event.ts
+│   ├── einsatz-archived.event.ts
+│   └── ...
+└── repositories/        # Repository Ports (Interfaces)
+    ├── i-einsatz-repository.ts
+    ├── i-etb-repository.ts
+    └── ...
+```
+
+**Framework-Agnostizität:**
+
+- ✅ **Erlaubt:** `@Injectable` (NestJS DI nur für Dependency Injection)
+- ❌ **Verboten:** Alle anderen Framework-spezifischen Decorators
+  - `@Controller`, `@Get`, `@Post`, `@UseGuards`
+  - `HttpException`, `Response`, `Request`
+  - Express/Fastify Typen
+  - Prisma Typen
+
+**Domain-Invarianten:**
+
+- Aggregate Roots erzwingen Business-Regeln (z.B. NO-DELETE Policy)
+- Value Objects garantieren Validierung (z.B. EinsatzStatus nur gültige Werte)
+- Domain Events dokumentieren State-Changes
+- Repository Ports definieren Persistierungs-Contracts
+
+### Application Layer (CQRS Orchestration)
+
+Der Application Layer orchestriert die Business-Logik via **CQRS** (Command Query Responsibility Segregation).
+
+**Location:** `packages/backend/src/application/`
+
+**CQRS Pattern:**
+
+| Pattern | Verwendung | Return Type | Side Effects |
+|---------|------------|-------------|--------------|
+| **Commands** | State-Changing Operations (Create, Update, Delete) | `Result<T>` | Writes to DB, emits Domain Events |
+| **Queries** | Read Operations (optimiert, kein Domain-Modell) | `Result<T>` | Read-Only, darf Domain umgehen |
+
+**Struktur:**
+
+```
+application/
+├── einsatz/
+│   ├── commands/                     # Command Handlers
+│   │   ├── create-einsatz.handler.ts
+│   │   ├── update-einsatz.handler.ts
+│   │   └── archive-einsatz.handler.ts
+│   ├── queries/                      # Query Handlers
+│   │   ├── get-active-einsaetze.handler.ts
+│   │   └── get-einsatz-details.handler.ts
+│   └── events/                       # Domain Event Handlers
+│       └── einsatz-created.event-handler.ts
+├── etb/
+│   ├── commands/
+│   ├── queries/
+│   └── events/
+├── lagekarte/
+│   ├── commands/
+│   └── queries/
+└── common/
+    ├── handlers/
+    │   └── transactional-command-handler.ts  # Base Class mit Outbox
+    ├── result.ts                              # Result<T> Pattern
+    └── transaction-context.ts                 # Prisma Transaction Type
+```
+
+**TransactionalCommandHandler Pattern:**
+
+Alle Command Handler erben von `TransactionalCommandHandler<TCommand, TResult>` für atomare Event-Persistierung:
+
+```typescript
+@Injectable()
+export class CreateEinsatzHandler extends TransactionalCommandHandler<
+  CreateEinsatzCommand,
+  string
+> {
+  protected async executeInTransaction(
+    command: CreateEinsatzCommand,
+    tx: TransactionContext
+  ): Promise<{ result: string; events: DomainEvent[] }> {
+    // 1. Aggregate erstellen
+    const einsatz = Einsatz.create(command);
+
+    // 2. In Transaction speichern
+    await this.repository.save(einsatz, tx);
+
+    // 3. Domain Events extrahieren
+    const events = einsatz.getDomainEvents();
+    einsatz.clearDomainEvents();
+
+    // 4. Base Handler speichert Events atomar in Outbox
+    return { result: einsatz.id.value, events };
+  }
+}
+```
+
+**Framework-Agnostizität:**
+
+- ✅ **Erlaubt:** `@Injectable`, `@Inject`, `@Optional`
+- ❌ **Verboten:** HTTP-spezifische Decorators, Response/Request Typen
+- **Result<T> Pattern:** Keine Exceptions für erwartete Fehler
+
+### Infrastructure Layer (Adapters)
+
+Der Infrastructure Layer implementiert die **Adapters** für externe Systeme und Frameworks.
+
+**Location:** `packages/backend/src/infrastructure/`
+
+**Komponenten:**
+
+```
+infrastructure/
+├── einsatz/                         # Einsatz Adapters
+│   ├── controllers/                # REST API Endpoints
+│   │   └── einsatz.controller.ts  # @Controller, @ApiTags
+│   ├── repositories/               # Prisma Implementations
+│   │   └── prisma-einsatz.repository.ts
+│   └── __tests__/                  # E2E Integration Tests
+├── etb/                            # ETB Adapters
+│   ├── controllers/
+│   ├── repositories/
+│   └── __tests__/
+├── lagekarte/                      # Lagekarte Adapters
+│   ├── controllers/
+│   ├── repositories/
+│   └── __tests__/
+├── user/                           # User Adapters
+│   ├── controllers/
+│   ├── repositories/
+│   └── __tests__/
+├── outbox/                         # Transactional Outbox
+│   ├── outbox-event-publisher.service.ts
+│   └── prisma-outbox.repository.ts
+└── common/
+    └── prisma.service.ts           # Prisma Client Wrapper
+```
+
+**Controller (HTTP Adapter):**
+
+Hier sind **alle NestJS Decorators erlaubt**:
+
+```typescript
+@Controller('api/alpha/einsaetze')
+@ApiTags('einsatz')
+export class EinsatzController {
+  constructor(
+    @Inject('CreateEinsatzHandler')
+    private readonly createHandler: CreateEinsatzHandler
+  ) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Einsatz erstellen' })
+  async create(@Body() dto: CreateEinsatzDto, @CurrentUser() user: User) {
+    const command = CreateEinsatzCommand.create(dto, user.id);
+    const result = await this.createHandler.execute(command);
+
+    if (result.isFailure) {
+      throw new BadRequestException(result.error);
+    }
+
+    return result.value;
+  }
+}
+```
+
+**Prisma Repository (Persistence Adapter):**
+
+Implementiert Domain Repository Ports:
+
+```typescript
+@Injectable()
+export class PrismaEinsatzRepository implements IEinsatzRepository {
+  async save(
+    aggregate: Einsatz,
+    tx?: TransactionContext
+  ): Promise<Result<void>> {
+    const client = tx ?? this.prisma;
+
+    await client.einsatz.upsert({
+      where: { id: aggregate.id.value },
+      create: this.toPrismaCreate(aggregate),
+      update: this.toPrismaUpdate(aggregate),
+    });
+
+    return Result.ok();
+  }
+
+  // Mapping: Domain ↔ Prisma
+  private toPrismaCreate(aggregate: Einsatz): Prisma.EinsatzCreateInput { ... }
+  private toDomain(prismaEinsatz: PrismaEinsatz): Einsatz { ... }
+}
+```
+
+**Outbox Publisher (Event Adapter):**
+
+Pollt Outbox Table und publiziert Events:
+
+```typescript
+@Injectable()
+export class OutboxEventPublisher implements OnModuleInit {
+  @Cron(CronExpression.EVERY_5_SECONDS)
+  async publishPendingEvents() {
+    await this.prisma.$transaction(async (tx) => {
+      // FOR UPDATE SKIP LOCKED für Race-Condition-Prevention
+      const events = await this.outboxRepository.findAndLockPending(100, tx);
+
+      for (const event of events) {
+        try {
+          await this.eventBus.publish(event.eventName, event.payload);
+          await this.outboxRepository.markAsPublished(event.id, tx);
+        } catch (error) {
+          await this.outboxRepository.markAsFailed(event.id, error.message, tx);
+        }
+      }
+    });
+  }
+}
+```
+
+### Dependency Direction Rules
+
+Die Hexagonale Architektur erzwingt strikte Dependency-Richtung:
+
+```
+Domain ← Application ← Infrastructure
+  ↑          ↑              ↑
+  └──────────┴──────────────┘
+     NO OUTGOING DEPENDENCIES
+```
+
+**Erlaubte Abhängigkeiten:**
+
+| Layer | Darf importieren | Darf NICHT importieren |
+|-------|------------------|------------------------|
+| **Domain** | - (keine!) | Application, Infrastructure, NestJS (außer @Injectable) |
+| **Application** | Domain, @nestjs/common (nur @Injectable, @Inject) | Infrastructure, HTTP-Decorators |
+| **Infrastructure** | Domain, Application, NestJS (alle), Prisma, Express | - (darf alles) |
+
+**DI Token Constants (AC2):**
+
+DI Token Strings als Constants definiert (nicht inline String-Literals):
+
+```typescript
+// packages/backend/src/infrastructure/di-tokens.ts
+export const DI_TOKENS = {
+  REPOSITORIES: {
+    EINSATZ: Symbol('IEinsatzRepository'),
+    ETB: Symbol('IEtbRepository'),
+    USER: Symbol('IUserRepository'),
+    LAGEKARTE: Symbol('ILagekarteRepository'),
+  },
+  HANDLERS: {
+    CREATE_EINSATZ: Symbol('CreateEinsatzHandler'),
+    UPDATE_EINSATZ: Symbol('UpdateEinsatzHandler'),
+  },
+} as const;
+
+// Verwendung in Modules
+providers: [
+  {
+    provide: DI_TOKENS.REPOSITORIES.EINSATZ,
+    useClass: PrismaEinsatzRepository,
+  },
+]
+
+// Verwendung in Constructors
+constructor(
+  @Inject(DI_TOKENS.REPOSITORIES.EINSATZ)
+  private readonly repository: IEinsatzRepository,
+) {}
+```
+
+**Import Check (AC1):**
+
+```typescript
+// ✅ RICHTIG: import für DI-Injectable Classes
+import { MyService } from './my.service';
+import { IRepository } from '../domain/repositories/i-repository';
+
+// ❌ FALSCH: import type bricht NestJS DI zur Laufzeit!
+import type { MyService } from './my.service';
+```
+
+**Warum:** TypeScript's `import type` wird zur Compile-Zeit entfernt. NestJS DI benötigt das Runtime-Symbol für Dependency Injection.
+
+### Module Structure (Hexagonal Architecture)
+
+Aktualisierte Verzeichnisstruktur:
+
+```
+packages/backend/src/
+├── domain/                    # Domain Layer (Framework-Agnostic)
+│   ├── aggregates/           # Aggregate Roots
+│   │   ├── einsatz/
+│   │   ├── etb/
+│   │   ├── user/
+│   │   └── lagekarte/
+│   ├── value-objects/        # Value Objects
+│   │   ├── einsatz-id.value-object.ts
+│   │   ├── einsatz-status.value-object.ts
+│   │   └── ...
+│   ├── events/               # Domain Events
+│   │   ├── einsatz-created.event.ts
+│   │   ├── einsatz-archived.event.ts
+│   │   └── ...
+│   └── repositories/         # Repository Ports (Interfaces)
+│       ├── i-einsatz-repository.ts
+│       ├── i-etb-repository.ts
+│       ├── i-user-repository.ts
+│       └── i-lagekarte-repository.ts
+├── application/              # Application Layer (CQRS)
+│   ├── einsatz/
+│   │   ├── commands/         # Command Handlers
+│   │   │   ├── create-einsatz.handler.ts
+│   │   │   ├── update-einsatz.handler.ts
+│   │   │   └── archive-einsatz.handler.ts
+│   │   ├── queries/          # Query Handlers
+│   │   │   ├── get-active-einsaetze.handler.ts
+│   │   │   └── get-einsatz-details.handler.ts
+│   │   └── events/           # Domain Event Handlers
+│   │       └── einsatz-created.event-handler.ts
+│   ├── etb/
+│   │   ├── commands/
+│   │   ├── queries/
+│   │   └── events/
+│   ├── lagekarte/
+│   │   ├── commands/
+│   │   └── queries/
+│   ├── user/
+│   │   ├── commands/
+│   │   └── queries/
+│   └── common/               # Shared (TransactionalCommandHandler)
+│       ├── handlers/
+│       │   └── transactional-command-handler.ts
+│       ├── result.ts
+│       └── transaction-context.ts
+├── infrastructure/           # Infrastructure Layer
+│   ├── einsatz/              # Einsatz Adapters
+│   │   ├── controllers/      # REST API Endpoints
+│   │   │   └── einsatz.controller.ts
+│   │   ├── repositories/     # Prisma Implementations
+│   │   │   └── prisma-einsatz.repository.ts
+│   │   └── __tests__/        # E2E Integration Tests
+│   ├── etb/                  # ETB Adapters
+│   │   ├── controllers/
+│   │   ├── repositories/
+│   │   └── __tests__/
+│   ├── lagekarte/            # Lagekarte Adapters
+│   │   ├── controllers/
+│   │   ├── repositories/
+│   │   └── __tests__/
+│   ├── user/                 # User Adapters
+│   │   ├── controllers/
+│   │   ├── repositories/
+│   │   └── __tests__/
+│   ├── outbox/               # Transactional Outbox
+│   │   ├── outbox-event-publisher.service.ts
+│   │   ├── prisma-outbox.repository.ts
+│   │   └── __tests__/
+│   ├── common/
+│   │   └── prisma.service.ts
+│   └── di-tokens.ts          # DI Token Constants
+└── modules/                  # NestJS Module Definitions
+    ├── einsatz.module.ts
+    ├── etb.module.ts
+    ├── lagekarte.module.ts
+    ├── user.module.ts
+    └── outbox.module.ts
+```
+
+### Vorteile der Hexagonalen Architektur
+
+| Aspekt | Vorteil |
+|--------|---------|
+| **Testbarkeit** | Domain-Logik isoliert testbar ohne Framework-Abhängigkeiten |
+| **Framework-Wechsel** | NestJS austauschbar (nur Infrastructure Layer ändern) |
+| **Database-Wechsel** | Prisma austauschbar (nur Repositories ändern) |
+| **Business-Logik-Fokus** | Domain-Experten können Domain Layer verstehen (kein Framework-Overhead) |
+| **Dependency Injection** | Klare Contracts via Repository Ports |
+| **Event-Driven** | Domain Events dokumentieren State-Changes |
+| **CQRS** | Read/Write-Separation für Performance-Optimierung |
+| **Transactional Outbox** | Atomare Event-Persistierung, Retry-Safe |
+
+---
+
+## Legacy 3-Tier Architecture (Vor Migration)
+
+**HINWEIS:** Die folgenden Abschnitte beschreiben die alte 3-Tier Architektur, die vor der Hexagonal Architecture Migration genutzt wurde. Sie sind als Referenz und für historischen Kontext dokumentiert.
+
 ## Module Structure (ACTUAL)
 
 Das Backend besteht aus **7 funktionalen Modulen** (nicht die 8+ in arc42 beschriebenen):

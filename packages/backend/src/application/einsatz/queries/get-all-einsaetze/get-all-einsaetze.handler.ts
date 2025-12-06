@@ -3,11 +3,12 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import type { PaginatedData } from '@/common/interceptors/transform.interceptor';
 import type { EinsatzResponseDto } from '@/application/einsatz/dto/einsatz-response.dto';
-// biome-ignore lint/correctness/noUnusedImports: Required for NestJS DI - must be value import, not type import
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import { EinsatzNameGenerator } from '@/einsatz/utils/name-generator.util';
 import { EinsatzCompletenessCalculator } from '@/einsatz/utils/completeness.util';
 import { GetAllEinsaetzeQuery } from './get-all-einsaetze.query';
+// TODO (Epic 6): Migrate utilities to use Domain Aggregate instead of Prisma Entity
+// biome-ignore lint/style/noRestrictedImports: Legacy dependency - EinsatzNameGenerator/CompletenessCalculator require Prisma types
 import type { Einsatz as PrismaEinsatz } from '@prisma/client';
 
 /**

@@ -4,7 +4,6 @@ import type { TransactionContext } from '@domain/common/transaction';
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
 import { PrismaService } from '@/prisma/prisma.service';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
-import type { PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';
 
 /**
  * Abstract Base Class für transaktionale Command Handler im Transactional Outbox Pattern.
@@ -149,8 +148,9 @@ export abstract class TransactionalCommandHandler<TCommand, TResult> {
         // 2. Domain Events atomar im Outbox persistieren
         // Nur wenn Events vorhanden (z.B. Read-Only Queries haben keine Events)
         if (events.length > 0) {
-          // Cast zu PrismaTransaction für Infrastructure Layer
-          await this.outboxRepository.save(events, tx as PrismaTransaction);
+          // TransactionContext wird an Infrastructure Layer übergeben
+          // Infrastructure Repository castet intern zu konkretem Type (z.B. PrismaTransaction)
+          await this.outboxRepository.save(events, tx as TransactionContext);
         }
 
         // 3. Result zurückgeben (Transaction wird committed)

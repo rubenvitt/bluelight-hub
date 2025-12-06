@@ -51,7 +51,8 @@ export class ArchiveOldEinsaetzeHandler {
       return Result.fail(eligibleResult.error ?? 'Failed to find eligible Einsätze');
     }
 
-    const einsaetze = eligibleResult.value!;
+    // Value is guaranteed to exist after isFailure check
+    const einsaetze = eligibleResult.value as Einsatz[];
     const result: BulkArchiveResult = {
       eligible: einsaetze.length,
       archived: 0,
@@ -72,7 +73,8 @@ export class ArchiveOldEinsaetzeHandler {
     if (userIdResult.isFailure) {
       return Result.fail(`Invalid archivedBy user ID: ${userIdResult.error}`);
     }
-    const userId = userIdResult.value!;
+    // Value is guaranteed to exist after isFailure check
+    const userId = userIdResult.value as UserId;
 
     // 4. Batch processing
     const batches = this.chunk(einsaetze, this.BATCH_SIZE);

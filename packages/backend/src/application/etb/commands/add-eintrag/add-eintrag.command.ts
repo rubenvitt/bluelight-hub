@@ -1,4 +1,6 @@
 import { Result } from '@domain/common/result';
+// TODO (Epic 6): Use Domain EtbKategorie Value Object instead of Prisma enum
+// biome-ignore lint/style/noRestrictedImports: Legacy dependency - tracked for migration in Epic 6
 import { EtbKategorie } from '@prisma/client';
 
 /**

@@ -6,6 +6,7 @@ import { PrismaOutboxRepository } from './prisma-outbox.repository';
 import { OutboxEventPublisher, OUTBOX_PUBLISHER_CONFIG, DEFAULT_OUTBOX_PUBLISHER_CONFIG } from './outbox-event-publisher.service';
 import { AlertModule } from '@/infrastructure/alert/alert.module';
 import { LagekarteEventsModule } from '@/infrastructure/events/lagekarte-events.module';
+import { OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Outbox Infrastructure Module fuer Transactional Outbox Pattern.
@@ -78,8 +79,14 @@ import { LagekarteEventsModule } from '@/infrastructure/events/lagekarte-events.
     EventSerializer,
     EventDeserializer,
 
-    // Repository
+    // Repository - Concrete Implementation
     PrismaOutboxRepository,
+
+    // Repository - DI Token Provider (für Application Layer Dependency Injection)
+    {
+      provide: OUTBOX_REPOSITORY,
+      useClass: PrismaOutboxRepository,
+    },
 
     // Polling Worker Configuration
     {
@@ -91,7 +98,9 @@ import { LagekarteEventsModule } from '@/infrastructure/events/lagekarte-events.
     OutboxEventPublisher,
   ],
   exports: [
-    // Exportiere Repository fuer andere Module (ETB, Lagekarte, etc.)
+    // Exportiere Repository DI Token fuer Application Layer
+    OUTBOX_REPOSITORY,
+    // Legacy: Export concrete class für Infrastructure Layer (wird deprecated)
     PrismaOutboxRepository,
     EventSerializer,
     EventDeserializer,

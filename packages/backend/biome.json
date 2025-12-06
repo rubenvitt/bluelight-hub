@@ -57,11 +57,11 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["**/application/*", "../application/*"],
+                    "group": ["**/application/*", "../application/*", "@application/*"],
                     "message": "❌ Domain layer MUST NOT import from Application layer (violates Hexagonal Architecture)"
                   },
                   {
-                    "group": ["**/infrastructure/*", "../infrastructure/*"],
+                    "group": ["**/infrastructure/*", "../infrastructure/*", "@infrastructure/*"],
                     "message": "❌ Domain layer MUST NOT import from Infrastructure layer (violates Hexagonal Architecture)"
                   },
                   {
@@ -71,6 +71,47 @@
                   {
                     "group": ["@prisma/*"],
                     "message": "❌ Domain layer MUST NOT depend on Prisma (use Repository interfaces instead)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/application/**/*.handler.ts", "src/application/**/*.command.ts", "src/application/**/*.query.ts", "src/application/**/*.service.ts", "src/application/**/common/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@infrastructure/alert/*",
+                      "@infrastructure/auth/*",
+                      "@infrastructure/common/*",
+                      "@infrastructure/einsatz/*",
+                      "@infrastructure/etb/*",
+                      "@infrastructure/events/*",
+                      "@infrastructure/geocoding/*",
+                      "@infrastructure/outbox/*",
+                      "@infrastructure/repositories/*",
+                      "@infrastructure/user/*",
+                      "@infrastructure/index",
+                      "@infrastructure/lagekarte-infrastructure.module"
+                    ],
+                    "message": "❌ Application layer MUST NOT import from Infrastructure layer (except @infrastructure/di-tokens). Use DI via Repository interfaces."
+                  },
+                  {
+                    "group": ["**/infrastructure/**/*"],
+                    "message": "❌ Application layer MUST NOT import from Infrastructure layer via relative paths. Use DI Token Constants from @infrastructure/di-tokens."
+                  },
+                  {
+                    "group": ["@prisma/*"],
+                    "message": "❌ Application layer MUST NOT depend on Prisma directly (use Repository interfaces and DI instead)"
                   }
                 ]
               }

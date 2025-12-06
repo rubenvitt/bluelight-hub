@@ -7,7 +7,7 @@ import { TransactionalCommandHandler } from '@application/common/handlers/transa
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
 import { PrismaService } from '@/prisma/prisma.service';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
-import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
+import { OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { TransactionContext } from '@domain/common/transaction';
 import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
@@ -50,7 +50,7 @@ export class UpdateEinsatzHandler extends TransactionalCommandHandler<UpdateEins
 
   constructor(
     prisma: PrismaService,
-    @Inject(PrismaOutboxRepository) outboxRepository: IOutboxRepository,
+    @Inject(OUTBOX_REPOSITORY) outboxRepository: IOutboxRepository,
     @Inject('IEinsatzRepository')
     private readonly einsatzRepository: IEinsatzRepository,
   ) {

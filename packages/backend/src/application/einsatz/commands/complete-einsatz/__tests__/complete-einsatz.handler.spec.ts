@@ -2,8 +2,6 @@ import { Result } from '@domain/common/result';
 import { CompleteEinsatzHandler } from '../complete-einsatz.handler';
 import { CompleteEinsatzCommand } from '../complete-einsatz.command';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
-// biome-ignore lint/style/useImportType: Required for NestJS DI - must be value import, not type import
 import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';

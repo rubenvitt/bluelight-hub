@@ -57,6 +57,11 @@ runs:
       shell: bash
       run: pnpm lint:check
 
+    - name: Check circular dependencies
+      if: inputs.skip-tests == 'false'
+      shell: bash
+      run: pnpm --filter @bluelight-hub/backend lint:deps:core
+
     - name: Run unit tests with coverage
       if: inputs.skip-tests == 'false'
       shell: bash

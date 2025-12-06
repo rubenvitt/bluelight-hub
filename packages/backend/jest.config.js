@@ -1,7 +1,15 @@
 module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/test'],
-  testMatch: ['**/domain/**/*.spec.ts', '**/infrastructure/**/*.spec.ts', '**/infrastructure/**/*.e2e.spec.ts', '**/application/**/*.spec.ts', '**/common/**/*.spec.ts', '**/smoke/**/*.smoke.spec.ts'],
+  testMatch: [
+    '**/domain/**/*.spec.ts',
+    '**/infrastructure/**/*.spec.ts',
+    '**/infrastructure/**/*.e2e.spec.ts',
+    '**/application/**/*.spec.ts',
+    '**/common/**/*.spec.ts',
+    '**/smoke/**/*.smoke.spec.ts',
+    '**/__tests__/**/*.spec.ts',
+  ],
   transform: {
     '^.+\\.(t|j)sx?$': [
       '@swc/jest',

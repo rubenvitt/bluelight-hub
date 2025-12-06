@@ -30,3 +30,6 @@ export const EINSATZ_REPOSITORY = Symbol('IEinsatzRepository');
 
 /** Repository Token für IEtbRepository */
 export const ETB_REPOSITORY = Symbol('IEtbRepository');
+
+/** Repository Token für IOutboxRepository */
+export const OUTBOX_REPOSITORY = Symbol('IOutboxRepository');

@@ -1,5 +1,5 @@
 import { useCreatePoi, useGeocodeAddress } from '@/api/hooks/useLagekarteApi';
-import type { PoiType } from '@/utils/poi-icons';
+import type { PoiCategory, PoiType } from '@/utils/poi-icons';
 import { getApiErrorMessage } from '@/utils/apiErrorHandler';
 import { useForm } from '@tanstack/react-form';
 import { zodValidator } from '@tanstack/zod-form-adapter';
@@ -127,7 +127,7 @@ export interface UsePoiFormProps {
  * ```
  */
 export const usePoiForm = ({ einsatzId, lagekarteId, initialType, initialCoordinates, onSuccess, onError }: UsePoiFormProps) => {
-  const createPoiMutation = useCreatePoi(einsatzId);
+  const createPoiMutation = useCreatePoi(lagekarteId);
   const geocodeMutation = useGeocodeAddress(einsatzId);
 
   // MGRS State Management
@@ -150,17 +150,15 @@ export const usePoiForm = ({ einsatzId, lagekarteId, initialType, initialCoordin
         const validated = poiFormSchema.parse(value);
 
         // API-Call via TanStack Query Mutation
+        // AddPoiDto erwartet: name, coordinate (object mit lat/lng oder mgrs), category, beschreibung (optional)
         await createPoiMutation.mutateAsync({
-          lagekarteId,
-          type: validated.type, // Backend validates POI type via DTO
           name: validated.name,
-          adresse: validated.adresse,
-          // MGRS hat Priorität, wenn gesetzt und gültig
-          // mgrs: coordMode === 'mgrs' && validated.mgrs ? validated.mgrs : undefined,
-          // Lat/Lng als Fallback oder wenn MGRS nicht unterstützt wird
-          latitude: validated.latitude,
-          longitude: validated.longitude,
-          icon: validated.icon,
+          coordinate: {
+            lat: validated.latitude,
+            lng: validated.longitude,
+          },
+          category: validated.type as PoiCategory,
+          beschreibung: validated.adresse, // Adresse wird als Beschreibung gespeichert
         });
 
         // Toast-Notification für Erfolg

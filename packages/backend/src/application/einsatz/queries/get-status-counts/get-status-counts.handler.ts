@@ -4,6 +4,7 @@ import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repositor
 import { Result } from '@domain/common/result';
 import type { StatusCountsResponseDto } from '@application/einsatz/dto/status-counts.dto';
 import type { GetStatusCountsQuery } from './get-status-counts.query';
+import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler fuer GetStatusCountsQuery.
@@ -71,7 +72,7 @@ export class GetStatusCountsQueryHandler implements IQueryHandler<GetStatusCount
   private readonly logger = new Logger(GetStatusCountsQueryHandler.name);
 
   constructor(
-    @Inject('IEinsatzRepository')
+    @Inject(EINSATZ_REPOSITORY)
     private readonly repository: IEinsatzRepository,
   ) {}
 

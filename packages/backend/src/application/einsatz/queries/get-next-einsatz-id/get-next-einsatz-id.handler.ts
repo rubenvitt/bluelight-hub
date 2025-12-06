@@ -4,6 +4,7 @@ import { Result } from '@domain/common/result';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { GetNextEinsatzIdQuery } from './get-next-einsatz-id.query';
+import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * NavigationResponseDto für Query Response.
@@ -57,7 +58,7 @@ export class GetNextEinsatzIdQueryHandler implements IQueryHandler<GetNextEinsat
   private readonly logger = new Logger(GetNextEinsatzIdQueryHandler.name);
 
   constructor(
-    @Inject('IEinsatzRepository')
+    @Inject(EINSATZ_REPOSITORY)
     private readonly repository: IEinsatzRepository,
   ) {}
 

@@ -7,6 +7,7 @@ import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repositor
 import { EinsatzNameGenerator } from '@/einsatz/utils/name-generator.util';
 import { EinsatzCompletenessCalculator } from '@/einsatz/utils/completeness.util';
 import { GetAllEinsaetzeQuery } from './get-all-einsaetze.query';
+import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 // TODO (Epic 6): Migrate utilities to use Domain Aggregate instead of Prisma Entity
 // biome-ignore lint/style/noRestrictedImports: Legacy dependency - EinsatzNameGenerator/CompletenessCalculator require Prisma types
 import type { Einsatz as PrismaEinsatz } from '@prisma/client';
@@ -83,7 +84,7 @@ export class GetAllEinsaetzeQueryHandler implements IQueryHandler<GetAllEinsaetz
    * @param repository - IEinsatzRepository mit findAllPaginated() Support
    */
   constructor(
-    @Inject('IEinsatzRepository')
+    @Inject(EINSATZ_REPOSITORY)
     private readonly repository: IEinsatzRepository,
   ) {}
 

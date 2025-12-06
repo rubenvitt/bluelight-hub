@@ -5,6 +5,7 @@ import { NominatimGeocodingAdapter } from './geocoding/nominatim-geocoding.adapt
 import { PrismaModule } from '@/prisma/prisma.module';
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
+import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * NestJS Module für Lagekarte Infrastructure Layer.
@@ -65,7 +66,7 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
     EventSerializer,
     PrismaOutboxRepository,
     {
-      provide: 'IOutboxRepository',
+      provide: OUTBOX_REPOSITORY,
       useClass: PrismaOutboxRepository,
     },
 
@@ -74,7 +75,7 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
       useClass: PrismaLagekarteRepository, // Konkrete Implementation
     },
     {
-      provide: 'IEinsatzRepository', // String Token (Interface-Name)
+      provide: EINSATZ_REPOSITORY, // Symbol Token (Interface-Name)
       useClass: PrismaEinsatzRepository, // Vollständige Implementation mit Outbox Pattern
     },
     {
@@ -82,6 +83,6 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
       useClass: NominatimGeocodingAdapter, // Konkrete Implementation
     },
   ],
-  exports: ['ILagekarteRepository', 'IEinsatzRepository', 'IGeocodingPort', 'IOutboxRepository'], // Export für andere Module
+  exports: ['ILagekarteRepository', EINSATZ_REPOSITORY, 'IGeocodingPort', OUTBOX_REPOSITORY], // Export für andere Module
 })
 export class LagekarteInfrastructureModule {}

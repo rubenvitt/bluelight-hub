@@ -237,7 +237,7 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
         },
         // Mock EinsatzRepository
         {
-          provide: 'IEinsatzRepository',
+          provide: EINSATZ_REPOSITORY,
           useValue: mockEinsatzRepository,
         },
         // Handlers

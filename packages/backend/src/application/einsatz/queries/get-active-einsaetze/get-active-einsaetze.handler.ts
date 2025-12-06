@@ -5,6 +5,7 @@ import { Result } from '@domain/common/result';
 import type { EinsatzDto } from '@application/einsatz/dto/einsatz.dto';
 import { EinsatzQueryMapper } from '@application/einsatz/mappers/einsatz-query.mapper';
 import type { GetActiveEinsaetzeQuery } from './get-active-einsaetze.query';
+import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler fuer GetActiveEinsaetzeQuery.
@@ -50,7 +51,7 @@ export class GetActiveEinsaetzeQueryHandler implements IQueryHandler<GetActiveEi
   private readonly logger = new Logger(GetActiveEinsaetzeQueryHandler.name);
 
   constructor(
-    @Inject('IEinsatzRepository')
+    @Inject(EINSATZ_REPOSITORY)
     private readonly repository: IEinsatzRepository,
   ) {}
 

@@ -27,7 +27,7 @@ describe('GetEinsatzByIdQueryHandler', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [GetEinsatzByIdQueryHandler, { provide: 'IEinsatzRepository', useValue: mockRepository }],
+      providers: [GetEinsatzByIdQueryHandler, { provide: EINSATZ_REPOSITORY, useValue: mockRepository }],
     }).compile();
 
     handler = module.get<GetEinsatzByIdQueryHandler>(GetEinsatzByIdQueryHandler);

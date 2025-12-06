@@ -129,8 +129,8 @@ describe('CompleteEinsatzHandler', () => {
       providers: [
         CompleteEinsatzHandler,
         { provide: PrismaService, useValue: mockPrismaService },
-        { provide: 'IOutboxRepository', useValue: mockOutboxRepository },
-        { provide: 'IEinsatzRepository', useValue: mockRepository },
+        { provide: OUTBOX_REPOSITORY, useValue: mockOutboxRepository },
+        { provide: EINSATZ_REPOSITORY, useValue: mockRepository },
         { provide: EinsatzCompletenessService, useValue: mockCompletenessService },
       ],
     }).compile();

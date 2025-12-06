@@ -5,6 +5,7 @@ import { Result } from '@domain/common/result';
 import type { EinsatzDto } from '@application/einsatz/dto/einsatz.dto';
 import { EinsatzQueryMapper } from '@application/einsatz/mappers/einsatz-query.mapper';
 import type { GetEinsatzByNummerQuery } from './get-einsatz-by-nummer.query';
+import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler für GetEinsatzByNummerQuery.
@@ -45,7 +46,7 @@ export class GetEinsatzByNummerQueryHandler implements IQueryHandler<GetEinsatzB
   private readonly logger = new Logger(GetEinsatzByNummerQueryHandler.name);
 
   constructor(
-    @Inject('IEinsatzRepository')
+    @Inject(EINSATZ_REPOSITORY)
     private readonly einsatzRepository: IEinsatzRepository,
   ) {}
 

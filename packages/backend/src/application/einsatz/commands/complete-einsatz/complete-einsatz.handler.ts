@@ -12,6 +12,7 @@ import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { TransactionContext } from '@domain/common/transaction';
 import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
+import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler für CompleteEinsatzCommand mit Transactional Outbox Pattern.
@@ -53,8 +54,8 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
 
   constructor(
     prisma: PrismaService,
-    @Inject('IOutboxRepository') outboxRepository: IOutboxRepository,
-    @Inject('IEinsatzRepository')
+    @Inject(OUTBOX_REPOSITORY) outboxRepository: IOutboxRepository,
+    @Inject(EINSATZ_REPOSITORY)
     private readonly einsatzRepository: IEinsatzRepository,
     @Inject(EinsatzCompletenessService)
     private readonly completenessService: EinsatzCompletenessService,

@@ -6,6 +6,7 @@ import { Result } from '@domain/common/result';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { GetEinsatzByIdQuery } from './get-einsatz-by-id.query';
+import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Query Handler fuer GetEinsatzByIdQuery.
@@ -51,7 +52,7 @@ export class GetEinsatzByIdQueryHandler implements IQueryHandler<GetEinsatzByIdQ
   private readonly logger = new Logger(GetEinsatzByIdQueryHandler.name);
 
   constructor(
-    @Inject('IEinsatzRepository')
+    @Inject(EINSATZ_REPOSITORY)
     private readonly repository: IEinsatzRepository,
   ) {}
 

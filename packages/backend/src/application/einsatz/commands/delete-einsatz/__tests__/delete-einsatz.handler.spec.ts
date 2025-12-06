@@ -30,7 +30,7 @@ describe('DeleteEinsatzHandler', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [DeleteEinsatzHandler, { provide: 'IEinsatzRepository', useValue: mockRepository }],
+      providers: [DeleteEinsatzHandler, { provide: EINSATZ_REPOSITORY, useValue: mockRepository }],
     }).compile();
 
     handler = module.get<DeleteEinsatzHandler>(DeleteEinsatzHandler);

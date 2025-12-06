@@ -19,6 +19,7 @@
       "@compodoc/compodoc",
       "@nestjs/core",
       "@openapitools/openapi-generator-cli",
+      "@playwright/browser-chromium",
       "@prisma/client",
       "@prisma/engines",
       "@scarf/scarf",
@@ -29,6 +30,7 @@
       "esbuild",
       "prisma",
       "puppeteer",
+      "unix-dgram",
       "unrs-resolver"
     ],
     "overrides": {

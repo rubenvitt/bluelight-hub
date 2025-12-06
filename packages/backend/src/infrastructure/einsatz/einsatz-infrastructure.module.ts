@@ -3,6 +3,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
 import { PrismaEinsatzRepository } from './repositories/prisma-einsatz.repository';
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
+import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * NestJS Module für Einsatz Infrastructure Layer.
@@ -50,20 +51,20 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
     EventSerializer,
     PrismaOutboxRepository,
     {
-      provide: 'IOutboxRepository',
+      provide: OUTBOX_REPOSITORY,
       useClass: PrismaOutboxRepository,
     },
 
     // Repository Implementation bound to Interface Token
     {
-      provide: 'IEinsatzRepository',
+      provide: EINSATZ_REPOSITORY,
       useClass: PrismaEinsatzRepository,
     },
   ],
   exports: [
     // Export Interface Token for Application Layer injection
-    'IEinsatzRepository',
-    'IOutboxRepository',
+    EINSATZ_REPOSITORY,
+    OUTBOX_REPOSITORY,
   ],
 })
 export class EinsatzInfrastructureModule {}

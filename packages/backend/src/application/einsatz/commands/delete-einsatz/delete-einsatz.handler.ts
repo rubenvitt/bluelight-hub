@@ -4,6 +4,7 @@ import { CommandHandler } from '@nestjs/cqrs';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DeleteEinsatzCommand } from './delete-einsatz.command';
 import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
+import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler für DeleteEinsatzCommand.
@@ -31,7 +32,7 @@ export class DeleteEinsatzHandler {
   private readonly logger = new Logger(DeleteEinsatzHandler.name);
 
   constructor(
-    @Inject('IEinsatzRepository')
+    @Inject(EINSATZ_REPOSITORY)
     private readonly einsatzRepository: IEinsatzRepository,
   ) {}
 

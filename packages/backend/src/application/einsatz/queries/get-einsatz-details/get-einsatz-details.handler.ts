@@ -10,6 +10,7 @@ import { EtbQueryMapper } from '@application/etb/mappers/etb-query.mapper';
 import { LagekarteMapper } from '@application/lagekarte/mappers/lagekarte.mapper';
 import type { EinsatzDetailsDto } from '@application/einsatz/dto/einsatz-details.dto';
 import type { GetEinsatzDetailsQuery } from './get-einsatz-details.query';
+import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Query Handler für GetEinsatzDetailsQuery.
@@ -72,7 +73,7 @@ export class GetEinsatzDetailsQueryHandler implements IQueryHandler<GetEinsatzDe
   private readonly logger = new Logger(GetEinsatzDetailsQueryHandler.name);
 
   constructor(
-    @Inject('IEinsatzRepository')
+    @Inject(EINSATZ_REPOSITORY)
     private readonly einsatzRepository: IEinsatzRepository,
     @Inject('IEtbRepository')
     private readonly etbRepository: IEtbRepository,

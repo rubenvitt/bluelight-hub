@@ -53,7 +53,7 @@ describe('UpdateEinsatzHandler', () => {
         UpdateEinsatzHandler,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: PrismaOutboxRepository, useValue: mockOutboxRepository },
-        { provide: 'IEinsatzRepository', useValue: mockRepository },
+        { provide: EINSATZ_REPOSITORY, useValue: mockRepository },
       ],
     }).compile();
 

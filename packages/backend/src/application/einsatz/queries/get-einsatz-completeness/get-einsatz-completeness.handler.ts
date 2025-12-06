@@ -6,6 +6,7 @@ import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { CompletenessResponseDto } from '@/application/einsatz/dto/completeness-response.dto';
 import { EinsatzCompletenessCalculator } from '@/einsatz/utils/completeness.util';
 import type { GetEinsatzCompletenessQuery } from './get-einsatz-completeness.query';
+import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Query Handler fuer GetEinsatzCompletenessQuery.
@@ -58,7 +59,7 @@ export class GetEinsatzCompletenessQueryHandler implements IQueryHandler<GetEins
   private readonly logger = new Logger(GetEinsatzCompletenessQueryHandler.name);
 
   constructor(
-    @Inject('IEinsatzRepository')
+    @Inject(EINSATZ_REPOSITORY)
     private readonly repository: IEinsatzRepository,
   ) {}
 

@@ -7,6 +7,7 @@ import type { EtbId } from '@domain/value-objects/etb-id';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import type { CreateEtbCommand } from './create-etb.command';
+import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler für CreateEtbCommand.
@@ -27,7 +28,7 @@ export class CreateEtbHandler {
   private readonly logger = new Logger(CreateEtbHandler.name);
 
   constructor(
-    @Inject('IEinsatzRepository')
+    @Inject(EINSATZ_REPOSITORY)
     private readonly einsatzRepository: IEinsatzRepository,
     @Inject('IEtbRepository')
     private readonly etbRepository: IEtbRepository,

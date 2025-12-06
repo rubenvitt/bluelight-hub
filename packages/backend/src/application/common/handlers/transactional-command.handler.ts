@@ -51,7 +51,7 @@ import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository
  *   constructor(
  *     prisma: PrismaService,
  *     outboxRepository: IOutboxRepository,
- *     @Inject('IEinsatzRepository') private readonly einsatzRepository: IEinsatzRepository,
+ *     @Inject(EINSATZ_REPOSITORY) private readonly einsatzRepository: IEinsatzRepository,
  *   ) {
  *     super(prisma, outboxRepository);
  *   }

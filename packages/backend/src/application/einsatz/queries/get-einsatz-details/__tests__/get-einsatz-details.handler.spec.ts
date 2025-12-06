@@ -45,7 +45,7 @@ describe('GetEinsatzDetailsQueryHandler', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GetEinsatzDetailsQueryHandler,
-        { provide: 'IEinsatzRepository', useValue: mockEinsatzRepository },
+        { provide: EINSATZ_REPOSITORY, useValue: mockEinsatzRepository },
         { provide: 'IEtbRepository', useValue: mockEtbRepository },
         { provide: 'ILagekarteRepository', useValue: mockLagekarteRepository },
       ],

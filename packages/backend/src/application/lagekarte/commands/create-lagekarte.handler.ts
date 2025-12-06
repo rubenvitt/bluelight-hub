@@ -13,6 +13,7 @@ import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repo
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { CoordinateConverter } from '@application/common/coordinate-converter';
 import { CreateLagekarteCommand } from './create-lagekarte.command';
+import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler für CreateLagekarteCommand.
@@ -34,7 +35,7 @@ export class CreateLagekarteCommandHandler implements ICommandHandler<CreateLage
   private readonly logger = new Logger(CreateLagekarteCommandHandler.name);
 
   constructor(
-    @Inject('IEinsatzRepository')
+    @Inject(EINSATZ_REPOSITORY)
     private readonly einsatzRepository: IEinsatzRepository,
     @Inject('ILagekarteRepository')
     private readonly lagekarteRepository: ILagekarteRepository,

@@ -1,6 +1,6 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { Button } from '@/components/atoms/button.atom';
-import { POI_ICON_MAP, type PoiType } from '@/utils/poi-icons';
+import { POI_ICON_MAP, type PoiCategory } from '@/utils/poi-icons';
 import type React from 'react';
 import { PiCaretDown } from 'react-icons/pi';
 
@@ -8,11 +8,11 @@ interface PoiToolbarProps {
   /**
    * Callback wenn ein POI-Typ ausgewählt wird
    */
-  onPoiTypeSelect: (type: PoiType) => void;
+  onPoiTypeSelect: (type: PoiCategory) => void;
   /**
    * Aktuell ausgewählter POI-Typ (für Active State)
    */
-  selectedType: PoiType | null;
+  selectedType: PoiCategory | null;
 }
 
 /**
@@ -40,16 +40,16 @@ interface PoiToolbarProps {
  * ```
  */
 export const PoiToolbar: React.FC<PoiToolbarProps> = ({ onPoiTypeSelect, selectedType }) => {
-  // Häufige POI-Typen (Haupt-Buttons)
-  const frequentTypes: PoiType[] = ['EINSATZORT', 'FAHRZEUG', 'EINHEIT', 'GEFAHRENQUELLE', 'VERSORGUNGSPUNKT', 'BEREITSTELLUNGSRAUM'];
+  // Häufige POI-Typen (Haupt-Buttons) - neue CQRS-Kategorien (DRK-Standard)
+  const frequentTypes: PoiCategory[] = ['EINSATZSTELLE', 'BEREITSTELLUNGSRAUM', 'GEFAHRENSTELLE', 'WASSERENTNAHMESTELLE', 'SONSTIGES'];
 
-  // Erweiterte POI-Typen (Dropdown-Menü)
-  const extendedTypes: PoiType[] = ['SPERRBEREICH', 'BEHANDLUNGSPLATZ', 'SAMMELSTELLE', 'UNTERKUNFT', 'EINSATZABSCHNITT', 'EINSATZLEITUNG', 'SONSTIGES'];
+  // Erweiterte POI-Typen (Dropdown-Menü) - für zukünftige Erweiterungen
+  const extendedTypes: PoiCategory[] = [];
 
   /**
    * Rendert einen POI-Typ-Button
    */
-  const renderPoiButton = (type: PoiType) => {
+  const renderPoiButton = (type: PoiCategory) => {
     const config = POI_ICON_MAP[type];
     const isActive = selectedType === type;
 
@@ -199,9 +199,9 @@ export const PoiToolbar: React.FC<PoiToolbarProps> = ({ onPoiTypeSelect, selecte
  * Formatiert POI-Typ zu lesbarem Label
  *
  * @param type - POI-Typ
- * @returns Formatiertes Label (z.B. "EINSATZORT" → "Einsatzort")
+ * @returns Formatiertes Label (z.B. "EINSATZSTELLE" → "Einsatzstelle")
  */
-const formatPoiTypeLabel = (type: PoiType): string => {
+const formatPoiTypeLabel = (type: PoiCategory): string => {
   return type
     .split('_')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())

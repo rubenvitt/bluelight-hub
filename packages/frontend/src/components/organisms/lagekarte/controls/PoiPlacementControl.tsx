@@ -1,6 +1,6 @@
 import { cn } from '@/utils/cn';
 import { formatPoiTypeLabel } from '@/utils/formatPoiTypeLabel';
-import { POI_ICON_MAP, type PoiType } from '@/utils/poi-icons';
+import { POI_ICON_MAP, type PoiCategory, type PoiType } from '@/utils/poi-icons';
 import { Button } from '@atoms/button.atom';
 import { PoiTypeButton } from '@atoms/poi-type-button.atom';
 import { PoiTypeDropdown } from '@molecules/poi-type-dropdown.molecule';
@@ -66,11 +66,11 @@ export const PoiPlacementControl: React.FC<PoiPlacementControlProps> = ({ onPoiT
   // UI-State: Ob POI-Kategorien ausgeklappt sind (unabhängig von Platzierungs-Modus)
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Häufige POI-Typen (Haupt-Buttons)
-  const frequentTypes: PoiType[] = ['EINSATZORT', 'FAHRZEUG', 'EINHEIT', 'GEFAHRENQUELLE', 'VERSORGUNGSPUNKT', 'BEREITSTELLUNGSRAUM'];
+  // Häufige POI-Typen (Haupt-Buttons) - neue CQRS-Kategorien (DRK-Standard)
+  const frequentTypes: PoiCategory[] = ['EINSATZSTELLE', 'BEREITSTELLUNGSRAUM', 'GEFAHRENSTELLE', 'WASSERENTNAHMESTELLE', 'SONSTIGES'];
 
-  // Erweiterte POI-Typen (Dropdown-Menü)
-  const extendedTypes: PoiType[] = ['SPERRBEREICH', 'BEHANDLUNGSPLATZ', 'SAMMELSTELLE', 'UNTERKUNFT', 'EINSATZABSCHNITT', 'EINSATZLEITUNG', 'SONSTIGES'];
+  // Erweiterte POI-Typen (Dropdown-Menü) - aktuell leer, da alle 5 DRK-Kategorien als frequent definiert sind
+  const extendedTypes: PoiCategory[] = [];
 
   /**
    * Handler: User klickt auf "POI platzieren" Button

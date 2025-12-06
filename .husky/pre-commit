@@ -5,5 +5,29 @@
 # Ensures type safety before commit to catch errors early
 pnpm --filter @bluelight-hub/backend exec tsc --noEmit || exit 1
 
+# Architecture: Circular dependency check (Domain + Application layers)
+# Story 5-7 (AC4): Prevents architectural violations from entering the codebase
+# Checks only core business layers (Domain/Application) - Infrastructure/Presentation excluded due to legacy issues
+echo "🔍 Checking circular dependencies in Domain and Application layers..."
+pnpm --filter @bluelight-hub/backend lint:deps:core || {
+  echo ""
+  echo "❌ COMMIT BLOCKED: Circular dependencies detected in Domain or Application layer!"
+  echo ""
+  echo "Circular dependencies violate the Hexagonal Architecture principles."
+  echo "They create tight coupling and make the codebase harder to maintain and test."
+  echo ""
+  echo "How to fix:"
+  echo "  1. Review the circular dependency path shown above"
+  echo "  2. Refactor to break the cycle (common solutions):"
+  echo "     - Extract shared logic to a new module"
+  echo "     - Use dependency inversion (interfaces/abstractions)"
+  echo "     - Move dependencies to a common parent layer"
+  echo "     - Review Domain/Application layer boundaries"
+  echo ""
+  echo "For details, see: docs/architecture/09-architectural-decisions.md (ADR-003)"
+  echo ""
+  exit 1
+}
+
 # Code quality checks (Biome linting + formatting)
 pnpm lint-staged

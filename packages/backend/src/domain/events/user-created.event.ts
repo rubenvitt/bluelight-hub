@@ -2,6 +2,7 @@ import { DomainEvent } from '@domain/common/domain-event';
 import type { UserId } from '../value-objects/user-id';
 import type { UserRole } from '../value-objects/user-role';
 import type { Username } from '../value-objects/username';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Domain Event das auftritt wenn ein neuer User erstellt wurde.
@@ -64,6 +65,6 @@ export class UserCreatedEvent extends DomainEvent {
    * @returns Eindeutiger Event Name im Format "user.created"
    */
   static eventName(): string {
-    return 'user.created';
+    return EVENT_NAMES.USER.CREATED;
   }
 }

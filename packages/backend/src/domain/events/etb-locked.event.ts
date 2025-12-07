@@ -1,6 +1,7 @@
 import { DomainEvent } from '@domain/common/domain-event';
 import type { EtbId } from '@domain/value-objects/etb-id';
 import type { UserId } from '@domain/value-objects/user-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Event: Das ETB wurde gesperrt (finale Transition zu LOCKED).
@@ -45,7 +46,7 @@ export class EtbLockedEvent extends DomainEvent {
    * @returns Event Name in past tense
    */
   public static eventName(): string {
-    return 'etb.locked';
+    return EVENT_NAMES.ETB.LOCKED;
   }
 
   /**

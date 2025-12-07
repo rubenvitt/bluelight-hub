@@ -2,6 +2,7 @@ import { DomainEvent } from '@domain/common/domain-event';
 import type { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { UserId } from '@domain/value-objects/user-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Event: Lagekarte wurde erstellt.
@@ -48,6 +49,6 @@ export class LagekarteCreatedEvent extends DomainEvent {
    * @returns Event Name in past tense
    */
   public static eventName(): string {
-    return 'lagekarte.created';
+    return EVENT_NAMES.LAGEKARTE.CREATED;
   }
 }

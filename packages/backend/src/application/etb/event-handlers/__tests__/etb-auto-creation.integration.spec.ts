@@ -57,6 +57,7 @@ import { PrismaEtbRepository } from '@infrastructure/etb/repositories/prisma-etb
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import { EVENT_NAMES } from '@domain/events/event-names';
 
 /**
  * Generiert eine Test-CUID mit korrektem Format.
@@ -333,10 +334,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
       // Given: EinsatzCreatedEvent
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event via EventEmitter2 emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: ETB sollte in Datenbank existieren
       const etb = await prisma.einsatztagebuch.findFirst({
@@ -364,10 +365,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
 
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: Handler wurde aufgerufen
       expect(handleSpy).toHaveBeenCalledTimes(1);
@@ -397,10 +398,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
       // Given: EinsatzCreatedEvent
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: ETB hat korrekte einsatzId
       const etb = await prisma.einsatztagebuch.findFirst({
@@ -433,10 +434,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
       // Given: EinsatzCreatedEvent
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: ETB hat DRAFT Status
       const etb = await prisma.einsatztagebuch.findFirst({
@@ -461,10 +462,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
       // Given: EinsatzCreatedEvent
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: ETB hat 0 Einträge
       const etb = await prisma.einsatztagebuch.findFirst({
@@ -490,10 +491,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
       // Given: EinsatzCreatedEvent
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: ETB hat Version 1
       const etb = await prisma.einsatztagebuch.findFirst({
@@ -518,10 +519,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
       // Given: EinsatzCreatedEvent
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: ETB hat nextSequenceNumber = 1
       const etb = await prisma.einsatztagebuch.findFirst({
@@ -553,12 +554,12 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
       // Given: EinsatzCreatedEvent
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event mehrfach emittieren (simuliert at-least-once delivery)
-      await eventEmitter.emitAsync('einsatz.created', event);
-      await eventEmitter.emitAsync('einsatz.created', event);
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: Nur ein ETB in Datenbank
       const etbCount = await prisma.einsatztagebuch.count({
@@ -583,13 +584,13 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
       // Given: EinsatzCreatedEvent
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren - erstes Mal
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: Zweites Event sollte NICHT werfen (Fire-and-Forget)
-      await expect(eventEmitter.emitAsync('einsatz.created', event)).resolves.not.toThrow();
+      await expect(eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event)).resolves.not.toThrow();
 
       // Verify: Nur ein ETB existiert
       const etbCount = await prisma.einsatztagebuch.count({
@@ -620,10 +621,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
 
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: Event hat korrekte einsatzId
       const receivedEvent = handleSpy.mock.calls[0][0];
@@ -648,10 +649,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
 
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: Event hat eventId
       const receivedEvent = handleSpy.mock.calls[0][0];
@@ -677,10 +678,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
 
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: Event hat occurredAt
       const receivedEvent = handleSpy.mock.calls[0][0];
@@ -705,10 +706,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
 
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort');
+      const event = new EinsatzCreatedEvent(einsatzId, userId, 'TEST-Alarmstichwort', `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: Event hat createdBy
       const receivedEvent = handleSpy.mock.calls[0][0];
@@ -734,10 +735,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
       const einsatzId = EinsatzId.create(testEinsatzId).value!;
       const userId = UserId.create(testUserId).value!;
       const alarmstichwort = 'F1 - Kleinbrand';
-      const event = new EinsatzCreatedEvent(einsatzId, userId, alarmstichwort);
+      const event = new EinsatzCreatedEvent(einsatzId, userId, alarmstichwort, `E${testRunId}-test`, testEinsatzId);
 
       // When: Event emittieren
-      await eventEmitter.emitAsync('einsatz.created', event);
+      await eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event);
 
       // Then: Event hat alarmstichwort
       const receivedEvent = handleSpy.mock.calls[0][0];
@@ -767,10 +768,10 @@ describe('EtbAutoCreationHandler - Integration Tests (AC6)', () => {
       // Given: Event für nicht-existierenden Einsatz
       const nonExistentEinsatzId = EinsatzId.create(generateTestCuid()).value!;
       const userId = UserId.create(testUserId).value!;
-      const event = new EinsatzCreatedEvent(nonExistentEinsatzId, userId, 'TEST');
+      const event = new EinsatzCreatedEvent(nonExistentEinsatzId, userId, 'TEST', `E${testRunId}-nonexistent`, nonExistentEinsatzId.value);
 
       // When/Then: Event emittieren sollte NICHT werfen
-      await expect(eventEmitter.emitAsync('einsatz.created', event)).resolves.not.toThrow();
+      await expect(eventEmitter.emitAsync(EVENT_NAMES.EINSATZ.CREATED, event)).resolves.not.toThrow();
 
       // Verify: Kein ETB wurde erstellt
       const etbCount = await prisma.einsatztagebuch.count({

@@ -4,6 +4,7 @@ import type { PoiId } from '@domain/value-objects/poi-id';
 import type { UserId } from '@domain/value-objects/user-id';
 import type { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import type { PoiCategory } from '@domain/value-objects/poi-category';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Event: POI zur Lagekarte hinzugefügt.
@@ -61,6 +62,6 @@ export class PoiAddedEvent extends DomainEvent {
    * @returns Event Name in past tense
    */
   public static eventName(): string {
-    return 'lagekarte.poi_added';
+    return EVENT_NAMES.LAGEKARTE.POI_ADDED;
   }
 }

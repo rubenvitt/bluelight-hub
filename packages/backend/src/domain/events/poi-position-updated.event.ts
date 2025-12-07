@@ -3,6 +3,7 @@ import type { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import type { PoiId } from '@domain/value-objects/poi-id';
 import type { UserId } from '@domain/value-objects/user-id';
 import type { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Event: POI-Position aktualisiert.
@@ -70,6 +71,6 @@ export class PoiPositionUpdatedEvent extends DomainEvent {
    * @returns Event Name in past tense
    */
   public static eventName(): string {
-    return 'lagekarte.poi_position_updated';
+    return EVENT_NAMES.LAGEKARTE.POI_POSITION_UPDATED;
   }
 }

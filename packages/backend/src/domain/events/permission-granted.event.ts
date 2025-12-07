@@ -1,6 +1,7 @@
 import { DomainEvent } from '@domain/common/domain-event';
 import type { Permission } from '../value-objects/permission';
 import type { UserId } from '../value-objects/user-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Domain Event das auftritt wenn einem User eine Permission gewährt wurde.
@@ -65,6 +66,6 @@ export class PermissionGrantedEvent extends DomainEvent {
    * @returns Eindeutiger Event Name im Format "user.permission_granted"
    */
   static eventName(): string {
-    return 'user.permission_granted';
+    return EVENT_NAMES.USER.PERMISSION_GRANTED;
   }
 }

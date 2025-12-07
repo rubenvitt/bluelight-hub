@@ -1,6 +1,7 @@
 import { DomainEvent } from '@domain/common/domain-event';
 import type { UserId } from '../value-objects/user-id';
 import type { UserRole } from '../value-objects/user-role';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Domain Event das auftritt wenn die Role eines Users geändert wurde.
@@ -68,6 +69,6 @@ export class UserRoleChangedEvent extends DomainEvent {
    * @returns Eindeutiger Event Name im Format "user.role_changed"
    */
   static eventName(): string {
-    return 'user.role_changed';
+    return EVENT_NAMES.USER.ROLE_CHANGED;
   }
 }

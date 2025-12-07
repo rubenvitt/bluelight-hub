@@ -1,6 +1,7 @@
 import { DomainEvent } from '@domain/common/domain-event';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { EinsatzStatus } from '@domain/value-objects/einsatz-status';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Domain Event das auftritt wenn der Status eines Einsatzes geändert wurde.
@@ -69,6 +70,6 @@ export class EinsatzStatusChangedEvent extends DomainEvent {
    * @returns "einsatz.status_changed" (lowercase, dot-separated, snake_case!)
    */
   static eventName(): string {
-    return 'einsatz.status_changed';
+    return EVENT_NAMES.EINSATZ.STATUS_CHANGED;
   }
 }

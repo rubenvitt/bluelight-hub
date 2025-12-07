@@ -2,6 +2,7 @@ import { DomainEvent } from '@domain/common/domain-event';
 import type { EintragId } from '@domain/value-objects/eintrag-id';
 import type { EtbId } from '@domain/value-objects/etb-id';
 import type { UserId } from '@domain/value-objects/user-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Event: Ein Eintrag wurde aktualisiert.
@@ -43,7 +44,7 @@ export class EintragUpdatedEvent extends DomainEvent {
    * @returns Event Name in past tense
    */
   public static eventName(): string {
-    return 'etb.eintrag_updated';
+    return EVENT_NAMES.ETB.EINTRAG_UPDATED;
   }
 
   /**

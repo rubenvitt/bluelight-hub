@@ -1,6 +1,7 @@
 import { DomainEvent } from '@domain/common/domain-event';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { UserId } from '@domain/value-objects/user-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Domain Event das auftritt wenn ein neuer Einsatz erstellt wurde.
@@ -72,6 +73,6 @@ export class EinsatzCreatedEvent extends DomainEvent {
    * @returns "einsatz.created" (lowercase, dot-separated!)
    */
   static eventName(): string {
-    return 'einsatz.created';
+    return EVENT_NAMES.EINSATZ.CREATED;
   }
 }

@@ -1,6 +1,7 @@
 import { DomainEvent } from '@domain/common/domain-event';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { UserId } from '@domain/value-objects/user-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Domain Event das auftritt wenn ein Einsatz archiviert wurde.
@@ -63,6 +64,6 @@ export class EinsatzArchivedEvent extends DomainEvent {
    * @returns "einsatz.archived" (lowercase, dot-separated!)
    */
   static eventName(): string {
-    return 'einsatz.archived';
+    return EVENT_NAMES.EINSATZ.ARCHIVED;
   }
 }

@@ -1,6 +1,7 @@
 import { DomainEvent } from '@domain/common/domain-event';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { EtbId } from '@domain/value-objects/etb-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Event: Einsatztagebuch wurde erstellt.
@@ -41,6 +42,6 @@ export class EtbCreatedEvent extends DomainEvent {
    * @returns Event Name in past tense
    */
   public static eventName(): string {
-    return 'etb.created';
+    return EVENT_NAMES.ETB.CREATED;
   }
 }

@@ -1,6 +1,7 @@
 import { DomainEvent } from '@domain/common/domain-event';
 import type { Permission } from '../value-objects/permission';
 import type { UserId } from '../value-objects/user-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Domain Event das auftritt wenn einem User eine Permission entzogen wurde.
@@ -69,6 +70,6 @@ export class PermissionRevokedEvent extends DomainEvent {
    * @returns Eindeutiger Event Name im Format "user.permission_revoked"
    */
   static eventName(): string {
-    return 'user.permission_revoked';
+    return EVENT_NAMES.USER.PERMISSION_REVOKED;
   }
 }

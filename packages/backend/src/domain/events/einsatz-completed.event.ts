@@ -1,6 +1,7 @@
 import { DomainEvent } from '@domain/common/domain-event';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { UserId } from '@domain/value-objects/user-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Domain Event das auftritt wenn ein Einsatz abgeschlossen wurde.
@@ -67,6 +68,6 @@ export class EinsatzCompletedEvent extends DomainEvent {
    * @returns "einsatz.completed" (lowercase, dot-separated!)
    */
   static eventName(): string {
-    return 'einsatz.completed';
+    return EVENT_NAMES.EINSATZ.COMPLETED;
   }
 }

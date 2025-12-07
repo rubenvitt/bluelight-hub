@@ -2,6 +2,7 @@ import { DomainEvent } from '@domain/common/domain-event';
 import type { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import type { PoiId } from '@domain/value-objects/poi-id';
 import type { UserId } from '@domain/value-objects/user-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Event: POI von Lagekarte entfernt.
@@ -53,6 +54,6 @@ export class PoiRemovedEvent extends DomainEvent {
    * @returns Event Name in past tense
    */
   public static eventName(): string {
-    return 'lagekarte.poi_removed';
+    return EVENT_NAMES.LAGEKARTE.POI_REMOVED;
   }
 }

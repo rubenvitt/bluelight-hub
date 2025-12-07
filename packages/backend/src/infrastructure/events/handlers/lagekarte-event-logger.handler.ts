@@ -4,6 +4,7 @@ import type { LagekarteCreatedEvent } from '@domain/events/lagekarte-created.eve
 import type { PoiAddedEvent } from '@domain/events/poi-added.event';
 import type { PoiRemovedEvent } from '@domain/events/poi-removed.event';
 import type { PoiPositionUpdatedEvent } from '@domain/events/poi-position-updated.event';
+import { EVENT_NAMES } from '@domain/events/event-names';
 
 /**
  * Event Handler für Lagekarte Domain Events.
@@ -28,7 +29,7 @@ export class LagekarteEventLoggerHandler {
    * Handler für LagekarteCreatedEvent.
    * Loggt die Erstellung einer neuen Lagekarte.
    */
-  @OnEvent('lagekarte.created')
+  @OnEvent(EVENT_NAMES.LAGEKARTE.CREATED)
   async handleLagekarteCreated(event: LagekarteCreatedEvent): Promise<void> {
     try {
       this.logger.log(`Lagekarte erstellt fuer Einsatz`, {
@@ -50,7 +51,7 @@ export class LagekarteEventLoggerHandler {
    * Handler für PoiAddedEvent.
    * Loggt das Hinzufügen eines POI zur Lagekarte.
    */
-  @OnEvent('lagekarte.poi_added')
+  @OnEvent(EVENT_NAMES.LAGEKARTE.POI_ADDED)
   async handlePoiAdded(event: PoiAddedEvent): Promise<void> {
     try {
       this.logger.log(`POI hinzugefuegt: ${event.name}`, {
@@ -73,7 +74,7 @@ export class LagekarteEventLoggerHandler {
    * Handler für PoiRemovedEvent.
    * Loggt das Entfernen eines POI von der Lagekarte.
    */
-  @OnEvent('lagekarte.poi_removed')
+  @OnEvent(EVENT_NAMES.LAGEKARTE.POI_REMOVED)
   async handlePoiRemoved(event: PoiRemovedEvent): Promise<void> {
     try {
       this.logger.log(`POI entfernt`, {
@@ -94,7 +95,7 @@ export class LagekarteEventLoggerHandler {
    * Handler für PoiPositionUpdatedEvent.
    * Loggt die Positionsänderung eines POI.
    */
-  @OnEvent('lagekarte.poi_position_updated')
+  @OnEvent(EVENT_NAMES.LAGEKARTE.POI_POSITION_UPDATED)
   async handlePoiPositionUpdated(event: PoiPositionUpdatedEvent): Promise<void> {
     try {
       this.logger.log(`POI Position aktualisiert`, {

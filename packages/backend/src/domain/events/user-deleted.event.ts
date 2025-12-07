@@ -1,5 +1,6 @@
 import { DomainEvent } from '@domain/common/domain-event';
 import type { UserId } from '../value-objects/user-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Domain Event das auftritt wenn ein User gelöscht wurde.
@@ -71,6 +72,6 @@ export class UserDeletedEvent extends DomainEvent {
    * @returns Eindeutiger Event Name im Format "user.deleted"
    */
   static eventName(): string {
-    return 'user.deleted';
+    return EVENT_NAMES.USER.DELETED;
   }
 }

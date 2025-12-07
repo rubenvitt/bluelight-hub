@@ -1,5 +1,6 @@
 import { DomainEvent } from '@domain/common/domain-event';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Domain Event das auftritt wenn ein existierender Einsatz aktualisiert wurde.
@@ -51,6 +52,6 @@ export class EinsatzUpdatedEvent extends DomainEvent {
    * @returns "einsatz.updated"
    */
   static eventName(): string {
-    return 'einsatz.updated';
+    return EVENT_NAMES.EINSATZ.UPDATED;
   }
 }

@@ -2,6 +2,7 @@ import { DomainEvent } from '@domain/common/domain-event';
 import type { EintragId } from '@domain/value-objects/eintrag-id';
 import type { EtbId } from '@domain/value-objects/etb-id';
 import type { UserId } from '@domain/value-objects/user-id';
+import { EVENT_NAMES } from './event-names';
 
 /**
  * Event: Ein Eintrag wurde gelöscht (Soft-Delete).
@@ -41,7 +42,7 @@ export class EintragDeletedEvent extends DomainEvent {
    * @returns Event Name in past tense
    */
   public static eventName(): string {
-    return 'etb.eintrag_deleted';
+    return EVENT_NAMES.ETB.EINTRAG_DELETED;
   }
 
   /**

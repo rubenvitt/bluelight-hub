@@ -1,4 +1,4 @@
-import type { PrismaService } from '@/prisma/prisma.service';
+import type { PrismaService } from '@/infrastructure/database/prisma.service';
 import type { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { PrismaEinsatzRepository } from '../prisma-einsatz.repository';
 import { PrismaEinsatzMapper } from '../../mappers/prisma-einsatz.mapper';
@@ -62,6 +62,7 @@ describe('PrismaEinsatzRepository', () => {
 
     // Create mock EinsatzId with .value property
     const idValue = overrides?.id ?? mockEinsatzId;
+    // biome-ignore lint/suspicious/noExplicitAny: Mock object für Test
     const einsatzId = { value: idValue, equals: (other: any) => other?.value === idValue } as EinsatzId;
 
     // Create a FULLY MOCKED aggregate (don't use Factory to avoid complications)

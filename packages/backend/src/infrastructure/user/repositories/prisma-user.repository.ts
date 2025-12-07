@@ -5,7 +5,7 @@ import type { UserAggregate } from '@domain/aggregates/user.aggregate';
 import type { UserId } from '@domain/value-objects/user-id';
 import type { Username } from '@domain/value-objects/username';
 import { Result } from '@domain/common/result';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { PrismaUserMapper } from '../mappers/prisma-user.mapper';
 import { Prisma } from '@prisma/client';
 

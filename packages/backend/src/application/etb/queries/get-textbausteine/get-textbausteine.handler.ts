@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { Result } from '@domain/common/result';
 import type { TextbausteinDto } from '@application/etb/dto';
 import type { GetTextbausteineQuery } from './get-textbausteine.query';

@@ -3,7 +3,7 @@ import { Button } from '@/components/atoms/button.atom';
 import { Input } from '@/components/atoms/input.atom';
 import { Label } from '@/components/atoms/label.atom';
 import { Dialog } from '@/components/molecules/dialog.molecule';
-import { UserDtoRoleEnum } from '@bluelight-hub/shared/client';
+import { ManagedUserResponseDtoRoleEnum } from '@bluelight-hub/shared/client';
 import { useState } from 'react';
 import { PiLockKey, PiShieldWarning, PiUserMinus } from 'react-icons/pi';
 
@@ -14,22 +14,22 @@ interface ConfirmDeleteDialogProps {
   onClose: () => void;
   onConfirm: (action: UserActionType, lockReason?: string) => void;
   userName: string;
-  userRole: UserDtoRoleEnum;
+  userRole: ManagedUserResponseDtoRoleEnum;
   isDeleting: boolean;
 }
 
 /**
  * Bestimmt die Badge-Variante basierend auf der Benutzerrolle.
- * @param role - Die Benutzerrolle als UserDtoRoleEnum
+ * @param role - Die Benutzerrolle als ManagedUserResponseDtoRoleEnum
  * @returns Die entsprechende Badge-Variante für die visuelle Darstellung
  */
-const getRoleBadgeVariant = (role: UserDtoRoleEnum): 'error' | 'warning' | 'info' | 'default' => {
+const getRoleBadgeVariant = (role: ManagedUserResponseDtoRoleEnum): 'error' | 'warning' | 'info' | 'default' => {
   switch (role) {
-    case UserDtoRoleEnum.SuperAdmin:
+    case ManagedUserResponseDtoRoleEnum.SuperAdmin:
       return 'error';
-    case UserDtoRoleEnum.Admin:
+    case ManagedUserResponseDtoRoleEnum.Admin:
       return 'warning';
-    case UserDtoRoleEnum.User:
+    case ManagedUserResponseDtoRoleEnum.User:
       return 'info';
     default:
       return 'default';
@@ -40,7 +40,7 @@ export const ConfirmDeleteDialog = ({ isOpen, onClose, onConfirm, userName, user
   const [selectedAction, setSelectedAction] = useState<UserActionType>('delete');
   const [lockReason, setLockReason] = useState('');
 
-  const isAdmin = userRole === UserDtoRoleEnum.Admin || userRole === UserDtoRoleEnum.SuperAdmin;
+  const isAdmin = userRole === ManagedUserResponseDtoRoleEnum.Admin || userRole === ManagedUserResponseDtoRoleEnum.SuperAdmin;
 
   const handleClose = () => {
     setSelectedAction('delete');

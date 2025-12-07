@@ -6,7 +6,7 @@ import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzArchivedEvent } from '@domain/events/einsatz-archived.event';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
 import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@/infrastructure/di-tokens';
@@ -33,7 +33,7 @@ const createMockEinsatz = (options: { status?: EinsatzStatus; abgeschlossenYears
     if (options.abgeschlossenYearsAgo !== undefined) {
       const pastDate = new Date();
       pastDate.setFullYear(pastDate.getFullYear() - options.abgeschlossenYearsAgo);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: Test benötigt Zugriff auf private Property
       (einsatz as any)._abgeschlossenAt = pastDate;
     }
   } else if (options.status) {

@@ -1,6 +1,6 @@
 import { GetActiveEinsaetzeWithCountsQueryHandler } from '../get-active-einsaetze-with-counts.handler';
 import { GetActiveEinsaetzeWithCountsQuery } from '../get-active-einsaetze-with-counts.query';
-import type { PrismaService } from '../../../../../prisma/prisma.service';
+import type { PrismaService } from '@/infrastructure/database/prisma.service';
 import type { EinsatzListItemDto } from '../../../dto/einsatz-list-item.dto';
 
 /**

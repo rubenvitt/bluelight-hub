@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@/infrastructure/database/prisma.module';
 import { EtbApplicationModule } from '@/application/etb/etb-application.module';
 import { EtbInfrastructureModule } from '@/infrastructure/etb/etb-infrastructure.module';
 import { EtbCqrsController } from './controllers/etb-cqrs.controller';

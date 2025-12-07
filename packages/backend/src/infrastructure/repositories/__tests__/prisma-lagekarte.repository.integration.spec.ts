@@ -47,7 +47,7 @@ import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { UserId } from '@domain/value-objects/user-id';
 import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { PoiCategory } from '@domain/value-objects/poi-category';
-import type { PrismaService } from '@/prisma/prisma.service';
+import type { PrismaService } from '@/infrastructure/database/prisma.service';
 
 // Generate CUID2-compliant test IDs (20-30 chars, lowercase a-z0-9, starts with letter)
 const generateTestId = () => {

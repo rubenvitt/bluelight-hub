@@ -5,7 +5,7 @@ import { Result } from '@domain/common/result';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
 import { EINSATZ_REPOSITORY } from '@/infrastructure/di-tokens';

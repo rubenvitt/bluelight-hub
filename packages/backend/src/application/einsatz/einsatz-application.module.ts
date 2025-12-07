@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@/infrastructure/database/prisma.module';
 import { EventInfrastructureModule } from '@infrastructure/events/event-infrastructure.module';
 import { LagekarteInfrastructureModule } from '@infrastructure/lagekarte-infrastructure.module';
 import { EtbInfrastructureModule } from '@infrastructure/etb/etb-infrastructure.module';

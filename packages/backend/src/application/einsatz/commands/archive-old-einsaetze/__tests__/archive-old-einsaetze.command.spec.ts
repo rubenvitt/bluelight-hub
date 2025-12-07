@@ -84,6 +84,7 @@ describe('ArchiveOldEinsaetzeCommand', () => {
 
     it('should fail when archivedBy is missing', () => {
       // Given
+      // biome-ignore lint/suspicious/noExplicitAny: Testing invalid input without required fields
       const dto = {} as any;
 
       // When

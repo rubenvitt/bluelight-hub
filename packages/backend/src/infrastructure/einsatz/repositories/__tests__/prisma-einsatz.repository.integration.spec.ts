@@ -50,7 +50,7 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { UserId } from '@domain/value-objects/user-id';
-import type { PrismaService } from '@/prisma/prisma.service';
+import type { PrismaService } from '@/infrastructure/database/prisma.service';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 
 // Generate CUID2-compliant test IDs (20-30 chars, lowercase a-z0-9, starts with letter)

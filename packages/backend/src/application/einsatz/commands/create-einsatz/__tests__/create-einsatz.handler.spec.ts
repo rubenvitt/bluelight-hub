@@ -3,7 +3,7 @@ import { CreateEinsatzHandler } from '../create-einsatz.handler';
 import { CreateEinsatzCommand } from '../create-einsatz.command';
 import { Result } from '@domain/common/result';
 import { UserId } from '@domain/value-objects/user-id';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { EinsatzValidationException, EinsatzPersistenceException } from '@domain/common/exceptions';
 import { Address } from '@domain/value-objects/address';
 import { EINSATZ_FIELD_LIMITS } from '@application/common/validators/string-validator';

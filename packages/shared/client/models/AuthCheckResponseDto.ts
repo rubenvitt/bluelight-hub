@@ -13,8 +13,8 @@
  */
 
 import { mapValues } from '../runtime';
-import type { UserResponseDto } from './UserResponseDto';
-import { UserResponseDtoFromJSON, UserResponseDtoFromJSONTyped, UserResponseDtoToJSON, UserResponseDtoToJSONTyped } from './UserResponseDto';
+import type { AuthUserResponseDto } from './AuthUserResponseDto';
+import { AuthUserResponseDtoFromJSON, AuthUserResponseDtoFromJSONTyped, AuthUserResponseDtoToJSON, AuthUserResponseDtoToJSONTyped } from './AuthUserResponseDto';
 
 /**
  *
@@ -24,10 +24,10 @@ import { UserResponseDtoFromJSON, UserResponseDtoFromJSONTyped, UserResponseDtoT
 export interface AuthCheckResponseDto {
   /**
    * Der authentifizierte Benutzer oder null wenn nicht eingeloggt
-   * @type {UserResponseDto}
+   * @type {AuthUserResponseDto}
    * @memberof AuthCheckResponseDto
    */
-  user?: UserResponseDto | null;
+  user?: AuthUserResponseDto | null;
   /**
    * Ob ein Benutzer authentifiziert ist
    * @type {boolean}
@@ -59,7 +59,7 @@ export function AuthCheckResponseDtoFromJSONTyped(json: any, ignoreDiscriminator
     return json;
   }
   return {
-    user: json['user'] == null ? undefined : UserResponseDtoFromJSON(json['user']),
+    user: json['user'] == null ? undefined : AuthUserResponseDtoFromJSON(json['user']),
     authenticated: json['authenticated'],
     isAdminAuthenticated: json['isAdminAuthenticated'] == null ? undefined : json['isAdminAuthenticated'],
   };
@@ -75,7 +75,7 @@ export function AuthCheckResponseDtoToJSONTyped(value?: AuthCheckResponseDto | n
   }
 
   return {
-    user: UserResponseDtoToJSON(value['user']),
+    user: AuthUserResponseDtoToJSON(value['user']),
     authenticated: value['authenticated'],
     isAdminAuthenticated: value['isAdminAuthenticated'],
   };

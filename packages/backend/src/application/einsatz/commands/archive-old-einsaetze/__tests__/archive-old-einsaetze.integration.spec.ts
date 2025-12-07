@@ -1,5 +1,5 @@
 import { Test, type TestingModule } from '@nestjs/testing';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { ArchiveOldEinsaetzeHandler } from '../archive-old-einsaetze.handler';
 import { ArchiveOldEinsaetzeCommand } from '../archive-old-einsaetze.command';
 import { PrismaEinsatzRepository } from '@infrastructure/einsatz/repositories/prisma-einsatz.repository';

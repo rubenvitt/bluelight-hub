@@ -6,7 +6,7 @@ import { Card } from '@atoms/card.atom';
 import { Container } from '@atoms/container.atom';
 import { Heading } from '@atoms/heading.atom';
 import { Spinner } from '@atoms/spinner.atom';
-import { type CreateUserDto, type UpdateUserDto, type UserDto, UserDtoRoleEnum } from '@bluelight-hub/shared/client';
+import { type CreateUserDto, type UpdateUserDto, type ManagedUserResponseDto, ManagedUserResponseDtoRoleEnum } from '@bluelight-hub/shared/client';
 import { ConfirmDeleteDialog, type UserActionType } from '@organisms/admin/ConfirmDeleteDialog';
 import { CreateUserDialog } from '@organisms/admin/CreateUserDialog';
 import { EditUserDialog } from '@organisms/admin/EditUserDialog';
@@ -35,8 +35,8 @@ export function AdminUsers() {
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<UserDto | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<UserDto | null>(null);
+  const [editTarget, setEditTarget] = useState<ManagedUserResponseDto | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ManagedUserResponseDto | null>(null);
 
   // Redirect if not admin
   if (!isAuthLoading && !isAdmin) {
@@ -51,7 +51,7 @@ export function AdminUsers() {
     });
   };
 
-  const handleEditUser = (user: UserDto) => {
+  const handleEditUser = (user: ManagedUserResponseDto) => {
     setEditTarget(user);
     setIsEditDialogOpen(true);
   };
@@ -68,11 +68,11 @@ export function AdminUsers() {
     );
   };
 
-  const handleDeleteUser = (user: UserDto) => {
+  const handleDeleteUser = (user: ManagedUserResponseDto) => {
     setDeleteTarget(user);
   };
 
-  const handleUnlockUser = (user: UserDto) => {
+  const handleUnlockUser = (user: ManagedUserResponseDto) => {
     unlockUser(user.id);
   };
 
@@ -169,7 +169,7 @@ export function AdminUsers() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
         userName={deleteTarget?.username || ''}
-        userRole={deleteTarget?.role || UserDtoRoleEnum.User}
+        userRole={deleteTarget?.role || ManagedUserResponseDtoRoleEnum.User}
         isDeleting={isDeleting || isLocking || isUnlocking}
       />
     </Container>

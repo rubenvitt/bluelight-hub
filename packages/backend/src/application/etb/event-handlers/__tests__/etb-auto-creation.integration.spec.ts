@@ -51,7 +51,7 @@ import { CreateEtbHandler } from '../../commands/create-etb/create-etb.handler';
 import { EinsatzCreatedEvent } from '@domain/events/einsatz-created.event';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { UserId } from '@domain/value-objects/user-id';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { Result } from '@domain/common/result';
 import { PrismaEtbRepository } from '@infrastructure/etb/repositories/prisma-etb.repository';
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';

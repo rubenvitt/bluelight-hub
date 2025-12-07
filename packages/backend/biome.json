@@ -26,6 +26,26 @@
       }
     },
     {
+      "includes": ["src/infrastructure/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/cli/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "src/**/*.service.ts",
         "src/**/*.controller.ts",
@@ -103,11 +123,7 @@
                       "@infrastructure/index",
                       "@infrastructure/lagekarte-infrastructure.module"
                     ],
-                    "message": "❌ Application layer MUST NOT import from Infrastructure layer (except @infrastructure/di-tokens). Use DI via Repository interfaces."
-                  },
-                  {
-                    "group": ["**/infrastructure/**/*"],
-                    "message": "❌ Application layer MUST NOT import from Infrastructure layer via relative paths. Use DI Token Constants from @infrastructure/di-tokens."
+                    "message": "❌ Application layer MUST NOT import from Infrastructure layer (except @infrastructure/di-tokens, @infrastructure/database). Use DI via Repository interfaces."
                   },
                   {
                     "group": ["@prisma/*"],

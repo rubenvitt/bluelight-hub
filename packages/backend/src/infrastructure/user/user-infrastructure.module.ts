@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@/infrastructure/database/prisma.module';
 import { USER_REPOSITORY } from '../di-tokens';
 import { PrismaUserRepository } from './repositories/prisma-user.repository';
 

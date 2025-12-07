@@ -26,6 +26,7 @@ const DOMAIN_PATH = path.join(SRC_PATH, 'domain');
 const APPLICATION_PATH = path.join(SRC_PATH, 'application');
 const INFRASTRUCTURE_PATH = path.join(SRC_PATH, 'infrastructure');
 const MODULES_PATH = path.join(SRC_PATH, 'modules');
+const SHARED_PATH = path.join(SRC_PATH, 'shared');
 
 /**
  * Helper: Findet alle TypeScript-Dateien in einem Verzeichnis rekursiv.
@@ -293,9 +294,9 @@ describe('Architecture Dependency Rules', () => {
       expect(violations).toHaveLength(0);
     });
 
-    it('should not import Prisma directly (except for DTOs, queries, commands, and test files)', () => {
-      // Application darf NICHT direkt Prisma importieren (außer in DTOs, Queries, Commands und Tests)
-      // CQRS Read-Side Optimization erlaubt direkten Prisma-Zugriff in Query Handlers
+    it('should not import Prisma directly (except for DTOs, queries, commands, handlers, and test files)', () => {
+      // Application darf NICHT direkt Prisma importieren (außer in DTOs, Queries, Commands, Handlers und Tests)
+      // CQRS Read-Side Optimization erlaubt direkten Prisma-Zugriff in Query/Command Handlers
       const forbiddenPatterns = [/@prisma\/client/];
 
       const allViolations = findViolations(APPLICATION_PATH, forbiddenPatterns);
@@ -304,14 +305,23 @@ describe('Architecture Dependency Rules', () => {
       // - DTOs (für OpenAPI Schema Generation und Enum-Sharing)
       // - Query Files (für CQRS Read-Side Optimization)
       // - Command Files (für Command Parameter Validation)
+      // - Handler Files (für CQRS Query/Command Handlers)
       // - Test-Dateien
       const violations = allViolations.filter(
-        (v) => !v.file.includes('.dto.ts') && !v.file.includes('.query.ts') && !v.file.includes('.command.ts') && !v.file.includes('.spec.ts') && !v.file.includes('__tests__'),
+        (v) =>
+          !v.file.includes('.dto.ts') &&
+          !v.file.includes('.query.ts') &&
+          !v.file.includes('.command.ts') &&
+          !v.file.includes('.handler.ts') &&
+          !v.file.includes('.spec.ts') &&
+          !v.file.includes('__tests__'),
       );
 
       if (violations.length > 0) {
         const errorMsg = violations.map((v) => `\n  ${path.relative(SRC_PATH, v.file)}:\n    ${v.violations.join('\n    ')}`).join('\n');
-        throw new Error(`Application Layer imports Prisma directly (not in DTO/Query/Command):${errorMsg}\nPrisma imports are only allowed in DTOs, Query/Command files, and test files`);
+        throw new Error(
+          `Application Layer imports Prisma directly (not in DTO/Query/Command/Handler):${errorMsg}\nPrisma imports are only allowed in DTOs, Query/Command/Handler files, and test files`,
+        );
       }
 
       expect(violations).toHaveLength(0);
@@ -411,10 +421,15 @@ describe('Architecture Dependency Rules', () => {
 
         const content = fs.readFileSync(file, 'utf-8');
 
+        // Remove comments to avoid false positives from JSDoc examples
+        const contentWithoutComments = content
+          .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
+          .replace(/\/\/.*/g, ''); // Remove line comments
+
         // Finde alle @Inject() Decorators mit String-Literals (VERBOTEN!)
         const inlineTokenRegex = /@Inject\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 
-        const matches = Array.from(content.matchAll(inlineTokenRegex));
+        const matches = Array.from(contentWithoutComments.matchAll(inlineTokenRegex));
         const inlineTokens = matches.map((match) => match[1]);
 
         if (inlineTokens.length > 0) {
@@ -544,6 +559,168 @@ describe('Architecture Dependency Rules', () => {
 
       // Test schlägt NICHT fehl - nur Warning (graduelle Migration)
       expect(violations.length).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('Shared Layer', () => {
+    it('should not import from Application Layer', () => {
+      // Shared Layer ist pure utilities - darf NICHT von Application importieren
+      const forbiddenPatterns = [/@application\//, /^\.\.\/application\//, /^src\/application\//];
+
+      const violations = findViolations(SHARED_PATH, forbiddenPatterns);
+
+      if (violations.length > 0) {
+        const errorMsg = violations.map((v) => `\n  ${path.relative(SRC_PATH, v.file)}:\n    ${v.violations.join('\n    ')}`).join('\n');
+        throw new Error(`Shared Layer imports from Application Layer:${errorMsg}\nShared utilities should be pure and layer-agnostic`);
+      }
+
+      expect(violations).toHaveLength(0);
+    });
+
+    it('should not import from Infrastructure Layer', () => {
+      // Shared Layer darf NICHT von Infrastructure importieren
+      const forbiddenPatterns = [/@infrastructure\//, /^\.\.\/infrastructure\//, /^src\/infrastructure\//];
+
+      const violations = findViolations(SHARED_PATH, forbiddenPatterns);
+
+      if (violations.length > 0) {
+        const errorMsg = violations.map((v) => `\n  ${path.relative(SRC_PATH, v.file)}:\n    ${v.violations.join('\n    ')}`).join('\n');
+        throw new Error(`Shared Layer imports from Infrastructure Layer:${errorMsg}\nShared utilities should be pure and layer-agnostic`);
+      }
+
+      expect(violations).toHaveLength(0);
+    });
+
+    it('should not import from Modules/Presentation Layer', () => {
+      // Shared Layer darf NICHT von Modules importieren
+      const forbiddenPatterns = [/^\.\.\/modules\//, /^src\/modules\//];
+
+      const violations = findViolations(SHARED_PATH, forbiddenPatterns);
+
+      if (violations.length > 0) {
+        const errorMsg = violations.map((v) => `\n  ${path.relative(SRC_PATH, v.file)}:\n    ${v.violations.join('\n    ')}`).join('\n');
+        throw new Error(`Shared Layer imports from Modules/Presentation Layer:${errorMsg}\nShared utilities should be pure and layer-agnostic`);
+      }
+
+      expect(violations).toHaveLength(0);
+    });
+
+    it('should not import from Domain Layer (except common types)', () => {
+      // Shared Layer sollte NICHT von Domain importieren (außer common types wie Result)
+      // Domain-spezifische Logik gehört nicht in Shared
+      const forbiddenPatterns = [/@domain\/aggregates\//, /@domain\/value-objects\//, /@domain\/entities\//, /@domain\/repositories\//, /@domain\/events\//];
+
+      const violations = findViolations(SHARED_PATH, forbiddenPatterns);
+
+      if (violations.length > 0) {
+        const errorMsg = violations.map((v) => `\n  ${path.relative(SRC_PATH, v.file)}:\n    ${v.violations.join('\n    ')}`).join('\n');
+        throw new Error(`Shared Layer imports domain-specific types:${errorMsg}\nShared utilities should not depend on domain concepts. Only @domain/common/* imports are allowed.`);
+      }
+
+      expect(violations).toHaveLength(0);
+    });
+
+    it('should only contain utilities and interfaces (no business logic)', () => {
+      // Shared Layer sollte NUR utilities und interfaces enthalten
+      // KEINE @Injectable Services oder business logic
+      const files = findTypeScriptFiles(SHARED_PATH);
+      const violations: { file: string; decorators: string[] }[] = [];
+
+      const forbiddenDecorators = ['Controller', 'Injectable', 'Module', 'QueryHandler', 'CommandHandler', 'EventsHandler'];
+
+      for (const file of files) {
+        const decorators = extractDecorators(file);
+        const forbidden = decorators.filter((d) => forbiddenDecorators.includes(d));
+
+        if (forbidden.length > 0) {
+          violations.push({ file, decorators: forbidden });
+        }
+      }
+
+      if (violations.length > 0) {
+        const errorMsg = violations.map((v) => `\n  ${path.relative(SRC_PATH, v.file)}:\n    ${v.decorators.join(', ')}`).join('\n');
+        throw new Error(`Shared Layer contains services/handlers instead of pure utilities:${errorMsg}\nShared should only contain pure functions and interfaces`);
+      }
+
+      expect(violations).toHaveLength(0);
+    });
+  });
+
+  describe('Infrastructure HTTP Layer', () => {
+    it('should only import from Shared, Domain, and NestJS', () => {
+      // Infrastructure HTTP (filters, guards, interceptors, pipes) darf von Shared und Domain importieren
+      // NICHT von Application oder Modules
+      const httpPath = path.join(INFRASTRUCTURE_PATH, 'http');
+      const forbiddenPatterns = [/@application\//, /^\.\.\/\.\.\/application\//, /@modules\//, /^\.\.\/\.\.\/\.\.\/modules\//];
+
+      const violations = findViolations(httpPath, forbiddenPatterns);
+
+      if (violations.length > 0) {
+        const errorMsg = violations.map((v) => `\n  ${path.relative(SRC_PATH, v.file)}:\n    ${v.violations.join('\n    ')}`).join('\n');
+        throw new Error(`Infrastructure HTTP Layer imports from Application/Modules:${errorMsg}\nHTTP utilities should only depend on Shared and Domain layers`);
+      }
+
+      expect(violations).toHaveLength(0);
+    });
+  });
+
+  describe('Infrastructure Config Layer', () => {
+    it('should only import from Shared and NestJS', () => {
+      // Infrastructure Config sollte pure configuration sein
+      // NICHT von Application, Domain oder Modules importieren
+      const configPath = path.join(INFRASTRUCTURE_PATH, 'config');
+      const forbiddenPatterns = [/@application\//, /^\.\.\/\.\.\/application\//, /@domain\//, /^\.\.\/\.\.\/domain\//, /@modules\//, /^\.\.\/\.\.\/\.\.\/modules\//];
+
+      const violations = findViolations(configPath, forbiddenPatterns);
+
+      if (violations.length > 0) {
+        const errorMsg = violations.map((v) => `\n  ${path.relative(SRC_PATH, v.file)}:\n    ${v.violations.join('\n    ')}`).join('\n');
+        throw new Error(`Infrastructure Config Layer imports from Application/Domain/Modules:${errorMsg}\nConfig should only depend on Shared layer and NestJS`);
+      }
+
+      expect(violations).toHaveLength(0);
+    });
+  });
+
+  describe('Modules Common Decorators', () => {
+    it('should only import from Shared and NestJS', () => {
+      // Modules Common Decorators sollten generisch sein
+      // NICHT von Application, Domain oder Infrastructure (außer Shared) importieren
+      const decoratorsPath = path.join(MODULES_PATH, 'common/decorators');
+      const forbiddenPatterns = [
+        /@application\//,
+        /^\.\.\/\.\.\/\.\.\/application\//,
+        /@domain\//,
+        /^\.\.\/\.\.\/\.\.\/domain\//,
+        /@infrastructure\/(?!.*index)/, // Erlaubt @infrastructure/index.ts für exports, verbietet spezifische Submodule
+      ];
+
+      const violations = findViolations(decoratorsPath, forbiddenPatterns);
+
+      if (violations.length > 0) {
+        const errorMsg = violations.map((v) => `\n  ${path.relative(SRC_PATH, v.file)}:\n    ${v.violations.join('\n    ')}`).join('\n');
+        throw new Error(`Modules Common Decorators import from Application/Domain/Infrastructure:${errorMsg}\nCommon decorators should only depend on Shared layer and NestJS`);
+      }
+
+      expect(violations).toHaveLength(0);
+    });
+  });
+
+  describe('Application Common DTO Layer', () => {
+    it('should only import from Domain and NestJS', () => {
+      // Application Common DTOs sollten nur von Domain importieren
+      // NICHT von Infrastructure oder Modules
+      const dtoPath = path.join(APPLICATION_PATH, 'common/dto');
+      const forbiddenPatterns = [/@infrastructure\//, /^\.\.\/\.\.\/\.\.\/infrastructure\//, /@modules\//, /^\.\.\/\.\.\/\.\.\/\.\.\/modules\//];
+
+      const violations = findViolations(dtoPath, forbiddenPatterns);
+
+      if (violations.length > 0) {
+        const errorMsg = violations.map((v) => `\n  ${path.relative(SRC_PATH, v.file)}:\n    ${v.violations.join('\n    ')}`).join('\n');
+        throw new Error(`Application Common DTOs import from Infrastructure/Modules:${errorMsg}\nDTOs should only depend on Domain types and NestJS validators`);
+      }
+
+      expect(violations).toHaveLength(0);
     });
   });
 });

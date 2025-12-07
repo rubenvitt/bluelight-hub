@@ -21,7 +21,7 @@ import type { SerializedEvent } from '../event-serializer';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { IAlertService } from '@domain/services/ports/i-alert.service';
 import { Result } from '@domain/common/result';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 
 // Mock Domain Event
 class MockDomainEvent implements DomainEvent {

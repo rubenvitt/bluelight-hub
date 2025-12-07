@@ -1,4 +1,4 @@
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { TransactionContext } from '@domain/common/transaction';
 import type { IOutboxRepository, OutboxEventDto } from '@domain/repositories/i-outbox.repository';

@@ -1,7 +1,7 @@
-import { UserDtoRoleEnum } from '@bluelight-hub/shared/client';
+import { ManagedUserResponseDtoRoleEnum } from '@bluelight-hub/shared/client';
 
-const adminRoles: Array<UserDtoRoleEnum> = [UserDtoRoleEnum.Admin, UserDtoRoleEnum.SuperAdmin];
-export const isAdmin = (role: UserDtoRoleEnum | undefined): boolean => {
+const adminRoles: Array<ManagedUserResponseDtoRoleEnum> = [ManagedUserResponseDtoRoleEnum.Admin, ManagedUserResponseDtoRoleEnum.SuperAdmin];
+export const isAdmin = (role: ManagedUserResponseDtoRoleEnum | string | undefined): boolean => {
   if (!role) return false;
-  return adminRoles.includes(role);
+  return adminRoles.includes(role as ManagedUserResponseDtoRoleEnum);
 };

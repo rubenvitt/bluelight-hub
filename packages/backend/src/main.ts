@@ -8,9 +8,9 @@ import helmet from 'helmet';
 import * as process from 'node:process';
 import * as packageJson from '../package.json';
 import { AppModule } from './app.module';
-import { PerformanceInterceptor } from './common/interceptors/performance.interceptor';
-import { TransformInterceptor } from './common/interceptors/transform.interceptor';
-import { corsConfig, helmetConfig } from './common/config/security.config';
+import { PerformanceInterceptor } from './infrastructure/http/interceptors/performance.interceptor';
+import { TransformInterceptor } from './infrastructure/http/interceptors/transform.interceptor';
+import { corsConfig, helmetConfig } from './infrastructure/config/security.config';
 
 require('@dotenvx/dotenvx').config();
 

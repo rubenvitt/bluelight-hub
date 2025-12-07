@@ -181,6 +181,7 @@ describe('LoginHandler', () => {
       mockUserRepository.getPasswordHash.mockResolvedValue(Result.ok(passwordHash));
 
       // Mock bcrypt.compare → false (falsches Passwort)
+      // biome-ignore lint/suspicious/noExplicitAny: Jest mock requires any for bcrypt implementation signature
       jest.spyOn(bcrypt, 'compare').mockImplementation((() => Promise.resolve(false)) as any);
 
       // When

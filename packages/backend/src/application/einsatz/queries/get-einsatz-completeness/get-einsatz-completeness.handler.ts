@@ -4,7 +4,7 @@ import { Result } from '@domain/common/result';
 import type { IEinsatzRepository } from '@domain/repositories';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { CompletenessResponseDto } from '@/application/einsatz/dto/completeness-response.dto';
-import { EinsatzCompletenessCalculator } from '@/einsatz/utils/completeness.util';
+import { EinsatzCompletenessCalculator } from '@/modules/einsatz/utils/completeness.util';
 import { GetEinsatzCompletenessQuery } from './get-einsatz-completeness.query';
 import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 

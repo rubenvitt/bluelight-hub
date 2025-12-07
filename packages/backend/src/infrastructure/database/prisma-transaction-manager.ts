@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from './prisma.service';
 import type { ITransactionManager, TransactionContext } from '@domain/common/transaction';
 
 /**

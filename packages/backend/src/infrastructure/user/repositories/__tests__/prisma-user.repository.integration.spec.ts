@@ -30,7 +30,7 @@ import { UserAggregate } from '@domain/aggregates/user.aggregate';
 import { UserId } from '@domain/value-objects/user-id';
 import { Username } from '@domain/value-objects/username';
 import { UserRole } from '@domain/value-objects/user-role';
-import type { PrismaService } from '@/prisma/prisma.service';
+import type { PrismaService } from '@/infrastructure/database/prisma.service';
 
 // Generate Nanoid-compliant test IDs for User (21 chars, alphanumeric with mixed case + - _)
 const _generateNanoidTestId = (): string => {

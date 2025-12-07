@@ -1,5 +1,5 @@
-import { HttpExceptionFilter } from '@/common/filters/http-exception.filter';
-import { DomainExceptionFilter } from '@/common/filters/domain-exception.filter';
+import { HttpExceptionFilter } from '@/infrastructure/http/filters/http-exception.filter';
+import { DomainExceptionFilter } from '@/infrastructure/http/filters/domain-exception.filter';
 import { Logger, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
@@ -8,13 +8,13 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'node:path';
 import { AppController } from './app.controller';
-import { AuthModule } from './auth/auth.module';
-import { CommonModule } from './common/common.module';
-import { EinsatzModule } from './einsatz/einsatz.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { InfrastructureCommonModule } from './infrastructure/common.module';
+import { EinsatzModule } from './modules/einsatz/einsatz.module';
 import { EtbModule } from './modules/etb/etb.module';
-import { HealthModule } from './health/health.module';
-import { PrismaModule } from './prisma/prisma.module';
-import { UserManagementModule } from './user-management/user-management.module';
+import { HealthModule } from './infrastructure/health/health.module';
+import { PrismaModule } from './infrastructure/database/prisma.module';
+import { UserManagementModule } from './modules/user-management';
 import { LagekarteModule } from './modules/lagekarte/lagekarte.module';
 import { LagekarteInfrastructureModule } from './infrastructure/lagekarte-infrastructure.module';
 import { EinsatzInfrastructureModule } from './infrastructure/einsatz/einsatz-infrastructure.module';
@@ -65,7 +65,7 @@ import { EventAdaptersModule } from './infrastructure/events/event-adapters.modu
     }),
     PrismaModule,
     HealthModule,
-    CommonModule,
+    InfrastructureCommonModule,
     AuthModule,
     UserManagementModule,
     EinsatzModule,

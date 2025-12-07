@@ -1,7 +1,7 @@
 import { Button } from '@/components/atoms/button.atom';
 import { RoleField, UsernameField } from '@/components/molecules/admin/UserFormFields';
 import { Dialog } from '@/components/molecules/dialog.molecule';
-import { type UserDto, UserDtoRoleEnum } from '@bluelight-hub/shared/client';
+import { type ManagedUserResponseDto, ManagedUserResponseDtoRoleEnum } from '@bluelight-hub/shared/client';
 import { useForm } from '@tanstack/react-form';
 import { useEffect } from 'react';
 import { z } from 'zod';
@@ -12,7 +12,7 @@ const _editUserSchema = z.object({
     .min(3, 'Benutzername muss mindestens 3 Zeichen lang sein')
     .max(30, 'Benutzername darf maximal 30 Zeichen lang sein')
     .regex(/^[a-zA-Z0-9._]+$/, 'Benutzername darf nur Buchstaben, Zahlen, Unterstriche und Punkte enthalten'),
-  role: z.nativeEnum(UserDtoRoleEnum),
+  role: z.nativeEnum(ManagedUserResponseDtoRoleEnum),
 });
 
 type EditUserFormData = z.infer<typeof _editUserSchema>;
@@ -22,14 +22,14 @@ interface EditUserDialogProps {
   onClose: () => void;
   onSubmit: (id: string, data: EditUserFormData) => void;
   isSubmitting: boolean;
-  user: UserDto | null;
+  user: ManagedUserResponseDto | null;
 }
 
 export const EditUserDialog = ({ isOpen, onClose, onSubmit, isSubmitting, user }: EditUserDialogProps) => {
   const form = useForm({
     defaultValues: {
       username: user?.username || '',
-      role: (user?.role || UserDtoRoleEnum.User) as UserDtoRoleEnum,
+      role: (user?.role || ManagedUserResponseDtoRoleEnum.User) as ManagedUserResponseDtoRoleEnum,
     },
     onSubmit: ({ value }) => {
       if (user) {

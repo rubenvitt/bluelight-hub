@@ -229,6 +229,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
         .set('Cookie', [`accessToken=${accessToken}`])
         .expect(200);
 
+      // biome-ignore lint/suspicious/noExplicitAny: E2E test response body typing not strictly typed
       const einsatz = response.body.find((e: any) => e.id === einsatzId);
       expect(einsatz).toBeDefined();
       expect(einsatz).toHaveProperty('etbCount', 1);
@@ -688,6 +689,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
         .expect(200);
 
       expect(response.body.items).toHaveLength(2);
+      // biome-ignore lint/suspicious/noExplicitAny: E2E test response body typing not strictly typed
       expect(response.body.items.every((e: any) => e.status === 'IN_BEARBEITUNG')).toBe(true);
     });
   });

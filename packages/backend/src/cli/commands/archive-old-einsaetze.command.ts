@@ -67,15 +67,23 @@ export class ArchiveOldEinsaetzeCliCommand {
       throw new Error(`Command Validierung fehlgeschlagen: ${commandResult.error}`);
     }
 
-    // Execute handler
-    const result = await this.handler.execute(commandResult.value!);
+    // Execute handler - value is guaranteed after isFailure check above
+    const command = commandResult.value;
+    if (!command) {
+      throw new Error('Command Validierung fehlgeschlagen: Unerwarteter null-Wert');
+    }
+    const result = await this.handler.execute(command);
 
     if (result.isFailure) {
       this.logger.error(`Archive failed: ${result.error}`);
       throw new Error(`Archivierung fehlgeschlagen: ${result.error}`);
     }
 
-    const { eligible, archived, failed, dryRun } = result.value!;
+    const resultValue = result.value;
+    if (!resultValue) {
+      throw new Error('Archivierung fehlgeschlagen: Unerwarteter null-Wert');
+    }
+    const { eligible, archived, failed, dryRun } = resultValue;
 
     // Print results
     this.printResults(eligible, archived, failed, dryRun);

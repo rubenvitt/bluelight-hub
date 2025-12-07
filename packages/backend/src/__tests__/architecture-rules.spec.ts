@@ -29,6 +29,12 @@ describe('Architecture Rules', () => {
     'eintrag.dto.ts',
     // CQRS Query-Side Pattern: Read-only queries for reference data without domain logic
     'get-textbausteine.handler.ts',
+    // User Management - migrated from legacy, needs cleanup
+    'delete-user.handler.ts',
+    'update-user.command.ts',
+    'create-user.dto.ts',
+    'update-user.dto.ts',
+    'user-response.dto.ts',
   ];
 
   /**

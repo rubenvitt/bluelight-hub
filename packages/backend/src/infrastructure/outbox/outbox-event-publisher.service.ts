@@ -5,7 +5,7 @@ import { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import type { OutboxEventDto } from '@domain/repositories/i-outbox.repository';
 import type { IAlertService } from '@domain/services/ports/i-alert.service';
 import { EVENT_PUBLISHER, ALERT_SERVICE } from '@/infrastructure/di-tokens';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { PrismaOutboxRepository } from './prisma-outbox.repository';
 import { EventDeserializer } from './event-deserializer';
 

@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, ValidateNested, MinLength, MaxLength, IsEnum, IsObject, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { IsCuid } from '@/common/decorators/is-cuid.decorator';
+import { IsCuid } from '@/modules/common/decorators/is-cuid.decorator';
 
 export class InitialPoiDto {
   @ApiProperty({ description: 'POI-Name', example: 'Einsatzstelle' })

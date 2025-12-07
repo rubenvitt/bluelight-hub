@@ -94,6 +94,10 @@ export const EVENT_NAMES = {
     PERMISSION_GRANTED: 'user.permission_granted',
     /** Event: Permission wurde einem User entzogen */
     PERMISSION_REVOKED: 'user.permission_revoked',
+    /** Event: User wurde gesperrt */
+    LOCKED: 'user.locked',
+    /** Event: User wurde entsperrt */
+    UNLOCKED: 'user.unlocked',
   },
 } as const;
 

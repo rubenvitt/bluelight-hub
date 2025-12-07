@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@/infrastructure/database/prisma.module';
 import { PrismaEtbRepository } from './repositories/prisma-etb.repository';
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { EventSerializer } from '@/infrastructure/outbox/event-serializer';

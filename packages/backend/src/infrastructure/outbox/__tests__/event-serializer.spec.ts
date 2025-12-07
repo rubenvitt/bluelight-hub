@@ -426,6 +426,7 @@ describe('EventSerializer', () => {
           eventName: () => 'unknown.event',
           eventVersion: () => 1,
         },
+        // biome-ignore lint/suspicious/noExplicitAny: Testing unknown event type handling
       } as any;
 
       expect(() => serializer.serialize(unknownEvent)).toThrow('Unknown event type: unknown.event');

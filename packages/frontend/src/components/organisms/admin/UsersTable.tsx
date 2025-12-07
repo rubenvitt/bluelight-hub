@@ -1,30 +1,30 @@
 import { Badge } from '@/components/atoms/badge.atom';
 import { IconButton } from '@/components/atoms/icon-button.atom';
 import { Table } from '@/components/molecules/table.molecule';
-import type { UserDto } from '@bluelight-hub/shared/client';
-import { UserDtoRoleEnum } from '@bluelight-hub/shared/client';
+import type { ManagedUserResponseDto } from '@bluelight-hub/shared/client';
+import { ManagedUserResponseDtoRoleEnum } from '@bluelight-hub/shared/client';
 import type { SortingState } from '@tanstack/react-table';
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 import { PiLockKey, PiLockKeyOpen, PiPencilSimple, PiTrash } from 'react-icons/pi';
 
 interface UsersTableProps {
-  users: Array<UserDto> | undefined;
+  users: Array<ManagedUserResponseDto> | undefined;
   isLoading: boolean;
-  onDelete: (user: UserDto) => void;
-  onEdit: (user: UserDto) => void;
-  onUnlock: (user: UserDto) => void;
+  onDelete: (user: ManagedUserResponseDto) => void;
+  onEdit: (user: ManagedUserResponseDto) => void;
+  onUnlock: (user: ManagedUserResponseDto) => void;
 }
 
-const columnHelper = createColumnHelper<UserDto>();
+const columnHelper = createColumnHelper<ManagedUserResponseDto>();
 
-const getRoleBadgeVariant = (role: UserDtoRoleEnum): 'error' | 'warning' | 'info' | 'default' => {
+const getRoleBadgeVariant = (role: ManagedUserResponseDtoRoleEnum): 'error' | 'warning' | 'info' | 'default' => {
   switch (role) {
-    case UserDtoRoleEnum.SuperAdmin:
+    case ManagedUserResponseDtoRoleEnum.SuperAdmin:
       return 'error';
-    case UserDtoRoleEnum.Admin:
+    case ManagedUserResponseDtoRoleEnum.Admin:
       return 'warning';
-    case UserDtoRoleEnum.User:
+    case ManagedUserResponseDtoRoleEnum.User:
       return 'info';
     default:
       return 'default';

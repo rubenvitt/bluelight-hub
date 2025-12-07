@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AuthModule } from '@/auth/auth.module';
+import { AuthModule } from '@/modules/auth/auth.module';
 import { AdminResetPasswordCommand, ArchiveOldEinsaetzeCliCommand } from '@/cli/commands';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@/infrastructure/database/prisma.module';
 import { EinsatzApplicationModule } from '@application/einsatz/einsatz-application.module';
 
 @Module({

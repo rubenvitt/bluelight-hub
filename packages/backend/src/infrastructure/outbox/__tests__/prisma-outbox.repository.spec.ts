@@ -19,7 +19,7 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { PrismaOutboxRepository, type PrismaTransaction } from '../prisma-outbox.repository';
 import { EventSerializer, type SerializedEvent } from '../event-serializer';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { OutboxEventStatus } from '@prisma/client';
 

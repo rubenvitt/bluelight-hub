@@ -1,5 +1,5 @@
-import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
-import { ApiWrappedResponse } from '@/common/decorators/api-wrapped-response.decorator';
+import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { ApiWrappedResponse } from '@/modules/common/decorators/api-wrapped-response.decorator';
 import { Body, Controller, Logger, Param, Post, UseGuards, ValidationPipe } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiOperation, ApiProperty, ApiTags, ApiTooManyRequestsResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';

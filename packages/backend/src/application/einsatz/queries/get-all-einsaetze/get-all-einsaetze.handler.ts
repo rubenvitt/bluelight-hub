@@ -1,11 +1,11 @@
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
-import type { PaginatedData } from '@/common/interceptors/transform.interceptor';
+import type { PaginatedData } from '@/infrastructure/http/interceptors/transform.interceptor';
 import type { EinsatzResponseDto } from '@/application/einsatz/dto/einsatz-response.dto';
 import type { IEinsatzRepository } from '@domain/repositories';
-import { EinsatzNameGenerator } from '@/einsatz/utils/name-generator.util';
-import { EinsatzCompletenessCalculator } from '@/einsatz/utils/completeness.util';
+import { EinsatzNameGenerator } from '@/modules/einsatz/utils/name-generator.util';
+import { EinsatzCompletenessCalculator } from '@/modules/einsatz/utils/completeness.util';
 import { GetAllEinsaetzeQuery } from './get-all-einsaetze.query';
 import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 // TODO (Epic 6): Migrate utilities to use Domain Aggregate instead of Prisma Entity

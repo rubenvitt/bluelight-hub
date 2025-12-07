@@ -38,9 +38,8 @@ jest.mock('@paralleldrive/cuid2', () => ({
     if (typeof id !== 'string') return false;
     if (id.length < 20 || id.length > 30) return false;
     // CUID2 Format: lowercase a-z and 0-9 only, starts with letter
-    // Nanoid/CUID Format (für UserId): mixed case alphanumeric + underscore/hyphen
-    // Wir akzeptieren beide Formate für Kompatibilität
-    return /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(id);
+    // UserId uses CUID2 from @paralleldrive/cuid2
+    return /^[a-z][a-z0-9]*$/.test(id);
   }),
 }));
 
@@ -52,7 +51,7 @@ import { EinsatztagebuchAggregate } from '@domain/aggregates/einsatztagebuch.agg
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { UserId } from '@domain/value-objects/user-id';
-import type { PrismaService } from '@/prisma/prisma.service';
+import type { PrismaService } from '@/infrastructure/database/prisma.service';
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
 
 // Generate CUID2-compliant test IDs (20-30 chars, lowercase a-z0-9, starts with letter)
@@ -65,12 +64,12 @@ const generateTestId = (): string => {
   return result;
 };
 
-// Generate Nanoid-compliant test IDs for User (21 chars, alphanumeric with mixed case)
-// This matches the User.id format defined in Prisma schema: @default(nanoid())
-const generateNanoidTestId = (): string => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-  let result = '';
-  for (let i = 0; i < 21; i++) {
+// Generate CUID2-compliant test IDs for User (20-30 chars, lowercase a-z0-9, starts with letter)
+// This matches the User.id format defined in UserId Value Object which uses @paralleldrive/cuid2
+const generateUserTestId = (): string => {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = 'c';
+  for (let i = 0; i < 24; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
@@ -166,12 +165,12 @@ describe('PrismaEtbRepository - Integration Tests', () => {
     }
 
     // Create test user for createdBy/updatedBy references
-    // WICHTIG: User IDs muessen Nanoid-Format haben (21 Zeichen, alphanumerisch mit Gross-/Kleinbuchstaben)
+    // WICHTIG: User IDs muessen CUID2-Format haben (20-30 Zeichen, lowercase a-z0-9, starts with letter)
     // um mit UserId Value Object kompatibel zu sein
     const userResult = await prisma.$queryRaw<{ id: string }[]>`
       INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")
       VALUES (
-        ${generateNanoidTestId()},
+        ${generateUserTestId()},
         ${`test-etb-repo-user-${testRunId}`},
         'dummy-hash',
         'USER',
@@ -186,8 +185,8 @@ describe('PrismaEtbRepository - Integration Tests', () => {
     // Create SYSTEM user for ETBs created without Eintraege (createdBy defaults to 'SYSTEM')
     // Uses upsert-pattern since SYSTEM user might already exist from other tests
     // Note: UserRole enum only has SUPER_ADMIN, ADMIN, USER - we use USER for SYSTEM
-    // WICHTIG: SYSTEM User ID muss auch Nanoid-Format haben (21 Zeichen)
-    const systemUserId = 'SYSTEM_USER_TEST_0001'; // 21 Zeichen, Nanoid-kompatibel
+    // WICHTIG: SYSTEM User ID muss auch CUID2-Format haben (20-30 Zeichen, lowercase a-z0-9, starts with letter)
+    const systemUserId = 'csystemuser0001test00'; // 22 Zeichen, CUID2-kompatibel
     await prisma.$executeRaw`
       INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "createdAt", "updatedAt")
       VALUES (

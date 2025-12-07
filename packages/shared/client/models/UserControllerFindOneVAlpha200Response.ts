@@ -13,8 +13,8 @@
  */
 
 import { mapValues } from '../runtime';
-import type { UserResponse } from './UserResponse';
-import { UserResponseFromJSON, UserResponseFromJSONTyped, UserResponseToJSON, UserResponseToJSONTyped } from './UserResponse';
+import type { ManagedUserResponse } from './ManagedUserResponse';
+import { ManagedUserResponseFromJSON, ManagedUserResponseFromJSONTyped, ManagedUserResponseToJSON, ManagedUserResponseToJSONTyped } from './ManagedUserResponse';
 import type { UserControllerFindOneVAlpha200ResponseMeta } from './UserControllerFindOneVAlpha200ResponseMeta';
 import {
   UserControllerFindOneVAlpha200ResponseMetaFromJSON,
@@ -31,10 +31,10 @@ import {
 export interface UserControllerFindOneVAlpha200Response {
   /**
    *
-   * @type {UserResponse}
+   * @type {ManagedUserResponse}
    * @memberof UserControllerFindOneVAlpha200Response
    */
-  data: UserResponse;
+  data: ManagedUserResponse;
   /**
    *
    * @type {UserControllerFindOneVAlpha200ResponseMeta}
@@ -61,7 +61,7 @@ export function UserControllerFindOneVAlpha200ResponseFromJSONTyped(json: any, i
     return json;
   }
   return {
-    data: UserResponseFromJSON(json['data']),
+    data: ManagedUserResponseFromJSON(json['data']),
     meta: UserControllerFindOneVAlpha200ResponseMetaFromJSON(json['meta']),
   };
 }
@@ -76,7 +76,7 @@ export function UserControllerFindOneVAlpha200ResponseToJSONTyped(value?: UserCo
   }
 
   return {
-    data: UserResponseToJSON(value['data']),
+    data: ManagedUserResponseToJSON(value['data']),
     meta: UserControllerFindOneVAlpha200ResponseMetaToJSON(value['meta']),
   };
 }

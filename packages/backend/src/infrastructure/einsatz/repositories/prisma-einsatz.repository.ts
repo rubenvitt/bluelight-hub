@@ -1,4 +1,4 @@
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import type { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
 import type { TransactionContext } from '@domain/common/transaction';

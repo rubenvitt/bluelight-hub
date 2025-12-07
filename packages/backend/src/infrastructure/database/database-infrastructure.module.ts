@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from './prisma.module';
 import { PrismaTransactionManager } from './prisma-transaction-manager';
 import { TRANSACTION_MANAGER } from '../di-tokens';
 

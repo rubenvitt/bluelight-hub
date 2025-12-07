@@ -6,12 +6,12 @@ import { UpdateEintragHandler } from '@/application/etb/commands/update-eintrag/
 import { AddEintragDto, EintragDto, EtbDto, EtbSnapshotDto, TextbausteinListResponse, UpdateEintragDto } from '@/application/etb/dto';
 import { EtbQueryMapper, type EtbSnapshotDto as EtbSnapshotDtoFromMapper } from '@/application/etb/mappers';
 import { GetEtbHistoryQuery, GetEtbHistoryQueryHandler, GetEtbQuery, GetEtbQueryHandler, GetTextbausteineQuery, GetTextbausteineHandler } from '@/application/etb/queries';
-import { CurrentUser } from '@/auth/decorators/current-user.decorator';
-import { Roles } from '@/auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
-import { RolesGuard } from '@/auth/guards/roles.guard';
-import type { ValidatedUser } from '@/auth/strategies/jwt.strategy';
-import { SkipTransform } from '@/common/decorators/skip-transform.decorator';
+import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
+import { Roles } from '@/modules/auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@/modules/auth/guards/roles.guard';
+import type { ValidatedUser } from '@/modules/auth/strategies/jwt.strategy';
+import { SkipTransform } from '@/modules/common/decorators/skip-transform.decorator';
 import { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { ETB_REPOSITORY } from '@/infrastructure/di-tokens';

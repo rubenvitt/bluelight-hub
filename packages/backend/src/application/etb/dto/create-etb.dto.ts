@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty } from 'class-validator';
-import { IsCuid } from '@/common/decorators/is-cuid.decorator';
+import { IsCuid } from '@/modules/common/decorators/is-cuid.decorator';
 
 /**
  * DTO für CreateEtb-Request.

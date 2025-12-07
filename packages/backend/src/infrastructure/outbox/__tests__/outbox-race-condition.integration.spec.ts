@@ -29,7 +29,7 @@ import type { EinsatzE2eTestContext } from '../../einsatz/__tests__/einsatz.e2e-
 import { createEinsatzE2eModule, teardownE2eModule, cleanupTestData, generateTestId, waitFor } from '../../einsatz/__tests__/einsatz.e2e-setup';
 import { OutboxEventPublisher, DEFAULT_OUTBOX_PUBLISHER_CONFIG } from '../outbox-event-publisher.service';
 import { EventDeserializer } from '../event-deserializer';
-import type { PrismaService } from '@/prisma/prisma.service';
+import type { PrismaService } from '@/infrastructure/database/prisma.service';
 
 describe('Outbox Race Condition Prevention (Story 0-2)', () => {
   let ctx: EinsatzE2eTestContext;

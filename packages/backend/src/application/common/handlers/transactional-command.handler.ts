@@ -3,9 +3,8 @@ import type { DomainEvent } from '@domain/common/domain-event';
 import type { TransactionContext } from '@domain/common';
 import { Result } from '@domain/common/result';
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
-import { OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Abstract Base Class für transaktionale Command Handler im Transactional Outbox Pattern.

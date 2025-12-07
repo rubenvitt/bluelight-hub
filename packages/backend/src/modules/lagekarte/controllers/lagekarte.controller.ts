@@ -1,7 +1,7 @@
-import { CurrentUser } from '@/auth/decorators/current-user.decorator';
-import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
-import type { ValidatedUser } from '@/auth/strategies/jwt.strategy';
-import { ApiWrappedResponse } from '@/common/decorators/api-wrapped-response.decorator';
+import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import type { ValidatedUser } from '@/modules/auth/strategies/jwt.strategy';
+import { ApiWrappedResponse } from '@/modules/common/decorators/api-wrapped-response.decorator';
 import {
   BadRequestException,
   Body,

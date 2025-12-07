@@ -2,7 +2,7 @@ import { api } from '@/api';
 import { QUERY_KEYS } from '@/queryKeys';
 import { getApiErrorMessage } from '@/utils/apiErrorHandler';
 import { logger } from '@/utils/logger';
-import type { CreateUserDto, DeleteUserResponse, ResponseError, UpdateUserDto, UserResponse, UsersListResponse } from '@bluelight-hub/shared/client';
+import type { CreateUserDto, DeleteManagedUserResponse, ResponseError, UpdateUserDto, ManagedUserResponse, ManagedUsersListResponse } from '@bluelight-hub/shared/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -20,7 +20,7 @@ export const useAdminUserManagement = () => {
   const queryClient = useQueryClient();
 
   // Query für Benutzerliste
-  const usersQuery = useQuery<UsersListResponse, ResponseError>({
+  const usersQuery = useQuery<ManagedUsersListResponse, ResponseError>({
     queryKey: QUERY_KEYS.admin.users,
     queryFn: async () => {
       return await api.userManagement().userManagementControllerFindAllVAlpha();
@@ -28,7 +28,7 @@ export const useAdminUserManagement = () => {
   });
 
   // Mutation für Benutzer erstellen
-  const createUserMutation = useMutation<UserResponse, ResponseError, CreateUserDto>({
+  const createUserMutation = useMutation<ManagedUserResponse, ResponseError, CreateUserDto>({
     mutationFn: async (data: CreateUserDto) => {
       return await api.userManagement().userManagementControllerCreateVAlpha({
         createUserDto: data,
@@ -51,7 +51,7 @@ export const useAdminUserManagement = () => {
   });
 
   // Mutation für Benutzer aktualisieren
-  const updateUserMutation = useMutation<UserResponse, ResponseError, { id: string; data: UpdateUserDto }>({
+  const updateUserMutation = useMutation<ManagedUserResponse, ResponseError, { id: string; data: UpdateUserDto }>({
     mutationFn: async ({ id, data }) => {
       return await api.userManagement().userManagementControllerUpdateVAlpha({
         id,
@@ -75,7 +75,7 @@ export const useAdminUserManagement = () => {
   });
 
   // Mutation für Benutzer löschen (mit optionalem Downgrade)
-  const deleteUserMutation = useMutation<DeleteUserResponse, ResponseError, { id: string; downgradeAdmin?: boolean }, { previousUsers: UsersListResponse | undefined }>({
+  const deleteUserMutation = useMutation<DeleteManagedUserResponse, ResponseError, { id: string; downgradeAdmin?: boolean }, { previousUsers: ManagedUsersListResponse | undefined }>({
     mutationFn: async ({ id, downgradeAdmin }) => {
       return await api.userManagement().userManagementControllerRemoveVAlpha({
         id,
@@ -85,9 +85,9 @@ export const useAdminUserManagement = () => {
     onMutate: async ({ id }) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.admin.users });
 
-      const previousUsers = queryClient.getQueryData<UsersListResponse>(QUERY_KEYS.admin.users);
+      const previousUsers = queryClient.getQueryData<ManagedUsersListResponse>(QUERY_KEYS.admin.users);
 
-      queryClient.setQueryData<UsersListResponse>(QUERY_KEYS.admin.users, (old) => {
+      queryClient.setQueryData<ManagedUsersListResponse>(QUERY_KEYS.admin.users, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -124,7 +124,7 @@ export const useAdminUserManagement = () => {
   });
 
   // Mutation für Benutzer sperren
-  const lockUserMutation = useMutation<UserResponse, ResponseError, { id: string; reason?: string }>({
+  const lockUserMutation = useMutation<ManagedUserResponse, ResponseError, { id: string; reason?: string }>({
     mutationFn: async ({ id, reason }) => {
       return await api.userManagement().userManagementControllerLockVAlpha({
         id,
@@ -148,7 +148,7 @@ export const useAdminUserManagement = () => {
   });
 
   // Mutation für Benutzer entsperren
-  const unlockUserMutation = useMutation<UserResponse, ResponseError, string>({
+  const unlockUserMutation = useMutation<ManagedUserResponse, ResponseError, string>({
     mutationFn: async (id: string) => {
       return await api.userManagement().userManagementControllerUnlockVAlpha({ id });
     },

@@ -7,7 +7,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CompleteEinsatzCommand } from './complete-einsatz.command';
 import { TransactionalCommandHandler } from '@application/common/handlers/transactional-command.handler';
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { TransactionContext } from '@domain/common';

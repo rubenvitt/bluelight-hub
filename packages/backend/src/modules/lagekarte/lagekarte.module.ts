@@ -1,6 +1,5 @@
-import { LagekarteInfrastructureModule } from '@/infrastructure/lagekarte-infrastructure.module';
-import { EventInfrastructureModule } from '@/infrastructure/events/event-infrastructure.module';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { LagekarteApplicationModule } from '@/application/lagekarte/lagekarte-application.module';
+import { PrismaModule } from '@/infrastructure/database/prisma.module';
 import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -16,27 +15,16 @@ import { PoiRepository } from './repositories/poi.repository';
 import { GeocodingService } from './services/geocoding.service';
 import { MgrsConverterService } from './services/mgrs-converter.service';
 
-// Command Handlers
-import { AddPoiCommandHandler } from '@/application/lagekarte/commands/add-poi.handler';
-import { CreateLagekarteCommandHandler } from '@/application/lagekarte/commands/create-lagekarte.handler';
-import { RemovePoiCommandHandler } from '@/application/lagekarte/commands/remove-poi.handler';
-import { UpdatePoiPositionCommandHandler } from '@/application/lagekarte/commands/update-poi-position.handler';
-
-// Query Handlers
-import { GetLagekarteQueryHandler } from '@/application/lagekarte/queries/get-lagekarte.handler';
-import { GetPoisQueryHandler } from '@/application/lagekarte/queries/get-pois.handler';
-
 /**
  * Lagekarte Module (Hexagonal Architecture)
  *
  * Stellt POI-Management und Geocoding-Funktionalität für Einsatz-Lagekarten bereit.
  * Nutzt Nominatim-API für Geocoding (Rate-Limited auf 1 req/s).
  *
- * **Architektur (Story 5-1 - Migration Complete):**
- * - Controller nutzt CQRS Handler (CommandBus/QueryBus) und ILagekarteRepository
+ * **Architektur (Clean Architecture):**
+ * - Controller injizieren Handler aus LagekarteApplicationModule
  * - Alle Business-Logik in Application Layer (CQRS Handlers)
- * - Infrastructure via LagekarteInfrastructureModule (ILagekarteRepository)
- * - Alte Repositories (LagekarteRepository, PoiRepository) nur für DEPRECATED PoiController
+ * - Infrastructure via LagekarteInfrastructureModule (importiert durch Application Module)
  *
  * **DEPRECATED Services:**
  * - LagekarteRepository: Nur noch für PoiController (DEPRECATED)
@@ -47,10 +35,9 @@ import { GetPoisQueryHandler } from '@/application/lagekarte/queries/get-pois.ha
  */
 @Module({
   imports: [
-    CqrsModule, // Provides CommandBus and QueryBus for CQRS pattern
+    CqrsModule, // Provides CommandBus/QueryBus for Controllers
+    LagekarteApplicationModule, // CQRS Handlers (Command, Query, Event Handlers)
     PrismaModule,
-    LagekarteInfrastructureModule, // Provides ILagekarteRepository, IEinsatzRepository, IGeocodingPort
-    EventInfrastructureModule, // Provides IEventPublisher for Command Handlers
     HttpModule.register({
       timeout: 5000,
       maxRedirects: 5,
@@ -70,14 +57,6 @@ import { GetPoisQueryHandler } from '@/application/lagekarte/queries/get-pois.ha
     // DEPRECATED: Alte Repositories nur noch für PoiController (wird in Story 5-2 entfernt)
     LagekarteRepository,
     PoiRepository,
-    // Command Handlers (CQRS Write Operations)
-    CreateLagekarteCommandHandler,
-    AddPoiCommandHandler,
-    RemovePoiCommandHandler,
-    UpdatePoiPositionCommandHandler,
-    // Query Handlers (CQRS Read Operations)
-    GetLagekarteQueryHandler,
-    GetPoisQueryHandler,
   ],
   exports: [
     // Public API: Geocoding/MGRS Services können von anderen Modulen genutzt werden

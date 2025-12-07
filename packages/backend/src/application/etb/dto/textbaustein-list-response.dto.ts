@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ApiMeta, ApiPagination } from '@/common/interfaces/api-response.interface';
+import { ApiMeta, ApiPagination } from '@/shared/interfaces/api-response.interface';
 import { TextbausteinDto } from './textbaustein.dto';
 
 /**

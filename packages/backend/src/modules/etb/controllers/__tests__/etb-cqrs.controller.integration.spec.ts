@@ -28,7 +28,7 @@ import type { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EtbCqrsController } from '@/modules/etb/controllers/etb-cqrs.controller';
 import { Result } from '@/domain/common/result';
-import type { ValidatedUser } from '@/auth/strategies/jwt.strategy';
+import type { ValidatedUser } from '@/modules/auth/strategies/jwt.strategy';
 import type { AddEintragDto, UpdateEintragDto, EtbDto, EintragDto, EtbSnapshotDto } from '@/application/etb/dto';
 
 // Mock CUID2 für deterministische Tests

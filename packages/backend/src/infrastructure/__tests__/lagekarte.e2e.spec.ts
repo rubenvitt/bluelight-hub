@@ -50,7 +50,7 @@ import { Result } from '@domain/common/result';
 import { PrismaLagekarteRepository } from '@infrastructure/repositories/prisma-lagekarte.repository';
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
-import type { PrismaService } from '@/prisma/prisma.service';
+import type { PrismaService } from '@/infrastructure/database/prisma.service';
 
 // Application - Commands
 import { CreateLagekarteCommand } from '@/application/lagekarte/commands/create-lagekarte.command';

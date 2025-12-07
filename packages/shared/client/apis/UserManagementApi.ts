@@ -13,22 +13,22 @@
  */
 
 import * as runtime from '../runtime';
-import type { CreateUserDto, DeleteUserDto, DeleteUserResponse, LockUserDto, UpdateUserDto, UserResponse, UsersListResponse } from '../models/index';
+import type { CreateUserDto, DeleteManagedUserResponse, DeleteUserDto, LockUserDto, ManagedUserResponse, ManagedUsersListResponse, UpdateUserDto } from '../models/index';
 import {
   CreateUserDtoFromJSON,
   CreateUserDtoToJSON,
+  DeleteManagedUserResponseFromJSON,
+  DeleteManagedUserResponseToJSON,
   DeleteUserDtoFromJSON,
   DeleteUserDtoToJSON,
-  DeleteUserResponseFromJSON,
-  DeleteUserResponseToJSON,
   LockUserDtoFromJSON,
   LockUserDtoToJSON,
+  ManagedUserResponseFromJSON,
+  ManagedUserResponseToJSON,
+  ManagedUsersListResponseFromJSON,
+  ManagedUsersListResponseToJSON,
   UpdateUserDtoFromJSON,
   UpdateUserDtoToJSON,
-  UserResponseFromJSON,
-  UserResponseToJSON,
-  UsersListResponseFromJSON,
-  UsersListResponseToJSON,
 } from '../models/index';
 
 export interface UserManagementControllerCreateVAlphaRequest {
@@ -64,7 +64,7 @@ export class UserManagementApi extends runtime.BaseAPI {
   async userManagementControllerCreateVAlphaRaw(
     requestParameters: UserManagementControllerCreateVAlphaRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<UserResponse>> {
+  ): Promise<runtime.ApiResponse<ManagedUserResponse>> {
     if (requestParameters['createUserDto'] == null) {
       throw new runtime.RequiredError('createUserDto', 'Required parameter "createUserDto" was null or undefined when calling userManagementControllerCreateVAlpha().');
     }
@@ -86,13 +86,13 @@ export class UserManagementApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => UserResponseFromJSON(jsonValue));
+    return new runtime.JSONApiResponse(response, (jsonValue) => ManagedUserResponseFromJSON(jsonValue));
   }
 
   /**
    * Neuen Benutzer erstellen
    */
-  async userManagementControllerCreateVAlpha(requestParameters: UserManagementControllerCreateVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<UserResponse> {
+  async userManagementControllerCreateVAlpha(requestParameters: UserManagementControllerCreateVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ManagedUserResponse> {
     const response = await this.userManagementControllerCreateVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
@@ -100,7 +100,7 @@ export class UserManagementApi extends runtime.BaseAPI {
   /**
    * Alle Benutzer auflisten
    */
-  async userManagementControllerFindAllVAlphaRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<UsersListResponse>> {
+  async userManagementControllerFindAllVAlphaRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ManagedUsersListResponse>> {
     const queryParameters: any = {};
 
     const headerParameters: runtime.HTTPHeaders = {};
@@ -115,13 +115,13 @@ export class UserManagementApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => UsersListResponseFromJSON(jsonValue));
+    return new runtime.JSONApiResponse(response, (jsonValue) => ManagedUsersListResponseFromJSON(jsonValue));
   }
 
   /**
    * Alle Benutzer auflisten
    */
-  async userManagementControllerFindAllVAlpha(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<UsersListResponse> {
+  async userManagementControllerFindAllVAlpha(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ManagedUsersListResponse> {
     const response = await this.userManagementControllerFindAllVAlphaRaw(initOverrides);
     return await response.value();
   }
@@ -132,7 +132,7 @@ export class UserManagementApi extends runtime.BaseAPI {
   async userManagementControllerLockVAlphaRaw(
     requestParameters: UserManagementControllerLockVAlphaRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<UserResponse>> {
+  ): Promise<runtime.ApiResponse<ManagedUserResponse>> {
     if (requestParameters['id'] == null) {
       throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling userManagementControllerLockVAlpha().');
     }
@@ -154,13 +154,13 @@ export class UserManagementApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => UserResponseFromJSON(jsonValue));
+    return new runtime.JSONApiResponse(response, (jsonValue) => ManagedUserResponseFromJSON(jsonValue));
   }
 
   /**
    * Benutzer manuell sperren
    */
-  async userManagementControllerLockVAlpha(requestParameters: UserManagementControllerLockVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<UserResponse> {
+  async userManagementControllerLockVAlpha(requestParameters: UserManagementControllerLockVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ManagedUserResponse> {
     const response = await this.userManagementControllerLockVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
@@ -171,7 +171,7 @@ export class UserManagementApi extends runtime.BaseAPI {
   async userManagementControllerRemoveVAlphaRaw(
     requestParameters: UserManagementControllerRemoveVAlphaRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<DeleteUserResponse>> {
+  ): Promise<runtime.ApiResponse<DeleteManagedUserResponse>> {
     if (requestParameters['id'] == null) {
       throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling userManagementControllerRemoveVAlpha().');
     }
@@ -193,13 +193,16 @@ export class UserManagementApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => DeleteUserResponseFromJSON(jsonValue));
+    return new runtime.JSONApiResponse(response, (jsonValue) => DeleteManagedUserResponseFromJSON(jsonValue));
   }
 
   /**
    * Benutzer löschen oder herabstufen
    */
-  async userManagementControllerRemoveVAlpha(requestParameters: UserManagementControllerRemoveVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<DeleteUserResponse> {
+  async userManagementControllerRemoveVAlpha(
+    requestParameters: UserManagementControllerRemoveVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<DeleteManagedUserResponse> {
     const response = await this.userManagementControllerRemoveVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
@@ -210,7 +213,7 @@ export class UserManagementApi extends runtime.BaseAPI {
   async userManagementControllerUnlockVAlphaRaw(
     requestParameters: UserManagementControllerUnlockVAlphaRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<UserResponse>> {
+  ): Promise<runtime.ApiResponse<ManagedUserResponse>> {
     if (requestParameters['id'] == null) {
       throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling userManagementControllerUnlockVAlpha().');
     }
@@ -229,13 +232,13 @@ export class UserManagementApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => UserResponseFromJSON(jsonValue));
+    return new runtime.JSONApiResponse(response, (jsonValue) => ManagedUserResponseFromJSON(jsonValue));
   }
 
   /**
    * Benutzer entsperren
    */
-  async userManagementControllerUnlockVAlpha(requestParameters: UserManagementControllerUnlockVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<UserResponse> {
+  async userManagementControllerUnlockVAlpha(requestParameters: UserManagementControllerUnlockVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ManagedUserResponse> {
     const response = await this.userManagementControllerUnlockVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
@@ -246,7 +249,7 @@ export class UserManagementApi extends runtime.BaseAPI {
   async userManagementControllerUpdateVAlphaRaw(
     requestParameters: UserManagementControllerUpdateVAlphaRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<UserResponse>> {
+  ): Promise<runtime.ApiResponse<ManagedUserResponse>> {
     if (requestParameters['id'] == null) {
       throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling userManagementControllerUpdateVAlpha().');
     }
@@ -272,13 +275,13 @@ export class UserManagementApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => UserResponseFromJSON(jsonValue));
+    return new runtime.JSONApiResponse(response, (jsonValue) => ManagedUserResponseFromJSON(jsonValue));
   }
 
   /**
    * Benutzer aktualisieren
    */
-  async userManagementControllerUpdateVAlpha(requestParameters: UserManagementControllerUpdateVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<UserResponse> {
+  async userManagementControllerUpdateVAlpha(requestParameters: UserManagementControllerUpdateVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ManagedUserResponse> {
     const response = await this.userManagementControllerUpdateVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }

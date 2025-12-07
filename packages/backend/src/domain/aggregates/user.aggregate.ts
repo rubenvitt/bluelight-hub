@@ -4,6 +4,8 @@ import { PermissionGrantedEvent } from '@domain/events/permission-granted.event'
 import { PermissionRevokedEvent } from '@domain/events/permission-revoked.event';
 import { UserCreatedEvent } from '@domain/events/user-created.event';
 import { UserDeletedEvent } from '@domain/events/user-deleted.event';
+import { UserLockedEvent } from '@domain/events/user-locked.event';
+import { UserUnlockedEvent } from '@domain/events/user-unlocked.event';
 import { UserRoleChangedEvent } from '@domain/events/user-role-changed.event';
 import type { IUserRepository } from '@domain/repositories/i-user.repository';
 import type { Permission } from '@domain/value-objects/permission';
@@ -434,18 +436,18 @@ export class UserAggregate extends AggregateRoot<UserId> {
   /**
    * Business Method: Sperrt den User Account mit Min-1-SUPER_ADMIN Constraint Check.
    * Account Locking ist reversibel (kann via unlock() entsperrt werden).
+   * Emittiert UserLockedEvent bei erfolgreicher Sperrung.
    *
    * **Business Rules:**
    * - Min-1-SUPER_ADMIN Constraint: Letzter SUPER_ADMIN darf NICHT gesperrt werden
    * - Repository.countSuperAdmins() wird aufgerufen für Constraint Check
    * - Setzt isLocked = true
-   * - KEIN Event emittiert (lock ist technischer State Change, kein Domain Event)
+   * - Emittiert UserLockedEvent mit lockedBy und optional reason
    *
-   * **Warum Lock KEIN Domain Event emittiert:**
-   * - Account Locking ist technischer State Change (nicht fachlich relevant)
-   * - Kein External System muss über Lock benachrichtigt werden
-   * - Lock kann implizit bei Login-Validierung geprüft werden
-   * - ABER: Bei Bedarf kann später LockEvent hinzugefügt werden (YAGNI)
+   * **Event-Carried State Transfer:**
+   * - UserLockedEvent enthält userId, lockedBy und reason
+   * - Event Handler können Lock-Grund verstehen OHNE DB Query
+   * - Ermöglicht Event Replay für Audit Trail
    *
    * **Warum Repository als Parameter:**
    * - Gleiche Hexagonal Architecture wie updateRole()
@@ -453,25 +455,29 @@ export class UserAggregate extends AggregateRoot<UserId> {
    * - Testbarkeit via Mock Repository
    *
    * @param repository - IUserRepository für Min-1-SUPER_ADMIN Check
+   * @param lockedBy - UserId des Users der die Sperrung durchführt (Audit Trail)
+   * @param reason - Optional: Grund der Sperrung (für Transparency und Audit)
    * @returns Result<void> - Success oder Failure mit Error Message
    *
    * @example
    * ```typescript
    * const user = UserAggregate.create(username, UserRole.ADMIN()).value!;
+   * const lockedBy = UserId.create().value!;
    *
-   * // Success: User sperren
-   * const result = await user.lock(repository);
+   * // Success: User sperren mit Grund
+   * const result = await user.lock(repository, lockedBy, 'Verdächtige Aktivitäten');
    * if (result.isSuccess) {
    *   console.log(user.isLocked); // true
+   *   console.log(user.getDomainEvents().length); // 1 (UserLockedEvent)
    * }
    *
    * // Failure: Letzten SUPER_ADMIN sperren
    * const superAdmin = UserAggregate.create(username, UserRole.SUPER_ADMIN()).value!;
-   * const failResult = await superAdmin.lock(repository); // countSuperAdmins() = 1
+   * const failResult = await superAdmin.lock(repository, lockedBy); // countSuperAdmins() = 1
    * console.log(failResult.error); // "Cannot lock last SUPER_ADMIN"
    * ```
    */
-  public async lock(repository: IUserRepository): Promise<Result<void>> {
+  public async lock(repository: IUserRepository, lockedBy: UserId, reason?: string): Promise<Result<void>> {
     // Min-1-SUPER_ADMIN Constraint Check
     // Prüfe ob User SUPER_ADMIN ist UND letzter SUPER_ADMIN im System
     if (this._role.equals(UserRole.SUPER_ADMIN())) {
@@ -487,46 +493,69 @@ export class UserAggregate extends AggregateRoot<UserId> {
     // Lock user
     this._isLocked = true;
 
+    // Emit event
+    this.addDomainEvent(new UserLockedEvent(this.id, lockedBy, reason, this.id.toString()));
+
     return Result.ok<void>(undefined);
   }
 
   /**
    * Business Method: Entsperrt den User Account.
    * Macht Account Lock rückgängig.
+   * Emittiert UserUnlockedEvent bei erfolgreicher Entsperrung.
    *
    * **Business Rules:**
    * - Setzt isLocked = false
-   * - No-Op wenn User bereits entsperrt (kein Fehler)
-   * - KEIN Event emittiert (unlock ist technischer State Change)
+   * - No-Op wenn User bereits entsperrt (kein Event, kein Fehler)
+   * - Emittiert UserUnlockedEvent nur wenn User tatsächlich gesperrt war
+   *
+   * **Event-Carried State Transfer:**
+   * - UserUnlockedEvent enthält userId und unlockedBy
+   * - Event Handler können Lock-Aufhebung verstehen OHNE DB Query
+   * - Ermöglicht Event Replay für Audit Trail
    *
    * **Warum No-Op bei bereits entsperrt:**
    * - Idempotenz: unlock() kann mehrfach aufgerufen werden ohne Fehler
    * - Convenience: Caller muss nicht erst isLocked prüfen
    * - Consistency: Gleiche Semantik wie andere State Changes
+   * - KEIN Event bei No-Op (nur echte State Changes emittieren Events)
    *
+   * @param unlockedBy - UserId des Users der die Entsperrung durchführt (Audit Trail)
    * @returns Result<void> - Success (immer erfolgreich, auch bei No-Op)
    *
    * @example
    * ```typescript
    * const user = UserAggregate.create(username, UserRole.ADMIN()).value!;
+   * const lockedBy = UserId.create().value!;
+   * const unlockedBy = UserId.create().value!;
    *
    * // Setup: User sperren
-   * await user.lock(repository);
+   * await user.lock(repository, lockedBy, 'Test reason');
    *
    * // Success: User entsperren
-   * const result = user.unlock();
+   * const result = user.unlock(unlockedBy);
    * if (result.isSuccess) {
    *   console.log(user.isLocked); // false
+   *   console.log(user.getDomainEvents().length); // 1 (UserUnlockedEvent)
    * }
    *
-   * // No-Op: User bereits entsperrt
-   * const noOpResult = user.unlock();
+   * // No-Op: User bereits entsperrt (kein Event)
+   * const noOpResult = user.unlock(unlockedBy);
    * console.log(noOpResult.isSuccess); // true (No-Op)
+   * console.log(user.getDomainEvents().length); // 0 (kein zusätzliches Event)
    * ```
    */
-  public unlock(): Result<void> {
-    // Unlock user (idempotent - no-op if already unlocked)
+  public unlock(unlockedBy: UserId): Result<void> {
+    // No-Op wenn User bereits entsperrt (idempotent)
+    if (!this._isLocked) {
+      return Result.ok<void>(undefined);
+    }
+
+    // Unlock user
     this._isLocked = false;
+
+    // Emit event (nur bei tatsächlicher State Change)
+    this.addDomainEvent(new UserUnlockedEvent(this.id, unlockedBy, this.id.toString()));
 
     return Result.ok<void>(undefined);
   }

@@ -1,7 +1,7 @@
 import { Button } from '@/components/atoms/button.atom';
 import { RoleField, UsernameField } from '@/components/molecules/admin/UserFormFields';
 import { Dialog } from '@/components/molecules/dialog.molecule';
-import { UserDtoRoleEnum } from '@bluelight-hub/shared/client';
+import { ManagedUserResponseDtoRoleEnum } from '@bluelight-hub/shared/client';
 import { useForm } from '@tanstack/react-form';
 import { z } from 'zod';
 
@@ -11,7 +11,7 @@ const _createUserSchema = z.object({
     .min(3, 'Benutzername muss mindestens 3 Zeichen lang sein')
     .max(30, 'Benutzername darf maximal 30 Zeichen lang sein')
     .regex(/^[a-zA-Z0-9._]+$/, 'Benutzername darf nur Buchstaben, Zahlen, Unterstriche und Punkte enthalten'),
-  role: z.nativeEnum(UserDtoRoleEnum),
+  role: z.nativeEnum(ManagedUserResponseDtoRoleEnum),
 });
 
 type CreateUserFormData = z.infer<typeof _createUserSchema>;
@@ -27,7 +27,7 @@ export const CreateUserDialog = ({ isOpen, onClose, onSubmit, isSubmitting }: Cr
   const form = useForm({
     defaultValues: {
       username: '',
-      role: UserDtoRoleEnum.User as UserDtoRoleEnum,
+      role: ManagedUserResponseDtoRoleEnum.User as ManagedUserResponseDtoRoleEnum,
     },
     onSubmit: ({ value }) => {
       onSubmit(value);

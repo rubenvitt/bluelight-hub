@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaLagekarteRepository } from './repositories/prisma-lagekarte.repository';
 import { PrismaEinsatzRepository } from './einsatz/repositories/prisma-einsatz.repository';
 import { NominatimGeocodingAdapter } from './geocoding/nominatim-geocoding.adapter';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@/infrastructure/database/prisma.module';
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
 import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY, LAGEKARTE_REPOSITORY } from '@infrastructure/di-tokens';

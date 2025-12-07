@@ -4,7 +4,7 @@ import type { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate'
 import type { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { PrismaLagekarteMapper } from './mappers/prisma-lagekarte.mapper';
 import type { PrismaClient } from '@prisma/client';
 import { PrismaOutboxRepository, type PrismaTransaction } from '@/infrastructure/outbox/prisma-outbox.repository';

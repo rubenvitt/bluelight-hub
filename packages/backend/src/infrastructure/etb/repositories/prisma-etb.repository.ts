@@ -1,4 +1,4 @@
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import type { EinsatztagebuchAggregate } from '@domain/aggregates/einsatztagebuch.aggregate';
 import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import type { TransactionContext } from '@domain/common/transaction';

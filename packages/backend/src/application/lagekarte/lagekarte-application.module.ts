@@ -67,6 +67,9 @@ import { LagekarteAutoCreationHandler } from './event-handlers';
     PoiMapper,
   ],
   exports: [
+    // Re-export Infrastructure Module (Controllers need LAGEKARTE_REPOSITORY)
+    LagekarteInfrastructureModule,
+
     // Export handlers for use in Infrastructure Layer (Controllers)
     // Command Handlers
     CreateLagekarteCommandHandler,

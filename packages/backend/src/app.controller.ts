@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Controller, Get, Logger, VERSION_NEUTRAL } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SkipTransform } from './common/decorators/skip-transform.decorator';
-import { trimTrailingSlash } from './utils/url.util';
+import { SkipTransform } from './modules/common/decorators/skip-transform.decorator';
+import { trimTrailingSlash } from '@/shared/utils/url.util';
 
 const packageJson = (() => {
   try {

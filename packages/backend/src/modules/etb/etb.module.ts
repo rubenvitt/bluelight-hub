@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '../prisma/prisma.module';
+import { PrismaModule } from '@/prisma/prisma.module';
 import { EtbApplicationModule } from '@/application/etb/etb-application.module';
 import { EtbInfrastructureModule } from '@/infrastructure/etb/etb-infrastructure.module';
-import { EtbCqrsController } from '@/modules/etb/controllers/etb-cqrs.controller';
+import { EtbCqrsController } from './controllers/etb-cqrs.controller';
 
 /**
  * EtbModule - Einsatztagebuch Feature Module (Hexagonal Architecture).

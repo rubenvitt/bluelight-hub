@@ -11,7 +11,7 @@ import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { CommonModule } from './common/common.module';
 import { EinsatzModule } from './einsatz/einsatz.module';
-import { EtbModule } from './etb/etb.module';
+import { EtbModule } from './modules/etb/etb.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UserManagementModule } from './user-management/user-management.module';
@@ -21,6 +21,7 @@ import { EinsatzInfrastructureModule } from './infrastructure/einsatz/einsatz-in
 import { UserInfrastructureModule } from './infrastructure/user';
 import { AuthInfrastructureModule } from './infrastructure/auth';
 import { OutboxModule } from './infrastructure/outbox/outbox.module';
+import { EventAdaptersModule } from './infrastructure/events/event-adapters.module';
 
 /**
  * Haupt-Anwendungsmodul der Bluelight Hub Backend-Anwendung
@@ -75,6 +76,7 @@ import { OutboxModule } from './infrastructure/outbox/outbox.module';
     UserInfrastructureModule, // User Repository Infrastructure (Story 4-7, Task 5)
     AuthInfrastructureModule, // JWT Auth Service Infrastructure (Story 4-7, Task 5)
     OutboxModule, // Transactional Outbox Pattern (Story 4-4)
+    EventAdaptersModule, // Event Adapters (delegiert @OnEvent an Application Layer Handler)
   ],
   controllers: [AppController],
   providers: [

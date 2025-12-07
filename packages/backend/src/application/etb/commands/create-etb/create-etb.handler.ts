@@ -3,11 +3,10 @@ import { Result } from '@domain/common/result';
 import { EinsatztagebuchAggregate } from '@domain/aggregates/einsatztagebuch.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { EtbId } from '@domain/value-objects/etb-id';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
+import type { IEtbRepository } from '@domain/repositories';
 import type { CreateEtbCommand } from './create-etb.command';
-import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
+import { EINSATZ_REPOSITORY, ETB_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler für CreateEtbCommand.
@@ -30,7 +29,7 @@ export class CreateEtbHandler {
   constructor(
     @Inject(EINSATZ_REPOSITORY)
     private readonly einsatzRepository: IEinsatzRepository,
-    @Inject('IEtbRepository')
+    @Inject(ETB_REPOSITORY)
     private readonly etbRepository: IEtbRepository,
   ) {}
 

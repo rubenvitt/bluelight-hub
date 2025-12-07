@@ -1,4 +1,3 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InMemoryEtbRepository } from '../../__tests__/in-memory-etb.repository';
 import { LockEtbCommand } from '../lock-etb/lock-etb.command';
 import { LockEtbHandler } from '../lock-etb/lock-etb.handler';
@@ -109,10 +108,11 @@ describe('LockEtbHandler', () => {
 
       // Act: Try to add entry to locked ETB
       const addCommand = AddEintragCommand.create(etb.id.value, 'Neuer Eintrag', testUserId).value!;
+      const result = await addEintragHandler.execute(addCommand);
 
       // Assert
-      await expect(addEintragHandler.execute(addCommand)).rejects.toThrow(BadRequestException);
-      await expect(addEintragHandler.execute(addCommand)).rejects.toThrow('ETB ist gesperrt und kann nicht mehr geändert werden');
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toContain('ETB ist gesperrt');
     });
 
     it('should verify locked ETB rejects mutations at aggregate level', async () => {
@@ -129,16 +129,19 @@ describe('LockEtbHandler', () => {
   });
 
   describe('AC3: Locked ETB rejects another LockEtb call', () => {
-    it('should throw BadRequestException when ETB is already locked', async () => {
+    it('should return Result.fail when ETB is already locked', async () => {
       // Arrange: Create already locked ETB
       const etb = createTestEtb({ status: 'LOCKED', entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
 
       const command = LockEtbCommand.create(etb.id.value, testUserId, 'ADMIN').value!;
 
-      // Act & Assert
-      await expect(lockHandler.execute(command)).rejects.toThrow(BadRequestException);
-      await expect(lockHandler.execute(command)).rejects.toThrow('ETB ist bereits gesperrt');
+      // Act
+      const result = await lockHandler.execute(command);
+
+      // Assert
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toContain('ETB ist bereits gesperrt');
     });
   });
 
@@ -163,73 +166,95 @@ describe('LockEtbHandler', () => {
     });
   });
 
-  describe('AC5: Handler throws NotFoundException when ETB not found', () => {
-    it('should throw NotFoundException for non-existent ETB', async () => {
+  describe('AC5: Handler returns Result.fail when ETB not found', () => {
+    it('should return Result.fail for non-existent ETB', async () => {
       // Arrange
       const fakeEtbId = generateTestCuid();
       const command = LockEtbCommand.create(fakeEtbId, testUserId, 'ADMIN').value!;
 
-      // Act & Assert
-      await expect(lockHandler.execute(command)).rejects.toThrow(NotFoundException);
-      await expect(lockHandler.execute(command)).rejects.toThrow('ETB nicht gefunden');
+      // Act
+      const result = await lockHandler.execute(command);
+
+      // Assert
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('ETB nicht gefunden');
     });
   });
 
-  describe('AC6: Handler throws ForbiddenException for non-admin users', () => {
-    it('should throw ForbiddenException when user is not ADMIN or SUPER_ADMIN', async () => {
+  describe('AC6: Handler returns Result.fail for non-admin users', () => {
+    it('should return Result.fail when user is not ADMIN or SUPER_ADMIN', async () => {
       // Arrange
       const etb = createTestEtb({ entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
 
       const command = LockEtbCommand.create(etb.id.value, testUserId, 'USER').value!;
 
-      // Act & Assert
-      await expect(lockHandler.execute(command)).rejects.toThrow(ForbiddenException);
-      await expect(lockHandler.execute(command)).rejects.toThrow('Nur Administratoren können ETB sperren');
+      // Act
+      const result = await lockHandler.execute(command);
+
+      // Assert
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('Nur Administratoren können ETB sperren');
     });
 
-    it('should throw ForbiddenException for VIEWER role', async () => {
+    it('should return Result.fail for VIEWER role', async () => {
       // Arrange
       const etb = createTestEtb({ entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
 
       const command = LockEtbCommand.create(etb.id.value, testUserId, 'VIEWER').value!;
 
-      // Act & Assert
-      await expect(lockHandler.execute(command)).rejects.toThrow(ForbiddenException);
+      // Act
+      const result = await lockHandler.execute(command);
+
+      // Assert
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('Nur Administratoren können ETB sperren');
     });
   });
 
   describe('AC7: Handler error handling validation', () => {
-    it('should throw NotFoundException when ETB not found', async () => {
+    it('should return Result.fail when ETB not found', async () => {
       // Arrange
       const fakeEtbId = generateTestCuid();
       const command = LockEtbCommand.create(fakeEtbId, testUserId, 'ADMIN').value!;
 
-      // Act & Assert
-      await expect(lockHandler.execute(command)).rejects.toThrow(NotFoundException);
+      // Act
+      const result = await lockHandler.execute(command);
+
+      // Assert
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('ETB nicht gefunden');
     });
 
-    it('should throw ForbiddenException when authorization fails', async () => {
+    it('should return Result.fail when authorization fails', async () => {
       // Arrange
       const etb = createTestEtb({ entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
 
       const command = LockEtbCommand.create(etb.id.value, testUserId, 'USER').value!;
 
-      // Act & Assert
-      await expect(lockHandler.execute(command)).rejects.toThrow(ForbiddenException);
+      // Act
+      const result = await lockHandler.execute(command);
+
+      // Assert
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('Nur Administratoren können ETB sperren');
     });
 
-    it('should throw BadRequestException when ETB already locked', async () => {
+    it('should return Result.fail when ETB already locked', async () => {
       // Arrange
       const etb = createTestEtb({ status: 'LOCKED', entriesCount: 1, userId: testUserId, einsatzId: testEinsatzId });
       await etbRepository.save(etb);
 
       const command = LockEtbCommand.create(etb.id.value, testUserId, 'ADMIN').value!;
 
-      // Act & Assert
-      await expect(lockHandler.execute(command)).rejects.toThrow(BadRequestException);
+      // Act
+      const result = await lockHandler.execute(command);
+
+      // Assert
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toContain('ETB ist bereits gesperrt');
     });
   });
 

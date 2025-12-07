@@ -380,7 +380,7 @@ describe('AuthController HTTP Integration Tests (AC5.2)', () => {
       const token = accessTokenCookie?.split(';')[0].split('=')[1] || '';
 
       // Token manipulieren (letztes Zeichen ändern)
-      const tamperedToken = token.slice(0, -1) + 'X';
+      const tamperedToken = `${token.slice(0, -1)}X`;
 
       const response = await request(app.getHttpServer())
         .get('/api/v-alpha/einsatz/active-with-counts')

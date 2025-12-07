@@ -241,6 +241,7 @@ export async function createEtbE2eModule(): Promise<EtbE2eTestContext> {
       NOW(),
       NOW()
     )
+    ON CONFLICT (username) DO NOTHING
   `;
 
   // 4. Test Einsatz erstellen (CUID2 Format!)
@@ -257,6 +258,7 @@ export async function createEtbE2eModule(): Promise<EtbE2eTestContext> {
       NOW(),
       NOW()
     )
+    ON CONFLICT (id) DO NOTHING
   `;
 
   // 5. Repository und EventPublisher mit Outbox Support (Story 4-4)
@@ -287,12 +289,13 @@ export async function teardownE2eModule(ctx: EtbE2eTestContext): Promise<void> {
   await ctx.prisma.$executeRawUnsafe(DISABLE_TRIGGERS_SQL);
   try {
     // Reihenfolge (FK-Reverse Order!):
-    // Snapshots -> Eintraege -> Einsatztagebuecher -> Einsaetze -> User
-    await ctx.prisma.$executeRawUnsafe(`DELETE FROM etb_snapshots WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = $1)`, ctx.testEinsatzId);
-    await ctx.prisma.$executeRawUnsafe(`DELETE FROM etb_eintraege WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = $1)`, ctx.testEinsatzId);
-    await ctx.prisma.$executeRawUnsafe(`DELETE FROM einsatztagebuecher WHERE "einsatzId" = $1`, ctx.testEinsatzId);
-    await ctx.prisma.$executeRawUnsafe(`DELETE FROM einsaetze WHERE id = $1`, ctx.testEinsatzId);
-    await ctx.prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE id = $1`, ctx.testUserId);
+    // Snapshots -> Eintraege -> Einsatztagebuecher -> Outbox Events -> Einsaetze -> User
+    await ctx.prisma.$executeRaw`DELETE FROM etb_snapshots WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = ${ctx.testEinsatzId})`;
+    await ctx.prisma.$executeRaw`DELETE FROM etb_eintraege WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = ${ctx.testEinsatzId})`;
+    await ctx.prisma.$executeRaw`DELETE FROM einsatztagebuecher WHERE "einsatzId" = ${ctx.testEinsatzId}`;
+    await ctx.prisma.$executeRaw`DELETE FROM outbox_events WHERE "aggregateId" = ${ctx.testEinsatzId}`;
+    await ctx.prisma.$executeRaw`DELETE FROM einsaetze WHERE id = ${ctx.testEinsatzId}`;
+    await ctx.prisma.$executeRaw`DELETE FROM "User" WHERE id = ${ctx.testUserId}`;
   } finally {
     await ctx.prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
     await ctx.prisma.$disconnect();
@@ -312,10 +315,11 @@ export async function cleanupTestData(ctx: EtbE2eTestContext): Promise<void> {
 
   await ctx.prisma.$executeRawUnsafe(DISABLE_TRIGGERS_SQL);
   try {
-    // Reihenfolge (FK Order!): Snapshots -> Eintraege -> Einsatztagebuecher
-    await ctx.prisma.$executeRawUnsafe(`DELETE FROM etb_snapshots WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = $1)`, ctx.testEinsatzId);
-    await ctx.prisma.$executeRawUnsafe(`DELETE FROM etb_eintraege WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = $1)`, ctx.testEinsatzId);
-    await ctx.prisma.$executeRawUnsafe(`DELETE FROM einsatztagebuecher WHERE "einsatzId" = $1`, ctx.testEinsatzId);
+    // Reihenfolge (FK Order!): Snapshots -> Eintraege -> Einsatztagebuecher -> Outbox Events
+    await ctx.prisma.$executeRaw`DELETE FROM etb_snapshots WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = ${ctx.testEinsatzId})`;
+    await ctx.prisma.$executeRaw`DELETE FROM etb_eintraege WHERE "etbId" IN (SELECT id FROM einsatztagebuecher WHERE "einsatzId" = ${ctx.testEinsatzId})`;
+    await ctx.prisma.$executeRaw`DELETE FROM einsatztagebuecher WHERE "einsatzId" = ${ctx.testEinsatzId}`;
+    await ctx.prisma.$executeRaw`DELETE FROM outbox_events WHERE "aggregateId" = ${ctx.testEinsatzId}`;
   } finally {
     await ctx.prisma.$executeRawUnsafe(ENABLE_TRIGGERS_SQL);
   }

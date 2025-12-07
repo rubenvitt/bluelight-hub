@@ -1,5 +1,5 @@
 import { LagekarteInfrastructureModule } from '@/infrastructure/lagekarte-infrastructure.module';
-import { LagekarteEventsModule } from '@/infrastructure/events/lagekarte-events.module';
+import { EventInfrastructureModule } from '@/infrastructure/events/event-infrastructure.module';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
@@ -50,7 +50,7 @@ import { GetPoisQueryHandler } from '@/application/lagekarte/queries/get-pois.ha
     CqrsModule, // Provides CommandBus and QueryBus for CQRS pattern
     PrismaModule,
     LagekarteInfrastructureModule, // Provides ILagekarteRepository, IEinsatzRepository, IGeocodingPort
-    LagekarteEventsModule, // Provides IEventPublisher for Command Handlers
+    EventInfrastructureModule, // Provides IEventPublisher for Command Handlers
     HttpModule.register({
       timeout: 5000,
       maxRedirects: 5,

@@ -1,11 +1,11 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { EintragId } from '@domain/value-objects/eintrag-id';
 import { UserId } from '@domain/value-objects/user-id';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
+import type { IEtbRepository } from '@domain/repositories';
 import type { DeleteEintragCommand } from './delete-eintrag.command';
+import { ETB_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler für DeleteEintragCommand.
@@ -34,7 +34,7 @@ export class DeleteEintragHandler {
   private readonly logger = new Logger(DeleteEintragHandler.name);
 
   constructor(
-    @Inject('IEtbRepository')
+    @Inject(ETB_REPOSITORY)
     private readonly etbRepository: IEtbRepository,
   ) {}
 
@@ -89,7 +89,7 @@ export class DeleteEintragHandler {
       });
 
       // User-facing sanitized message (NO internal IDs)
-      throw new NotFoundException('ETB nicht gefunden');
+      return Result.fail<void>('ETB nicht gefunden');
     }
 
     // Step 5: Delegate to domain method (validates business rules, creates snapshot)
@@ -104,7 +104,7 @@ export class DeleteEintragHandler {
     const deleteResult = aggregate.deleteEintrag(eintragId, userId);
     if (deleteResult.isFailure) {
       // Domain-level validation failure
-      throw new BadRequestException(deleteResult.error);
+      return Result.fail<void>(deleteResult.error ?? 'Eintrag konnte nicht gelöscht werden');
     }
 
     // Step 6: Save aggregate (repository handles snapshot persistence)

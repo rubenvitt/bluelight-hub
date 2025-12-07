@@ -14,7 +14,7 @@ import { useParams } from '@tanstack/react-router';
 import { addMinutes, format, formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useEffect } from 'react';
-import { PiCheckCircle, PiClipboard, PiClock, PiFileText, PiMapPin, PiPhone, PiRadio, PiTruck } from 'react-icons/pi';
+import { PiCheckCircle, PiClipboard, PiClock, PiFileText, PiMapPin, PiPhone, PiRadio, PiTruck, PiUsers } from 'react-icons/pi';
 
 /**
  * Dashboard für einen einzelnen aktiven Einsatz

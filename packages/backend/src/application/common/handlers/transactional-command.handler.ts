@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { DomainEvent } from '@domain/common/domain-event';
-import type { TransactionContext } from '@domain/common/transaction';
+import type { TransactionContext } from '@domain/common';
+import { Result } from '@domain/common/result';
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
 import { PrismaService } from '@/prisma/prisma.service';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
+import { OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Abstract Base Class für transaktionale Command Handler im Transactional Outbox Pattern.
@@ -12,6 +14,11 @@ import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository
  * einzelnen Datenbank-Transaktion. Garantiert atomare Persistierung von
  * State Changes (Aggregate) und Events (Outbox) - verhindert Datenverlust
  * und inkonsistente Zustände bei Fehlerszenarien.
+ *
+ * **Result Pattern (AC4):**
+ * - Verwendet `Result<T>` für erwartete Business-Fehler (Validierung, Business Rules)
+ * - Exceptions nur für unerwartete Fehler (DB-Fehler, Netzwerk, Programming Errors)
+ * - Transaction Rollback bei Exceptions UND bei Result.fail() in executeInTransaction
  *
  * **Warum dieses Pattern?**
  *
@@ -47,7 +54,7 @@ import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository
  * @example
  * ```typescript
  * @Injectable()
- * export class CreateEinsatzHandler extends TransactionalCommandHandler<CreateEinsatzCommand, EinsatzId> {
+ * export class CreateEinsatzHandler extends TransactionalCommandHandler<CreateEinsatzCommand, string> {
  *   constructor(
  *     prisma: PrismaService,
  *     outboxRepository: IOutboxRepository,
@@ -58,24 +65,40 @@ import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository
  *
  *   protected async executeInTransaction(
  *     command: CreateEinsatzCommand,
- *     tx: PrismaTransaction,
- *   ): Promise<{ result: EinsatzId; events: DomainEvent[] }> {
- *     // 1. Business Logic - Create Aggregate
- *     const einsatz = Einsatz.create({ ... });
+ *     tx: TransactionContext,
+ *   ): Promise<Result<{ result: string; events: DomainEvent[] }>> {
+ *     // 1. Validate UserId
+ *     const userIdResult = UserId.create(command.createdBy);
+ *     if (userIdResult.isFailure) {
+ *       return Result.fail(userIdResult.error); // ✅ Result Pattern
+ *     }
  *
- *     // 2. Persist Aggregate in Transaction
- *     await this.einsatzRepository.save(einsatz, tx);
+ *     // 2. Create Aggregate
+ *     const einsatzResult = Einsatz.create({ ... });
+ *     if (einsatzResult.isFailure) {
+ *       return Result.fail(einsatzResult.error); // ✅ Result Pattern
+ *     }
  *
- *     // 3. Extract Events BEFORE clearing
+ *     // 3. Save Aggregate in Transaction
+ *     const saveResult = await this.einsatzRepository.save(einsatz, tx);
+ *     if (saveResult.isFailure) {
+ *       return Result.fail(saveResult.error); // ✅ Result Pattern
+ *     }
+ *
+ *     // 4. Extract Events
  *     const events = einsatz.getDomainEvents();
  *
- *     // 4. Return for atomic commit
- *     return { result: einsatz.id, events };
+ *     // 5. Return success
+ *     return Result.ok({ result: einsatz.id.value, events });
  *   }
  * }
  *
  * // Usage in Controller
- * const einsatzId = await handler.execute(command);
+ * const result = await handler.execute(command);
+ * if (result.isFailure) {
+ *   throw new BadRequestException(result.error);
+ * }
+ * return result.value;
  * ```
  */
 @Injectable()
@@ -94,39 +117,50 @@ export abstract class TransactionalCommandHandler<TCommand, TResult> {
   /**
    * Abstract Method - Subclasses implementieren Business Logic innerhalb der Transaktion.
    *
+   * **Result Pattern (AC4):**
+   * - IMMER `Result<T>` zurückgeben für erwartete Fehler
+   * - Nur Exceptions für unerwartete Fehler (DB-Fehler, Programming Errors)
+   * - Bei Result.fail(): Transaction wird automatisch zurückgerollt
+   *
    * **Wichtig:** Diese Methode läuft innerhalb einer Prisma Transaction (tx).
    * - Verwende den `tx` Parameter für alle DB-Operations (NICHT this.prisma)
    * - Return events NACH Domain Logic aber VOR clearDomainEvents()
    * - Events werden automatisch vom Base Handler im Outbox persistiert
    *
    * **Lifecycle:**
-   * 1. Aggregate erstellen/modifizieren (Business Rules enforced)
-   * 2. Aggregate.save(tx) - Persistierung in Transaction
-   * 3. events = aggregate.getDomainEvents() - Events extrahieren
-   * 4. return { result, events } - Für atomic commit
-   * 5. [Base Handler] Outbox.save(events, tx) - Events atomar persistieren
-   * 6. [Base Handler] aggregate.clearDomainEvents() - Nach erfolgreicher TX
+   * 1. Validiere Inputs → Return Result.fail() bei Validierungsfehlern
+   * 2. Aggregate erstellen/modifizieren → Return Result.fail() bei Business Rule Violations
+   * 3. Aggregate.save(tx) → Return Result.fail() bei erwarteten Persistierungsfehlern
+   * 4. events = aggregate.getDomainEvents() - Events extrahieren
+   * 5. return Result.ok({ result, events }) - Für atomic commit
+   * 6. [Base Handler] Outbox.save(events, tx) - Events atomar persistieren
+   * 7. [Base Handler] Transaction Commit oder Rollback bei Result.fail()
    *
    * @param command - Validierter Command DTO
    * @param tx - Transaction Context (framework-agnostisch, Infrastructure castet zu Prisma)
-   * @returns result: Business Logic Result, events: Domain Events für Outbox
-   * @throws Error bei Business Rule Violations oder DB-Fehlern (triggert Rollback)
+   * @returns Result<{ result: TResult; events: DomainEvent[] }> - Success oder Failure
    */
-  protected abstract executeInTransaction(command: TCommand, tx: TransactionContext): Promise<{ result: TResult; events: DomainEvent[] }>;
+  protected abstract executeInTransaction(command: TCommand, tx: TransactionContext): Promise<Result<{ result: TResult; events: DomainEvent[] }>>;
 
   /**
    * Public Entry Point - Führt Command in Transaction aus und persistiert Events im Outbox.
    *
+   * **Result Pattern (AC4):**
+   * - Gibt `Result<TResult>` zurück (nicht TResult direkt)
+   * - Controller müssen Result.isFailure prüfen und zu HTTP-Exceptions mappen
+   * - Erwartete Fehler: Result.fail(), Unerwartete Fehler: Exception
+   *
    * **Transactional Flow:**
    * 1. Start Prisma Transaction (Isolation Level: READ_COMMITTED)
    * 2. Execute Business Logic (executeInTransaction)
-   * 3. Save Events to Outbox (atomar in gleicher TX)
-   * 4. Commit Transaction (beide persisted) oder Rollback bei Error (beide verworfen)
+   * 3. Bei Result.fail(): Transaction Rollback, Result propagieren
+   * 4. Bei Result.ok(): Save Events to Outbox (atomar in gleicher TX)
+   * 5. Commit Transaction oder Rollback bei Exception
    *
    * **Error Handling:**
-   * - Business Logic Fehler → Transaction wird automatisch zurückgerollt
-   * - DB Constraint Violations → Transaction Rollback, Exception propagiert
-   * - Timeout/Deadlock → Transaction abgebrochen, Retry empfohlen
+   * - Business Logic Fehler → Result.fail() → Transaction Rollback
+   * - DB Constraint Violations → Exception → Transaction Rollback
+   * - Timeout/Deadlock → Exception → Transaction Rollback
    *
    * **Post-Transaction:**
    * - Events bleiben in Outbox mit status = PENDING
@@ -134,34 +168,56 @@ export abstract class TransactionalCommandHandler<TCommand, TResult> {
    * - Command Handler returned sofort (non-blocking)
    *
    * @param command - Validierter Command DTO
-   * @returns Result der Business Logic (TResult)
-   * @throws Error bei Business Rule Violations, DB Errors, oder Timeouts
+   * @returns Result<TResult> - Success mit TResult oder Failure mit Error-Message
    */
-  async execute(command: TCommand): Promise<TResult> {
-    return this.prisma.$transaction(
-      async (tx) => {
-        // 1. Business Logic ausführen (Aggregate erstellen/ändern + persistieren)
-        // WICHTIG: tx wird als TransactionContext übergeben (Opaque Type)
-        // Infrastructure Repositories casten zu PrismaTransaction
-        const { result, events } = await this.executeInTransaction(command, tx as TransactionContext);
+  async execute(command: TCommand): Promise<Result<TResult>> {
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          // 1. Business Logic ausführen (Aggregate erstellen/ändern + persistieren)
+          // WICHTIG: tx wird als TransactionContext übergeben (Opaque Type)
+          // Infrastructure Repositories casten zu PrismaTransaction
+          const executionResult = await this.executeInTransaction(command, tx as TransactionContext);
 
-        // 2. Domain Events atomar im Outbox persistieren
-        // Nur wenn Events vorhanden (z.B. Read-Only Queries haben keine Events)
-        if (events.length > 0) {
-          // TransactionContext wird an Infrastructure Layer übergeben
-          // Infrastructure Repository castet intern zu konkretem Type (z.B. PrismaTransaction)
-          await this.outboxRepository.save(events, tx as TransactionContext);
-        }
+          // 2. Check if business logic failed (Result Pattern)
+          if (executionResult.isFailure) {
+            // Transaction wird automatisch zurückgerollt wenn wir Exception werfen
+            // WICHTIG: Wir werfen hier eine Exception um Transaction Rollback zu triggern
+            // Die Exception wird gefangen und in Result.fail() konvertiert
+            throw new Error(executionResult.error ?? 'Command execution failed');
+          }
 
-        // 3. Result zurückgeben (Transaction wird committed)
-        return result;
-      },
-      {
-        // Maximale Wartezeit für DB-Lock Acquisition (Concurrent Write Contention)
-        maxWait: 5000,
-        // Maximale Transaktionsdauer (Deadlock Prevention + Resource Cleanup)
-        timeout: 10000,
-      },
-    );
+          // Value is guaranteed to exist after isSuccess check
+          if (!executionResult.value) {
+            throw new Error('Unexpected null result after successful execution');
+          }
+
+          const { result, events } = executionResult.value;
+
+          // 3. Domain Events atomar im Outbox persistieren
+          // Nur wenn Events vorhanden (z.B. Read-Only Queries haben keine Events)
+          if (events.length > 0) {
+            // TransactionContext wird an Infrastructure Layer übergeben
+            // Infrastructure Repository castet intern zu konkretem Type (z.B. PrismaTransaction)
+            await this.outboxRepository.save(events, tx as TransactionContext);
+          }
+
+          // 4. Result zurückgeben (Transaction wird committed)
+          return Result.ok(result);
+        },
+        {
+          // Maximale Wartezeit für DB-Lock Acquisition (Concurrent Write Contention)
+          maxWait: 5000,
+          // Maximale Transaktionsdauer (Deadlock Prevention + Resource Cleanup)
+          timeout: 10000,
+        },
+      );
+    } catch (error) {
+      // Fehler von executeInTransaction (Business Logic Fehler)
+      // wurden in Exception konvertiert für Transaction Rollback
+      // Jetzt konvertieren wir zurück zu Result.fail()
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return Result.fail<TResult>(errorMessage);
+    }
   }
 }

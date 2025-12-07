@@ -1,10 +1,10 @@
 import { Injectable, Inject } from '@nestjs/common';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
+import type { IEtbRepository } from '@domain/repositories';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { Result } from '@domain/common/result';
 import { EtbQueryMapper, type EtbSnapshotDto } from '@application/etb/mappers';
 import type { GetEtbHistoryQuery } from './get-etb-history.query';
+import { ETB_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler fuer GetEtbHistoryQuery.
@@ -45,7 +45,7 @@ import type { GetEtbHistoryQuery } from './get-etb-history.query';
 @Injectable()
 export class GetEtbHistoryQueryHandler {
   constructor(
-    @Inject('IEtbRepository')
+    @Inject(ETB_REPOSITORY)
     private readonly etbRepository: IEtbRepository,
   ) {}
 

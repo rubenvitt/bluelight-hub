@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { Result } from '@domain/common/result';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { UserId } from '@domain/value-objects/user-id';
 import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 import type { ArchiveOldEinsaetzeCommand } from './archive-old-einsaetze.command';

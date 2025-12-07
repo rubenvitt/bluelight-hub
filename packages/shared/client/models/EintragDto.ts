@@ -44,13 +44,43 @@ export interface EintragDto {
    */
   text: string;
   /**
+   * Fachlicher Zeitstempel des Eintrags (wann ist das Ereignis eingetreten)
+   * @type {Date}
+   * @memberof EintragDto
+   */
+  timestamp: Date;
+  /**
+   * Optionaler Funkrufname der Einheit
+   * @type {string}
+   * @memberof EintragDto
+   */
+  funkrufname?: string | null;
+  /**
+   * Optionaler Standort der Einheit
+   * @type {string}
+   * @memberof EintragDto
+   */
+  standort?: string | null;
+  /**
+   * Versionsnummer des Eintrags für Änderungshistorie
+   * @type {number}
+   * @memberof EintragDto
+   */
+  version: number;
+  /**
+   * Flag für automatisch generierte Einträge (z.B. durch System-Events)
+   * @type {boolean}
+   * @memberof EintragDto
+   */
+  isAutomatic: boolean;
+  /**
    * User-ID des Erstellers (Referenz)
    * @type {string}
    * @memberof EintragDto
    */
   createdBy: string;
   /**
-   * Erstellungszeitpunkt des Eintrags
+   * Erstellungszeitpunkt des Eintrags (technischer Timestamp)
    * @type {Date}
    * @memberof EintragDto
    */
@@ -62,11 +92,35 @@ export interface EintragDto {
    */
   updatedAt?: Date | null;
   /**
+   * User-ID des letzten Editors (Referenz)
+   * @type {string}
+   * @memberof EintragDto
+   */
+  updatedBy?: string | null;
+  /**
    * Soft-Delete-Flag (Einträge werden nie physisch gelöscht)
    * @type {boolean}
    * @memberof EintragDto
    */
   isDeleted: boolean;
+  /**
+   * Soft-Delete-Zeitpunkt (wann wurde der Eintrag gelöscht)
+   * @type {Date}
+   * @memberof EintragDto
+   */
+  deletedAt?: Date | null;
+  /**
+   * User-ID des Löschenden (Referenz)
+   * @type {string}
+   * @memberof EintragDto
+   */
+  deletedBy?: string | null;
+  /**
+   * Username des Löschenden (aus User-Join)
+   * @type {string}
+   * @memberof EintragDto
+   */
+  deleterUsername?: string | null;
   /**
    * Optionale Metadaten (z.B. Screenshots, Anhänge)
    * @type {object}
@@ -104,6 +158,9 @@ export function instanceOfEintragDto(value: object): value is EintragDto {
   if (!('sequenceNumber' in value) || value['sequenceNumber'] === undefined) return false;
   if (!('kategorie' in value) || value['kategorie'] === undefined) return false;
   if (!('text' in value) || value['text'] === undefined) return false;
+  if (!('timestamp' in value) || value['timestamp'] === undefined) return false;
+  if (!('version' in value) || value['version'] === undefined) return false;
+  if (!('isAutomatic' in value) || value['isAutomatic'] === undefined) return false;
   if (!('createdBy' in value) || value['createdBy'] === undefined) return false;
   if (!('createdAt' in value) || value['createdAt'] === undefined) return false;
   if (!('isDeleted' in value) || value['isDeleted'] === undefined) return false;
@@ -123,10 +180,19 @@ export function EintragDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean)
     sequenceNumber: json['sequenceNumber'],
     kategorie: json['kategorie'],
     text: json['text'],
+    timestamp: new Date(json['timestamp']),
+    funkrufname: json['funkrufname'] == null ? undefined : json['funkrufname'],
+    standort: json['standort'] == null ? undefined : json['standort'],
+    version: json['version'],
+    isAutomatic: json['isAutomatic'],
     createdBy: json['createdBy'],
     createdAt: new Date(json['createdAt']),
     updatedAt: json['updatedAt'] == null ? undefined : new Date(json['updatedAt']),
+    updatedBy: json['updatedBy'] == null ? undefined : json['updatedBy'],
     isDeleted: json['isDeleted'],
+    deletedAt: json['deletedAt'] == null ? undefined : new Date(json['deletedAt']),
+    deletedBy: json['deletedBy'] == null ? undefined : json['deletedBy'],
+    deleterUsername: json['deleterUsername'] == null ? undefined : json['deleterUsername'],
     metadata: json['metadata'] == null ? undefined : json['metadata'],
   };
 }
@@ -145,10 +211,19 @@ export function EintragDtoToJSONTyped(value?: EintragDto | null, ignoreDiscrimin
     sequenceNumber: value['sequenceNumber'],
     kategorie: value['kategorie'],
     text: value['text'],
+    timestamp: value['timestamp'].toISOString(),
+    funkrufname: value['funkrufname'],
+    standort: value['standort'],
+    version: value['version'],
+    isAutomatic: value['isAutomatic'],
     createdBy: value['createdBy'],
     createdAt: value['createdAt'].toISOString(),
     updatedAt: value['updatedAt'] == null ? undefined : (value['updatedAt'] as any).toISOString(),
+    updatedBy: value['updatedBy'],
     isDeleted: value['isDeleted'],
+    deletedAt: value['deletedAt'] == null ? undefined : (value['deletedAt'] as any).toISOString(),
+    deletedBy: value['deletedBy'],
+    deleterUsername: value['deleterUsername'],
     metadata: value['metadata'],
   };
 }

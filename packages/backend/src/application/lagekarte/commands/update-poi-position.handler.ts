@@ -4,11 +4,11 @@ import { Result } from '@domain/common/result';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiId } from '@domain/value-objects/poi-id';
 import { UserId } from '@domain/value-objects/user-id';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { ILagekarteRepository } from '@domain/repositories';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { CoordinateConverter } from '@application/common/coordinate-converter';
 import { UpdatePoiPositionCommand } from './update-poi-position.command';
+import { LAGEKARTE_REPOSITORY, EVENT_PUBLISHER } from '@infrastructure/di-tokens';
 
 /**
  * Handler für UpdatePoiPositionCommand.
@@ -34,9 +34,9 @@ export class UpdatePoiPositionCommandHandler implements ICommandHandler<UpdatePo
   private readonly logger = new Logger(UpdatePoiPositionCommandHandler.name);
 
   constructor(
-    @Inject('ILagekarteRepository')
+    @Inject(LAGEKARTE_REPOSITORY)
     private readonly lagekarteRepository: ILagekarteRepository,
-    @Inject('IEventPublisher')
+    @Inject(EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
   ) {}
 

@@ -27,6 +27,8 @@ describe('Architecture Rules', () => {
     'update-einsatz.dto.ts',
     'add-eintrag.dto.ts',
     'eintrag.dto.ts',
+    // CQRS Query-Side Pattern: Read-only queries for reference data without domain logic
+    'get-textbausteine.handler.ts',
   ];
 
   /**

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EVENT_HANDLER } from '@infrastructure/di-tokens';
 import { CreateLagekarteCommandHandler } from './commands/create-lagekarte.handler';
 import { AddPoiCommandHandler } from './commands/add-poi.handler';
 import { RemovePoiCommandHandler } from './commands/remove-poi.handler';
@@ -8,20 +9,27 @@ import { GetPoisQueryHandler } from './queries/get-pois.handler';
 import { GetLagekarteExistsQueryHandler } from './queries/get-lagekarte-exists.handler';
 import { LagekarteMapper } from './mappers/lagekarte.mapper';
 import { PoiMapper } from './mappers/poi.mapper';
-import { LagekarteEventsModule } from '@infrastructure/events/lagekarte-events.module';
+import { EventInfrastructureModule } from '@infrastructure/events/event-infrastructure.module';
+import { LagekarteInfrastructureModule } from '@infrastructure/lagekarte-infrastructure.module';
+import { LagekarteAutoCreationHandler } from './event-handlers';
 
 /**
  * NestJS-Modul für Application Layer - Lagekarte Bounded Context.
  *
- * Dieses Modul registriert alle Command-Handler, Query-Handler und Mapper
- * und macht sie über Dependency Injection verfügbar. Ermöglicht Controller
- * (Infrastructure Layer) die Handler zu nutzen, ohne direkt zu importieren
- * (Loose Coupling).
+ * Dieses Modul registriert alle Command-Handler, Query-Handler, Event-Handler
+ * und Mapper und macht sie über Dependency Injection verfügbar. Ermöglicht
+ * Controller (Infrastructure Layer) die Handler zu nutzen, ohne direkt zu
+ * importieren (Loose Coupling).
  *
  * **CQRS Pattern:**
  * - Command Handlers: State Mutation (Create, Update, Delete)
  * - Query Handlers: State Reading (Get, List, Exists)
+ * - Event Handlers: Reaktion auf Domain Events (framework-agnostisch via IEventHandler)
  * - Mappers: Domain ↔ DTO Transformation
+ *
+ * **Clean Architecture Event Handling:**
+ * Event Handlers werden via Symbol Token registriert (EVENT_HANDLER.LAGEKARTE_AUTO_CREATION).
+ * Infrastructure Event Adapters delegieren an diese Handlers (siehe LagekarteEventsModule).
  *
  * **Warum separate Module pro Bounded Context:**
  * - Klare Modul-Grenzen entsprechend DDD
@@ -31,8 +39,10 @@ import { LagekarteEventsModule } from '@infrastructure/events/lagekarte-events.m
  */
 @Module({
   imports: [
-    // Event Infrastructure (IEventPublisher, Event Handlers)
-    LagekarteEventsModule,
+    // Event Infrastructure (IEventPublisher) - keine zirkuläre Abhängigkeit mehr
+    EventInfrastructureModule,
+    // Repository Infrastructure (ILagekarteRepository, IEinsatzRepository)
+    LagekarteInfrastructureModule,
   ],
   providers: [
     // Command Handlers (State Mutation)
@@ -45,6 +55,12 @@ import { LagekarteEventsModule } from '@infrastructure/events/lagekarte-events.m
     GetLagekarteQueryHandler,
     GetPoisQueryHandler,
     GetLagekarteExistsQueryHandler,
+
+    // Event Handlers (Automatic Creation) - Registered via Symbol Token for Clean Architecture
+    {
+      provide: EVENT_HANDLER.LAGEKARTE_AUTO_CREATION,
+      useClass: LagekarteAutoCreationHandler,
+    },
 
     // Mappers (Domain ↔ DTO)
     LagekarteMapper,
@@ -62,6 +78,9 @@ import { LagekarteEventsModule } from '@infrastructure/events/lagekarte-events.m
     GetLagekarteQueryHandler,
     GetPoisQueryHandler,
     GetLagekarteExistsQueryHandler,
+
+    // Event Handlers (exported via Symbol Token for Infrastructure Adapters)
+    EVENT_HANDLER.LAGEKARTE_AUTO_CREATION,
   ],
 })
 export class LagekarteApplicationModule {}

@@ -6,6 +6,7 @@ import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { Address } from '@domain/value-objects/address';
 import { GetEinsatzByIdQueryHandler } from '../get-einsatz-by-id.handler';
 import { GetEinsatzByIdQuery } from '../get-einsatz-by-id.query';
+import { EINSATZ_REPOSITORY } from '@/infrastructure/di-tokens';
 
 describe('GetEinsatzByIdQueryHandler', () => {
   let handler: GetEinsatzByIdQueryHandler;

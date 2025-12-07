@@ -1,5 +1,5 @@
 import type { Result } from '@domain/common/result';
-import type { TransactionContext } from '@domain/common/transaction-context';
+import type { TransactionContext } from '@domain/common/transaction';
 import type { UserAggregate } from '../aggregates/user.aggregate';
 import type { UserId } from '../value-objects/user-id';
 import type { Username } from '../value-objects/username';

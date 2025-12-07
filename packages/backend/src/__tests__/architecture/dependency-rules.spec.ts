@@ -472,6 +472,7 @@ describe('Architecture Dependency Rules', () => {
     it('should use Result<T> in Application Layer handlers (query/command handlers)', () => {
       // Application Layer Handler sollten Result<T> returnen (nicht void/naked types)
       // AUSNAHME: Event Handlers (return void/Promise<void>) und Test-Dateien
+      // AUSNAHME: TransactionalCommandHandler-basierte Handler (erben execute() von Base-Class)
       const handlerFiles = findTypeScriptFiles(APPLICATION_PATH).filter(
         (f) => (f.includes('/handlers/') || f.includes('.handler.ts')) && !f.includes('.spec.ts') && !f.includes('__tests__') && !f.includes('event-handlers'), // Event Handlers müssen void returnen
       );
@@ -484,16 +485,24 @@ describe('Architecture Dependency Rules', () => {
         // Prüfe dass Result importiert wird
         const hasResultImport = /import\s+.*Result.*from\s+['"]@domain\/common\/result['"]/.test(content);
 
-        // Prüfe dass execute() Methode Result<T> returned
+        // Prüfe dass execute() Methode Result<T> returned ODER TransactionalCommandHandler extended
         const hasResultReturn = /async\s+execute\s*\([^)]*\)\s*:\s*Promise<Result</g.test(content);
+        const extendsTransactionalHandler = /extends\s+TransactionalCommandHandler/g.test(content);
 
-        if (!hasResultImport || !hasResultReturn) {
+        // Handler ist valide wenn entweder:
+        // 1. execute() mit Promise<Result<T>> vorhanden ODER
+        // 2. extends TransactionalCommandHandler (Base-Class hat execute() mit Result<T>)
+        const isValid = hasResultImport && (hasResultReturn || extendsTransactionalHandler);
+
+        if (!isValid) {
           violations.push(path.relative(SRC_PATH, file));
         }
       }
 
       if (violations.length > 0) {
-        throw new Error(`Application Layer handlers should use Result<T> pattern:\n  ${violations.join('\n  ')}\nQuery/Command handler execute() method should return Promise<Result<T>>`);
+        throw new Error(
+          `Application Layer handlers should use Result<T> pattern:\n  ${violations.join('\n  ')}\nQuery/Command handler execute() method should return Promise<Result<T>> OR extend TransactionalCommandHandler`,
+        );
       }
 
       expect(violations).toHaveLength(0);

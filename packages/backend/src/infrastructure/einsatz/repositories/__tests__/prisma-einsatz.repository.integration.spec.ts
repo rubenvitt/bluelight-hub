@@ -217,7 +217,7 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
     it('should create new Einsatz (INSERT operation)', async () => {
       // Given: Fresh aggregate
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregateResult = Einsatz.create('F2Y - Brand', 'Hauptstraße 123, 12345 Teststadt', userId);
+      const aggregateResult = Einsatz.create({ alarmstichwort: 'F2Y - Brand', createdBy: userId });
       expect(aggregateResult.isSuccess).toBe(true);
       const aggregate = aggregateResult.value as Einsatz;
 
@@ -245,12 +245,12 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
     it('should update existing Einsatz (UPSERT idempotency)', async () => {
       // Given: Aggregate saved once
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = Einsatz.create('F1 - VU', 'Autobahn A1', userId).value as Einsatz;
+      const aggregate = Einsatz.create({ alarmstichwort: 'F1 - VU', createdBy: userId }).value as Einsatz;
 
       await repository.save(aggregate);
 
       // When: Modify and save again
-      aggregate.update('F2 - VU mit Personenschaden', 'Autobahn A1 km 123', userId);
+      aggregate.update({ alarmstichwort: 'F2 - VU mit Personenschaden', bemerkung: 'Autobahn A1 km 123' });
       await repository.save(aggregate);
 
       // Then: Still only 1 Einsatz row (no duplicate)
@@ -260,7 +260,6 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
       // And: Fields are updated
       const einsatz = await prisma.einsatz.findUnique({ where: { id: aggregate.id.value } });
       expect(einsatz?.alarmstichwort).toBe('F2 - VU mit Personenschaden');
-      expect(einsatz?.einsatzort).toBe('Autobahn A1 km 123');
     });
 
     /**
@@ -272,7 +271,7 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
     it('should persist Domain Events to outbox_events table', async () => {
       // Given: Fresh aggregate (EinsatzCreatedEvent is fired)
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = Einsatz.create('F3 - Technische Hilfe', 'Bahnhofstraße 42', userId).value as Einsatz;
+      const aggregate = Einsatz.create({ alarmstichwort: 'F3 - Technische Hilfe', createdBy: userId }).value as Einsatz;
 
       // Verify: Aggregate has uncommitted Domain Events
       expect(aggregate.getDomainEvents().length).toBeGreaterThan(0);
@@ -288,7 +287,7 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
 
       // Verify: Event type is correct
       const event = outboxEvents[0];
-      expect(event.eventType).toBe('EinsatzCreatedEvent');
+      expect(event.eventName).toBe('einsatz.created');
       expect(event.status).toBe('PENDING');
     });
 
@@ -301,7 +300,7 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
     it('should clear Domain Events after successful save', async () => {
       // Given: Aggregate with uncommitted events
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = Einsatz.create('F1 - Rauchentwicklung', 'Schulweg 1', userId).value as Einsatz;
+      const aggregate = Einsatz.create({ alarmstichwort: 'F1 - Rauchentwicklung', createdBy: userId }).value as Einsatz;
 
       expect(aggregate.getDomainEvents().length).toBeGreaterThan(0);
 
@@ -321,20 +320,12 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
     it('should rollback on error (atomic transaction)', async () => {
       // Given: Aggregate with invalid FK (non-existent user)
       const fakeUserId = UserId.create(generateNanoidTestId()).value as UserId;
-      const aggregate = Einsatz.create('F1 - Test', 'Test Ort', fakeUserId).value as Einsatz;
+      const aggregate = Einsatz.create({ alarmstichwort: 'F1 - Test', createdBy: fakeUserId }).value as Einsatz;
 
-      // Manually set invalid userId in aggregate (simulates FK violation)
-      // Note: This is a bit hacky but demonstrates transaction rollback
-      const invalidAggregate = Object.assign(Object.create(Object.getPrototypeOf(aggregate)), {
-        ...aggregate,
-        createdBy: fakeUserId,
-      });
+      // When/Then: Save with non-existent user FK throws exception
+      await expect(repository.save(aggregate)).rejects.toThrow();
 
-      // When/Then: Save throws FK violation
-      const result = await repository.save(invalidAggregate);
-      expect(result.isSuccess).toBe(false);
-
-      // And: No partial data in DB
+      // And: No partial data in DB (transaction rolled back)
       const einsatzCount = await prisma.einsatz.count({ where: { id: aggregate.id.value } });
       expect(einsatzCount).toBe(0);
     });
@@ -354,7 +345,7 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
     it('should return aggregate with correct data', async () => {
       // Given: Saved aggregate
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = Einsatz.create('F2Y - Wohnungsbrand', 'Musterstraße 99', userId).value as Einsatz;
+      const aggregate = Einsatz.create({ alarmstichwort: 'F2Y - Wohnungsbrand', createdBy: userId }).value as Einsatz;
 
       await repository.save(aggregate);
 
@@ -367,7 +358,6 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
       expect(found).not.toBeNull();
       expect(found!.id.value).toBe(aggregate.id.value);
       expect(found!.alarmstichwort).toBe('F2Y - Wohnungsbrand');
-      expect(found!.einsatzort).toBe('Musterstraße 99');
     });
 
     /**
@@ -397,9 +387,9 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
     it('should return only active (non-archived) Einsätze', async () => {
       // Given: 2 aktive Einsätze + 1 archivierter
       const userId = UserId.create(testUserId).value as UserId;
-      const einsatz1 = Einsatz.create('F1 - Aktiv 1', 'Ort 1', userId).value as Einsatz;
-      const einsatz2 = Einsatz.create('F1 - Aktiv 2', 'Ort 2', userId).value as Einsatz;
-      const einsatz3 = Einsatz.create('F1 - Archiviert', 'Ort 3', userId).value as Einsatz;
+      const einsatz1 = Einsatz.create({ alarmstichwort: 'F1 - Aktiv 1', createdBy: userId }).value as Einsatz;
+      const einsatz2 = Einsatz.create({ alarmstichwort: 'F1 - Aktiv 2', createdBy: userId }).value as Einsatz;
+      const einsatz3 = Einsatz.create({ alarmstichwort: 'F1 - Archiviert', createdBy: userId }).value as Einsatz;
 
       // Archive einsatz3
       einsatz3.archive(userId);
@@ -450,7 +440,7 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
     it('should return true for existing Einsatz', async () => {
       // Given: Saved aggregate
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = Einsatz.create('F1 - Exists Test', 'Test Ort', userId).value as Einsatz;
+      const aggregate = Einsatz.create({ alarmstichwort: 'F1 - Exists Test', createdBy: userId }).value as Einsatz;
       await repository.save(aggregate);
 
       // When: Check existence
@@ -491,7 +481,7 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
     it('should support external transaction (tx parameter)', async () => {
       // Given: Aggregate to save
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = Einsatz.create('F1 - TX Test', 'TX Ort', userId).value as Einsatz;
+      const aggregate = Einsatz.create({ alarmstichwort: 'F1 - TX Test', createdBy: userId }).value as Einsatz;
 
       // When: Save using external transaction
       await prisma.$transaction(async (tx) => {
@@ -512,7 +502,7 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
     it('should use internal transaction when tx not provided', async () => {
       // Given: Aggregate to save
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = Einsatz.create('F1 - Internal TX', 'Internal TX Ort', userId).value as Einsatz;
+      const aggregate = Einsatz.create({ alarmstichwort: 'F1 - Internal TX', createdBy: userId }).value as Einsatz;
 
       // When: Save without tx parameter (uses internal transaction)
       await repository.save(aggregate);
@@ -537,10 +527,10 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
     it('should preserve Aggregate data in save + findById round-trip', async () => {
       // Given: Aggregate with all fields populated
       const userId = UserId.create(testUserId).value as UserId;
-      const aggregate = Einsatz.create('F2Y - Brand mit äöü ß € Sonderzeichen', 'Straße mit Sonderzeichen: äöü ß €', userId).value as Einsatz;
+      const aggregate = Einsatz.create({ alarmstichwort: 'F2Y - Brand mit äöü ß € Sonderzeichen', createdBy: userId }).value as Einsatz;
 
       // Set optional fields
-      aggregate.update(aggregate.alarmstichwort, aggregate.einsatzort, userId, 'Vollalarm - Alle Einheiten ausrücken');
+      aggregate.update({ bemerkung: 'Vollalarm - Alle Einheiten ausrücken' });
 
       // When: Save + retrieve
       await repository.save(aggregate);
@@ -551,8 +541,7 @@ describe('PrismaEinsatzRepository - Integration Tests', () => {
       expect(retrieved).not.toBeNull();
       expect(retrieved.id.value).toBe(aggregate.id.value);
       expect(retrieved.alarmstichwort).toBe('F2Y - Brand mit äöü ß € Sonderzeichen');
-      expect(retrieved.einsatzort).toBe('Straße mit Sonderzeichen: äöü ß €');
-      expect(retrieved.beschreibung).toBe('Vollalarm - Alle Einheiten ausrücken');
+      expect(retrieved.bemerkung).toBe('Vollalarm - Alle Einheiten ausrücken');
     });
   });
 });

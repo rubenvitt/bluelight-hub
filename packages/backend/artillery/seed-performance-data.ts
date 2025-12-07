@@ -67,7 +67,7 @@ const ETB_KATEGORIEN = Object.values(EtbKategorie);
 /**
  * Generiert eine zufällige CUID-ähnliche ID
  */
-function generateId(): string {
+function _generateId(): string {
   const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
   let result = '';
   for (let i = 0; i < 25; i++) {
@@ -204,7 +204,7 @@ async function main() {
   console.log(`   ✅ Created ${etbEntryCount} ETB entries`);
 
   // 5. Zusammenfassung
-  console.log('\n' + '='.repeat(50));
+  console.log(`\n${'='.repeat(50)}`);
   console.log('📊 Performance Test Seed Summary:');
   console.log('='.repeat(50));
   console.log(`   👤 Test User:     ${testUser.username}`);

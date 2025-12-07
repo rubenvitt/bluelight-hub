@@ -52,7 +52,7 @@ describe('EinsatzController HTTP Integration Tests (AC5.1, AC5.3, AC5.4)', () =>
     await ctx.prisma.user.upsert({
       where: { username: 'admin' },
       create: {
-        id: ctx.testUserId,
+        id: ctx.testUserIds.admin,
         username: 'admin',
         passwordHash,
         role: 'ADMIN',

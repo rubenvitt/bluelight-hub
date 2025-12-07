@@ -1,9 +1,8 @@
 import { ArchiveOldEinsaetzeHandler } from '../archive-old-einsaetze.handler';
 import { ArchiveOldEinsaetzeCommand } from '../archive-old-einsaetze.command';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { Result } from '@domain/common/result';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
-import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 
@@ -14,7 +13,7 @@ import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
  * @param abgeschlossenYearsAgo - Optional: Anzahl Jahre seit Abschluss
  * @returns Einsatz Aggregate Mock
  */
-function createMockEinsatz(id: string, abgeschlossenYearsAgo?: number): Einsatz {
+function createMockEinsatz(_id: string, abgeschlossenYearsAgo?: number): Einsatz {
   const userId = UserId.create().value!;
 
   // Create base einsatz

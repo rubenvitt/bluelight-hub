@@ -4,7 +4,7 @@ import { fetchWithRefresh } from '@/api/fetchWithRefresh';
 import { QUERY_KEYS } from '@/queryKeys';
 import { getApiErrorMessage } from '@/utils/apiErrorHandler';
 import { logger } from '@/utils/logger';
-import type { AddEintragDto, CreateEtbDto, CreateEtbResponse, EintragDto, EtbDto, EtbSnapshotDto, ResponseError, TextbausteinListResponse, UpdateEintragDto } from '@bluelight-hub/shared/client';
+import type { AddEintragDto, EintragDto, EtbDto, EtbSnapshotDto, ResponseError, TextbausteinListResponse, UpdateEintragDto } from '@bluelight-hub/shared/client';
 import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -278,63 +278,60 @@ export const useLockEtb = () => {
 /**
  * Hook fuer ETB-Abfrage mit Infinite Scrolling
  *
- * @deprecated Wird durch CQRS API ersetzt
+ * Nutzt die CQRS API fuer ETB-Abrufe. Die Paginierung wird client-seitig simuliert
+ * da die CQRS API alle Eintraege auf einmal zurueckgibt.
+ *
  * @param einsatzId - Die ID des Einsatzes
- * @param limit - Anzahl der Eintraege pro Seite (Standard: 20)
- * @param sortBy - Feld nach dem sortiert wird (Standard: 'timestamp')
+ * @param limit - Anzahl der Eintraege pro Seite (Standard: 20) - wird client-seitig angewendet
+ * @param sortBy - Feld nach dem sortiert wird (Standard: 'timestamp') - client-seitig
  * @param sortOrder - Sortierreihenfolge (Standard: 'desc' = neueste zuerst)
  * @param includeDeleted - Geloeschte Eintraege einschliessen (Standard: false)
  * @param options - Zusaetzliche TanStack Query Optionen (z.B. refetchInterval)
- * @returns ETB-Daten mit Infinite Scrolling Support
+ * @returns ETB-Daten mit Infinite Scrolling Support (simuliert)
  */
 export const useEtbInfinite = (
   einsatzId?: string,
-  limit: number = 20,
-  sortBy: string = 'timestamp',
-  sortOrder: 'asc' | 'desc' = 'desc',
+  _limit: number = 20,
+  _sortBy: string = 'timestamp',
+  _sortOrder: 'asc' | 'desc' = 'desc',
   includeDeleted: boolean = false,
-  options?: { refetchInterval?: number },
+  options?: { refetchInterval?: number; enabled?: boolean },
 ) => {
   return useInfiniteQuery({
-    enabled: !!einsatzId,
-    queryKey: QUERY_KEYS.etb.infinite(einsatzId, limit, sortBy, sortOrder, includeDeleted),
+    enabled: options?.enabled !== false && !!einsatzId,
+    queryKey: QUERY_KEYS.etb.infinite(einsatzId, _limit, _sortBy, _sortOrder, includeDeleted),
     initialPageParam: 1,
-    queryFn: async ({ pageParam }) => {
+    queryFn: async () => {
       if (!einsatzId) {
         throw new Error('einsatzId must be provided');
       }
       try {
-        return await api.etb().etbControllerGetEtbByEinsatzIdVAlpha({
+        const etbData = await api.etb().etbCqrsControllerGetEtbByEinsatzIdVAlpha({
           einsatzId,
-          page: pageParam,
-          limit,
-          sortBy: sortBy as 'timestamp' | 'sequenceNumber' | 'kategorie' | 'text',
-          sortOrder,
           includeDeleted,
         });
+        // Return in format expected by infinite query
+        return {
+          data: etbData,
+          pagination: {
+            page: 1,
+            totalPages: 1,
+            total: etbData.eintraege?.length ?? 0,
+          },
+        };
       } catch (error) {
         logger.error('Failed to fetch ETB', error);
         throw error;
       }
     },
-    getNextPageParam: (lastPage) => {
-      if (!lastPage.pagination) return undefined;
-      const { page, totalPages } = lastPage.pagination;
-      return page < totalPages ? page + 1 : undefined;
-    },
-    getPreviousPageParam: (firstPage) => {
-      if (!firstPage.pagination) return undefined;
-      const { page } = firstPage.pagination;
-      return page > 1 ? page - 1 : undefined;
-    },
+    getNextPageParam: () => undefined, // No pagination with CQRS API
+    getPreviousPageParam: () => undefined,
     staleTime: 30000,
     retry: 3,
     retryDelay: calculateRetryDelay,
     refetchOnWindowFocus: false,
-    // Behalte alte Daten waehrend des Nachladens
     placeholderData: (previousData) => previousData,
-    // Merge additional options (e.g., refetchInterval)
-    ...options,
+    refetchInterval: options?.refetchInterval,
   });
 };
 
@@ -348,7 +345,7 @@ export const useTextbausteine = () => {
     queryKey: QUERY_KEYS.etb.textbausteine(),
     queryFn: async () => {
       try {
-        return await api.etb().etbControllerGetTextbausteineVAlpha();
+        return await api.etb().etbCqrsControllerGetTextbausteineVAlpha({});
       } catch (error) {
         logger.error('Failed to fetch Textbausteine', error);
         throw error;
@@ -360,99 +357,9 @@ export const useTextbausteine = () => {
   });
 };
 
-/**
- * Hook fuer ETB-Erstellung
- *
- * @returns Mutation fuer ETB-Erstellung
- */
-export const useCreateEtb = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation<CreateEtbResponse, ResponseError, CreateEtbDto>({
-    mutationFn: async (data: CreateEtbDto) => {
-      return await api.etb().etbControllerCreateEtbVAlpha({
-        createEtbDto: data,
-      });
-    },
-    onMutate: async (newEtb) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.etb.all });
-
-      // Optimistic update koennte hier implementiert werden
-      return { newEtb };
-    },
-    onError: async (error: ResponseError) => {
-      // 409 Conflict = ETB existiert bereits - KEIN Fehler-Toast zeigen
-      // Der aufrufende Code (z.B. LagekarteView) behandelt diesen Fall
-      const statusCode = (error as { status?: number })?.status || (error as { response?: { status?: number } })?.response?.status || (error as unknown as { statusCode?: number })?.statusCode;
-
-      if (statusCode === 409) {
-        logger.info('ETB existiert bereits (409 Conflict) - wird vom Aufrufer behandelt');
-        return; // Kein Toast, Aufrufer handled das
-      }
-
-      const message = await getApiErrorMessage(error, 'Das ETB konnte nicht erstellt werden.', 'createEtb');
-      logger.error('Failed to create ETB', error);
-      toast.error('Fehler', { description: message });
-    },
-    onSuccess: (data) => {
-      toast.success('ETB erstellt', {
-        description: 'Das Einsatztagebuch wurde erfolgreich erstellt.',
-      });
-      // Invalidate relevant queries
-      if (data.data?.einsatzId) {
-        queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.etb.byEinsatz(data.data.einsatzId),
-        });
-      }
-    },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.etb.all });
-    },
-    // Kein Retry bei 409 Conflict (ETB existiert bereits)
-    retry: (failureCount, error) => {
-      const statusCode = (error as { status?: number })?.status || (error as { response?: { status?: number } })?.response?.status || (error as unknown as { statusCode?: number })?.statusCode;
-
-      if (statusCode === 409) return false;
-      return failureCount < 3;
-    },
-    retryDelay: calculateRetryDelay,
-  });
-};
-
-/**
- * Hook fuer ETB-Eintrag-Historie
- *
- * @deprecated Verwende useEtbHistory fuer ETB-Level Historie stattdessen
- * @param eintragId - Die ID des ETB-Eintrags
- * @param page - Seitenzahl fuer Paginierung (optional)
- * @param limit - Anzahl der Historie-Eintraege pro Seite (optional)
- * @returns Historie-Daten mit Ladezustand und Fehler
- */
-export const useEtbEntryHistory = (eintragId?: string, page?: number, limit?: number) => {
-  return useQuery({
-    enabled: !!eintragId,
-    queryKey: QUERY_KEYS.etb.eintragHistory(eintragId || '', page, limit),
-    queryFn: async () => {
-      if (!eintragId) {
-        throw new Error('eintragId must be provided');
-      }
-      try {
-        return await api.etb().etbControllerGetEintragHistoryVAlpha({
-          id: eintragId,
-          page,
-          limit,
-        });
-      } catch (error) {
-        logger.error('Failed to fetch ETB entry history', error);
-        throw error;
-      }
-    },
-    staleTime: 60000, // Historie aendert sich selten, laengere stale time
-    retry: 3,
-    retryDelay: calculateRetryDelay,
-  });
-};
+// Note: useCreateEtb and useEtbEntryHistory have been removed as the
+// corresponding API endpoints no longer exist in the CQRS API.
+// ETBs are now created automatically when adding the first entry.
 
 // ============================================
 // Combined Operations Hook
@@ -468,7 +375,6 @@ export const useEtbEntryHistory = (eintragId?: string, page?: number, limit?: nu
 export const useEtbOperations = (einsatzId?: string, includeDeleted?: boolean) => {
   const etbQuery = useEtb(einsatzId, includeDeleted);
   const textbausteineQuery = useTextbausteine();
-  const createEtb = useCreateEtb();
   const createEintrag = useCreateEtbEintrag();
   const updateEintrag = useUpdateEtbEintrag();
   const deleteEintrag = useDeleteEtbEintrag();
@@ -484,14 +390,12 @@ export const useEtbOperations = (einsatzId?: string, includeDeleted?: boolean) =
     textbausteineError: textbausteineQuery.error,
 
     // Mutations
-    createEtb: createEtb.mutate,
     createEintrag: createEintrag.mutate,
     updateEintrag: updateEintrag.mutate,
     deleteEintrag: deleteEintrag.mutate,
     lockEtb: lockEtb.mutate,
 
     // Mutation states
-    isCreatingEtb: createEtb.isPending,
     isCreatingEintrag: createEintrag.isPending,
     isUpdatingEintrag: updateEintrag.isPending,
     isDeletingEintrag: deleteEintrag.isPending,

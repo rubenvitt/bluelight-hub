@@ -56,7 +56,7 @@ export interface UpdateEinsatzDto {
    */
   status?: UpdateEinsatzDtoStatusEnum;
   /**
-   * Zusätzliche Metadaten als JSON
+   * Zusaetzliche Metadaten als JSON
    * @type {{ [key: string]: any; }}
    * @memberof UpdateEinsatzDto
    */

@@ -5,14 +5,18 @@
  * Fehler werden geloggt aber NICHT propagiert, um die Einsatz-Erstellung
  * nicht zu blockieren. ETBs können bei Bedarf manuell nacherstellt werden.
  *
+ * **Clean Architecture:**
+ * Dieser Handler ist framework-agnostisch und nutzt kein @OnEvent Decorator.
+ * Der Infrastructure Layer Event Adapter delegiert an diese Implementation.
+ *
  * @module application/etb/event-handlers
- * @see EinsatzErstelltEvent - Trigger Event (Service Layer)
+ * @see EinsatzCreatedEvent - Trigger Event (Domain Event via Outbox)
  * @see CreateEtbHandler - Delegierter Command Handler
+ * @see EtbEventAdapter - Infrastructure Adapter mit @OnEvent Decorator
  */
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
-
-import type { EinsatzErstelltEvent } from '@/einsatz/events/einsatz-erstellt.event';
+import type { IEventHandler } from '@domain/ports/i-event-handler.port';
+import type { EinsatzCreatedEvent } from '@domain/events/einsatz-created.event';
 // biome-ignore lint/style/useImportType: CreateEtbHandler needed for DI at runtime
 import { CreateEtbHandler } from '../commands/create-etb/create-etb.handler';
 import { CreateEtbCommand } from '../commands/create-etb/create-etb.command';
@@ -20,8 +24,13 @@ import { CreateEtbCommand } from '../commands/create-etb/create-etb.command';
 /**
  * Event Handler für automatische ETB-Erstellung.
  *
- * Lauscht auf 'einsatz.erstellt' Events und erstellt automatisch ein
- * zugehöriges Einsatztagebuch (ETB) für DRK-Compliance.
+ * Verarbeitet EinsatzCreatedEvents und erstellt automatisch ein zugehöriges
+ * Einsatztagebuch (ETB) für DRK-Compliance.
+ *
+ * **Framework-Agnostisch:**
+ * Diese Klasse ist eine reine TypeScript Klasse ohne Framework-Decorators
+ * (@OnEvent). Der Infrastructure Layer Event Adapter übernimmt die Integration
+ * mit NestJS EventEmitter.
  *
  * **Fire-and-Forget Pattern:**
  * - Handler-Fehler werden geloggt, aber NICHT propagiert
@@ -33,36 +42,44 @@ import { CreateEtbCommand } from '../commands/create-etb/create-etb.command';
  * - Keine zusätzliche Indirektion über CQRS Bus
  * - Handler kann gemockt werden ohne TestingModule Setup
  *
- * **Hinweis:** Verwendet Service-Layer Event 'einsatz.erstellt' statt
- * Domain Event 'einsatz.created', da der EinsatzService noch nicht
- * auf DDD migriert ist und EinsatzErstelltEvent emittiert.
+ * **Event Flow (Transactional Outbox Pattern):**
+ * 1. CreateEinsatzHandler erstellt Einsatz Aggregate
+ * 2. EinsatzCreatedEvent wird atomar in Outbox persistiert
+ * 3. OutboxEventPublisher pollt und publiziert Event
+ * 4. Infrastructure Adapter empfängt Event via @OnEvent
+ * 5. Adapter delegiert an diesen Handler via IEventHandler.handle()
  */
 @Injectable()
-export class EtbAutoCreationHandler {
+export class EtbAutoCreationHandler implements IEventHandler<EinsatzCreatedEvent> {
   private readonly logger = new Logger(EtbAutoCreationHandler.name);
 
   constructor(private readonly createEtbHandler: CreateEtbHandler) {}
 
   /**
-   * Verarbeitet EinsatzErstelltEvent und erstellt automatisch ein ETB.
+   * Verarbeitet EinsatzCreatedEvent und erstellt automatisch ein ETB.
    *
-   * @param event - Das empfangene EinsatzErstelltEvent (Service Layer Event)
+   * Diese Methode wird vom Infrastructure Event Adapter aufgerufen, wenn ein
+   * EinsatzCreatedEvent über den EventBus publiziert wurde.
+   *
+   * @param event - Das empfangene EinsatzCreatedEvent (Domain Event via Outbox)
    * @returns Promise<void> - Keine Rückgabe (Fire-and-Forget)
    *
    * @example
    * ```typescript
-   * // Event wird automatisch via EventEmitter2 dispatched:
-   * eventEmitter.emit('einsatz.erstellt', event);
-   * // Handler wird automatisch aufgerufen
+   * // Event Flow:
+   * // 1. Einsatz wird erstellt → Event in Outbox
+   * // 2. OutboxEventPublisher pollt → emitiert 'einsatz.created'
+   * // 3. Infrastructure Adapter empfängt via @OnEvent
+   * // 4. Adapter ruft handler.handle(event) auf
    * ```
    */
-  @OnEvent('einsatz.erstellt')
-  async handle(event: EinsatzErstelltEvent): Promise<void> {
-    const einsatzIdValue = event.einsatzId;
+  async handle(event: EinsatzCreatedEvent): Promise<void> {
+    // EinsatzId vom Domain Event (Value Object → primitive String)
+    const einsatzIdValue = event.einsatzId.value;
 
     this.logger.log(`Auto-creating ETB for Einsatz`, {
       einsatzId: einsatzIdValue,
-      timestamp: event.timestamp,
+      occurredAt: event.occurredAt,
     });
 
     try {

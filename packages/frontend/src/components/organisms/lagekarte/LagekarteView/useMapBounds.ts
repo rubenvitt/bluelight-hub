@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
-import type { PoiResponseDto } from '@bluelight-hub/shared/client';
+import type { PoiDto } from '@bluelight-hub/shared/client';
 
 /**
  * Default-Zentrum für Deutschland
@@ -24,7 +24,7 @@ const GERMANY_ZOOM = 6;
  *
  * @example
  * ```tsx
- * const MapBoundsController: React.FC<{ pois: PoiResponseDto[] }> = ({ pois }) => {
+ * const MapBoundsController: React.FC<{ pois: PoiDto[] }> = ({ pois }) => {
  *   useMapBounds(pois);
  *   return null;
  * };
@@ -35,7 +35,7 @@ const GERMANY_ZOOM = 6;
  * </MapContainer>
  * ```
  */
-export const useMapBounds = (pois: PoiResponseDto[] | undefined): void => {
+export const useMapBounds = (pois: PoiDto[] | undefined): void => {
   const map = useMap();
 
   useEffect(() => {
@@ -46,7 +46,9 @@ export const useMapBounds = (pois: PoiResponseDto[] | undefined): void => {
     }
 
     // Filtere POIs mit gültigen Koordinaten
-    const validPois = pois.filter((poi) => typeof poi.latitude === 'number' && typeof poi.longitude === 'number' && !Number.isNaN(poi.latitude) && !Number.isNaN(poi.longitude));
+    const validPois = pois.filter(
+      (poi) => poi.coordinate && typeof poi.coordinate.lat === 'number' && typeof poi.coordinate.lng === 'number' && !Number.isNaN(poi.coordinate.lat) && !Number.isNaN(poi.coordinate.lng),
+    );
 
     // Keine gültigen POIs - Fallback zu Deutschland-Zentrum
     if (validPois.length === 0) {
@@ -55,7 +57,7 @@ export const useMapBounds = (pois: PoiResponseDto[] | undefined): void => {
     }
 
     // Berechne Bounding-Box aus allen POI-Koordinaten
-    const bounds = L.latLngBounds(validPois.map((poi) => [poi.latitude, poi.longitude]));
+    const bounds = L.latLngBounds(validPois.map((poi) => [poi.coordinate.lat, poi.coordinate.lng]));
 
     // Zoome Karte auf Bounding-Box mit Padding
     map.fitBounds(bounds, {

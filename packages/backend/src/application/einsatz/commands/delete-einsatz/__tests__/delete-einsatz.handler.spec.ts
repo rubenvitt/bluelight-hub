@@ -6,6 +6,7 @@ import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException } from '@domain/common/exceptions';
+import { EINSATZ_REPOSITORY } from '@/infrastructure/di-tokens';
 
 describe('DeleteEinsatzHandler', () => {
   let handler: DeleteEinsatzHandler;

@@ -1,10 +1,10 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { UserId } from '@domain/value-objects/user-id';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
+import type { IEtbRepository } from '@domain/repositories';
 import type { LockEtbCommand } from './lock-etb.command';
+import { ETB_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler fuer LockEtbCommand.
@@ -31,7 +31,7 @@ export class LockEtbHandler {
   private readonly logger = new Logger(LockEtbHandler.name);
 
   constructor(
-    @Inject('IEtbRepository')
+    @Inject(ETB_REPOSITORY)
     private readonly etbRepository: IEtbRepository,
   ) {}
 
@@ -39,10 +39,7 @@ export class LockEtbHandler {
    * Fuehrt das Lock-Command aus.
    *
    * @param command - Das LockEtbCommand mit etbId, userId und userRole
-   * @returns Result<void> bei Erfolg
-   * @throws ForbiddenException wenn User nicht ADMIN/SUPER_ADMIN ist
-   * @throws NotFoundException wenn ETB nicht gefunden wird
-   * @throws BadRequestException wenn ETB bereits gesperrt ist
+   * @returns Result<void> bei Erfolg, Result.fail() bei erwarteten Fehlern
    */
   async execute(command: LockEtbCommand): Promise<Result<void>> {
     // Step 1: DEFENSIVE AUTHORIZATION CHECK (Defense-in-Depth)
@@ -52,7 +49,7 @@ export class LockEtbHandler {
         userRole: command.userRole,
         timestamp: new Date().toISOString(),
       });
-      throw new ForbiddenException('Nur Administratoren können ETB sperren');
+      return Result.fail<void>('Nur Administratoren können ETB sperren');
     }
 
     // Step 2: Validate EtbId format
@@ -88,14 +85,14 @@ export class LockEtbHandler {
         etbId: etbId.value,
         timestamp: new Date().toISOString(),
       });
-      throw new NotFoundException('ETB nicht gefunden');
+      return Result.fail<void>('ETB nicht gefunden');
     }
 
     // Step 5: Delegate to domain method (validates business rules)
     const lockResult = aggregate.lock(userId);
     if (lockResult.isFailure) {
       // Domain-level validation failure (e.g., already locked)
-      throw new BadRequestException(lockResult.error);
+      return Result.fail<void>(lockResult.error ?? 'ETB konnte nicht gesperrt werden');
     }
 
     // Step 6: Save aggregate

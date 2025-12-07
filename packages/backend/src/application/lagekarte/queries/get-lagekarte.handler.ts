@@ -1,12 +1,12 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { ILagekarteRepository } from '@domain/repositories';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { Result } from '@domain/common/result';
 import type { LagekarteDto } from '@application/lagekarte/dtos/lagekarte.dto';
 import { LagekarteMapper } from '@application/lagekarte/mappers/lagekarte.mapper';
 import { GetLagekarteQuery } from './get-lagekarte.query';
+import { LAGEKARTE_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler für GetLagekarteQuery.
@@ -47,7 +47,7 @@ import { GetLagekarteQuery } from './get-lagekarte.query';
 @QueryHandler(GetLagekarteQuery)
 export class GetLagekarteQueryHandler implements IQueryHandler<GetLagekarteQuery, Result<LagekarteDto | null>> {
   constructor(
-    @Inject('ILagekarteRepository')
+    @Inject(LAGEKARTE_REPOSITORY)
     private readonly lagekarteRepository: ILagekarteRepository,
   ) {}
 

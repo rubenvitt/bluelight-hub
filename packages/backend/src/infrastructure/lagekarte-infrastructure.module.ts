@@ -5,7 +5,7 @@ import { NominatimGeocodingAdapter } from './geocoding/nominatim-geocoding.adapt
 import { PrismaModule } from '@/prisma/prisma.module';
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
-import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
+import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY, LAGEKARTE_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * NestJS Module für Lagekarte Infrastructure Layer.
@@ -14,19 +14,17 @@ import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens
  * der Domain Repository Ports und Service Ports (Hexagonal Architecture Pattern).
  *
  * **Dependency Injection Strategy:**
- * - ILagekarteRepository wird als String Token bereitgestellt
- * - IGeocodingPort wird als String Token bereitgestellt
+ * - ILagekarteRepository wird als Symbol Token bereitgestellt (LAGEKARTE_REPOSITORY)
+ * - IGeocodingPort wird als String Token bereitgestellt (TODO: Symbol Migration)
  * - PrismaLagekarteRepository ist die konkrete Repository-Implementierung
  * - NominatimGeocodingAdapter ist die konkrete Geocoding-Implementierung
- * - Application Layer kann die Interfaces injizieren via @Inject()
+ * - Application Layer kann die Interfaces injizieren via @Inject(LAGEKARTE_REPOSITORY)
  *
- * **Warum String Token statt Class Token:**
- * - Domain Layer kennt NUR das Interface (ILagekarteRepository, IGeocodingPort)
- * - Domain Layer kann NICHT auf Infrastructure Class referenzieren
- * - String Token entkoppelt Domain von Infrastructure
- * - Ermöglicht austauschbare Implementierungen:
- *   - Repository: Prisma, TypeORM, In-Memory
- *   - Geocoding: Nominatim, Google Maps, Here.com, Mock
+ * **Warum Symbol Token statt String Token:**
+ * - Type Safety: TypeScript kann Symbol Types validieren
+ * - Keine Namenskollisionen: Jedes Symbol ist einzigartig
+ * - Bessere IDE-Unterstützung: Autocomplete und Refactoring
+ * - Konsistent mit modernen DI Best Practices
  *
  * **Warum Nominatim statt Google Maps:**
  * - Kostenlos und Open Source (keine API-Keys, keine Kosten)
@@ -51,7 +49,7 @@ import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens
  * @Injectable()
  * export class CreateLagekarteCommandHandler {
  *   constructor(
- *     @Inject('ILagekarteRepository')
+ *     @Inject(LAGEKARTE_REPOSITORY)
  *     private readonly lagekarteRepository: ILagekarteRepository,
  *     @Inject('IGeocodingPort')
  *     private readonly geocodingPort: IGeocodingPort
@@ -71,7 +69,7 @@ import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens
     },
 
     {
-      provide: 'ILagekarteRepository', // String Token (Interface-Name)
+      provide: LAGEKARTE_REPOSITORY, // Symbol Token
       useClass: PrismaLagekarteRepository, // Konkrete Implementation
     },
     {
@@ -83,6 +81,6 @@ import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens
       useClass: NominatimGeocodingAdapter, // Konkrete Implementation
     },
   ],
-  exports: ['ILagekarteRepository', EINSATZ_REPOSITORY, 'IGeocodingPort', OUTBOX_REPOSITORY], // Export für andere Module
+  exports: [LAGEKARTE_REPOSITORY, EINSATZ_REPOSITORY, 'IGeocodingPort', OUTBOX_REPOSITORY], // Export für andere Module
 })
 export class LagekarteInfrastructureModule {}

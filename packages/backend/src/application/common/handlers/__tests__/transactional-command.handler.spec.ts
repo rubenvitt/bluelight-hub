@@ -4,7 +4,8 @@ import { PrismaService } from '@/prisma/prisma.service';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import { DomainEvent } from '@domain/common/domain-event';
 import { TransactionalCommandHandler } from '../transactional-command.handler';
-import type { TransactionContext } from '@domain/common/transaction';
+import type { TransactionContext } from '@domain/common';
+import { OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Mock Domain Event für Testing.
@@ -43,7 +44,7 @@ class TestCommandHandler extends TransactionalCommandHandler<TestCommand, TestRe
   public shouldThrowError = false;
   public eventsToReturn: DomainEvent[] = [];
 
-  constructor(prisma: PrismaService, @Inject('IOutboxRepository') outboxRepository: IOutboxRepository) {
+  constructor(prisma: PrismaService, @Inject(OUTBOX_REPOSITORY) outboxRepository: IOutboxRepository) {
     super(prisma, outboxRepository);
   }
 

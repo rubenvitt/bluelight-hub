@@ -327,9 +327,10 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
    * @param text - Textinhalt des Eintrags (darf nicht leer sein)
    * @param userId - User ID des Erstellers (für Audit-Trail)
    * @param kategorie - Optional: Kategorie des Eintrags (default: EtbKategorie.LAGE())
+   * @param metadata - Optional: Metadaten (z.B. Screenshots, Anhänge)
    * @returns Result<EtbEintrag> - Success mit erstelltem Eintrag oder Failure mit Error
    */
-  public addEintrag(text: string, userId: UserId, kategorie?: EtbKategorie): Result<EtbEintrag> {
+  public addEintrag(text: string, userId: UserId, kategorie?: EtbKategorie, metadata?: Record<string, unknown>): Result<EtbEintrag> {
     // Validate: ETB must not be locked
     if (this.isLocked()) {
       return Result.fail<EtbEintrag>('ETB ist gesperrt und kann nicht mehr geändert werden');
@@ -362,7 +363,7 @@ export class EinsatztagebuchAggregate extends AggregateRoot<EtbId> {
     // Kategorie mit Default-Wert LAGE falls nicht angegeben
     const eintragKategorie = kategorie ?? EtbKategorie.LAGE();
 
-    const eintrag = new EtbEintrag(eintragId, sequenceNumber, text, userId, undefined, eintragKategorie);
+    const eintrag = new EtbEintrag(eintragId, sequenceNumber, text, userId, undefined, eintragKategorie, metadata);
 
     // Add to entries list
     this._eintraege.push(eintrag);

@@ -1,6 +1,8 @@
 module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/test'],
+  // Limit parallelism to prevent DB connection pool exhaustion
+  maxWorkers: 1, // Serial execution for DB-heavy integration tests
   testMatch: [
     '**/domain/**/*.spec.ts',
     '**/infrastructure/**/*.spec.ts',

@@ -52,8 +52,16 @@ export interface EinsatzControllerArchiveVAlphaRequest {
   id: string;
 }
 
+export interface EinsatzControllerCompleteVAlphaRequest {
+  id: string;
+}
+
 export interface EinsatzControllerCreateVAlphaRequest {
   createEinsatzDto: CreateEinsatzDto;
+}
+
+export interface EinsatzControllerDeleteVAlphaRequest {
+  id: string;
 }
 
 export interface EinsatzControllerFindAllVAlphaRequest {
@@ -128,7 +136,7 @@ export class EinsatzApi extends runtime.BaseAPI {
     const response = await this.request(
       {
         path: `/api/v-alpha/einsatz/{id}/archive`.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
-        method: 'PATCH',
+        method: 'POST',
         headers: headerParameters,
         query: queryParameters,
       },
@@ -144,6 +152,52 @@ export class EinsatzApi extends runtime.BaseAPI {
    */
   async einsatzControllerArchiveVAlpha(requestParameters: EinsatzControllerArchiveVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<EinsatzDto> {
     const response = await this.einsatzControllerArchiveVAlphaRaw(requestParameters, initOverrides);
+    return await response.value();
+  }
+
+  /**
+   * Markiert einen Einsatz als ABGESCHLOSSEN und sperrt das ETB.
+   * Einsatz abschließen
+   */
+  async einsatzControllerCompleteVAlphaRaw(
+    requestParameters: EinsatzControllerCompleteVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<EinsatzDto>> {
+    if (requestParameters['id'] == null) {
+      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling einsatzControllerCompleteVAlpha().');
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    if (this.configuration && this.configuration.accessToken) {
+      const token = this.configuration.accessToken;
+      const tokenString = await token('bearer', []);
+
+      if (tokenString) {
+        headerParameters['Authorization'] = `Bearer ${tokenString}`;
+      }
+    }
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/einsatz/{id}/complete`.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
+        method: 'POST',
+        headers: headerParameters,
+        query: queryParameters,
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response, (jsonValue) => EinsatzDtoFromJSON(jsonValue));
+  }
+
+  /**
+   * Markiert einen Einsatz als ABGESCHLOSSEN und sperrt das ETB.
+   * Einsatz abschließen
+   */
+  async einsatzControllerCompleteVAlpha(requestParameters: EinsatzControllerCompleteVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<EinsatzDto> {
+    const response = await this.einsatzControllerCompleteVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
 
@@ -194,6 +248,48 @@ export class EinsatzApi extends runtime.BaseAPI {
   async einsatzControllerCreateVAlpha(requestParameters: EinsatzControllerCreateVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<EinsatzDto> {
     const response = await this.einsatzControllerCreateVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
+  }
+
+  /**
+   * Einsätze dürfen aus Compliance-Gründen NIEMALS gelöscht werden. Nutze stattdessen Archive-Funktion.
+   * Einsatz löschen (NICHT ERLAUBT)
+   */
+  async einsatzControllerDeleteVAlphaRaw(requestParameters: EinsatzControllerDeleteVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+    if (requestParameters['id'] == null) {
+      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling einsatzControllerDeleteVAlpha().');
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    if (this.configuration && this.configuration.accessToken) {
+      const token = this.configuration.accessToken;
+      const tokenString = await token('bearer', []);
+
+      if (tokenString) {
+        headerParameters['Authorization'] = `Bearer ${tokenString}`;
+      }
+    }
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/einsatz/{id}`.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
+        method: 'DELETE',
+        headers: headerParameters,
+        query: queryParameters,
+      },
+      initOverrides,
+    );
+
+    return new runtime.VoidApiResponse(response);
+  }
+
+  /**
+   * Einsätze dürfen aus Compliance-Gründen NIEMALS gelöscht werden. Nutze stattdessen Archive-Funktion.
+   * Einsatz löschen (NICHT ERLAUBT)
+   */
+  async einsatzControllerDeleteVAlpha(requestParameters: EinsatzControllerDeleteVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+    await this.einsatzControllerDeleteVAlphaRaw(requestParameters, initOverrides);
   }
 
   /**

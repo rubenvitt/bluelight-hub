@@ -1,13 +1,13 @@
 import { CreateEtbCommand, type CreateEtbHandler } from '@application/etb/commands';
 import { Result } from '@domain/common/result';
 import type { EtbEintrag } from '@domain/entities/etb-eintrag.entity';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
+import type { IEtbRepository } from '@domain/repositories';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { EtbKategorie } from '@domain/value-objects/etb-kategorie';
 import { UserId } from '@domain/value-objects/user-id';
-import { BadRequestException, Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { AddEintragCommand } from './add-eintrag.command';
+import { ETB_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler für AddEintragCommand.
@@ -31,7 +31,7 @@ export class AddEintragHandler {
   private readonly logger = new Logger(AddEintragHandler.name);
 
   constructor(
-    @Inject('IEtbRepository')
+    @Inject(ETB_REPOSITORY)
     private readonly etbRepository: IEtbRepository,
     @Optional()
     private readonly createEtbHandler?: CreateEtbHandler,
@@ -136,10 +136,10 @@ export class AddEintragHandler {
     // - Creates snapshot BEFORE mutation (DRK-Compliance)
     // - Auto-increments sequence number
     // - Creates EintragAddedEvent
-    const addResult = aggregate.addEintrag(command.text, userId, kategorieVo);
+    const addResult = aggregate.addEintrag(command.text, userId, kategorieVo, command.metadata);
     if (addResult.isFailure) {
       // Domain-level validation failure
-      throw new BadRequestException(addResult.error);
+      return Result.fail<EtbEintrag>(addResult.error ?? 'Eintrag konnte nicht hinzugefügt werden');
     }
     const eintrag = addResult.value;
     if (!eintrag) {

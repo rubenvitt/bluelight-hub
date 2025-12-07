@@ -55,7 +55,7 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
   });
 
   describe('Full Application → Repository Flow', () => {
-    it('should return true when Lagekarte exists in repository', async () => {
+    it('should return Result.ok(true) when Lagekarte exists in repository', async () => {
       // Given: Aggregate stored in repository
       const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
       const userId = UserId.create().value!;
@@ -69,11 +69,12 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
       const query = new GetLagekarteExistsQuery(einsatzId.value);
       const result = await handler.execute(query);
 
-      // Then: Should return true
-      expect(result).toBe(true);
+      // Then: Should return Result.ok(true)
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBe(true);
     });
 
-    it('should return false when Lagekarte does not exist', async () => {
+    it('should return Result.ok(false) when Lagekarte does not exist', async () => {
       // Given: Empty repository
 
       // When: Check existence
@@ -81,8 +82,9 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
       const query = new GetLagekarteExistsQuery(einsatzId.value);
       const result = await handler.execute(query);
 
-      // Then: Should return false
-      expect(result).toBe(false);
+      // Then: Should return Result.ok(false)
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBe(false);
     });
 
     it('should distinguish between multiple Lagekarten by EinsatzId', async () => {
@@ -110,26 +112,29 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
       const query1 = new GetLagekarteExistsQuery(einsatzId1.value);
       const result1 = await handler.execute(query1);
 
-      // Then: Should return true for einsatz-1
-      expect(result1).toBe(true);
+      // Then: Should return Result.ok(true) for einsatz-1
+      expect(result1.isSuccess).toBe(true);
+      expect(result1.value).toBe(true);
 
       // When: Check existence for einsatz-2
       const query2 = new GetLagekarteExistsQuery(einsatzId2.value);
       const result2 = await handler.execute(query2);
 
-      // Then: Should return true for einsatz-2
-      expect(result2).toBe(true);
+      // Then: Should return Result.ok(true) for einsatz-2
+      expect(result2.isSuccess).toBe(true);
+      expect(result2.value).toBe(true);
 
       // When: Check existence for non-existent einsatz-3
       const einsatzId3 = EinsatzId.create('clw3h8x9y0000qwertyuiein03').value!;
       const query3 = new GetLagekarteExistsQuery(einsatzId3.value);
       const result3 = await handler.execute(query3);
 
-      // Then: Should return false for einsatz-3
-      expect(result3).toBe(false);
+      // Then: Should return Result.ok(false) for einsatz-3
+      expect(result3.isSuccess).toBe(true);
+      expect(result3.value).toBe(false);
     });
 
-    it('should return true even when Lagekarte has no POIs', async () => {
+    it('should return Result.ok(true) even when Lagekarte has no POIs', async () => {
       // Given: Lagekarte WITHOUT POIs
       const einsatzId = EinsatzId.create('clw3h8x9y0000qwertyuieins1').value!;
       const userId = UserId.create().value!;
@@ -142,8 +147,9 @@ describe('GetLagekarteExistsQueryHandler - Integration Tests', () => {
       const query = new GetLagekarteExistsQuery(einsatzId.value);
       const result = await handler.execute(query);
 
-      // Then: Should return true (Lagekarte exists, even without POIs)
-      expect(result).toBe(true);
+      // Then: Should return Result.ok(true) (Lagekarte exists, even without POIs)
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBe(true);
     });
 
     it('should throw error for invalid EinsatzId format', async () => {

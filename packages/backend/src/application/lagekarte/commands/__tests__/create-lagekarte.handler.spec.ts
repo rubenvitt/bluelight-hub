@@ -1,7 +1,7 @@
 import { CreateLagekarteCommandHandler } from '../create-lagekarte.handler';
 import { CreateLagekarteCommand } from '../create-lagekarte.command';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
+import type { ILagekarteRepository } from '@domain/repositories';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { Result } from '@domain/common/result';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';

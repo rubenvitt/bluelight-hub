@@ -13,85 +13,21 @@
  */
 
 import * as runtime from '../runtime';
-import type {
-  AddEintragDto,
-  CreateEtbDto,
-  CreateEtbEintragDto,
-  CreateEtbEintragResponse,
-  CreateEtbResponse,
-  EintragDto,
-  EtbDto,
-  EtbHistoryListResponse,
-  EtbSnapshotDto,
-  GetEtbResponse,
-  TextbausteinListResponse,
-  UpdateEintragDto,
-  UpdateEtbEintragDto,
-  UpdateEtbEintragResponse,
-} from '../models/index';
+import type { AddEintragDto, EintragDto, EtbDto, EtbSnapshotDto, TextbausteinListResponse, UpdateEintragDto } from '../models/index';
 import {
   AddEintragDtoFromJSON,
   AddEintragDtoToJSON,
-  CreateEtbDtoFromJSON,
-  CreateEtbDtoToJSON,
-  CreateEtbEintragDtoFromJSON,
-  CreateEtbEintragDtoToJSON,
-  CreateEtbEintragResponseFromJSON,
-  CreateEtbEintragResponseToJSON,
-  CreateEtbResponseFromJSON,
-  CreateEtbResponseToJSON,
   EintragDtoFromJSON,
   EintragDtoToJSON,
   EtbDtoFromJSON,
   EtbDtoToJSON,
-  EtbHistoryListResponseFromJSON,
-  EtbHistoryListResponseToJSON,
   EtbSnapshotDtoFromJSON,
   EtbSnapshotDtoToJSON,
-  GetEtbResponseFromJSON,
-  GetEtbResponseToJSON,
   TextbausteinListResponseFromJSON,
   TextbausteinListResponseToJSON,
   UpdateEintragDtoFromJSON,
   UpdateEintragDtoToJSON,
-  UpdateEtbEintragDtoFromJSON,
-  UpdateEtbEintragDtoToJSON,
-  UpdateEtbEintragResponseFromJSON,
-  UpdateEtbEintragResponseToJSON,
 } from '../models/index';
-
-export interface EtbControllerCreateEintragVAlphaRequest {
-  id: string;
-  createEtbEintragDto: CreateEtbEintragDto;
-}
-
-export interface EtbControllerCreateEtbVAlphaRequest {
-  createEtbDto: CreateEtbDto;
-}
-
-export interface EtbControllerDeleteEintragVAlphaRequest {
-  id: string;
-}
-
-export interface EtbControllerGetEintragHistoryVAlphaRequest {
-  id: string;
-  page?: number;
-  limit?: number;
-}
-
-export interface EtbControllerGetEtbByEinsatzIdVAlphaRequest {
-  einsatzId: string;
-  page?: number;
-  limit?: number;
-  sortBy?: EtbControllerGetEtbByEinsatzIdVAlphaSortByEnum;
-  sortOrder?: EtbControllerGetEtbByEinsatzIdVAlphaSortOrderEnum;
-  includeDeleted?: boolean;
-}
-
-export interface EtbControllerUpdateEintragVAlphaRequest {
-  id: string;
-  updateEtbEintragDto: UpdateEtbEintragDto;
-}
 
 export interface EtbCqrsControllerAddEintragVAlphaRequest {
   etbId: string;
@@ -112,6 +48,11 @@ export interface EtbCqrsControllerGetEtbHistoryVAlphaRequest {
   etbId: string;
 }
 
+export interface EtbCqrsControllerGetTextbausteineVAlphaRequest {
+  kategorie?: string;
+  onlyActive?: boolean;
+}
+
 export interface EtbCqrsControllerLockEtbVAlphaRequest {
   etbId: string;
 }
@@ -126,354 +67,6 @@ export interface EtbCqrsControllerUpdateEintragVAlphaRequest {
  *
  */
 export class ETBApi extends runtime.BaseAPI {
-  /**
-   * Neuen ETB-Eintrag erstellen
-   */
-  async etbControllerCreateEintragVAlphaRaw(
-    requestParameters: EtbControllerCreateEintragVAlphaRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<CreateEtbEintragResponse>> {
-    if (requestParameters['id'] == null) {
-      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling etbControllerCreateEintragVAlpha().');
-    }
-
-    if (requestParameters['createEtbEintragDto'] == null) {
-      throw new runtime.RequiredError('createEtbEintragDto', 'Required parameter "createEtbEintragDto" was null or undefined when calling etbControllerCreateEintragVAlpha().');
-    }
-
-    const queryParameters: any = {};
-
-    const headerParameters: runtime.HTTPHeaders = {};
-
-    headerParameters['Content-Type'] = 'application/json';
-
-    if (this.configuration && this.configuration.accessToken) {
-      const token = this.configuration.accessToken;
-      const tokenString = await token('bearer', []);
-
-      if (tokenString) {
-        headerParameters['Authorization'] = `Bearer ${tokenString}`;
-      }
-    }
-    const response = await this.request(
-      {
-        path: `/api/v-alpha/etb/{id}/eintraege`.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
-        method: 'POST',
-        headers: headerParameters,
-        query: queryParameters,
-        body: CreateEtbEintragDtoToJSON(requestParameters['createEtbEintragDto']),
-      },
-      initOverrides,
-    );
-
-    return new runtime.JSONApiResponse(response, (jsonValue) => CreateEtbEintragResponseFromJSON(jsonValue));
-  }
-
-  /**
-   * Neuen ETB-Eintrag erstellen
-   */
-  async etbControllerCreateEintragVAlpha(requestParameters: EtbControllerCreateEintragVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CreateEtbEintragResponse> {
-    const response = await this.etbControllerCreateEintragVAlphaRaw(requestParameters, initOverrides);
-    return await response.value();
-  }
-
-  /**
-   * Neues ETB für einen Einsatz erstellen
-   */
-  async etbControllerCreateEtbVAlphaRaw(
-    requestParameters: EtbControllerCreateEtbVAlphaRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<CreateEtbResponse>> {
-    if (requestParameters['createEtbDto'] == null) {
-      throw new runtime.RequiredError('createEtbDto', 'Required parameter "createEtbDto" was null or undefined when calling etbControllerCreateEtbVAlpha().');
-    }
-
-    const queryParameters: any = {};
-
-    const headerParameters: runtime.HTTPHeaders = {};
-
-    headerParameters['Content-Type'] = 'application/json';
-
-    if (this.configuration && this.configuration.accessToken) {
-      const token = this.configuration.accessToken;
-      const tokenString = await token('bearer', []);
-
-      if (tokenString) {
-        headerParameters['Authorization'] = `Bearer ${tokenString}`;
-      }
-    }
-    const response = await this.request(
-      {
-        path: `/api/v-alpha/etb`,
-        method: 'POST',
-        headers: headerParameters,
-        query: queryParameters,
-        body: CreateEtbDtoToJSON(requestParameters['createEtbDto']),
-      },
-      initOverrides,
-    );
-
-    return new runtime.JSONApiResponse(response, (jsonValue) => CreateEtbResponseFromJSON(jsonValue));
-  }
-
-  /**
-   * Neues ETB für einen Einsatz erstellen
-   */
-  async etbControllerCreateEtbVAlpha(requestParameters: EtbControllerCreateEtbVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CreateEtbResponse> {
-    const response = await this.etbControllerCreateEtbVAlphaRaw(requestParameters, initOverrides);
-    return await response.value();
-  }
-
-  /**
-   * ETB-Eintrag soft löschen
-   */
-  async etbControllerDeleteEintragVAlphaRaw(
-    requestParameters: EtbControllerDeleteEintragVAlphaRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<void>> {
-    if (requestParameters['id'] == null) {
-      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling etbControllerDeleteEintragVAlpha().');
-    }
-
-    const queryParameters: any = {};
-
-    const headerParameters: runtime.HTTPHeaders = {};
-
-    if (this.configuration && this.configuration.accessToken) {
-      const token = this.configuration.accessToken;
-      const tokenString = await token('bearer', []);
-
-      if (tokenString) {
-        headerParameters['Authorization'] = `Bearer ${tokenString}`;
-      }
-    }
-    const response = await this.request(
-      {
-        path: `/api/v-alpha/etb/eintraege/{id}`.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
-        method: 'DELETE',
-        headers: headerParameters,
-        query: queryParameters,
-      },
-      initOverrides,
-    );
-
-    return new runtime.VoidApiResponse(response);
-  }
-
-  /**
-   * ETB-Eintrag soft löschen
-   */
-  async etbControllerDeleteEintragVAlpha(requestParameters: EtbControllerDeleteEintragVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
-    await this.etbControllerDeleteEintragVAlphaRaw(requestParameters, initOverrides);
-  }
-
-  /**
-   * Versionshistorie eines ETB-Eintrags abrufen
-   */
-  async etbControllerGetEintragHistoryVAlphaRaw(
-    requestParameters: EtbControllerGetEintragHistoryVAlphaRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<EtbHistoryListResponse>> {
-    if (requestParameters['id'] == null) {
-      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling etbControllerGetEintragHistoryVAlpha().');
-    }
-
-    const queryParameters: any = {};
-
-    if (requestParameters['page'] != null) {
-      queryParameters['page'] = requestParameters['page'];
-    }
-
-    if (requestParameters['limit'] != null) {
-      queryParameters['limit'] = requestParameters['limit'];
-    }
-
-    const headerParameters: runtime.HTTPHeaders = {};
-
-    if (this.configuration && this.configuration.accessToken) {
-      const token = this.configuration.accessToken;
-      const tokenString = await token('bearer', []);
-
-      if (tokenString) {
-        headerParameters['Authorization'] = `Bearer ${tokenString}`;
-      }
-    }
-    const response = await this.request(
-      {
-        path: `/api/v-alpha/etb/eintraege/{id}/history`.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
-        method: 'GET',
-        headers: headerParameters,
-        query: queryParameters,
-      },
-      initOverrides,
-    );
-
-    return new runtime.JSONApiResponse(response, (jsonValue) => EtbHistoryListResponseFromJSON(jsonValue));
-  }
-
-  /**
-   * Versionshistorie eines ETB-Eintrags abrufen
-   */
-  async etbControllerGetEintragHistoryVAlpha(
-    requestParameters: EtbControllerGetEintragHistoryVAlphaRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<EtbHistoryListResponse> {
-    const response = await this.etbControllerGetEintragHistoryVAlphaRaw(requestParameters, initOverrides);
-    return await response.value();
-  }
-
-  /**
-   * ETB anhand der Einsatz-ID abrufen
-   */
-  async etbControllerGetEtbByEinsatzIdVAlphaRaw(
-    requestParameters: EtbControllerGetEtbByEinsatzIdVAlphaRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<GetEtbResponse>> {
-    if (requestParameters['einsatzId'] == null) {
-      throw new runtime.RequiredError('einsatzId', 'Required parameter "einsatzId" was null or undefined when calling etbControllerGetEtbByEinsatzIdVAlpha().');
-    }
-
-    const queryParameters: any = {};
-
-    if (requestParameters['page'] != null) {
-      queryParameters['page'] = requestParameters['page'];
-    }
-
-    if (requestParameters['limit'] != null) {
-      queryParameters['limit'] = requestParameters['limit'];
-    }
-
-    if (requestParameters['sortBy'] != null) {
-      queryParameters['sortBy'] = requestParameters['sortBy'];
-    }
-
-    if (requestParameters['sortOrder'] != null) {
-      queryParameters['sortOrder'] = requestParameters['sortOrder'];
-    }
-
-    if (requestParameters['includeDeleted'] != null) {
-      queryParameters['includeDeleted'] = requestParameters['includeDeleted'];
-    }
-
-    const headerParameters: runtime.HTTPHeaders = {};
-
-    if (this.configuration && this.configuration.accessToken) {
-      const token = this.configuration.accessToken;
-      const tokenString = await token('bearer', []);
-
-      if (tokenString) {
-        headerParameters['Authorization'] = `Bearer ${tokenString}`;
-      }
-    }
-    const response = await this.request(
-      {
-        path: `/api/v-alpha/etb/{einsatzId}`.replace(`{${'einsatzId'}}`, encodeURIComponent(String(requestParameters['einsatzId']))),
-        method: 'GET',
-        headers: headerParameters,
-        query: queryParameters,
-      },
-      initOverrides,
-    );
-
-    return new runtime.JSONApiResponse(response, (jsonValue) => GetEtbResponseFromJSON(jsonValue));
-  }
-
-  /**
-   * ETB anhand der Einsatz-ID abrufen
-   */
-  async etbControllerGetEtbByEinsatzIdVAlpha(requestParameters: EtbControllerGetEtbByEinsatzIdVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetEtbResponse> {
-    const response = await this.etbControllerGetEtbByEinsatzIdVAlphaRaw(requestParameters, initOverrides);
-    return await response.value();
-  }
-
-  /**
-   * Alle Textbausteine abrufen
-   */
-  async etbControllerGetTextbausteineVAlphaRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TextbausteinListResponse>> {
-    const queryParameters: any = {};
-
-    const headerParameters: runtime.HTTPHeaders = {};
-
-    if (this.configuration && this.configuration.accessToken) {
-      const token = this.configuration.accessToken;
-      const tokenString = await token('bearer', []);
-
-      if (tokenString) {
-        headerParameters['Authorization'] = `Bearer ${tokenString}`;
-      }
-    }
-    const response = await this.request(
-      {
-        path: `/api/v-alpha/etb/textbausteine`,
-        method: 'GET',
-        headers: headerParameters,
-        query: queryParameters,
-      },
-      initOverrides,
-    );
-
-    return new runtime.JSONApiResponse(response, (jsonValue) => TextbausteinListResponseFromJSON(jsonValue));
-  }
-
-  /**
-   * Alle Textbausteine abrufen
-   */
-  async etbControllerGetTextbausteineVAlpha(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TextbausteinListResponse> {
-    const response = await this.etbControllerGetTextbausteineVAlphaRaw(initOverrides);
-    return await response.value();
-  }
-
-  /**
-   * ETB-Eintrag aktualisieren
-   */
-  async etbControllerUpdateEintragVAlphaRaw(
-    requestParameters: EtbControllerUpdateEintragVAlphaRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<UpdateEtbEintragResponse>> {
-    if (requestParameters['id'] == null) {
-      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling etbControllerUpdateEintragVAlpha().');
-    }
-
-    if (requestParameters['updateEtbEintragDto'] == null) {
-      throw new runtime.RequiredError('updateEtbEintragDto', 'Required parameter "updateEtbEintragDto" was null or undefined when calling etbControllerUpdateEintragVAlpha().');
-    }
-
-    const queryParameters: any = {};
-
-    const headerParameters: runtime.HTTPHeaders = {};
-
-    headerParameters['Content-Type'] = 'application/json';
-
-    if (this.configuration && this.configuration.accessToken) {
-      const token = this.configuration.accessToken;
-      const tokenString = await token('bearer', []);
-
-      if (tokenString) {
-        headerParameters['Authorization'] = `Bearer ${tokenString}`;
-      }
-    }
-    const response = await this.request(
-      {
-        path: `/api/v-alpha/etb/eintraege/{id}`.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
-        method: 'PUT',
-        headers: headerParameters,
-        query: queryParameters,
-        body: UpdateEtbEintragDtoToJSON(requestParameters['updateEtbEintragDto']),
-      },
-      initOverrides,
-    );
-
-    return new runtime.JSONApiResponse(response, (jsonValue) => UpdateEtbEintragResponseFromJSON(jsonValue));
-  }
-
-  /**
-   * ETB-Eintrag aktualisieren
-   */
-  async etbControllerUpdateEintragVAlpha(requestParameters: EtbControllerUpdateEintragVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<UpdateEtbEintragResponse> {
-    const response = await this.etbControllerUpdateEintragVAlphaRaw(requestParameters, initOverrides);
-    return await response.value();
-  }
-
   /**
    * Erstellt einen neuen Eintrag im Einsatztagebuch. Ein Snapshot wird vor der Änderung erstellt.
    * Eintrag zum ETB hinzufügen
@@ -678,6 +271,59 @@ export class ETBApi extends runtime.BaseAPI {
   }
 
   /**
+   * Gibt alle verfuegbaren Textbausteine zur schnellen ETB-Erstellung zurueck. Optional nach Kategorie filterbar.
+   * Alle Textbausteine abrufen
+   */
+  async etbCqrsControllerGetTextbausteineVAlphaRaw(
+    requestParameters: EtbCqrsControllerGetTextbausteineVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<TextbausteinListResponse>> {
+    const queryParameters: any = {};
+
+    if (requestParameters['kategorie'] != null) {
+      queryParameters['kategorie'] = requestParameters['kategorie'];
+    }
+
+    if (requestParameters['onlyActive'] != null) {
+      queryParameters['onlyActive'] = requestParameters['onlyActive'];
+    }
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    if (this.configuration && this.configuration.accessToken) {
+      const token = this.configuration.accessToken;
+      const tokenString = await token('bearer', []);
+
+      if (tokenString) {
+        headerParameters['Authorization'] = `Bearer ${tokenString}`;
+      }
+    }
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/etb/textbausteine`,
+        method: 'GET',
+        headers: headerParameters,
+        query: queryParameters,
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response, (jsonValue) => TextbausteinListResponseFromJSON(jsonValue));
+  }
+
+  /**
+   * Gibt alle verfuegbaren Textbausteine zur schnellen ETB-Erstellung zurueck. Optional nach Kategorie filterbar.
+   * Alle Textbausteine abrufen
+   */
+  async etbCqrsControllerGetTextbausteineVAlpha(
+    requestParameters: EtbCqrsControllerGetTextbausteineVAlphaRequest = {},
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<TextbausteinListResponse> {
+    const response = await this.etbCqrsControllerGetTextbausteineVAlphaRaw(requestParameters, initOverrides);
+    return await response.value();
+  }
+
+  /**
    * Sperrt das ETB irreversibel. Nur ADMIN oder SUPER_ADMIN können diese Aktion ausführen.
    * ETB sperren (nur Admin)
    */
@@ -778,22 +424,3 @@ export class ETBApi extends runtime.BaseAPI {
     return await response.value();
   }
 }
-
-/**
- * @export
- */
-export const EtbControllerGetEtbByEinsatzIdVAlphaSortByEnum = {
-  Timestamp: 'timestamp',
-  SequenceNumber: 'sequenceNumber',
-  Kategorie: 'kategorie',
-  Text: 'text',
-} as const;
-export type EtbControllerGetEtbByEinsatzIdVAlphaSortByEnum = (typeof EtbControllerGetEtbByEinsatzIdVAlphaSortByEnum)[keyof typeof EtbControllerGetEtbByEinsatzIdVAlphaSortByEnum];
-/**
- * @export
- */
-export const EtbControllerGetEtbByEinsatzIdVAlphaSortOrderEnum = {
-  Asc: 'asc',
-  Desc: 'desc',
-} as const;
-export type EtbControllerGetEtbByEinsatzIdVAlphaSortOrderEnum = (typeof EtbControllerGetEtbByEinsatzIdVAlphaSortOrderEnum)[keyof typeof EtbControllerGetEtbByEinsatzIdVAlphaSortOrderEnum];

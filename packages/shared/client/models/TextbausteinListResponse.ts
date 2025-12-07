@@ -45,7 +45,7 @@ export interface TextbausteinListResponse {
    */
   pagination?: ApiPagination;
   /**
-   * Liste der verfügbaren Textbausteine
+   * Liste der verfuegbaren Textbausteine
    * @type {Array<TextbausteinDto>}
    * @memberof TextbausteinListResponse
    */

@@ -56,8 +56,9 @@ import { Result } from '@domain/common/result';
 import { PrismaEtbRepository } from '@infrastructure/etb/repositories/prisma-etb.repository';
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { EVENT_NAMES } from '@domain/events/event-names';
+import { EINSATZ_REPOSITORY } from '@/infrastructure/di-tokens';
 
 /**
  * Generiert eine Test-CUID mit korrektem Format.

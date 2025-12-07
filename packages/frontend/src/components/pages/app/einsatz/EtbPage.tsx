@@ -1,13 +1,13 @@
 import { ErrorState } from '@/components/atoms/ErrorState';
 import { LoadingState } from '@/components/atoms/LoadingState';
-import { EtbLockButton, EtbStatusBadge } from '@/components/molecules/etb';
+import { EtbLockButton, EtbStatusBadge, type EtbStatus } from '@/components/molecules/etb';
 import { EtbSnapshotHistoryModal } from '@/components/organisms/etb/components/EtbSnapshotHistoryModal';
 import { EditEtbEntryModal } from '@/components/organisms/etb/EditEtbEntryModal';
 import { EtbEntryForm } from '@/components/organisms/etb/EtbEntryForm';
 import { EtbEntryList } from '@/components/organisms/etb/EtbEntryList';
 import { EtbFullscreenView } from '@/components/organisms/etb/EtbFullscreenView/EtbFullscreenView';
 import { useEtbInfinite } from '@/hooks/useEtb';
-import type { EtbEintragDto, EtbStatus } from '@bluelight-hub/shared/client';
+import type { EintragDto } from '@bluelight-hub/shared/client';
 import { useMemo, useState } from 'react';
 import { PiClockCounterClockwise } from 'react-icons/pi';
 
@@ -28,7 +28,7 @@ export function EtbPage({ einsatzId, mode }: EtbPageProps) {
 
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useEtbInfinite(einsatzId, 30, sortBy, sortOrder, showDeleted); // 30 Einträge pro Seite
 
-  const [editingEntry, setEditingEntry] = useState<(EtbEintragDto & { etbId: string }) | null>(null);
+  const [editingEntry, setEditingEntry] = useState<(EintragDto & { etbId: string }) | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
@@ -41,7 +41,7 @@ export function EtbPage({ einsatzId, mode }: EtbPageProps) {
   };
 
   // Handler für Edit-Button
-  const handleEditEntry = (entry: EtbEintragDto) => {
+  const handleEditEntry = (entry: EintragDto) => {
     if (!etb?.id) return;
     setEditingEntry({ ...entry, etbId: etb.id });
     setIsEditModalOpen(true);

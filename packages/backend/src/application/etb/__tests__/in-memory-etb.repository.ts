@@ -1,6 +1,6 @@
 import type { EinsatztagebuchAggregate } from '@domain/aggregates/einsatztagebuch.aggregate';
-import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
-import type { TransactionContext } from '@domain/common/transaction';
+import type { IEtbRepository } from '@domain/repositories';
+import type { TransactionContext } from '@domain/common';
 import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { EtbId } from '@domain/value-objects/etb-id';
 import type { EtbSnapshot } from '@domain/value-objects/etb-snapshot';

@@ -1,7 +1,6 @@
 import { CoordinateConverter } from '@application/common/coordinate-converter';
 import { Result } from '@domain/common/result';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { ILagekarteRepository } from '@domain/repositories';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiCategory } from '@domain/value-objects/poi-category';
@@ -10,6 +9,7 @@ import { UserId } from '@domain/value-objects/user-id';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { AddPoiCommand } from './add-poi.command';
+import { LAGEKARTE_REPOSITORY, EVENT_PUBLISHER } from '@infrastructure/di-tokens';
 
 /**
  * Handler für AddPoiCommand.
@@ -31,9 +31,9 @@ export class AddPoiCommandHandler implements ICommandHandler<AddPoiCommand, Resu
   private readonly logger = new Logger(AddPoiCommandHandler.name);
 
   constructor(
-    @Inject('ILagekarteRepository')
+    @Inject(LAGEKARTE_REPOSITORY)
     private readonly lagekarteRepository: ILagekarteRepository,
-    @Inject('IEventPublisher')
+    @Inject(EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
   ) {}
 

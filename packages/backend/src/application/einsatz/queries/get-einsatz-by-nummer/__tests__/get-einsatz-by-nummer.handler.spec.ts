@@ -1,6 +1,6 @@
 import { GetEinsatzByNummerQueryHandler } from '../get-einsatz-by-nummer.handler';
 import { GetEinsatzByNummerQuery } from '../get-einsatz-by-nummer.query';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { UserId } from '@domain/value-objects/user-id';
 import { Result } from '@domain/common/result';

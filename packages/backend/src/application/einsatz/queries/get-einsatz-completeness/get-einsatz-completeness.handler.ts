@@ -1,11 +1,11 @@
-import type { IQueryHandler } from '@nestjs/cqrs';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { type IQueryHandler, QueryHandler } from '@nestjs/cqrs';
+import { Inject, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { CompletenessResponseDto } from '@/application/einsatz/dto/completeness-response.dto';
 import { EinsatzCompletenessCalculator } from '@/einsatz/utils/completeness.util';
-import type { GetEinsatzCompletenessQuery } from './get-einsatz-completeness.query';
+import { GetEinsatzCompletenessQuery } from './get-einsatz-completeness.query';
 import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
@@ -54,7 +54,7 @@ import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
  * return result.value; // CompletenessResponseDto
  * ```
  */
-@Injectable()
+@QueryHandler(GetEinsatzCompletenessQuery)
 export class GetEinsatzCompletenessQueryHandler implements IQueryHandler<GetEinsatzCompletenessQuery, Result<CompletenessResponseDto | null>> {
   private readonly logger = new Logger(GetEinsatzCompletenessQueryHandler.name);
 

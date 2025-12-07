@@ -20,7 +20,7 @@ import { mapValues } from '../runtime';
  */
 export interface NavigationResponseDto {
   /**
-   * ID des vorherigen/nächsten Einsatzes
+   * ID des vorherigen/naechsten Einsatzes
    * @type {object}
    * @memberof NavigationResponseDto
    */

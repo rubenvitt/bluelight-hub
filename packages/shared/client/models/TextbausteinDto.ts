@@ -38,7 +38,7 @@ export interface TextbausteinDto {
    */
   kurztext: string;
   /**
-   * Vollständiger Text des Bausteins
+   * Vollstaendiger Text des Bausteins
    * @type {string}
    * @memberof TextbausteinDto
    */
@@ -63,10 +63,10 @@ export interface TextbausteinDto {
   verwendungen: number;
   /**
    * Datum der letzten Nutzung
-   * @type {object}
+   * @type {Date}
    * @memberof TextbausteinDto
    */
-  letztGenutzt?: object;
+  letztGenutzt?: Date | null;
 }
 
 /**
@@ -120,7 +120,7 @@ export function TextbausteinDtoFromJSONTyped(json: any, ignoreDiscriminator: boo
     isActive: json['isActive'],
     sortOrder: json['sortOrder'],
     verwendungen: json['verwendungen'],
-    letztGenutzt: json['letztGenutzt'] == null ? undefined : json['letztGenutzt'],
+    letztGenutzt: json['letztGenutzt'] == null ? undefined : new Date(json['letztGenutzt']),
   };
 }
 
@@ -141,6 +141,6 @@ export function TextbausteinDtoToJSONTyped(value?: TextbausteinDto | null, ignor
     isActive: value['isActive'],
     sortOrder: value['sortOrder'],
     verwendungen: value['verwendungen'],
-    letztGenutzt: value['letztGenutzt'],
+    letztGenutzt: value['letztGenutzt'] == null ? undefined : (value['letztGenutzt'] as any).toISOString(),
   };
 }

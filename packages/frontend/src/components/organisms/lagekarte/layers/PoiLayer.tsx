@@ -10,10 +10,10 @@ import { PiTrash, PiWarning, PiXCircle } from 'react-icons/pi';
 import { Marker, Popup } from 'react-leaflet';
 import { toast } from 'sonner';
 import type { LeafletMouseEvent } from 'leaflet';
-import type { PoiResponseDto } from '@bluelight-hub/shared/client';
+import type { PoiDto } from '@bluelight-hub/shared/client';
 
 interface PoiLayerProps {
-  einsatzId: string;
+  lagekarteId: string | undefined;
 }
 
 /**
@@ -27,7 +27,7 @@ interface PoiLayerProps {
  * - Performance-optimiert mit React.memo() und useMemo()
  * - Barrierefrei mit ARIA-Labels für Screen Reader
  *
- * @param einsatzId - ID des aktuellen Einsatzes
+ * @param lagekarteId - ID der aktuellen Lagekarte
  *
  * @remarks
  * Performance-Optimierungen:
@@ -39,14 +39,14 @@ interface PoiLayerProps {
  * - <2 Sekunden Ladezeit bei 20 POIs (auf 4G Verbindung)
  * - Messung: Chrome DevTools Performance Tab → Measure First Contentful Paint
  */
-export const PoiLayer: React.FC<PoiLayerProps> = React.memo(({ einsatzId }) => {
-  const { data: pois, isLoading, error } = usePois(einsatzId);
+export const PoiLayer: React.FC<PoiLayerProps> = React.memo(({ lagekarteId }) => {
+  const { data: pois, isLoading, error } = usePois(lagekarteId);
   const updatePoiMutation = useUpdatePoi();
   const deletePoiMutation = useDeletePoi();
 
   // Delete Confirmation Dialog State
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [poiToDelete, setPoiToDelete] = useState<PoiResponseDto | null>(null);
+  const [poiToDelete, setPoiToDelete] = useState<PoiDto | null>(null);
 
   /**
    * Zentralisiertes Error-Handling für POI-Mutationen
@@ -72,10 +72,12 @@ export const PoiLayer: React.FC<PoiLayerProps> = React.memo(({ einsatzId }) => {
     let skipped = 0;
 
     for (const poi of pois) {
-      if (typeof poi.latitude !== 'number' || typeof poi.longitude !== 'number' || Number.isNaN(poi.latitude) || Number.isNaN(poi.longitude)) {
+      const lat = poi.coordinate?.lat;
+      const lng = poi.coordinate?.lng;
+      if (typeof lat !== 'number' || typeof lng !== 'number' || Number.isNaN(lat) || Number.isNaN(lng)) {
         console.warn(`POI ${poi.id} has invalid coordinates:`, {
-          latitude: poi.latitude,
-          longitude: poi.longitude,
+          lat,
+          lng,
         });
         skipped++;
       } else {
@@ -117,6 +119,8 @@ export const PoiLayer: React.FC<PoiLayerProps> = React.memo(({ einsatzId }) => {
    * @param poiId - ID des POI der verschoben wurde
    */
   const handleDragEnd = (e: LeafletMouseEvent, poiId: string) => {
+    if (!lagekarteId) return;
+
     const marker = e.target;
     const { lat, lng } = marker.getLatLng();
 
@@ -126,11 +130,10 @@ export const PoiLayer: React.FC<PoiLayerProps> = React.memo(({ einsatzId }) => {
     // Update POI mit neuen Koordinaten
     updatePoiMutation.mutate(
       {
-        id: poiId,
-        einsatzId,
+        poiId,
+        lagekarteId,
         data: {
-          latitude: lat,
-          longitude: lng,
+          coordinate: { lat, lng },
         },
       },
       {
@@ -151,7 +154,7 @@ export const PoiLayer: React.FC<PoiLayerProps> = React.memo(({ einsatzId }) => {
    * @param e - Leaflet Mouse Event
    * @param poi - POI der gelöscht werden soll
    */
-  const handleRightClick = (e: LeafletMouseEvent, poi: PoiResponseDto) => {
+  const handleRightClick = (e: LeafletMouseEvent, poi: PoiDto) => {
     e.originalEvent.preventDefault(); // Verhindere natives Context-Menü
     setPoiToDelete(poi);
     setDeleteDialogOpen(true);
@@ -161,12 +164,12 @@ export const PoiLayer: React.FC<PoiLayerProps> = React.memo(({ einsatzId }) => {
    * Handler für POI-Löschen (nach Bestätigung)
    */
   const handleDeleteConfirm = () => {
-    if (!poiToDelete) return;
+    if (!poiToDelete || !lagekarteId) return;
 
     deletePoiMutation.mutate(
       {
-        id: poiToDelete.id,
-        einsatzId,
+        poiId: poiToDelete.id,
+        lagekarteId,
       },
       {
         onSuccess: () => {
@@ -207,14 +210,14 @@ export const PoiLayer: React.FC<PoiLayerProps> = React.memo(({ einsatzId }) => {
 
       {/* Render gültige POI-Marker */}
       {validPois.map((poi) => {
-        const icon = getPoiIcon(poi.type);
+        const icon = getPoiIcon(poi.category);
         // ACCESSIBILITY: Create descriptive ARIA label for screen readers
-        const ariaLabel = `${poi.type}: ${poi.name}${poi.adresse ? ` bei ${poi.adresse}` : ''}`;
+        const ariaLabel = `${poi.category}: ${poi.name}${poi.beschreibung ? ` - ${poi.beschreibung}` : ''}`;
 
         return (
           <Marker
             key={poi.id}
-            position={[poi.latitude, poi.longitude]}
+            position={[poi.coordinate.lat, poi.coordinate.lng]}
             icon={icon}
             draggable={true}
             eventHandlers={{
@@ -230,14 +233,14 @@ export const PoiLayer: React.FC<PoiLayerProps> = React.memo(({ einsatzId }) => {
                 {/* POI-Name */}
                 <h3 className="mb-2 font-semibold text-lg">{poi.name}</h3>
 
-                {/* POI-Type */}
-                <p className="mb-1 text-gray-600 text-sm dark:text-gray-400">{poi.type}</p>
+                {/* POI-Kategorie */}
+                <p className="mb-1 text-gray-600 text-sm dark:text-gray-400">{poi.category}</p>
 
                 {/* MGRS-Koordinaten (Primary Display) - nur wenn verfügbar */}
-                {poi.mgrs && (
+                {poi.coordinate.mgrs && (
                   <div className="mb-2 rounded bg-gray-50 p-2 dark:bg-gray-700">
                     <p className="font-medium text-gray-700 text-xs dark:text-gray-300">MGRS</p>
-                    <p className="font-mono text-gray-900 text-sm dark:text-gray-100">{formatMgrs(poi.mgrs)}</p>
+                    <p className="font-mono text-gray-900 text-sm dark:text-gray-100">{formatMgrs(poi.coordinate.mgrs)}</p>
                   </div>
                 )}
 
@@ -245,12 +248,12 @@ export const PoiLayer: React.FC<PoiLayerProps> = React.memo(({ einsatzId }) => {
                 <div className="mb-2">
                   <p className="font-medium text-gray-700 text-xs dark:text-gray-300">Lat/Lng</p>
                   <p className="font-mono text-gray-600 text-xs dark:text-gray-400">
-                    {poi.latitude.toFixed(6)}, {poi.longitude.toFixed(6)}
+                    {poi.coordinate.lat.toFixed(6)}, {poi.coordinate.lng.toFixed(6)}
                   </p>
                 </div>
 
-                {/* Adresse (optional) */}
-                {poi.adresse && <p className="text-gray-700 text-sm dark:text-gray-300">{poi.adresse}</p>}
+                {/* Beschreibung (optional) */}
+                {poi.beschreibung && <p className="text-gray-700 text-sm dark:text-gray-300">{poi.beschreibung}</p>}
               </div>
             </Popup>
           </Marker>

@@ -2,6 +2,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { EinsatzApplicationModule } from '@/application/einsatz/einsatz-application.module';
+import { EinsatzInfrastructureModule } from '@/infrastructure/einsatz/einsatz-infrastructure.module';
 import { EinsatzController } from './einsatz.controller';
 
 /**
@@ -17,14 +18,14 @@ import { EinsatzController } from './einsatz.controller';
  * **Architektur (Story 5-1):**
  * - Controller nutzt ausschließlich CommandBus/QueryBus
  * - Alle Business-Logik in Application Layer (EinsatzApplicationModule)
- * - Infrastructure via LagekarteInfrastructureModule (Repositories)
+ * - Infrastructure via EinsatzInfrastructureModule (Repositories)
  *
  * @remarks
  * Die Kommunikation mit anderen Modulen erfolgt über
  * Domain-Events (Transactional Outbox Pattern).
  */
 @Module({
-  imports: [CqrsModule, PrismaModule, EinsatzApplicationModule],
+  imports: [CqrsModule, PrismaModule, EinsatzApplicationModule, EinsatzInfrastructureModule],
   controllers: [EinsatzController],
   providers: [],
   exports: [],

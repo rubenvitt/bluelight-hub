@@ -5,7 +5,7 @@ import { UserId } from '@domain/value-objects/user-id';
 import { Address } from '@domain/value-objects/address';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 import { Result } from '@domain/common/result';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 
 /**
  * Helper: Erstellt einen Mock-Einsatz fuer Tests.

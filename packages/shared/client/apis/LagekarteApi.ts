@@ -51,13 +51,14 @@ export interface LagekarteControllerUploadScreenshotVAlphaRequest {
  */
 export class LagekarteApi extends runtime.BaseAPI {
   /**
-   * Löscht die Lagekarte eines Einsatzes. CASCADE: Alle zugehörigen POIs werden automatisch mitgelöscht.
-   * Lagekarte löschen (Legacy)
+   * DEPRECATED: Endpoint wurde entfernt aufgrund NO-DELETE Policy (DRK-Compliance). Lagekartenhistorie muss für rechtliche Nachbereitung erhalten bleiben.
+   * Lagekarte löschen (DEPRECATED)
+   * @deprecated
    */
   async lagekarteControllerDeleteLagekarteVAlphaRaw(
     requestParameters: LagekarteControllerDeleteLagekarteVAlphaRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<LagekarteControllerSaveLagekarteStateVAlpha200Response>> {
+  ): Promise<runtime.ApiResponse<void>> {
     if (requestParameters['einsatzId'] == null) {
       throw new runtime.RequiredError('einsatzId', 'Required parameter "einsatzId" was null or undefined when calling lagekarteControllerDeleteLagekarteVAlpha().');
     }
@@ -84,19 +85,16 @@ export class LagekarteApi extends runtime.BaseAPI {
       initOverrides,
     );
 
-    return new runtime.JSONApiResponse(response, (jsonValue) => LagekarteControllerSaveLagekarteStateVAlpha200ResponseFromJSON(jsonValue));
+    return new runtime.VoidApiResponse(response);
   }
 
   /**
-   * Löscht die Lagekarte eines Einsatzes. CASCADE: Alle zugehörigen POIs werden automatisch mitgelöscht.
-   * Lagekarte löschen (Legacy)
+   * DEPRECATED: Endpoint wurde entfernt aufgrund NO-DELETE Policy (DRK-Compliance). Lagekartenhistorie muss für rechtliche Nachbereitung erhalten bleiben.
+   * Lagekarte löschen (DEPRECATED)
+   * @deprecated
    */
-  async lagekarteControllerDeleteLagekarteVAlpha(
-    requestParameters: LagekarteControllerDeleteLagekarteVAlphaRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<LagekarteControllerSaveLagekarteStateVAlpha200Response> {
-    const response = await this.lagekarteControllerDeleteLagekarteVAlphaRaw(requestParameters, initOverrides);
-    return await response.value();
+  async lagekarteControllerDeleteLagekarteVAlpha(requestParameters: LagekarteControllerDeleteLagekarteVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+    await this.lagekarteControllerDeleteLagekarteVAlphaRaw(requestParameters, initOverrides);
   }
 
   /**

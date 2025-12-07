@@ -20,25 +20,25 @@ import { mapValues } from '../runtime';
  */
 export interface StatusCountsDto {
   /**
-   * Anzahl der Einsätze mit Status ANGELEGT
+   * Anzahl der Einsaetze mit Status ANGELEGT
    * @type {number}
    * @memberof StatusCountsDto
    */
   angelegt: number;
   /**
-   * Anzahl der Einsätze mit Status IN_BEARBEITUNG
+   * Anzahl der Einsaetze mit Status IN_BEARBEITUNG
    * @type {number}
    * @memberof StatusCountsDto
    */
   inBearbeitung: number;
   /**
-   * Anzahl der Einsätze mit Status ABGESCHLOSSEN
+   * Anzahl der Einsaetze mit Status ABGESCHLOSSEN
    * @type {number}
    * @memberof StatusCountsDto
    */
   abgeschlossen: number;
   /**
-   * Anzahl der Einsätze mit Status ARCHIVIERT
+   * Anzahl der Einsaetze mit Status ARCHIVIERT
    * @type {number}
    * @memberof StatusCountsDto
    */

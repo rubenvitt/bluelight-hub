@@ -1,7 +1,7 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: Test mocks and type casting
 import { UpdatePoiPositionCommandHandler } from '../update-poi-position.handler';
 import { UpdatePoiPositionCommand } from '../update-poi-position.command';
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { ILagekarteRepository } from '@domain/repositories';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';

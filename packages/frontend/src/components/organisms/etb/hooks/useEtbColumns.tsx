@@ -1,6 +1,6 @@
 import { cn } from '@/utils/cn';
 import { IconButton } from '@atoms/icon-button.atom';
-import type { EtbEintragDto, EtbEintragDtoKategorieEnum } from '@bluelight-hub/shared/client';
+import type { EintragDto, EintragDtoKategorieEnum } from '@bluelight-hub/shared/client';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format, isValid } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -11,13 +11,13 @@ import { EtbVersionBadge } from '../components/EtbVersionBadge';
 import { EtbTextCell } from '../components/EtbTextCell';
 
 interface UseEtbColumnsProps {
-  onEditEntry?: (entry: EtbEintragDto) => void;
-  handleDelete: (entry: EtbEintragDto) => void;
-  onShowHistory?: (entry: EtbEintragDto) => void;
+  onEditEntry?: (entry: EintragDto) => void;
+  handleDelete: (entry: EintragDto) => void;
+  onShowHistory?: (entry: EintragDto) => void;
 }
 
-export function useEtbColumns({ onEditEntry, handleDelete, onShowHistory }: UseEtbColumnsProps): ColumnDef<EtbEintragDto>[] {
-  return useMemo<ColumnDef<EtbEintragDto>[]>(
+export function useEtbColumns({ onEditEntry, handleDelete, onShowHistory }: UseEtbColumnsProps): ColumnDef<EintragDto>[] {
+  return useMemo<ColumnDef<EintragDto>[]>(
     () => [
       {
         id: 'expander',
@@ -109,7 +109,7 @@ export function useEtbColumns({ onEditEntry, handleDelete, onShowHistory }: UseE
         accessorKey: 'kategorie',
         header: 'Kategorie',
         enableSorting: true,
-        cell: ({ getValue }) => <EtbKategorieBadge kategorie={getValue<EtbEintragDtoKategorieEnum>()} />,
+        cell: ({ getValue }) => <EtbKategorieBadge kategorie={getValue<EintragDtoKategorieEnum>()} />,
         size: 150,
       },
       {

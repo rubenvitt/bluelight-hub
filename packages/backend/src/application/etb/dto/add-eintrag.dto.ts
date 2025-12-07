@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { EtbKategorie } from '@prisma/client';
+import { ETB_KATEGORIE_VALUES, type EtbKategorieValue } from '@domain/value-objects/etb-kategorie';
 import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 /**
@@ -41,13 +41,13 @@ export class AddEintragDto {
    */
   @ApiPropertyOptional({
     description: 'Kategorie des ETB-Eintrags',
-    enum: EtbKategorie,
-    default: EtbKategorie.LAGE,
-    example: EtbKategorie.LAGE,
+    enum: ETB_KATEGORIE_VALUES,
+    default: 'LAGE',
+    example: 'LAGE',
   })
   @IsOptional()
-  @IsEnum(EtbKategorie, { message: 'kategorie muss ein gültiger EtbKategorie-Wert sein' })
-  kategorie?: EtbKategorie;
+  @IsEnum(ETB_KATEGORIE_VALUES, { message: 'kategorie muss ein gültiger EtbKategorie-Wert sein' })
+  kategorie?: EtbKategorieValue;
 
   /**
    * Einsatz-ID fuer automatische ETB-Erstellung, falls noch kein ETB existiert.
@@ -60,4 +60,35 @@ export class AddEintragDto {
   @IsOptional()
   @IsString({ message: 'einsatzId muss ein String sein' })
   einsatzId?: string;
+
+  /**
+   * Optionale Metadaten für den Eintrag (z.B. Lagekarten-Screenshots).
+   *
+   * Wird verwendet um strukturierte Zusatzinformationen wie Screenshot-URLs
+   * zu speichern, die im Frontend speziell dargestellt werden.
+   *
+   * @example
+   * ```json
+   * {
+   *   "screenshot": {
+   *     "url": "/uploads/lagekarte/einsatz_123.png",
+   *     "width": 1024,
+   *     "height": 768
+   *   }
+   * }
+   * ```
+   */
+  @ApiPropertyOptional({
+    description: 'Optionale Metadaten (z.B. Screenshots, Anhänge)',
+    example: {
+      screenshot: {
+        url: '/uploads/lagekarte/einsatz_123.png',
+        width: 1024,
+        height: 768,
+      },
+    },
+    nullable: true,
+  })
+  @IsOptional()
+  metadata?: Record<string, unknown>;
 }

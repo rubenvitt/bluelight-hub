@@ -309,7 +309,7 @@ describe('Outbox Race Condition Prevention (Story 0-2)', () => {
       await waitForPublishedEvents(20, 3000);
 
       // Verify: Jedes Event nur einmal publiziert (Count via SpyEventPublisher)
-      const publishedEventIds = new Set(
+      const _publishedEventIds = new Set(
         ctx.eventPublisher.publishedEvents.map((e) => {
           // Extract eventId from Event instance (falls vorhanden)
           return (e as { eventId?: string }).eventId;
@@ -422,7 +422,7 @@ describe('Outbox Race Condition Prevention (Story 0-2)', () => {
           // Simuliere Fehler → Rollback
           throw new Error('Simulated Error');
         });
-      } catch (error) {
+      } catch (_error) {
         // Expected Error
       }
 

@@ -1,4 +1,4 @@
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 import { CommandHandler } from '@nestjs/cqrs';
@@ -9,8 +9,8 @@ import { TransactionalCommandHandler } from '@application/common/handlers/transa
 import { PrismaService } from '@/prisma/prisma.service';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import type { DomainEvent } from '@domain/common/domain-event';
-import type { TransactionContext } from '@domain/common/transaction';
-import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
+import type { TransactionContext } from '@domain/common';
+import { Result } from '@domain/common/result';
 import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
@@ -71,18 +71,18 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
    *
    * WICHTIG: Nutzt `tx` Parameter für save() Operation (NICHT this.prisma).
    * Base Handler koordiniert Transaction Commit und Outbox-Persistierung.
-   *
-   * **Warum Exceptions statt Result<T> hier:**
-   * - TransactionalCommandHandler erwartet Exceptions für Transaction Rollback
-   * - Result<T> Pattern wird nur für Validierung/Business Rules genutzt
-   * - Exceptions triggern automatisch Transaction Rollback
+   *   *
+   * **Result Pattern (AC4):**
+   * - Gibt Result<T> zurück für erwartete Fehler (Validierung, Business Rules)
+   * - Exceptions nur für unerwartete Fehler (DB-Fehler, Programming Errors)
+   * - Bei Result.fail(): Transaction wird automatisch zurückgerollt
    *
    * @param command - Validierter UpdateEinsatzStatusCommand
    * @param tx - Transaction Context (framework-agnostisch, Infrastructure castet zu Prisma) (MUSS für save() verwendet werden)
-   * @returns result: void, events: Domain Events für Outbox
+   * @returns Result<{ result: TResult; events: DomainEvent[] }> - Success oder Failure
    * @throws Error bei Business Rule Violations (triggert Transaction Rollback)
    */
-  protected async executeInTransaction(command: UpdateEinsatzStatusCommand, tx: TransactionContext): Promise<{ result: undefined; events: DomainEvent[] }> {
+  protected async executeInTransaction(command: UpdateEinsatzStatusCommand, tx: TransactionContext): Promise<Result<{ result: undefined; events: DomainEvent[] }>> {
     // Step 1: Validate EinsatzId format
     const einsatzIdResult = EinsatzId.create(command.einsatzId);
     if (einsatzIdResult.isFailure) {
@@ -92,18 +92,16 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
         einsatzId: command.einsatzId,
         operation: 'updateStatus',
         phase: 'validation',
-        errorType: 'validation',
       });
-      throw new EinsatzValidationException(error, 'einsatzId', command.einsatzId);
+      return Result.fail(error);
     }
     const einsatzId = einsatzIdResult.value;
     if (!einsatzId) {
       this.logger.error('Unexpected null EinsatzId after successful validation', {
         operation: 'updateStatus',
         phase: 'validation',
-        errorType: 'validation',
       });
-      throw new EinsatzValidationException('Ungültige Einsatz-ID', 'einsatzId', command.einsatzId);
+      return Result.fail('Ungültige Einsatz-ID');
     }
 
     // Step 2: Convert newStatus String to EinsatzStatus Value Object
@@ -115,18 +113,16 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
         newStatus: command.newStatus,
         operation: 'updateStatus',
         phase: 'validation',
-        errorType: 'validation',
       });
-      throw new EinsatzValidationException(error, 'newStatus');
+      return Result.fail(error);
     }
     const newStatus = statusResult.value;
     if (!newStatus) {
       this.logger.error('Unexpected null EinsatzStatus after successful validation', {
         operation: 'updateStatus',
         phase: 'validation',
-        errorType: 'validation',
       });
-      throw new EinsatzValidationException(`Ungültiger Status: ${command.newStatus}`, 'newStatus');
+      return Result.fail(`Ungültiger Status: ${command.newStatus}`);
     }
 
     // Step 3: Load Aggregate via Repository
@@ -139,9 +135,8 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
         einsatzId: command.einsatzId,
         operation: 'updateStatus',
         phase: 'load',
-        errorType: 'persistence',
       });
-      throw new EinsatzPersistenceException(error, command.einsatzId);
+      return Result.fail(error);
     }
 
     const einsatz = findResult.value;
@@ -150,9 +145,8 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
         einsatzId: command.einsatzId,
         operation: 'updateStatus',
         phase: 'load',
-        errorType: 'notFound',
       });
-      throw new EinsatzNotFoundException(command.einsatzId);
+      return Result.fail(command.einsatzId);
     }
 
     // Step 4: Call aggregate.updateStatus() - State Machine Validation happens inside
@@ -166,9 +160,8 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
         error,
         operation: 'updateStatus',
         phase: 'businessLogic',
-        errorType: 'businessRule',
       });
-      throw new EinsatzBusinessRuleException(error, command.einsatzId, 'statusTransition');
+      return Result.fail(error);
     }
 
     // Step 5: Save Aggregate in Transaction (WICHTIG: Nutze tx, nicht this.prisma)
@@ -180,9 +173,8 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
         einsatzId: command.einsatzId,
         operation: 'updateStatus',
         phase: 'save',
-        errorType: 'persistence',
       });
-      throw new EinsatzPersistenceException(error, command.einsatzId);
+      return Result.fail(error);
     }
 
     // Step 6: Extract Domain Events for Outbox
@@ -197,9 +189,6 @@ export class UpdateEinsatzStatusHandler extends TransactionalCommandHandler<Upda
     });
 
     // Step 7: Return result + events für Base Handler
-    return {
-      result: undefined,
-      events,
-    };
+    return Result.ok({ result: undefined, events });
   }
 }

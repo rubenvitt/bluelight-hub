@@ -176,7 +176,7 @@ export function isSuccess<T>(result: { isSuccess: boolean; value?: T }): result 
  * }
  * ```
  */
-export function isFailure<T>(result: { isFailure: boolean; error?: string }): result is { isFailure: true; error: string } {
+export function isFailure<_T>(result: { isFailure: boolean; error?: string }): result is { isFailure: true; error: string } {
   return result.isFailure && result.error !== undefined;
 }
 

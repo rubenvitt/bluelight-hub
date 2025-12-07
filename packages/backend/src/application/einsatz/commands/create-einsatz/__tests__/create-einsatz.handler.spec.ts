@@ -8,6 +8,7 @@ import { EinsatzValidationException, EinsatzPersistenceException } from '@domain
 import { Address } from '@domain/value-objects/address';
 import { EINSATZ_FIELD_LIMITS } from '@application/common/validators/string-validator';
 import { EinsatzCreatedEvent } from '@domain/events/einsatz-created.event';
+import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@/infrastructure/di-tokens';
 
 describe('CreateEinsatzHandler', () => {
   let handler: CreateEinsatzHandler;

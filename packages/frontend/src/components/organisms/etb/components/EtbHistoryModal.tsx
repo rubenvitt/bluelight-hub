@@ -1,6 +1,6 @@
 import { useEtbHistory } from '@/hooks/useEtb';
 import { Button } from '@atoms/button.atom';
-import type { EtbEintragDto } from '@bluelight-hub/shared/client';
+import type { EintragDto } from '@bluelight-hub/shared/client';
 import { Dialog } from '@molecules/dialog.molecule';
 import { Timeline, TimelineDot, TimelineItem } from '@molecules/timeline.molecule';
 import { useEffect, useRef } from 'react';
@@ -8,7 +8,7 @@ import { PiCircleNotch } from 'react-icons/pi';
 import { EtbHistoryCard } from './EtbHistoryCard';
 
 interface EtbHistoryModalProps {
-  entry: EtbEintragDto | null;
+  entry: EintragDto | null;
   etbId: string | null;
   isOpen: boolean;
   onClose: () => void;
@@ -62,7 +62,7 @@ function parseSnapshotEntry(raw: unknown): SnapshotEntry | null {
   return null;
 }
 
-function buildHistory(entry: EtbEintragDto | null, snapshots?: Array<{ version: number; snapshotAt: Date; eintraege?: unknown[] }>): HistoryItem[] {
+function buildHistory(entry: EintragDto | null, snapshots?: Array<{ version: number; snapshotAt: Date; eintraege?: unknown[] }>): HistoryItem[] {
   if (!entry) return [];
 
   const sortedSnapshots = (snapshots ?? []).slice().sort((a, b) => b.version - a.version);
@@ -113,7 +113,7 @@ function buildHistory(entry: EtbEintragDto | null, snapshots?: Array<{ version: 
  */
 export function EtbHistoryModal({ entry, etbId, isOpen, onClose }: EtbHistoryModalProps) {
   // Speichere die letzte gültige entry, um Flackern beim Schließen zu vermeiden
-  const lastValidEntry = useRef<EtbEintragDto | null>(null);
+  const lastValidEntry = useRef<EintragDto | null>(null);
   const lastValidEtbId = useRef<string | null>(null);
 
   useEffect(() => {

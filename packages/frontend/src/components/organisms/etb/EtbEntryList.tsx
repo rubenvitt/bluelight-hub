@@ -1,7 +1,7 @@
 import { useConfirm } from '@/hooks/useConfirm';
 import { useDeleteEtbEintrag } from '@/hooks/useEtb';
 import { useUserNames } from '@/hooks/useUsers';
-import type { EtbEintragDto } from '@bluelight-hub/shared/client';
+import type { EintragDto } from '@bluelight-hub/shared/client';
 import { type ExpandedState, getCoreRowModel, getExpandedRowModel, getFilteredRowModel, type SortingState, useReactTable } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -16,14 +16,14 @@ import { EtbHistoryModal } from './components/EtbHistoryModal';
 import { useEtbColumns } from './hooks/useEtbColumns';
 
 interface EtbEntryListProps {
-  entries: EtbEintragDto[];
+  entries: EintragDto[];
   einsatzId: string;
   etbId: string;
   isLoading?: boolean;
   hasNextPage?: boolean;
   fetchNextPage?: () => void;
   isFetchingNextPage?: boolean;
-  onEditEntry?: (entry: EtbEintragDto) => void;
+  onEditEntry?: (entry: EintragDto) => void;
   onSortChange?: (field: string, order: 'asc' | 'desc') => void;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
@@ -55,7 +55,7 @@ export function EtbEntryList({
   const confirm = useConfirm();
   const { getUserName } = useUserNames();
   const [globalFilter, setGlobalFilter] = useState('');
-  const [historyEntry, setHistoryEntry] = useState<EtbEintragDto | null>(null);
+  const [historyEntry, setHistoryEntry] = useState<EintragDto | null>(null);
 
   // Sortierung für Anzeige - lokaler State für die Table
   const [sorting, setSorting] = useState<SortingState>(() => [{ id: sortBy, desc: sortOrder === 'desc' }]);
@@ -120,7 +120,7 @@ export function EtbEntryList({
   }, []);
 
   const handleDelete = useCallback(
-    async (entry: EtbEintragDto) => {
+    async (entry: EintragDto) => {
       const confirmed = await confirm({
         title: 'Eintrag löschen',
         message: 'Möchten Sie diesen ETB-Eintrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',

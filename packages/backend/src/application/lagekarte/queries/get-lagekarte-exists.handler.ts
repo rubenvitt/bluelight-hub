@@ -1,31 +1,25 @@
 import { Injectable, Inject } from '@nestjs/common';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { ILagekarteRepository } from '@domain/repositories';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { Result } from '@domain/common/result';
 import type { GetLagekarteExistsQuery } from './get-lagekarte-exists.query';
+import { LAGEKARTE_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler für GetLagekarteExistsQuery.
  *
  * Orchestriert die Prüfung ob eine Lagekarte existiert über das Repository.
- * Dies ist die einfachste aller Queries - nur ein boolean Return-Wert.
  *
  * **CQRS Query-Side Pattern:**
  * - Read-Only: Ändert niemals Domain State
- * - KEIN Result<T> Wrapper: Gibt boolean direkt zurück
- * - Exception-Throwing: Repository-Fehler werden propagiert
+ * - Result<boolean> Wrapper: Konsistent mit allen anderen Query Handlers
+ * - Fehlerbehandlung: Validierungsfehler werden als Result.fail() zurückgegeben
  * - Performance: Nutzt optimierte exists() Repository-Method
  *
- * **Unterschied zu anderen Query Handlers:**
- * - GetLagekarteQueryHandler: Result<LagekarteDto | null> (null ist valide)
- * - GetPoisQueryHandler: Result<PoiDto[]> (empty array ist valide)
- * - GetLagekarteExistsQueryHandler: boolean (keine Fehlerbehandlung)
- *
- * **Warum kein Result<boolean> Wrapper:**
- * - Existenz-Check ist binär: true oder false
- * - Keine komplexen Fehler-States wie bei Aggregate-Loading
- * - Repository-Fehler sind unexpected (Infrastruktur-Problem) → Exception
- * - Einfachere API für Caller (kein Result unwrapping)
+ * **Result Pattern (AC4):**
+ * - Gibt Result<boolean> zurück für erwartete Fehler (Validierung)
+ * - Exceptions nur für unerwartete Fehler (DB-Fehler, Programming Errors)
+ * - Konsistente API mit anderen Query Handlers
  *
  * **Performance Optimization:**
  * exists() ist schneller als findByEinsatzId():
@@ -50,64 +44,62 @@ import type { GetLagekarteExistsQuery } from './get-lagekarte-exists.query';
 @Injectable()
 export class GetLagekarteExistsQueryHandler {
   constructor(
-    @Inject('ILagekarteRepository')
+    @Inject(LAGEKARTE_REPOSITORY)
     private readonly lagekarteRepository: ILagekarteRepository,
   ) {}
 
   /**
    * Führt die Query aus und prüft, ob eine Lagekarte existiert.
    *
-   * Diese Methode gibt ein einfaches boolean zurück (kein Result<T>),
-   * da "existiert/existiert nicht" keine Fehlerbehandlung benötigt.
-   * Repository-Fehler werden weitergegeben (als Exception).
+   * **Result Pattern (AC4):**
+   * - Gibt Result<boolean> zurück für erwartete Fehler (Validierung)
+   * - Exceptions nur für unerwartete Fehler (DB-Fehler, Programming Errors)
    *
    * **Orchestration Flow:**
-   * 1. Validiere EinsatzId via Value Object (throws bei Invalid)
-   * 2. Rufe repository.exists() auf
-   * 3. Return boolean direkt (kein Result Wrapper)
-   * 4. Repository-Fehler → Exception (nicht gefangen)
+   * 1. Validiere EinsatzId via Value Object
+   * 2. Bei Validierungsfehler → Result.fail()
+   * 3. Rufe repository.exists() auf
+   * 4. Return Result.ok(boolean)
+   * 5. Repository-Fehler → Exception (unerwarteter Fehler)
    *
    * **Fehlerbehandlung:**
-   * - Invalid EinsatzId → Wirft Error (fail-fast)
-   * - Repository-Error → Wirft Error (nicht gefangen, propagiert)
-   * - Nicht-existierend → false (KEIN Fehler, valide Response)
-   * - Existierend → true (valide Response)
-   *
-   * **Keine try-catch:**
-   * Im Gegensatz zu anderen Query Handlers fängt diese Methode
-   * KEINE Errors. Repository-Fehler sollen als Exception propagiert
-   * werden, da sie unexpected sind (Infrastruktur-Problem).
+   * - Invalid EinsatzId → Result.fail() (erwarteter Fehler)
+   * - Repository-Error → Exception (unerwarteter Fehler, propagiert)
+   * - Nicht-existierend → Result.ok(false) (valide Response)
+   * - Existierend → Result.ok(true) (valide Response)
    *
    * @param query - Die Query mit der EinsatzId
-   * @returns true wenn Lagekarte existiert, false sonst
-   * @throws Error wenn EinsatzId ungültig ist
-   * @throws Error wenn Repository-Zugriff fehlschlägt
+   * @returns Result<boolean> - Success mit true/false oder Failure mit Error Message
    *
    * @example
    * ```typescript
    * const query = new GetLagekarteExistsQuery('einsatz-123');
-   * const exists = await handler.execute(query);
-   * // exists === true | false
+   * const result = await handler.execute(query);
    *
-   * // Guard Clause Usage
-   * if (await handler.execute(query)) {
+   * if (result.isFailure) {
+   *   throw new BadRequestException(result.error);
+   * }
+   *
+   * if (result.value) {
    *   throw new AlreadyExistsError('Lagekarte existiert bereits');
    * }
    * ```
    */
-  async execute(query: GetLagekarteExistsQuery): Promise<boolean> {
+  async execute(query: GetLagekarteExistsQuery): Promise<Result<boolean>> {
     // Step 1: Validate EinsatzId via Value Object
     const einsatzIdResult = EinsatzId.create(query.einsatzId);
     if (einsatzIdResult.isFailure) {
-      throw new Error(einsatzIdResult.error ?? 'Invalid Einsatz ID');
+      return Result.fail(einsatzIdResult.error ?? 'Invalid Einsatz ID');
     }
 
     const einsatzId = einsatzIdResult.value;
     if (!einsatzId) {
-      throw new Error('Invalid Einsatz ID result');
+      return Result.fail('Invalid Einsatz ID result');
     }
 
-    // Step 2: Call repository.exists() and return boolean directly
-    return await this.lagekarteRepository.exists(einsatzId);
+    // Step 2: Call repository.exists() and return Result.ok(boolean)
+    // Repository-Fehler propagieren als Exception (unerwarteter Fehler)
+    const exists = await this.lagekarteRepository.exists(einsatzId);
+    return Result.ok(exists);
   }
 }

@@ -1,7 +1,5 @@
 import { Result } from '@domain/common/result';
-// TODO (Epic 6): Use Domain EtbKategorie Value Object instead of Prisma enum
-// biome-ignore lint/style/noRestrictedImports: Legacy dependency - tracked for migration in Epic 6
-import { EtbKategorie } from '@prisma/client';
+import type { EtbKategorieValue } from '@domain/value-objects/etb-kategorie';
 
 /**
  * Command zum Hinzufügen eines neuen Eintrags zum Einsatztagebuch.
@@ -20,7 +18,7 @@ import { EtbKategorie } from '@prisma/client';
  *   'clx1234567890abcdefghijk', // ETB-ID
  *   'Fahrzeug W1 am Einsatzort eingetroffen',
  *   'clx_user_abc123def456', // User-ID
- *   EtbKategorie.ANKUNFT // Optional: Kategorie
+ *   'ANKUNFT' // Optional: Kategorie
  * );
  * if (commandResult.isSuccess) {
  *   const eintrag = await commandBus.execute(commandResult.value);
@@ -35,13 +33,16 @@ export class AddEintragCommand {
    * @param text - Textinhalt des neuen Eintrags
    * @param userId - ID des erstellenden Users (CUID2-Format)
    * @param kategorie - Kategorie des Eintrags (Default: LAGE)
+   * @param einsatzId - Optional: Einsatz-ID für automatische ETB-Erstellung
+   * @param metadata - Optional: Metadaten (z.B. Screenshots)
    */
   private constructor(
     public readonly etbId: string,
     public readonly text: string,
     public readonly userId: string,
-    public readonly kategorie: EtbKategorie = EtbKategorie.LAGE,
+    public readonly kategorie: EtbKategorieValue = 'LAGE',
     public readonly einsatzId?: string,
+    public readonly metadata?: Record<string, unknown>,
   ) {}
 
   /**
@@ -54,9 +55,11 @@ export class AddEintragCommand {
    * @param text - Textinhalt des Eintrags (darf nicht leer sein)
    * @param userId - ID des Users, der den Eintrag erstellt
    * @param kategorie - Kategorie des Eintrags (optional, Default: LAGE)
+   * @param einsatzId - Optional: Einsatz-ID für automatische ETB-Erstellung
+   * @param metadata - Optional: Metadaten (z.B. Screenshots, Anhänge)
    * @returns Result mit validiertem Command oder Fehlermeldung
    */
-  public static create(etbId: string, text: string, userId: string, kategorie?: EtbKategorie, einsatzId?: string): Result<AddEintragCommand> {
+  public static create(etbId: string, text: string, userId: string, kategorie?: EtbKategorieValue, einsatzId?: string, metadata?: Record<string, unknown>): Result<AddEintragCommand> {
     // Validation: etbId required
     if (!etbId || etbId.trim().length === 0) {
       return Result.fail('etbId is required');
@@ -77,6 +80,6 @@ export class AddEintragCommand {
       return Result.fail('einsatzId cannot be empty when provided');
     }
 
-    return Result.ok(new AddEintragCommand(etbId, text, userId, kategorie ?? EtbKategorie.LAGE, einsatzId));
+    return Result.ok(new AddEintragCommand(etbId, text, userId, kategorie ?? 'LAGE', einsatzId, metadata));
   }
 }

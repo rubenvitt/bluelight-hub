@@ -1,11 +1,11 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { EintragId } from '@domain/value-objects/eintrag-id';
 import { UserId } from '@domain/value-objects/user-id';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
+import type { IEtbRepository } from '@domain/repositories';
 import type { UpdateEintragCommand } from './update-eintrag.command';
+import { ETB_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Handler für UpdateEintragCommand.
@@ -29,7 +29,7 @@ export class UpdateEintragHandler {
   private readonly logger = new Logger(UpdateEintragHandler.name);
 
   constructor(
-    @Inject('IEtbRepository')
+    @Inject(ETB_REPOSITORY)
     private readonly etbRepository: IEtbRepository,
   ) {}
 
@@ -83,7 +83,7 @@ export class UpdateEintragHandler {
       });
 
       // User-facing sanitized message (NO internal IDs)
-      throw new NotFoundException('ETB nicht gefunden');
+      return Result.fail<void>('ETB nicht gefunden');
     }
 
     // Step 5: Delegate to domain method (validates business rules, creates snapshot)
@@ -99,7 +99,7 @@ export class UpdateEintragHandler {
     const updateResult = aggregate.updateEintrag(eintragId, command.newText, userId);
     if (updateResult.isFailure) {
       // Domain-level validation failure
-      throw new BadRequestException(updateResult.error);
+      return Result.fail<void>(updateResult.error ?? 'Eintrag konnte nicht aktualisiert werden');
     }
 
     // Step 6: Save aggregate (repository handles snapshot persistence)

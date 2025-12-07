@@ -9,6 +9,8 @@
  * - Service Ports: Technische Services (JWT, Email, Geocoding)
  * - Repository Ports: Data Access (bereits in repositories/ definiert)
  * - Integration Ports: External APIs (z.B. Nominatim Geocoding)
+ * - Event Handler Ports: Domain Event Processing (IEventHandler)
  */
 
 export * from './i-jwt-auth-service.port';
+export * from './i-event-handler.port';

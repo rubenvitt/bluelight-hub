@@ -1,5 +1,5 @@
 import { logger } from '@/utils/logger';
-import { AuthApi, Configuration, EinsatzApi, ETBApi, HealthApi, LagekarteApi, POIApi, UserManagementApi, UsersApi } from '@bluelight-hub/shared/client';
+import { AuthApi, Configuration, EinsatzApi, ETBApi, GeocodingApi, HealthApi, LagekarteApi, LagekarteCQRSApi, UserManagementApi, UsersApi } from '@bluelight-hub/shared/client';
 import { fetchWithRefresh } from './fetchWithRefresh';
 
 /**
@@ -45,7 +45,8 @@ class BackendApi {
   private readonly einsatzApi: EinsatzApi;
   private readonly etbApi: ETBApi;
   private readonly lagekarteApi: LagekarteApi;
-  private readonly poiApi: POIApi;
+  private readonly lagekarteCqrsApi: LagekarteCQRSApi;
+  private readonly geocodingApi: GeocodingApi;
 
   /**
    * Erstellt eine neue Instanz der BackendApi-Klasse
@@ -70,7 +71,8 @@ class BackendApi {
     this.einsatzApi = new EinsatzApi(this.configuration);
     this.etbApi = new ETBApi(this.configuration);
     this.lagekarteApi = new LagekarteApi(this.configuration);
-    this.poiApi = new POIApi(this.configuration);
+    this.lagekarteCqrsApi = new LagekarteCQRSApi(this.configuration);
+    this.geocodingApi = new GeocodingApi(this.configuration);
   }
 
   /**
@@ -137,12 +139,21 @@ class BackendApi {
   }
 
   /**
-   * Gibt die gecachte POI-API-Instanz zurück
+   * Gibt die gecachte LagekarteCQRS-API-Instanz zurück
    *
-   * @returns Die POI-API-Instanz für POI-Management (Points of Interest)
+   * @returns Die LagekarteCQRS-API-Instanz für POI-Management und CQRS-Operationen
    */
-  poi(): POIApi {
-    return this.poiApi;
+  lagekarteCqrs(): LagekarteCQRSApi {
+    return this.lagekarteCqrsApi;
+  }
+
+  /**
+   * Gibt die gecachte Geocoding-API-Instanz zurück
+   *
+   * @returns Die Geocoding-API-Instanz für Adress-Geocoding
+   */
+  geocoding(): GeocodingApi {
+    return this.geocodingApi;
   }
 }
 

@@ -1,10 +1,10 @@
-import type { IQueryHandler } from '@nestjs/cqrs';
-import { Injectable, Inject, Logger } from '@nestjs/common';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import { type IQueryHandler, QueryHandler } from '@nestjs/cqrs';
+import { Inject, Logger } from '@nestjs/common';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { Result } from '@domain/common/result';
 import type { EinsatzDto } from '@application/einsatz/dto/einsatz.dto';
 import { EinsatzQueryMapper } from '@application/einsatz/mappers/einsatz-query.mapper';
-import type { GetEinsatzByNummerQuery } from './get-einsatz-by-nummer.query';
+import { GetEinsatzByNummerQuery } from './get-einsatz-by-nummer.query';
 import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
@@ -41,7 +41,7 @@ import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
  * }
  * ```
  */
-@Injectable()
+@QueryHandler(GetEinsatzByNummerQuery)
 export class GetEinsatzByNummerQueryHandler implements IQueryHandler<GetEinsatzByNummerQuery, Result<EinsatzDto | null>> {
   private readonly logger = new Logger(GetEinsatzByNummerQueryHandler.name);
 

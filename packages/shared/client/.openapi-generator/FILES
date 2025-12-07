@@ -7,7 +7,7 @@ apis/GeocodingApi.ts
 apis/HealthApi.ts
 apis/LagekarteApi.ts
 apis/LagekarteCQRSApi.ts
-apis/POIApi.ts
+apis/POIDEPRECATEDApi.ts
 apis/UserManagementApi.ts
 apis/UsersApi.ts
 apis/index.ts
@@ -32,10 +32,6 @@ models/AuthUserDto.ts
 models/CompletenessResponseDto.ts
 models/CoordinateDto.ts
 models/CreateEinsatzDto.ts
-models/CreateEtbDto.ts
-models/CreateEtbEintragDto.ts
-models/CreateEtbEintragResponse.ts
-models/CreateEtbResponse.ts
 models/CreateLagekarteDto.ts
 models/CreatePoiDto.ts
 models/CreateUserDto.ts
@@ -55,13 +51,9 @@ models/EinsatzListItemDtoEinsatzort.ts
 models/EinsatzResponseDto.ts
 models/EintragDto.ts
 models/EtbDto.ts
-models/EtbEintragDto.ts
-models/EtbHistoryEntryDto.ts
-models/EtbHistoryListResponse.ts
 models/EtbSnapshotDto.ts
 models/EtbVersionDto.ts
 models/GeocodeAddressDto.ts
-models/GetEtbResponse.ts
 models/HealthControllerCheck200Response.ts
 models/HealthControllerCheck200ResponseInfoValue.ts
 models/HealthControllerCheck503Response.ts
@@ -87,8 +79,6 @@ models/TextbausteinDto.ts
 models/TextbausteinListResponse.ts
 models/UpdateEinsatzDto.ts
 models/UpdateEintragDto.ts
-models/UpdateEtbEintragDto.ts
-models/UpdateEtbEintragResponse.ts
 models/UpdatePoiDto.ts
 models/UpdatePoiPositionDto.ts
 models/UpdateUserDto.ts

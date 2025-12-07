@@ -3,7 +3,7 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import type { PaginatedData } from '@/common/interceptors/transform.interceptor';
 import type { EinsatzResponseDto } from '@/application/einsatz/dto/einsatz-response.dto';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { EinsatzNameGenerator } from '@/einsatz/utils/name-generator.util';
 import { EinsatzCompletenessCalculator } from '@/einsatz/utils/completeness.util';
 import { GetAllEinsaetzeQuery } from './get-all-einsaetze.query';

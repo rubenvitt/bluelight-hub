@@ -4,7 +4,7 @@ import { useEtbInfinite } from '@/hooks/useEtb';
 import { useUserNames } from '@/hooks/useUsers';
 import { cn } from '@/utils/cn';
 import { formatDisplayDateTime } from '@/utils/dateFormatter';
-import type { EtbEintragDto } from '@bluelight-hub/shared/client';
+import type { EintragDto } from '@bluelight-hub/shared/client';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 import { PiWarning, PiCircleNotch, PiUser } from 'react-icons/pi';
@@ -35,7 +35,7 @@ interface EtbFullscreenViewProps {
  * Größere Schrift und mehr Whitespace für Display-Tauglichkeit
  */
 interface EtbFullscreenEntryProps {
-  entry: EtbEintragDto;
+  entry: EintragDto;
   getUserName: (id: string) => string | undefined;
 }
 

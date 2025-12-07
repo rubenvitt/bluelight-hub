@@ -20,19 +20,19 @@ import { mapValues } from '../runtime';
  */
 export interface CompletenessResponseDto {
   /**
-   * Vollständigkeits-Score in Prozent
+   * Vollstaendigkeits-Score in Prozent
    * @type {number}
    * @memberof CompletenessResponseDto
    */
   score: number;
   /**
-   * Gibt an, ob der Einsatz vollständig ist
+   * Gibt an, ob der Einsatz vollstaendig ist
    * @type {boolean}
    * @memberof CompletenessResponseDto
    */
   isComplete: boolean;
   /**
-   * Liste der fehlenden oder unvollständigen Felder
+   * Liste der fehlenden oder unvollstaendigen Felder
    * @type {Array<Array<string>>}
    * @memberof CompletenessResponseDto
    */

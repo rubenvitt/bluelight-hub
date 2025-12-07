@@ -1,6 +1,6 @@
 import { GetLagekarteQueryHandler } from '../get-lagekarte.handler';
 import { GetLagekarteQuery } from '../get-lagekarte.query';
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { ILagekarteRepository } from '@domain/repositories';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';

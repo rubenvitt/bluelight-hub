@@ -37,6 +37,12 @@ export interface AddEintragDto {
    * @memberof AddEintragDto
    */
   einsatzId?: string;
+  /**
+   * Optionale Metadaten (z.B. Screenshots, Anhänge)
+   * @type {object}
+   * @memberof AddEintragDto
+   */
+  metadata?: object | null;
 }
 
 /**
@@ -80,6 +86,7 @@ export function AddEintragDtoFromJSONTyped(json: any, ignoreDiscriminator: boole
     text: json['text'],
     kategorie: json['kategorie'] == null ? undefined : json['kategorie'],
     einsatzId: json['einsatzId'] == null ? undefined : json['einsatzId'],
+    metadata: json['metadata'] == null ? undefined : json['metadata'],
   };
 }
 
@@ -96,5 +103,6 @@ export function AddEintragDtoToJSONTyped(value?: AddEintragDto | null, ignoreDis
     text: value['text'],
     kategorie: value['kategorie'],
     einsatzId: value['einsatzId'],
+    metadata: value['metadata'],
   };
 }

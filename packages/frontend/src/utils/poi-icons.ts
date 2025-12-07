@@ -18,9 +18,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import L from 'leaflet';
 
 /**
- * POI-Type Enum (muss mit Backend übereinstimmen)
+ * POI-Type Enum (Legacy - für Abwärtskompatibilität)
  */
-export type PoiType =
+export type PoiTypeLegacy =
   | 'EINSATZORT'
   | 'FAHRZEUG'
   | 'EINHEIT'
@@ -34,6 +34,16 @@ export type PoiType =
   | 'EINSATZABSCHNITT'
   | 'EINSATZLEITUNG'
   | 'SONSTIGES';
+
+/**
+ * POI-Kategorie Enum (neue CQRS API - DRK-Standard)
+ */
+export type PoiCategory = 'EINSATZSTELLE' | 'BEREITSTELLUNGSRAUM' | 'GEFAHRENSTELLE' | 'WASSERENTNAHMESTELLE' | 'SONSTIGES';
+
+/**
+ * Kombinierter POI-Type (für Abwärtskompatibilität)
+ */
+export type PoiType = PoiTypeLegacy | PoiCategory;
 
 /**
  * POI-Icon-Konfiguration
@@ -115,6 +125,22 @@ export const POI_ICON_MAP: Record<PoiType, PoiIconConfig> = {
   SONSTIGES: {
     Icon: PiCircleFill,
     color: '#6B7280', // Tailwind gray-500
+    size: 24,
+  },
+  // Neue CQRS-Kategorien (DRK-Standard)
+  EINSATZSTELLE: {
+    Icon: PiMapPinFill,
+    color: '#EF4444', // Tailwind red-500
+    size: 32, // Größer für primären POI
+  },
+  GEFAHRENSTELLE: {
+    Icon: PiWarningFill,
+    color: '#EF4444', // Tailwind red-500
+    size: 24,
+  },
+  WASSERENTNAHMESTELLE: {
+    Icon: PiCircleFill, // TODO: besseres Icon für Wasserentnahmestelle
+    color: '#0EA5E9', // Tailwind sky-500
     size: 24,
   },
 };

@@ -35,7 +35,7 @@ import { Poi } from '@domain/entities/poi.entity';
 import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import { Result } from '@domain/common/result';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import type { DomainEvent } from '@domain/common/domain-event';
 

@@ -144,8 +144,13 @@ export class EtbQueryMapper {
    * - Dates werden als Date-Objekte beibehalten (JSON.stringify serialisiert zu ISO-String)
    * - Optional fields (updatedAt) werden nur gesetzt wenn vorhanden
    *
+   * **Limitierung:**
+   * Die Domain-Entity enthaelt nicht alle Prisma-Properties (z.B. timestamp, funkrufname, standort).
+   * Diese werden mit Default-Werten befuellt. Fuer vollstaendige DTOs sollte ein
+   * separater Prisma-Query-Mapper verwendet werden (CQRS Read-Side Optimierung).
+   *
    * @param eintrag - Das zu konvertierende EtbEintrag Entity
-   * @returns EintragDto fuer API-Response
+   * @returns EintragDto fuer API-Response (mit Default-Werten fuer nicht-verfuegbare Properties)
    */
   static toEintragDto(eintrag: EtbEintrag): EintragDto {
     const dto: EintragDto = {
@@ -153,9 +158,24 @@ export class EtbQueryMapper {
       sequenceNumber: eintrag.sequenceNumber.value,
       kategorie: eintrag.kategorie.value,
       text: eintrag.text,
+      // Fachlicher Zeitstempel: Default = createdAt (Domain hat kein separates timestamp-Feld)
+      timestamp: eintrag.createdAt,
+      // Optionale Properties: Domain-Entity hat diese nicht, Defaults = null
+      funkrufname: null,
+      standort: null,
+      // Versionsnummer: Default = 1 (Domain trackt Version nicht auf Entity-Ebene)
+      version: 1,
+      // Automatisch-Flag: Default = false (Domain-Eintraege sind manuell)
+      isAutomatic: false,
       createdBy: eintrag.createdBy.value,
       createdAt: eintrag.createdAt,
+      // updatedBy: Domain-Entity trackt nur createdBy (kein updatedBy)
+      updatedBy: null,
       isDeleted: eintrag.isDeleted,
+      // Soft-Delete Properties: Domain hat deletedAt nicht explizit
+      deletedAt: eintrag.isDeleted ? (eintrag.updatedAt ?? null) : null,
+      deletedBy: null, // Domain trackt deletedBy nicht
+      deleterUsername: null, // Benoetigt User-Join (nur via Prisma verfuegbar)
     };
 
     // Optional: updatedAt nur setzen wenn vorhanden

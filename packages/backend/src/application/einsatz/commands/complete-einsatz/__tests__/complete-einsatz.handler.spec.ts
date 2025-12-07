@@ -1,7 +1,7 @@
 import { Result } from '@domain/common/result';
 import { CompleteEinsatzHandler } from '../complete-einsatz.handler';
 import { CompleteEinsatzCommand } from '../complete-einsatz.command';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
@@ -10,6 +10,7 @@ import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
+import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@/infrastructure/di-tokens';
 
 // Mock cuid2 for deterministic test IDs
 jest.mock('@paralleldrive/cuid2', () => ({

@@ -1,5 +1,5 @@
 import { Combobox, type ComboboxItem } from '@/components/ui/combobox';
-import { CreateEtbEintragDtoKategorieEnum as EtbKategorie } from '@bluelight-hub/shared/client';
+import { AddEintragDtoKategorieEnum as EtbKategorie } from '@bluelight-hub/shared/client';
 import { useMemo } from 'react';
 import { kategorieLabels } from './types';
 

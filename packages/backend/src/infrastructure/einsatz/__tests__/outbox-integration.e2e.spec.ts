@@ -24,7 +24,7 @@
  */
 
 import type { EinsatzE2eTestContext } from './einsatz.e2e-setup';
-import { createEinsatzE2eModule, teardownE2eModule, cleanupTestData, createTestEinsatz, createTestOutboxEvent, generateTestId, waitFor } from './einsatz.e2e-setup';
+import { createEinsatzE2eModule, teardownE2eModule, cleanupTestData, createTestOutboxEvent, generateTestId, waitFor } from './einsatz.e2e-setup';
 import { OutboxEventPublisher } from '@/infrastructure/outbox/outbox-event-publisher.service';
 import { EventDeserializer } from '@/infrastructure/outbox/event-deserializer';
 import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
@@ -39,14 +39,10 @@ import { EintragUpdatedEvent } from '@domain/events/eintrag-updated.event';
 import { EintragDeletedEvent } from '@domain/events/eintrag-deleted.event';
 import { EtbLockedEvent } from '@domain/events/etb-locked.event';
 import { LagekarteCreatedEvent } from '@domain/events/lagekarte-created.event';
-import { PoiAddedEvent } from '@domain/events/poi-added.event';
 import { PoiRemovedEvent } from '@domain/events/poi-removed.event';
-import { PoiPositionUpdatedEvent } from '@domain/events/poi-position-updated.event';
 import { UserCreatedEvent } from '@domain/events/user-created.event';
 import { UserDeletedEvent } from '@domain/events/user-deleted.event';
 import { UserRoleChangedEvent } from '@domain/events/user-role-changed.event';
-import { PermissionGrantedEvent } from '@domain/events/permission-granted.event';
-import { PermissionRevokedEvent } from '@domain/events/permission-revoked.event';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { EintragId } from '@domain/value-objects/eintrag-id';
@@ -54,11 +50,8 @@ import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiId } from '@domain/value-objects/poi-id';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
-import { MgrsCoordinate } from '@domain/value-objects/mgrs-coordinate';
-import { PoiCategory } from '@domain/value-objects/poi-category';
 import { UserRole } from '@domain/value-objects/user-role';
 import { Username } from '@domain/value-objects/username';
-import { Permission } from '@domain/value-objects/permission';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 
 describe('Outbox Pattern Integration Tests (AC1.1-1.7)', () => {
@@ -101,7 +94,7 @@ describe('Outbox Pattern Integration Tests (AC1.1-1.7)', () => {
     it('should save events atomically with aggregate in single transaction', async () => {
       // AC1.1: Use handler-level test instead of direct aggregate test
       // Given: Create Einsatz via Repository (repository handles transaction internally)
-      const einsatzId = EinsatzId.create().value!;
+      const _einsatzId = EinsatzId.create().value!;
       const createdBy = UserId.create(ctx.testUserIds.user).value!;
 
       const einsatzResult = Einsatz.create({

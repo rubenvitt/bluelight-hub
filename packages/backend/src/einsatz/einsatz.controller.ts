@@ -1,3 +1,28 @@
+import { ArchiveEinsatzCommand, CompleteEinsatzCommand, CreateEinsatzCommand, UpdateEinsatzCommand } from '@/application/einsatz/commands';
+import {
+  CompletenessQueryDto,
+  CompletenessResponseDto,
+  CreateEinsatzDto,
+  EinsatzDetailsDto,
+  EinsatzDto,
+  EinsatzListItemDto,
+  EinsatzQueryDto,
+  EinsatzResponseDto,
+  NavigationResponseDto,
+  StatusCountsQueryDto,
+  StatusCountsResponseDto,
+  UpdateEinsatzDto,
+} from '@/application/einsatz/dto';
+import {
+  GetActiveEinsaetzeWithCountsQuery,
+  GetAllEinsaetzeQuery,
+  GetEinsatzByIdQuery,
+  GetEinsatzCompletenessQuery,
+  GetEinsatzDetailsQuery,
+  GetNextEinsatzIdQuery,
+  GetPreviousEinsatzIdQuery,
+  GetStatusCountsQuery,
+} from '@/application/einsatz/queries';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { Roles } from '@/auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
@@ -6,34 +31,9 @@ import type { ValidatedUser } from '@/auth/strategies/jwt.strategy';
 import { ApiWrappedResponse } from '@/common/decorators/api-wrapped-response.decorator';
 import { SkipTransform } from '@/common/decorators/skip-transform.decorator';
 import type { PaginatedData } from '@/common/interceptors/transform.interceptor';
-import {
-  CompletenessQueryDto,
-  CompletenessResponseDto,
-  CreateEinsatzDto,
-  EinsatzQueryDto,
-  EinsatzResponseDto,
-  NavigationResponseDto,
-  StatusCountsQueryDto,
-  StatusCountsResponseDto,
-  UpdateEinsatzDto,
-  EinsatzDetailsDto,
-  EinsatzListItemDto,
-  EinsatzDto,
-} from '@/application/einsatz/dto';
-import { CreateEinsatzCommand, UpdateEinsatzCommand, ArchiveEinsatzCommand, CompleteEinsatzCommand } from '@/application/einsatz/commands';
-import {
-  GetEinsatzDetailsQuery,
-  GetActiveEinsaetzeWithCountsQuery,
-  GetEinsatzByIdQuery,
-  GetAllEinsaetzeQuery,
-  GetStatusCountsQuery,
-  GetPreviousEinsatzIdQuery,
-  GetNextEinsatzIdQuery,
-  GetEinsatzCompletenessQuery,
-} from '@/application/einsatz/queries';
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query, UseGuards, ValidationPipe, BadRequestException, InternalServerErrorException } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, ApiCreatedResponse } from '@nestjs/swagger';
+import { BadRequestException, Body, Controller, Delete, Get, InternalServerErrorException, NotFoundException, Param, Patch, Post, Query, UseGuards, ValidationPipe } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 
 /**
  * Controller für Einsatzverwaltung (CQRS Pattern)
@@ -88,8 +88,9 @@ export class EinsatzController {
 
     const result = await this.commandBus.execute(commandResult.value);
     if (result.isFailure) throw new BadRequestException(result.error);
+    if (!result.value) throw new InternalServerErrorException('Einsatz wurde erstellt, aber keine ID zurückgegeben');
 
-    return this.loadEinsatzById(result.value.value);
+    return this.loadEinsatzById(result.value);
   }
 
   /**
@@ -240,10 +241,7 @@ export class EinsatzController {
     if (commandResult.isFailure || !commandResult.value) throw new BadRequestException(commandResult.error);
 
     const result = await this.commandBus.execute(commandResult.value);
-    if (result.isFailure) {
-      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) throw new NotFoundException(result.error);
-      throw new BadRequestException(result.error);
-    }
+    if (result.isFailure) throw new BadRequestException(result.error);
 
     return this.loadEinsatzById(id);
   }
@@ -262,10 +260,7 @@ export class EinsatzController {
     if (commandResult.isFailure || !commandResult.value) throw new BadRequestException(commandResult.error);
 
     const result = await this.commandBus.execute(commandResult.value);
-    if (result.isFailure) {
-      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) throw new NotFoundException(result.error);
-      throw new BadRequestException(result.error);
-    }
+    if (result.isFailure) throw new BadRequestException(result.error);
 
     return this.loadEinsatzById(id);
   }
@@ -284,10 +279,7 @@ export class EinsatzController {
     if (commandResult.isFailure || !commandResult.value) throw new BadRequestException(commandResult.error);
 
     const result = await this.commandBus.execute(commandResult.value);
-    if (result.isFailure) {
-      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) throw new NotFoundException(result.error);
-      throw new BadRequestException(result.error);
-    }
+    if (result.isFailure) throw new BadRequestException(result.error);
 
     return this.loadEinsatzById(id);
   }

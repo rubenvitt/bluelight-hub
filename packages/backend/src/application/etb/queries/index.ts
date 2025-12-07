@@ -2,3 +2,4 @@
 export { GetEtbQuery, GetEtbQueryHandler } from './get-etb';
 export { GetEtbHistoryQuery, GetEtbHistoryQueryHandler } from './get-etb-history';
 export { GetEintraegeQuery, GetEintraegeQueryHandler } from './get-eintraege';
+export { GetTextbausteineQuery, GetTextbausteineHandler } from './get-textbausteine';

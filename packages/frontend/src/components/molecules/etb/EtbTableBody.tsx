@@ -1,5 +1,5 @@
 import { cn } from '@/utils/cn';
-import type { EtbEintragDto } from '@bluelight-hub/shared/client';
+import type { EintragDto } from '@bluelight-hub/shared/client';
 import type { ColumnDef, Row } from '@tanstack/react-table';
 import { flexRender } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
@@ -10,15 +10,15 @@ import { EtbTableRowEditable } from '../../organisms/etb/components/EtbTableRowE
 
 interface EtbTableBodyProps {
   virtualRows: VirtualItem[];
-  rows: Row<EtbEintragDto>[];
-  columns: ColumnDef<EtbEintragDto>[];
+  rows: Row<EintragDto>[];
+  columns: ColumnDef<EintragDto>[];
   paddingTop: number;
   paddingBottom: number;
   isLoading: boolean;
-  entries: EtbEintragDto[];
+  entries: EintragDto[];
   enableInlineEdit: boolean;
   einsatzId?: string;
-  onDelete: (entry: EtbEintragDto) => void;
+  onDelete: (entry: EintragDto) => void;
   getUserName: (userId: string) => string | undefined;
 }
 

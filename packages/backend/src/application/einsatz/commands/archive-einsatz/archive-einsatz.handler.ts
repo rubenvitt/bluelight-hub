@@ -1,4 +1,4 @@
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { EinsatzArchivalPolicy } from '@domain/services/einsatz-archival.policy';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
@@ -10,8 +10,8 @@ import { TransactionalCommandHandler } from '@application/common/handlers/transa
 import { PrismaService } from '@/prisma/prisma.service';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import type { DomainEvent } from '@domain/common/domain-event';
-import type { TransactionContext } from '@domain/common/transaction';
-import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
+import type { TransactionContext } from '@domain/common';
+import { Result } from '@domain/common/result';
 import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
@@ -75,18 +75,18 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
    *
    * WICHTIG: Nutzt `tx` Parameter für save() Operation (NICHT this.prisma).
    * Base Handler koordiniert Transaction Commit und Outbox-Persistierung.
-   *
-   * **Warum Exceptions statt Result<T> hier:**
-   * - TransactionalCommandHandler erwartet Exceptions für Transaction Rollback
-   * - Result<T> Pattern wird nur für Validierung/Business Rules genutzt
-   * - Exceptions triggern automatisch Transaction Rollback
+   *   *
+   * **Result Pattern (AC4):**
+   * - Gibt Result<T> zurück für erwartete Fehler (Validierung, Business Rules)
+   * - Exceptions nur für unerwartete Fehler (DB-Fehler, Programming Errors)
+   * - Bei Result.fail(): Transaction wird automatisch zurückgerollt
    *
    * @param command - Validierter ArchiveEinsatzCommand
    * @param tx - Transaction Context (framework-agnostisch, Infrastructure castet zu Prisma)
-   * @returns result: void, events: Domain Events für Outbox
+   * @returns Result<{ result: TResult; events: DomainEvent[] }> - Success oder Failure
    * @throws Error bei Business Rule Violations (triggert Transaction Rollback)
    */
-  protected async executeInTransaction(command: ArchiveEinsatzCommand, tx: TransactionContext): Promise<{ result: undefined; events: DomainEvent[] }> {
+  protected async executeInTransaction(command: ArchiveEinsatzCommand, tx: TransactionContext): Promise<Result<{ result: undefined; events: DomainEvent[] }>> {
     // Step 1: Validate EinsatzId format
     const einsatzIdResult = EinsatzId.create(command.einsatzId);
     if (einsatzIdResult.isFailure) {
@@ -94,20 +94,18 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
       this.logger.warn('EinsatzId validation failed', {
         operation: 'archiveEinsatz',
         phase: 'validation',
-        errorType: 'EinsatzValidationException',
         error,
         einsatzId: command.einsatzId,
       });
-      throw new EinsatzValidationException(error, 'einsatzId', command.einsatzId);
+      return Result.fail(error);
     }
     const einsatzId = einsatzIdResult.value;
     if (!einsatzId) {
       this.logger.error('Unexpected null EinsatzId after successful validation', {
         operation: 'archiveEinsatz',
         phase: 'validation',
-        errorType: 'EinsatzValidationException',
       });
-      throw new EinsatzValidationException('Ungültige Einsatz-ID', 'einsatzId', command.einsatzId);
+      return Result.fail('Ungültige Einsatz-ID');
     }
 
     // Step 2: Validate UserId format
@@ -117,20 +115,18 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
       this.logger.warn('UserId validation failed', {
         operation: 'archiveEinsatz',
         phase: 'validation',
-        errorType: 'EinsatzValidationException',
         error,
         archivedBy: command.archivedBy,
       });
-      throw new EinsatzValidationException(error, 'archivedBy');
+      return Result.fail(error);
     }
     const userId = userIdResult.value;
     if (!userId) {
       this.logger.error('Unexpected null UserId after successful validation', {
         operation: 'archiveEinsatz',
         phase: 'validation',
-        errorType: 'EinsatzValidationException',
       });
-      throw new EinsatzValidationException('Ungültige User-ID', 'archivedBy');
+      return Result.fail('Ungültige User-ID');
     }
 
     // Step 3: Load Aggregate via Repository
@@ -141,11 +137,10 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
       this.logger.error('Failed to load Einsatz', {
         operation: 'archiveEinsatz',
         phase: 'load',
-        errorType: 'EinsatzPersistenceException',
         error,
         einsatzId: command.einsatzId,
       });
-      throw new EinsatzPersistenceException(error, command.einsatzId);
+      return Result.fail(error);
     }
 
     const einsatz = findResult.value;
@@ -153,10 +148,9 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
       this.logger.warn('Einsatz not found', {
         operation: 'archiveEinsatz',
         phase: 'load',
-        errorType: 'EinsatzNotFoundException',
         einsatzId: command.einsatzId,
       });
-      throw new EinsatzNotFoundException(command.einsatzId);
+      return Result.fail(command.einsatzId);
     }
 
     // Step 4: Validate 10-Year Policy via Domain Policy
@@ -169,21 +163,19 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
         this.logger.warn('Archive policy failed: wrong status', {
           operation: 'archiveEinsatz',
           phase: 'businessRule',
-          errorType: 'EinsatzBusinessRuleException',
           einsatzId: command.einsatzId,
           status,
         });
-        throw new EinsatzBusinessRuleException(error, command.einsatzId, 'archivalPolicy');
+        return Result.fail(error);
       }
       // Status is ABGESCHLOSSEN but 10-year period not reached
       const error = 'Einsatz kann noch nicht archiviert werden: 10-Jahres-Aufbewahrungsfrist nicht abgelaufen';
       this.logger.warn('Archive policy failed: 10-year period not reached', {
         operation: 'archiveEinsatz',
         phase: 'businessRule',
-        errorType: 'EinsatzBusinessRuleException',
         einsatzId: command.einsatzId,
       });
-      throw new EinsatzBusinessRuleException(error, command.einsatzId, 'archivalPolicy');
+      return Result.fail(error);
     }
 
     // Step 5: Call aggregate.archive()
@@ -193,11 +185,10 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
       this.logger.warn('Einsatz archive failed', {
         operation: 'archiveEinsatz',
         phase: 'businessRule',
-        errorType: 'EinsatzBusinessRuleException',
         einsatzId: command.einsatzId,
         error,
       });
-      throw new EinsatzBusinessRuleException(error, command.einsatzId, 'statusTransition');
+      return Result.fail(error);
     }
 
     // Step 6: Save Aggregate in Transaction (WICHTIG: Nutze tx, nicht this.prisma)
@@ -207,11 +198,10 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
       this.logger.error('Failed to save Einsatz', {
         operation: 'archiveEinsatz',
         phase: 'persist',
-        errorType: 'EinsatzPersistenceException',
         error,
         einsatzId: command.einsatzId,
       });
-      throw new EinsatzPersistenceException(error, command.einsatzId);
+      return Result.fail(error);
     }
 
     // Step 7: Extract Domain Events for Outbox
@@ -226,9 +216,6 @@ export class ArchiveEinsatzHandler extends TransactionalCommandHandler<ArchiveEi
     });
 
     // Step 8: Return result + events für Base Handler
-    return {
-      result: undefined,
-      events,
-    };
+    return Result.ok({ result: undefined, events });
   }
 }

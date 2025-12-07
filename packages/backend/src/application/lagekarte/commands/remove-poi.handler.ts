@@ -4,10 +4,10 @@ import { Result } from '@domain/common/result';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiId } from '@domain/value-objects/poi-id';
 import { UserId } from '@domain/value-objects/user-id';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { ILagekarteRepository } from '@domain/repositories';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { RemovePoiCommand } from './remove-poi.command';
+import { LAGEKARTE_REPOSITORY, EVENT_PUBLISHER } from '@infrastructure/di-tokens';
 
 /**
  * Handler für RemovePoiCommand.
@@ -32,9 +32,9 @@ export class RemovePoiCommandHandler implements ICommandHandler<RemovePoiCommand
   private readonly logger = new Logger(RemovePoiCommandHandler.name);
 
   constructor(
-    @Inject('ILagekarteRepository')
+    @Inject(LAGEKARTE_REPOSITORY)
     private readonly lagekarteRepository: ILagekarteRepository,
-    @Inject('IEventPublisher')
+    @Inject(EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
   ) {}
 

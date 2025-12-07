@@ -1,6 +1,6 @@
 import { useCreateEtbEintrag, useTextbausteine, useUpdateEtbEintrag } from '@/hooks/useEtb';
 import { getApiErrorMessage } from '@/utils/apiErrorHandler';
-import { CreateEtbEintragDtoKategorieEnum as EtbKategorie, type EtbEintragDto } from '@bluelight-hub/shared/client';
+import { AddEintragDtoKategorieEnum as EtbKategorie, type EintragDto } from '@bluelight-hub/shared/client';
 import { EtbFormActions } from '@molecules/etb/EtbFormActions';
 import { EtbTextbausteinPreview } from '@molecules/etb/EtbTextbausteinPreview';
 import { EtbKategorieSelect } from '@organisms/etb/EtbKategorieSelect';
@@ -23,7 +23,7 @@ type EtbEntryFormData = z.infer<typeof etbEntrySchema>;
 interface EtbEntryFormProps {
   etbId: string;
   einsatzId?: string;
-  editingEntry?: EtbEintragDto | null;
+  editingEntry?: EintragDto | null;
   onSuccess?: () => void;
   onCancel?: () => void;
   className?: string;

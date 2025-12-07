@@ -119,8 +119,8 @@ const MapClickHandler: React.FC<{
  * Map-Bounds-Controller-Komponente
  * Verwendet useMapBounds Hook um Karte automatisch auf POIs zu zoomen
  */
-const MapBoundsController: React.FC<{ einsatzId: string }> = ({ einsatzId }) => {
-  const { data: pois } = usePois(einsatzId);
+const MapBoundsController: React.FC<{ lagekarteId: string | undefined }> = ({ lagekarteId }) => {
+  const { data: pois } = usePois(lagekarteId);
   useMapBounds(pois);
   return null;
 };
@@ -503,19 +503,19 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
 
       uploadedScreenshotUrl = uploadResponse.data.url as string;
 
-      // Step 3: Create ETB entry with actual screenshot dimensions
+      // Step 3: Create ETB entry with screenshot reference in metadata
       try {
-        await api.etb().etbControllerCreateEintragVAlpha({
-          id: targetEtbId,
-          createEtbEintragDto: {
+        await api.etb().etbCqrsControllerAddEintragVAlpha({
+          etbId: targetEtbId,
+          addEintragDto: {
             kategorie: 'DOKUMENTATION',
-            text: 'Lagekarten-Screenshot',
+            text: 'Lagekarten-Screenshot erstellt',
+            einsatzId,
             metadata: {
               screenshot: {
                 url: uploadedScreenshotUrl,
                 width: screenshotWidth,
                 height: screenshotHeight,
-                timestamp: new Date().toISOString(),
               },
             },
           },
@@ -705,7 +705,7 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
           {/* POI-Layer (conditionally rendered based on layer visibility) */}
           {layers.find((l) => l.name === 'poi')?.visible && (
             <LayerErrorBoundary layerName="POI-Layer">
-              <ClusteredPoiLayer einsatzId={einsatzId} />
+              <ClusteredPoiLayer lagekarteId={lagekarteData?.data?.id} />
             </LayerErrorBoundary>
           )}
 
@@ -734,7 +734,7 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
             />
           )}
 
-          <MapBoundsController einsatzId={einsatzId} />
+          <MapBoundsController lagekarteId={lagekarteData?.data?.id} />
           <MapBoundsTracker onBoundsReady={handleBoundsReady} onMapReady={setMapInstance} />
         </MapContainer>
       </div>

@@ -31,13 +31,13 @@ import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 describe('NO-DELETE Policy Tests (AC2.1-2.5)', () => {
   let ctx: EinsatzE2eTestContext;
   let deleteHandler: DeleteEinsatzHandler;
-  let archiveHandler: ArchiveEinsatzHandler;
+  let _archiveHandler: ArchiveEinsatzHandler;
 
   beforeAll(async () => {
     ctx = await createEinsatzE2eModule();
     // Initialize handlers mit repository und eventPublisher
     deleteHandler = new DeleteEinsatzHandler(ctx.repository);
-    archiveHandler = new ArchiveEinsatzHandler(ctx.repository, ctx.eventPublisher);
+    _archiveHandler = new ArchiveEinsatzHandler(ctx.repository, ctx.eventPublisher);
   }, 30000);
 
   afterEach(async () => {

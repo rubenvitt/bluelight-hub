@@ -1,4 +1,3 @@
-import { EtbKategorie } from '@prisma/client';
 import { AddEintragCommand } from '../add-eintrag.command';
 
 /**
@@ -23,88 +22,88 @@ describe('AddEintragCommand', () => {
         // Assert
         expect(result.isSuccess).toBe(true);
         expect(result.value).toBeDefined();
-        expect(result.value?.kategorie).toBe(EtbKategorie.LAGE);
+        expect(result.value?.kategorie).toBe('LAGE');
       });
 
       it('should create command with specified kategorie ALARMIERUNG', () => {
         // Act
-        const result = AddEintragCommand.create(validEtbId, validText, validUserId, EtbKategorie.ALARMIERUNG);
+        const result = AddEintragCommand.create(validEtbId, validText, validUserId, 'ALARMIERUNG');
 
         // Assert
         expect(result.isSuccess).toBe(true);
-        expect(result.value?.kategorie).toBe(EtbKategorie.ALARMIERUNG);
+        expect(result.value?.kategorie).toBe('ALARMIERUNG');
       });
 
       it('should create command with specified kategorie ANKUNFT', () => {
         // Act
-        const result = AddEintragCommand.create(validEtbId, validText, validUserId, EtbKategorie.ANKUNFT);
+        const result = AddEintragCommand.create(validEtbId, validText, validUserId, 'ANKUNFT');
 
         // Assert
         expect(result.isSuccess).toBe(true);
-        expect(result.value?.kategorie).toBe(EtbKategorie.ANKUNFT);
+        expect(result.value?.kategorie).toBe('ANKUNFT');
       });
 
       it('should create command with specified kategorie BEFEHL', () => {
         // Act
-        const result = AddEintragCommand.create(validEtbId, validText, validUserId, EtbKategorie.BEFEHL);
+        const result = AddEintragCommand.create(validEtbId, validText, validUserId, 'BEFEHL');
 
         // Assert
         expect(result.isSuccess).toBe(true);
-        expect(result.value?.kategorie).toBe(EtbKategorie.BEFEHL);
+        expect(result.value?.kategorie).toBe('BEFEHL');
       });
 
       it('should create command with specified kategorie ERKUNDUNG', () => {
         // Act
-        const result = AddEintragCommand.create(validEtbId, validText, validUserId, EtbKategorie.ERKUNDUNG);
+        const result = AddEintragCommand.create(validEtbId, validText, validUserId, 'ERKUNDUNG');
 
         // Assert
         expect(result.isSuccess).toBe(true);
-        expect(result.value?.kategorie).toBe(EtbKategorie.ERKUNDUNG);
+        expect(result.value?.kategorie).toBe('ERKUNDUNG');
       });
 
       it('should create command with specified kategorie MASSNAHME', () => {
         // Act
-        const result = AddEintragCommand.create(validEtbId, validText, validUserId, EtbKategorie.MASSNAHME);
+        const result = AddEintragCommand.create(validEtbId, validText, validUserId, 'MASSNAHME');
 
         // Assert
         expect(result.isSuccess).toBe(true);
-        expect(result.value?.kategorie).toBe(EtbKategorie.MASSNAHME);
+        expect(result.value?.kategorie).toBe('MASSNAHME');
       });
 
       it('should create command with specified kategorie PERSONAL', () => {
         // Act
-        const result = AddEintragCommand.create(validEtbId, validText, validUserId, EtbKategorie.PERSONAL);
+        const result = AddEintragCommand.create(validEtbId, validText, validUserId, 'PERSONAL');
 
         // Assert
         expect(result.isSuccess).toBe(true);
-        expect(result.value?.kategorie).toBe(EtbKategorie.PERSONAL);
+        expect(result.value?.kategorie).toBe('PERSONAL');
       });
 
       it('should create command with specified kategorie FAHRZEUG', () => {
         // Act
-        const result = AddEintragCommand.create(validEtbId, validText, validUserId, EtbKategorie.FAHRZEUG);
+        const result = AddEintragCommand.create(validEtbId, validText, validUserId, 'FAHRZEUG');
 
         // Assert
         expect(result.isSuccess).toBe(true);
-        expect(result.value?.kategorie).toBe(EtbKategorie.FAHRZEUG);
+        expect(result.value?.kategorie).toBe('FAHRZEUG');
       });
 
       it('should create command with specified kategorie MATERIAL', () => {
         // Act
-        const result = AddEintragCommand.create(validEtbId, validText, validUserId, EtbKategorie.MATERIAL);
+        const result = AddEintragCommand.create(validEtbId, validText, validUserId, 'MATERIAL');
 
         // Assert
         expect(result.isSuccess).toBe(true);
-        expect(result.value?.kategorie).toBe(EtbKategorie.MATERIAL);
+        expect(result.value?.kategorie).toBe('MATERIAL');
       });
 
       it('should create command with specified kategorie KOMMUNIKATION', () => {
         // Act
-        const result = AddEintragCommand.create(validEtbId, validText, validUserId, EtbKategorie.KOMMUNIKATION);
+        const result = AddEintragCommand.create(validEtbId, validText, validUserId, 'KOMMUNIKATION');
 
         // Assert
         expect(result.isSuccess).toBe(true);
-        expect(result.value?.kategorie).toBe(EtbKategorie.KOMMUNIKATION);
+        expect(result.value?.kategorie).toBe('KOMMUNIKATION');
       });
 
       it('should use LAGE as default when kategorie is explicitly undefined', () => {
@@ -113,7 +112,7 @@ describe('AddEintragCommand', () => {
 
         // Assert
         expect(result.isSuccess).toBe(true);
-        expect(result.value?.kategorie).toBe(EtbKategorie.LAGE);
+        expect(result.value?.kategorie).toBe('LAGE');
       });
     });
 
@@ -207,7 +206,7 @@ describe('AddEintragCommand', () => {
     describe('Successful Command Creation', () => {
       it('should create command with all valid parameters', () => {
         // Act
-        const result = AddEintragCommand.create(validEtbId, validText, validUserId, EtbKategorie.ALARMIERUNG);
+        const result = AddEintragCommand.create(validEtbId, validText, validUserId, 'ALARMIERUNG');
 
         // Assert
         expect(result.isSuccess).toBe(true);
@@ -215,7 +214,7 @@ describe('AddEintragCommand', () => {
         expect(result.value?.etbId).toBe(validEtbId);
         expect(result.value?.text).toBe(validText);
         expect(result.value?.userId).toBe(validUserId);
-        expect(result.value?.kategorie).toBe(EtbKategorie.ALARMIERUNG);
+        expect(result.value?.kategorie).toBe('ALARMIERUNG');
       });
 
       it('should preserve text with leading/trailing whitespace when not empty', () => {
@@ -262,14 +261,14 @@ describe('AddEintragCommand', () => {
     describe('Immutability', () => {
       it('should create immutable command (readonly properties)', () => {
         // Arrange
-        const result = AddEintragCommand.create(validEtbId, validText, validUserId, EtbKategorie.ANKUNFT);
+        const result = AddEintragCommand.create(validEtbId, validText, validUserId, 'ANKUNFT');
         const command = result.value!;
 
         // Assert - TypeScript Readonly Check (Runtime test that properties exist)
         expect(command.etbId).toBe(validEtbId);
         expect(command.text).toBe(validText);
         expect(command.userId).toBe(validUserId);
-        expect(command.kategorie).toBe(EtbKategorie.ANKUNFT);
+        expect(command.kategorie).toBe('ANKUNFT');
 
         // Verify properties are readonly (attempting to reassign should fail at compile time)
         // Runtime check: properties should be defined on the object

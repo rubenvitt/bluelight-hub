@@ -1,16 +1,16 @@
 import type React from 'react';
 import { useState } from 'react';
 import { flexRender, type Row } from '@tanstack/react-table';
-import type { EtbEintragDto } from '@bluelight-hub/shared/client';
+import type { EintragDto } from '@bluelight-hub/shared/client';
 import { useUpdateEtbEintrag } from '@/hooks/useEtb';
 import { cn } from '@/utils/cn';
 import { EtbActionsCell } from './cells/EtbActionsCell';
 
 interface EtbTableRowEditableProps {
-  row: Row<EtbEintragDto>;
+  row: Row<EintragDto>;
   style?: React.CSSProperties;
   className?: string;
-  onDelete?: (entry: EtbEintragDto) => void;
+  onDelete?: (entry: EintragDto) => void;
 }
 
 export const EtbTableRowEditable: React.FC<EtbTableRowEditableProps> = ({ row, style, className = '', onDelete }) => {

@@ -5,7 +5,7 @@ import { EventDeserializer } from './event-deserializer';
 import { PrismaOutboxRepository } from './prisma-outbox.repository';
 import { OutboxEventPublisher, OUTBOX_PUBLISHER_CONFIG, DEFAULT_OUTBOX_PUBLISHER_CONFIG } from './outbox-event-publisher.service';
 import { AlertModule } from '@/infrastructure/alert/alert.module';
-import { LagekarteEventsModule } from '@/infrastructure/events/lagekarte-events.module';
+import { EventInfrastructureModule } from '@/infrastructure/events/event-infrastructure.module';
 import { OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
@@ -73,7 +73,7 @@ import { OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
  * Epic 4 Story 4.4 - Transactional Outbox Pattern Infrastructure
  */
 @Module({
-  imports: [ScheduleModule.forRoot(), AlertModule, LagekarteEventsModule],
+  imports: [ScheduleModule.forRoot(), AlertModule, EventInfrastructureModule],
   providers: [
     // Serialization Services
     EventSerializer,

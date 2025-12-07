@@ -3,6 +3,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
 import { PrismaEtbRepository } from './repositories/prisma-etb.repository';
 import { PrismaOutboxRepository } from '@/infrastructure/outbox/prisma-outbox.repository';
 import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
+import { ETB_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * NestJS Module für ETB Infrastructure Layer.
@@ -11,16 +12,15 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
  * der Domain Repository Ports (Hexagonal Architecture Pattern).
  *
  * **Dependency Injection Strategy:**
- * - IEtbRepository wird als String Token bereitgestellt
+ * - IEtbRepository wird als Symbol Token bereitgestellt (ETB_REPOSITORY)
  * - PrismaEtbRepository ist die konkrete Repository-Implementierung
- * - Application Layer kann das Interface injizieren via @Inject()
+ * - Application Layer kann das Interface injizieren via @Inject(ETB_REPOSITORY)
  *
- * **Warum String Token statt Class Token:**
- * - Domain Layer kennt NUR das Interface (IEtbRepository)
- * - Domain Layer kann NICHT auf Infrastructure Class referenzieren
- * - String Token entkoppelt Domain von Infrastructure
- * - Ermöglicht austauschbare Implementierungen:
- *   - Repository: Prisma, TypeORM, In-Memory
+ * **Warum Symbol Token statt String Token:**
+ * - Type Safety: TypeScript kann Symbol Types validieren
+ * - Keine Namenskollisionen: Jedes Symbol ist einzigartig
+ * - Bessere IDE-Unterstützung: Autocomplete und Refactoring
+ * - Konsistent mit modernen DI Best Practices
  *
  * **Module Dependencies:**
  * - PrismaModule: Stellt PrismaService für Repository zur Verfügung
@@ -38,7 +38,7 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
  * @Injectable()
  * export class CreateEtbCommandHandler {
  *   constructor(
- *     @Inject('IEtbRepository')
+ *     @Inject(ETB_REPOSITORY)
  *     private readonly etbRepository: IEtbRepository
  *   ) {}
  * }
@@ -51,20 +51,20 @@ import { EventSerializer } from '@/infrastructure/outbox/event-serializer';
     EventSerializer,
     PrismaOutboxRepository,
     {
-      provide: 'IOutboxRepository',
+      provide: OUTBOX_REPOSITORY,
       useClass: PrismaOutboxRepository,
     },
 
     // Repository Implementation bound to Interface Token
     {
-      provide: 'IEtbRepository',
+      provide: ETB_REPOSITORY,
       useClass: PrismaEtbRepository,
     },
   ],
   exports: [
     // Export Interface Token for Application Layer injection
-    'IEtbRepository',
-    'IOutboxRepository',
+    ETB_REPOSITORY,
+    OUTBOX_REPOSITORY,
   ],
 })
 export class EtbInfrastructureModule {}

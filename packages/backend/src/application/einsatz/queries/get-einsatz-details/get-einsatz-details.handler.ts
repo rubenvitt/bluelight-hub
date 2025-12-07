@@ -1,16 +1,16 @@
-import type { IQueryHandler } from '@nestjs/cqrs';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { type IQueryHandler, QueryHandler } from '@nestjs/cqrs';
+import { Inject, Logger } from '@nestjs/common';
 import { Result } from '@domain/common/result';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
+import type { IEtbRepository } from '@domain/repositories';
+import type { ILagekarteRepository } from '@domain/repositories';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EinsatzQueryMapper } from '@application/einsatz/mappers/einsatz-query.mapper';
 import { EtbQueryMapper } from '@application/etb/mappers/etb-query.mapper';
 import { LagekarteMapper } from '@application/lagekarte/mappers/lagekarte.mapper';
 import type { EinsatzDetailsDto } from '@application/einsatz/dto/einsatz-details.dto';
-import type { GetEinsatzDetailsQuery } from './get-einsatz-details.query';
-import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
+import { GetEinsatzDetailsQuery } from './get-einsatz-details.query';
+import { EINSATZ_REPOSITORY, ETB_REPOSITORY, LAGEKARTE_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
  * Query Handler für GetEinsatzDetailsQuery.
@@ -68,16 +68,16 @@ import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
  * return result.value;
  * ```
  */
-@Injectable()
+@QueryHandler(GetEinsatzDetailsQuery)
 export class GetEinsatzDetailsQueryHandler implements IQueryHandler<GetEinsatzDetailsQuery, Result<EinsatzDetailsDto | null>> {
   private readonly logger = new Logger(GetEinsatzDetailsQueryHandler.name);
 
   constructor(
     @Inject(EINSATZ_REPOSITORY)
     private readonly einsatzRepository: IEinsatzRepository,
-    @Inject('IEtbRepository')
+    @Inject(ETB_REPOSITORY)
     private readonly etbRepository: IEtbRepository,
-    @Inject('ILagekarteRepository')
+    @Inject(LAGEKARTE_REPOSITORY)
     private readonly lagekarteRepository: ILagekarteRepository,
   ) {}
 

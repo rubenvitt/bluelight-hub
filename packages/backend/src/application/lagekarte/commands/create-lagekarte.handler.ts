@@ -7,13 +7,12 @@ import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { PoiCategory } from '@domain/value-objects/poi-category';
 import { UserId } from '@domain/value-objects/user-id';
-// biome-ignore lint/correctness/noUnusedImports: Required for DI at runtime
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
+import type { ILagekarteRepository } from '@domain/repositories';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { CoordinateConverter } from '@application/common/coordinate-converter';
 import { CreateLagekarteCommand } from './create-lagekarte.command';
-import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
+import { EINSATZ_REPOSITORY, LAGEKARTE_REPOSITORY, EVENT_PUBLISHER } from '@infrastructure/di-tokens';
 
 /**
  * Handler für CreateLagekarteCommand.
@@ -37,9 +36,9 @@ export class CreateLagekarteCommandHandler implements ICommandHandler<CreateLage
   constructor(
     @Inject(EINSATZ_REPOSITORY)
     private readonly einsatzRepository: IEinsatzRepository,
-    @Inject('ILagekarteRepository')
+    @Inject(LAGEKARTE_REPOSITORY)
     private readonly lagekarteRepository: ILagekarteRepository,
-    @Inject('IEventPublisher')
+    @Inject(EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
   ) {}
 

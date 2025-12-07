@@ -3,11 +3,7 @@ import { EinsatzBusinessRuleException, EinsatzNotFoundException, EinsatzPersiste
 
 describe('DomainException', () => {
   // Konkrete Implementierung für Tests der abstrakten Klasse
-  class TestDomainException extends DomainException {
-    constructor(message: string, aggregateId?: string, operation?: string, originalError?: Error) {
-      super(message, aggregateId, operation, originalError);
-    }
-  }
+  class TestDomainException extends DomainException {}
 
   describe('constructor', () => {
     it('should create exception with required parameters only', () => {

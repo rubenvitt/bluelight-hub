@@ -1,5 +1,5 @@
 import { cn } from '@/utils/cn';
-import type { CreateEtbEintragDtoKategorieEnum as EtbKategorie } from '@bluelight-hub/shared/client';
+import type { AddEintragDtoKategorieEnum as EtbKategorie } from '@bluelight-hub/shared/client';
 import { EtbVersionBadge } from './EtbVersionBadge';
 import { EtbKategorieBadge } from './EtbKategorieBadge';
 import { formatDisplayDateTime } from '@/utils/dateFormatter';

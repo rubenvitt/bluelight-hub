@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '@/prisma/prisma.module';
-import { LagekarteEventsModule } from '@infrastructure/events/lagekarte-events.module';
+import { EventInfrastructureModule } from '@infrastructure/events/event-infrastructure.module';
 import { LagekarteInfrastructureModule } from '@infrastructure/lagekarte-infrastructure.module';
 import { EtbInfrastructureModule } from '@infrastructure/etb/etb-infrastructure.module';
 import { OutboxModule } from '@infrastructure/outbox/outbox.module';
@@ -59,8 +59,8 @@ import {
   imports: [
     // Database Connection
     PrismaModule,
-    // Event Infrastructure (IEventPublisher)
-    LagekarteEventsModule,
+    // Event Infrastructure (IEventPublisher) - keine zirkuläre Abhängigkeit mehr
+    EventInfrastructureModule,
     // Repository Infrastructure (IEinsatzRepository, ILagekarteRepository)
     LagekarteInfrastructureModule,
     // Repository Infrastructure (IEtbRepository) - für Cross-Aggregate Queries (Story 4-3b)

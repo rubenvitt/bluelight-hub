@@ -1,4 +1,4 @@
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { EinsatzCompletenessService } from '@domain/services/einsatz-completeness.service';
 import { UserId } from '@domain/value-objects/user-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
@@ -10,8 +10,8 @@ import { TransactionalCommandHandler } from '@application/common/handlers/transa
 import { PrismaService } from '@/prisma/prisma.service';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import type { DomainEvent } from '@domain/common/domain-event';
-import type { TransactionContext } from '@domain/common/transaction';
-import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
+import type { TransactionContext } from '@domain/common';
+import { Result } from '@domain/common/result';
 import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
@@ -76,18 +76,18 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
    *
    * WICHTIG: Nutzt `tx` Parameter für save() Operation (NICHT this.prisma).
    * Base Handler koordiniert Transaction Commit und Outbox-Persistierung.
-   *
-   * **Warum Exceptions statt Result<T> hier:**
-   * - TransactionalCommandHandler erwartet Exceptions für Transaction Rollback
-   * - Result<T> Pattern wird nur für Validierung/Business Rules genutzt
-   * - Exceptions triggern automatisch Transaction Rollback
+   *   *
+   * **Result Pattern (AC4):**
+   * - Gibt Result<T> zurück für erwartete Fehler (Validierung, Business Rules)
+   * - Exceptions nur für unerwartete Fehler (DB-Fehler, Programming Errors)
+   * - Bei Result.fail(): Transaction wird automatisch zurückgerollt
    *
    * @param command - Validierter CompleteEinsatzCommand
    * @param tx - Transaction Context (framework-agnostisch, Infrastructure castet zu Prisma) (MUSS für save() verwendet werden)
-   * @returns result: void, events: Domain Events für Outbox
+   * @returns Result<{ result: TResult; events: DomainEvent[] }> - Success oder Failure
    * @throws Error bei Business Rule Violations (triggert Transaction Rollback)
    */
-  protected async executeInTransaction(command: CompleteEinsatzCommand, tx: TransactionContext): Promise<{ result: undefined; events: DomainEvent[] }> {
+  protected async executeInTransaction(command: CompleteEinsatzCommand, tx: TransactionContext): Promise<Result<{ result: undefined; events: DomainEvent[] }>> {
     // Step 1: Validate EinsatzId format
     const einsatzIdResult = EinsatzId.create(command.einsatzId);
     if (einsatzIdResult.isFailure) {
@@ -95,20 +95,18 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
       this.logger.warn('EinsatzId validation failed', {
         operation: 'completeEinsatz',
         phase: 'validation',
-        errorType: 'EinsatzValidationException',
         error,
         einsatzId: command.einsatzId,
       });
-      throw new EinsatzValidationException(error, 'einsatzId', command.einsatzId);
+      return Result.fail(error);
     }
     const einsatzId = einsatzIdResult.value;
     if (!einsatzId) {
       this.logger.error('Unexpected null EinsatzId after successful validation', {
         operation: 'completeEinsatz',
         phase: 'validation',
-        errorType: 'EinsatzValidationException',
       });
-      throw new EinsatzValidationException('Ungültige Einsatz-ID', 'einsatzId', command.einsatzId);
+      return Result.fail('Ungültige Einsatz-ID');
     }
 
     // Step 2: Validate UserId format
@@ -118,20 +116,18 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
       this.logger.warn('UserId validation failed', {
         operation: 'completeEinsatz',
         phase: 'validation',
-        errorType: 'EinsatzValidationException',
         error,
         completedBy: command.completedBy,
       });
-      throw new EinsatzValidationException(error, 'completedBy');
+      return Result.fail(error);
     }
     const userId = userIdResult.value;
     if (!userId) {
       this.logger.error('Unexpected null UserId after successful validation', {
         operation: 'completeEinsatz',
         phase: 'validation',
-        errorType: 'EinsatzValidationException',
       });
-      throw new EinsatzValidationException('Ungültige User-ID', 'completedBy');
+      return Result.fail('Ungültige User-ID');
     }
 
     // Step 3: Load Aggregate via Repository
@@ -142,11 +138,10 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
       this.logger.error('Failed to load Einsatz', {
         operation: 'completeEinsatz',
         phase: 'load',
-        errorType: 'EinsatzPersistenceException',
         error,
         einsatzId: command.einsatzId,
       });
-      throw new EinsatzPersistenceException(error, command.einsatzId);
+      return Result.fail(error);
     }
 
     const einsatz = findResult.value;
@@ -154,10 +149,9 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
       this.logger.warn('Einsatz not found', {
         operation: 'completeEinsatz',
         phase: 'load',
-        errorType: 'EinsatzNotFoundException',
         einsatzId: command.einsatzId,
       });
-      throw new EinsatzNotFoundException(command.einsatzId);
+      return Result.fail(command.einsatzId);
     }
 
     // Step 4: Validate Completeness via Domain Service
@@ -168,11 +162,10 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
       this.logger.warn('Einsatz cannot be completed', {
         operation: 'completeEinsatz',
         phase: 'businessRule',
-        errorType: 'EinsatzBusinessRuleException',
         einsatzId: command.einsatzId,
         reason: error,
       });
-      throw new EinsatzBusinessRuleException(error, command.einsatzId, 'completeness');
+      return Result.fail(error);
     }
 
     // Step 5: Call aggregate.complete()
@@ -182,11 +175,10 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
       this.logger.warn('Einsatz complete failed', {
         operation: 'completeEinsatz',
         phase: 'businessRule',
-        errorType: 'EinsatzBusinessRuleException',
         einsatzId: command.einsatzId,
         error,
       });
-      throw new EinsatzBusinessRuleException(error, command.einsatzId, 'statusTransition');
+      return Result.fail(error);
     }
 
     // Step 6: Save Aggregate in Transaction (WICHTIG: Nutze tx, nicht this.prisma)
@@ -196,11 +188,10 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
       this.logger.error('Failed to save Einsatz', {
         operation: 'completeEinsatz',
         phase: 'persist',
-        errorType: 'EinsatzPersistenceException',
         error,
         einsatzId: command.einsatzId,
       });
-      throw new EinsatzPersistenceException(error, command.einsatzId);
+      return Result.fail(error);
     }
 
     // Step 7: Extract Domain Events for Outbox
@@ -215,9 +206,6 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
     });
 
     // Step 8: Return result + events für Base Handler
-    return {
-      result: undefined,
-      events,
-    };
+    return Result.ok({ result: undefined, events });
   }
 }

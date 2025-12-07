@@ -1,7 +1,7 @@
 import { Result } from '@domain/common/result';
 import { ArchiveEinsatzHandler } from '../archive-einsatz.handler';
 import { ArchiveEinsatzCommand } from '../archive-einsatz.command';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { EinsatzStatus } from '@domain/value-objects/einsatz-status';
 import { UserId } from '@domain/value-objects/user-id';
@@ -9,6 +9,7 @@ import { EinsatzArchivedEvent } from '@domain/events/einsatz-archived.event';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
+import { EINSATZ_REPOSITORY, OUTBOX_REPOSITORY } from '@/infrastructure/di-tokens';
 
 /**
  * Helper: Erstellt Mock-Einsatz mit spezifischem Status und abgeschlossenAt Date.

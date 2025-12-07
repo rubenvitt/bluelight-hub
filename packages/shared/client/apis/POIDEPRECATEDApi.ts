@@ -49,10 +49,11 @@ export interface PoiControllerUpdatePoiVAlphaRequest {
 /**
  *
  */
-export class POIApi extends runtime.BaseAPI {
+export class POIDEPRECATEDApi extends runtime.BaseAPI {
   /**
-   * Erstellt einen neuen POI. Wenn eine Adresse angegeben ist, wird sie automatisch geocoded. Bei Geocoding-Fehlern müssen manuelle Koordinaten angegeben werden.
-   * POI erstellen
+   * DEPRECATED: Verwende POST /lagekarte/:lagekarteId/poi. Erstellt einen neuen POI mit automatischem Geocoding.
+   * POI erstellen (DEPRECATED)
+   * @deprecated
    */
   async poiControllerCreatePoiVAlphaRaw(
     requestParameters: PoiControllerCreatePoiVAlphaRequest,
@@ -91,8 +92,9 @@ export class POIApi extends runtime.BaseAPI {
   }
 
   /**
-   * Erstellt einen neuen POI. Wenn eine Adresse angegeben ist, wird sie automatisch geocoded. Bei Geocoding-Fehlern müssen manuelle Koordinaten angegeben werden.
-   * POI erstellen
+   * DEPRECATED: Verwende POST /lagekarte/:lagekarteId/poi. Erstellt einen neuen POI mit automatischem Geocoding.
+   * POI erstellen (DEPRECATED)
+   * @deprecated
    */
   async poiControllerCreatePoiVAlpha(
     requestParameters: PoiControllerCreatePoiVAlphaRequest,
@@ -103,8 +105,9 @@ export class POIApi extends runtime.BaseAPI {
   }
 
   /**
-   * Löscht einen POI permanent. Diese Aktion kann nicht rückgängig gemacht werden.
-   * POI löschen
+   * DEPRECATED: Verwende DELETE /lagekarte/:lagekarteId/poi/:poiId. Löscht einen POI permanent.
+   * POI löschen (DEPRECATED)
+   * @deprecated
    */
   async poiControllerDeletePoiVAlphaRaw(
     requestParameters: PoiControllerDeletePoiVAlphaRequest,
@@ -140,8 +143,9 @@ export class POIApi extends runtime.BaseAPI {
   }
 
   /**
-   * Löscht einen POI permanent. Diese Aktion kann nicht rückgängig gemacht werden.
-   * POI löschen
+   * DEPRECATED: Verwende DELETE /lagekarte/:lagekarteId/poi/:poiId. Löscht einen POI permanent.
+   * POI löschen (DEPRECATED)
+   * @deprecated
    */
   async poiControllerDeletePoiVAlpha(
     requestParameters: PoiControllerDeletePoiVAlphaRequest,
@@ -152,8 +156,9 @@ export class POIApi extends runtime.BaseAPI {
   }
 
   /**
-   * Gibt einen einzelnen POI mit allen Details zurück.
-   * POI abrufen
+   * DEPRECATED: Verwende GET /lagekarte/:lagekarteId/pois mit Filter. Gibt einen einzelnen POI zurück.
+   * POI abrufen (DEPRECATED)
+   * @deprecated
    */
   async poiControllerGetPoiVAlphaRaw(
     requestParameters: PoiControllerGetPoiVAlphaRequest,
@@ -189,8 +194,9 @@ export class POIApi extends runtime.BaseAPI {
   }
 
   /**
-   * Gibt einen einzelnen POI mit allen Details zurück.
-   * POI abrufen
+   * DEPRECATED: Verwende GET /lagekarte/:lagekarteId/pois mit Filter. Gibt einen einzelnen POI zurück.
+   * POI abrufen (DEPRECATED)
+   * @deprecated
    */
   async poiControllerGetPoiVAlpha(requestParameters: PoiControllerGetPoiVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PoiControllerCreatePoiVAlpha200Response> {
     const response = await this.poiControllerGetPoiVAlphaRaw(requestParameters, initOverrides);
@@ -198,8 +204,9 @@ export class POIApi extends runtime.BaseAPI {
   }
 
   /**
-   * Gibt alle POIs einer Lagekarte zurück. POIs werden nach Typ gruppiert zurückgegeben. Lazy Creation: Wenn keine Lagekarte existiert, wird sie automatisch erstellt.
-   * POIs abrufen
+   * DEPRECATED: Verwende GET /lagekarte/:lagekarteId/pois. Gibt alle POIs einer Lagekarte zurück.
+   * POIs abrufen (DEPRECATED)
+   * @deprecated
    */
   async poiControllerGetPoisVAlphaRaw(
     requestParameters: PoiControllerGetPoisVAlphaRequest,
@@ -235,8 +242,9 @@ export class POIApi extends runtime.BaseAPI {
   }
 
   /**
-   * Gibt alle POIs einer Lagekarte zurück. POIs werden nach Typ gruppiert zurückgegeben. Lazy Creation: Wenn keine Lagekarte existiert, wird sie automatisch erstellt.
-   * POIs abrufen
+   * DEPRECATED: Verwende GET /lagekarte/:lagekarteId/pois. Gibt alle POIs einer Lagekarte zurück.
+   * POIs abrufen (DEPRECATED)
+   * @deprecated
    */
   async poiControllerGetPoisVAlpha(requestParameters: PoiControllerGetPoisVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PoiControllerGetPoisVAlpha200Response> {
     const response = await this.poiControllerGetPoisVAlphaRaw(requestParameters, initOverrides);
@@ -244,8 +252,9 @@ export class POIApi extends runtime.BaseAPI {
   }
 
   /**
-   * Aktualisiert einen bestehenden POI. Wenn die Adresse geändert wird, wird automatisch ein Re-Geocoding durchgeführt.
-   * POI aktualisieren
+   * DEPRECATED: Verwende PUT /lagekarte/:lagekarteId/poi/:poiId. Aktualisiert einen bestehenden POI mit automatischem Re-Geocoding.
+   * POI aktualisieren (DEPRECATED)
+   * @deprecated
    */
   async poiControllerUpdatePoiVAlphaRaw(
     requestParameters: PoiControllerUpdatePoiVAlphaRequest,
@@ -288,8 +297,9 @@ export class POIApi extends runtime.BaseAPI {
   }
 
   /**
-   * Aktualisiert einen bestehenden POI. Wenn die Adresse geändert wird, wird automatisch ein Re-Geocoding durchgeführt.
-   * POI aktualisieren
+   * DEPRECATED: Verwende PUT /lagekarte/:lagekarteId/poi/:poiId. Aktualisiert einen bestehenden POI mit automatischem Re-Geocoding.
+   * POI aktualisieren (DEPRECATED)
+   * @deprecated
    */
   async poiControllerUpdatePoiVAlpha(
     requestParameters: PoiControllerUpdatePoiVAlphaRequest,

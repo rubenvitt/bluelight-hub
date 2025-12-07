@@ -20,7 +20,7 @@
  * - RBAC Testing mit 3 User-Rollen (USER, ADMIN, SUPER_ADMIN)
  */
 
-import { PrismaClient, UserRole, EinsatzStatus as PrismaEinsatzStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import { PrismaEinsatzRepository } from '../repositories/prisma-einsatz.repository';
@@ -304,6 +304,7 @@ export async function createEinsatzE2eModule(): Promise<EinsatzE2eTestContext> {
       NOW(),
       NOW()
     )
+    ON CONFLICT (username) DO NOTHING
   `;
 
   // User mit ADMIN Rolle
@@ -318,6 +319,7 @@ export async function createEinsatzE2eModule(): Promise<EinsatzE2eTestContext> {
       NOW(),
       NOW()
     )
+    ON CONFLICT (username) DO NOTHING
   `;
 
   // User mit SUPER_ADMIN Rolle
@@ -332,6 +334,7 @@ export async function createEinsatzE2eModule(): Promise<EinsatzE2eTestContext> {
       NOW(),
       NOW()
     )
+    ON CONFLICT (username) DO NOTHING
   `;
 
   // 4. Repository und EventPublisher mit Outbox Support
@@ -539,6 +542,7 @@ export async function createTestEinsatz(ctx: EinsatzE2eTestContext, options?: Cr
       NOW(),
       NOW()
     )
+    ON CONFLICT (id) DO NOTHING
   `;
   return einsatzId;
 }
@@ -576,6 +580,7 @@ export async function createTestUser(ctx: EinsatzE2eTestContext, role: 'USER' | 
       NOW(),
       NOW()
     )
+    ON CONFLICT (username) DO NOTHING
   `;
   return userId;
 }

@@ -62,7 +62,7 @@ export interface EinsatzResponseDto {
    */
   status: EinsatzResponseDtoStatusEnum;
   /**
-   * Zusätzliche Metadaten als JSON
+   * Zusaetzliche Metadaten als JSON
    * @type {{ [key: string]: any; }}
    * @memberof EinsatzResponseDto
    */
@@ -110,7 +110,7 @@ export interface EinsatzResponseDto {
    */
   name: string;
   /**
-   * Vollständigkeits-Information
+   * Vollstaendigkeits-Information
    * @type {{ [key: string]: any; }}
    * @memberof EinsatzResponseDto
    */

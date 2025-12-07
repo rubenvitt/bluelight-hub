@@ -1,9 +1,9 @@
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { CommandHandler } from '@nestjs/cqrs';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DeleteEinsatzCommand } from './delete-einsatz.command';
-import { EinsatzNotFoundException, EinsatzValidationException, EinsatzBusinessRuleException, EinsatzPersistenceException } from '@domain/common/exceptions';
+import { Result } from '@domain/common/result';
 import { EINSATZ_REPOSITORY } from '@infrastructure/di-tokens';
 
 /**
@@ -39,24 +39,25 @@ export class DeleteEinsatzHandler {
   /**
    * Führt den DeleteEinsatzCommand aus.
    *
-   * HINWEIS: Wirft IMMER EinsatzBusinessRuleException (NO-DELETE Policy).
+   * HINWEIS: Gibt IMMER Result.fail() zurück (NO-DELETE Policy).
+   *
+   * **Result Pattern (AC4):**
+   * - Gibt Result<void> zurück (immer Failure für NO-DELETE Policy)
+   * - Exceptions nur für unerwartete Fehler (DB-Fehler, Programming Errors)
    *
    * @param command - Validierter DeleteEinsatzCommand
-   * @throws {EinsatzValidationException} Bei ungültiger Einsatz-ID
-   * @throws {EinsatzNotFoundException} Wenn Einsatz nicht gefunden
-   * @throws {EinsatzPersistenceException} Bei Datenbankfehlern
-   * @throws {EinsatzBusinessRuleException} IMMER - NO-DELETE Policy
+   * @returns Result<void> - Immer Failure mit NO-DELETE Policy Meldung
    */
-  async execute(command: DeleteEinsatzCommand): Promise<void> {
+  async execute(command: DeleteEinsatzCommand): Promise<Result<void>> {
     // Step 1: Validate EinsatzId format
     const einsatzIdResult = EinsatzId.create(command.einsatzId);
     if (einsatzIdResult.isFailure) {
-      throw new EinsatzValidationException(einsatzIdResult.error ?? 'Ungültige Einsatz-ID', 'einsatzId', command.einsatzId);
+      return Result.fail(einsatzIdResult.error ?? 'Ungültige Einsatz-ID'); // ✅ Result Pattern
     }
     const einsatzId = einsatzIdResult.value;
     if (!einsatzId) {
       this.logger.error('Unexpected null EinsatzId after successful validation');
-      throw new EinsatzValidationException('Ungültige Einsatz-ID', 'einsatzId', command.einsatzId);
+      return Result.fail('Ungültige Einsatz-ID'); // ✅ Result Pattern
     }
 
     // Step 2: Load Aggregate to verify it exists
@@ -65,11 +66,10 @@ export class DeleteEinsatzHandler {
       this.logger.error('Failed to load Einsatz for deletion check', {
         operation: 'deleteEinsatz',
         phase: 'load',
-        errorType: 'EinsatzPersistenceException',
         error: findResult.error,
         einsatzId: command.einsatzId,
       });
-      throw new EinsatzPersistenceException(findResult.error ?? 'Einsatz konnte nicht geladen werden', command.einsatzId);
+      return Result.fail(findResult.error ?? 'Einsatz konnte nicht geladen werden'); // ✅ Result Pattern
     }
 
     const einsatz = findResult.value;
@@ -77,10 +77,9 @@ export class DeleteEinsatzHandler {
       this.logger.warn('Einsatz not found for deletion', {
         operation: 'deleteEinsatz',
         phase: 'load',
-        errorType: 'EinsatzNotFoundException',
         einsatzId: command.einsatzId,
       });
-      throw new EinsatzNotFoundException(command.einsatzId);
+      return Result.fail('Einsatz nicht gefunden'); // ✅ Result Pattern
     }
 
     // Step 3: Check canBeDeleted() - ALWAYS returns false (NO-DELETE Policy)
@@ -90,14 +89,13 @@ export class DeleteEinsatzHandler {
       this.logger.warn('Delete attempt rejected (NO-DELETE Policy)', {
         operation: 'deleteEinsatz',
         phase: 'businessRule',
-        errorType: 'EinsatzBusinessRuleException',
         einsatzId: command.einsatzId,
         nummer: einsatz.nummer,
         status: einsatz.status.value,
       });
 
-      // Throw explicit exception for NO-DELETE Policy
-      throw new EinsatzBusinessRuleException('Einsätze können nicht gelöscht werden. Verwende Archivieren stattdessen.', command.einsatzId, 'noDeletePolicy');
+      // Return failure for NO-DELETE Policy
+      return Result.fail('Einsätze können nicht gelöscht werden. Verwende Archivieren stattdessen.'); // ✅ Result Pattern
     }
 
     // Step 4: This code is UNREACHABLE due to NO-DELETE Policy
@@ -108,9 +106,8 @@ export class DeleteEinsatzHandler {
     this.logger.error('UNEXPECTED: canBeDeleted() returned true - this should never happen', {
       operation: 'deleteEinsatz',
       phase: 'businessRule',
-      errorType: 'EinsatzBusinessRuleException',
       einsatzId: command.einsatzId,
     });
-    throw new EinsatzBusinessRuleException('Unerwarteter Fehler bei der Löschung', command.einsatzId, 'noDeletePolicy');
+    return Result.fail('Unerwarteter Fehler bei der Löschung'); // ✅ Result Pattern
   }
 }

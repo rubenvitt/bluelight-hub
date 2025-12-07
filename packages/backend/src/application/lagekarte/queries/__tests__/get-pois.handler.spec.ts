@@ -1,6 +1,6 @@
 import { GetPoisQueryHandler } from '../get-pois.handler';
 import { GetPoisQuery } from '../get-pois.query';
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { ILagekarteRepository } from '@domain/repositories';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';

@@ -204,3 +204,6 @@ dev-debug.log
 *-debug.png
 auth-page-debug.png
 /.bmad-ephemeral/
+
+# Artillery Performance Tests (nur Ergebnisse ignorieren)
+packages/backend/artillery/results/

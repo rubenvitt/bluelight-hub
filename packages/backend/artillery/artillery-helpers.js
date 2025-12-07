@@ -10,7 +10,7 @@
  * - Cookies werden automatisch als HTTP-Only gesetzt (accessToken, refreshToken)
  */
 
-const http = require('http');
+const http = require('node:http');
 
 // Counter für eindeutige Virtual User IDs
 let vuCounter = 0;
@@ -87,7 +87,7 @@ function performLogin(username) {
  * @param {Object} ee - Event Emitter für Artillery-Events
  * @param {Function} next - Callback-Funktion zum Fortfahren
  */
-async function setAuthHeader(requestParams, context, ee, next) {
+async function setAuthHeader(requestParams, context, _ee, next) {
   try {
     // Login nur beim ersten Request durchführen
     if (!context.vars.authCookies) {
@@ -122,10 +122,10 @@ async function setAuthHeader(requestParams, context, ee, next) {
  * @param {Object} ee - Event Emitter
  * @param {Function} next - Callback
  */
-function captureEinsatzId(requestParams, response, context, ee, next) {
+function captureEinsatzId(_requestParams, response, context, _ee, next) {
   try {
     const body = JSON.parse(response.body);
-    if (body.data && body.data.id) {
+    if (body.data?.id) {
       // Speichere ID für spätere Verwendung
       context.vars.createdEinsatzId = body.data.id;
       context.vars.createdEtbId = body.data.etbId || null;
@@ -143,7 +143,7 @@ function captureEinsatzId(requestParams, response, context, ee, next) {
  * @param {Object} events - Event Emitter
  * @param {Function} done - Callback
  */
-function selectRandomEinsatzId(context, events, done) {
+function selectRandomEinsatzId(context, _events, done) {
   // Fallback auf eine Platzhalter-ID wenn keine erstellt wurde
   if (!context.vars.createdEinsatzId) {
     context.vars.selectedEinsatzId = 'test-einsatz-id';
@@ -162,7 +162,7 @@ function selectRandomEinsatzId(context, events, done) {
  * @param {Object} events - Event Emitter
  * @param {Function} done - Callback
  */
-function generateEinsatzPayload(context, events, done) {
+function generateEinsatzPayload(context, _events, done) {
   const alarmstichwörter = [
     'B1 Kleinbrand',
     'B2 Brand klein',
@@ -198,7 +198,7 @@ function generateEinsatzPayload(context, events, done) {
  * @param {Object} events - Event Emitter
  * @param {Function} done - Callback
  */
-function generateEtbEintragPayload(context, events, done) {
+function generateEtbEintragPayload(context, _events, done) {
   const kategorien = ['INFORMATION', 'LAGEMELDUNG', 'EINSATZBEFEHL', 'PERSONALMELDUNG', 'RESSOURCENMELDUNG'];
   const texte = [
     'Einsatzkräfte vor Ort eingetroffen',

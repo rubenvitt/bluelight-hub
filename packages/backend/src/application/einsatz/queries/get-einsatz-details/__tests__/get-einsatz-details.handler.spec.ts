@@ -6,11 +6,12 @@ import { Einsatz } from '@domain/aggregates/einsatz.aggregate';
 import { EinsatztagebuchAggregate } from '@domain/aggregates/einsatztagebuch.aggregate';
 import { LagekarteAggregate } from '@domain/aggregates/lagekarte.aggregate';
 import { Address } from '@domain/value-objects/address';
-import type { IEinsatzRepository } from '@domain/repositories/ieinsatz.repository';
-import type { IEtbRepository } from '@domain/repositories/i-etb.repository';
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { IEinsatzRepository } from '@domain/repositories';
+import type { IEtbRepository } from '@domain/repositories';
+import type { ILagekarteRepository } from '@domain/repositories';
 import { GetEinsatzDetailsQueryHandler } from '../get-einsatz-details.handler';
 import { GetEinsatzDetailsQuery } from '../get-einsatz-details.query';
+import { EINSATZ_REPOSITORY, ETB_REPOSITORY, LAGEKARTE_REPOSITORY } from '@/infrastructure/di-tokens';
 
 describe('GetEinsatzDetailsQueryHandler', () => {
   let handler: GetEinsatzDetailsQueryHandler;
@@ -46,8 +47,8 @@ describe('GetEinsatzDetailsQueryHandler', () => {
       providers: [
         GetEinsatzDetailsQueryHandler,
         { provide: EINSATZ_REPOSITORY, useValue: mockEinsatzRepository },
-        { provide: 'IEtbRepository', useValue: mockEtbRepository },
-        { provide: 'ILagekarteRepository', useValue: mockLagekarteRepository },
+        { provide: ETB_REPOSITORY, useValue: mockEtbRepository },
+        { provide: LAGEKARTE_REPOSITORY, useValue: mockLagekarteRepository },
       ],
     }).compile();
 

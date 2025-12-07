@@ -1,6 +1,6 @@
 import { GetLagekarteExistsQueryHandler } from '../get-lagekarte-exists.handler';
 import { GetLagekarteExistsQuery } from '../get-lagekarte-exists.query';
-import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
+import type { ILagekarteRepository } from '@domain/repositories';
 import { createValidTestId } from './helpers/test-id.helper';
 
 // Mock cuid2 for deterministic test IDs
@@ -51,7 +51,7 @@ describe('GetLagekarteExistsQueryHandler', () => {
   });
 
   describe('Success Cases', () => {
-    it('should return true when Lagekarte exists', async () => {
+    it('should return Result.ok(true) when Lagekarte exists', async () => {
       // Given
       const einsatzId = createValidTestId('einsatz');
       const query = new GetLagekarteExistsQuery(einsatzId);
@@ -61,12 +61,13 @@ describe('GetLagekarteExistsQueryHandler', () => {
       const result = await handler.execute(query);
 
       // Then
-      expect(result).toBe(true);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBe(true);
       expect(mockRepo.exists).toHaveBeenCalledTimes(1);
       expect(mockRepo.exists).toHaveBeenCalledWith(expect.objectContaining({ value: einsatzId }));
     });
 
-    it('should return false when Lagekarte does not exist', async () => {
+    it('should return Result.ok(false) when Lagekarte does not exist', async () => {
       // Given
       const einsatzId = createValidTestId('einsatz');
       const query = new GetLagekarteExistsQuery(einsatzId);
@@ -76,7 +77,8 @@ describe('GetLagekarteExistsQueryHandler', () => {
       const result = await handler.execute(query);
 
       // Then
-      expect(result).toBe(false);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBe(false);
       expect(mockRepo.exists).toHaveBeenCalledTimes(1);
       expect(mockRepo.exists).toHaveBeenCalledWith(expect.objectContaining({ value: einsatzId }));
     });
@@ -91,7 +93,8 @@ describe('GetLagekarteExistsQueryHandler', () => {
       const result = await handler.execute(query);
 
       // Then: Handler should work with any valid nanoid
-      expect(result).toBe(false);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBe(false);
       expect(mockRepo.exists).toHaveBeenCalledWith(expect.objectContaining({ value: validNanoid }));
     });
 
@@ -102,9 +105,10 @@ describe('GetLagekarteExistsQueryHandler', () => {
       mockRepo.exists.mockResolvedValue(true);
 
       // When
-      await handler.execute(query);
+      const result = await handler.execute(query);
 
       // Then
+      expect(result.isSuccess).toBe(true);
       const call = mockRepo.exists.mock.calls[0][0];
       expect(call.value).toBe(einsatzId);
       expect(mockRepo.exists).toHaveBeenCalledTimes(1);
@@ -112,15 +116,15 @@ describe('GetLagekarteExistsQueryHandler', () => {
   });
 
   describe('Failure Cases', () => {
-    it('should throw error when repository throws error', async () => {
+    it('should throw error when repository throws error (unerwarteter Fehler)', async () => {
       // Given
       const einsatzId = createValidTestId('einsatz');
       const query = new GetLagekarteExistsQuery(einsatzId);
 
-      // Mock: Repository throws error
+      // Mock: Repository throws error (unerwarteter Infrastruktur-Fehler)
       mockRepo.exists.mockRejectedValue(new Error('Database connection failed'));
 
-      // When/Then: Error should propagate (NOT caught by handler)
+      // When/Then: Error should propagate (NOT caught by handler - unerwarteter Fehler)
       await expect(handler.execute(query)).rejects.toThrow('Database connection failed');
 
       // Verify repository was called
@@ -132,7 +136,7 @@ describe('GetLagekarteExistsQueryHandler', () => {
       const einsatzId = createValidTestId('einsatz');
       const query = new GetLagekarteExistsQuery(einsatzId);
 
-      // Mock: Repository throws string
+      // Mock: Repository throws string (unerwarteter Fehler)
       mockRepo.exists.mockRejectedValue('String error');
 
       // When/Then: Error should propagate (NOT caught by handler)
@@ -142,7 +146,7 @@ describe('GetLagekarteExistsQueryHandler', () => {
       expect(mockRepo.exists).toHaveBeenCalledTimes(1);
     });
 
-    it('should throw error when EinsatzId creation fails', async () => {
+    it('should return Result.fail when EinsatzId creation fails', async () => {
       // Given: Invalid EinsatzId (empty string)
       const invalidId = '';
       const query = new GetLagekarteExistsQuery('clw3h8x9y0000qwertyui00001'); // Valid CUID2 format
@@ -153,8 +157,12 @@ describe('GetLagekarteExistsQueryHandler', () => {
         writable: false,
       });
 
-      // When/Then: EinsatzId.create() should fail
-      await expect(handler.execute(query)).rejects.toThrow();
+      // When
+      const result = await handler.execute(query);
+
+      // Then: Should return Result.fail() (erwarteter Validierungsfehler)
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBeTruthy();
 
       // Repository should NOT be called (validation fails first)
       expect(mockRepo.exists).not.toHaveBeenCalled();
@@ -228,7 +236,8 @@ describe('GetLagekarteExistsQueryHandler', () => {
       const result = await handler.execute(query);
 
       // Then
-      expect(result).toBe(true);
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBe(true);
       expect(mockRepo.exists).toHaveBeenCalledWith(expect.objectContaining({ value: complexEinsatzId }));
     });
 
@@ -244,8 +253,9 @@ describe('GetLagekarteExistsQueryHandler', () => {
       // When
       const result = await handler.execute(query);
 
-      // Then: undefined is falsy
-      expect(result).toBe(undefined);
+      // Then: Result wraps undefined (falsy) value
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBe(undefined);
     });
 
     it('should handle multiple concurrent executions', async () => {
@@ -264,8 +274,10 @@ describe('GetLagekarteExistsQueryHandler', () => {
       const [result1, result2] = await Promise.all([handler.execute(query1), handler.execute(query2)]);
 
       // Then
-      expect(result1).toBe(true);
-      expect(result2).toBe(false);
+      expect(result1.isSuccess).toBe(true);
+      expect(result1.value).toBe(true);
+      expect(result2.isSuccess).toBe(true);
+      expect(result2.value).toBe(false);
       expect(mockRepo.exists).toHaveBeenCalledTimes(2);
     });
 
@@ -282,8 +294,8 @@ describe('GetLagekarteExistsQueryHandler', () => {
     });
   });
 
-  describe('Return Type Verification', () => {
-    it('should return boolean type (not Result<boolean>)', async () => {
+  describe('Return Type Verification (Result Pattern)', () => {
+    it('should return Result<boolean> type (not plain boolean)', async () => {
       // Given
       const einsatzId = createValidTestId('einsatz');
       const query = new GetLagekarteExistsQuery(einsatzId);
@@ -292,16 +304,15 @@ describe('GetLagekarteExistsQueryHandler', () => {
       // When
       const result = await handler.execute(query);
 
-      // Then: Result is plain boolean, NOT Result<T> object
-      expect(typeof result).toBe('boolean');
-      expect(result).toBe(true);
-      expect(result).not.toHaveProperty('isSuccess');
-      expect(result).not.toHaveProperty('isFailure');
-      expect(result).not.toHaveProperty('value');
-      expect(result).not.toHaveProperty('error');
+      // Then: Result is Result<boolean> object
+      expect(result).toHaveProperty('isSuccess');
+      expect(result).toHaveProperty('isFailure');
+      expect(result).toHaveProperty('value');
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBe(true);
     });
 
-    it('should return boolean false (not null or undefined)', async () => {
+    it('should return Result.ok(false) when not exists', async () => {
       // Given
       const einsatzId = createValidTestId('einsatz');
       const query = new GetLagekarteExistsQuery(einsatzId);
@@ -310,10 +321,29 @@ describe('GetLagekarteExistsQueryHandler', () => {
       // When
       const result = await handler.execute(query);
 
-      // Then: Result is boolean false, NOT null or undefined
-      expect(result).toBe(false);
-      expect(result).not.toBeNull();
-      expect(result).not.toBeUndefined();
+      // Then: Result.ok() with false value
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBe(false);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should return Result.fail() on validation error', async () => {
+      // Given: Invalid EinsatzId
+      const invalidId = '';
+      const query = new GetLagekarteExistsQuery('clw3h8x9y0000qwertyui00001');
+      Object.defineProperty(query, 'einsatzId', {
+        value: invalidId,
+        writable: false,
+      });
+
+      // When
+      const result = await handler.execute(query);
+
+      // Then: Result.fail() with error message
+      expect(result.isFailure).toBe(true);
+      expect(result.isSuccess).toBe(false);
+      expect(result.error).toBeTruthy();
+      expect(result.value).toBeUndefined();
     });
   });
 });

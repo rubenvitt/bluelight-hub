@@ -8,6 +8,6 @@ export * from './GeocodingApi';
 export * from './HealthApi';
 export * from './LagekarteApi';
 export * from './LagekarteCQRSApi';
-export * from './POIApi';
+export * from './POIDEPRECATEDApi';
 export * from './UserManagementApi';
 export * from './UsersApi';

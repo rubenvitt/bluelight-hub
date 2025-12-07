@@ -23,13 +23,13 @@ import { StatusCountsDtoFromJSON, StatusCountsDtoFromJSONTyped, StatusCountsDtoT
  */
 export interface StatusCountsResponseDto {
   /**
-   * Gesamtanzahl aller Einsätze
+   * Gesamtanzahl aller Einsaetze
    * @type {number}
    * @memberof StatusCountsResponseDto
    */
   total: number;
   /**
-   * Anzahl der Einsätze pro Status
+   * Anzahl der Einsaetze pro Status
    * @type {StatusCountsDto}
    * @memberof StatusCountsResponseDto
    */

@@ -1,5 +1,5 @@
 import { formatDisplayDateTime } from '@/utils/dateFormatter';
-import type { EtbEintragDto } from '@bluelight-hub/shared/client';
+import type { EintragDto } from '@bluelight-hub/shared/client';
 import { format, isValid } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useState } from 'react';
@@ -7,7 +7,7 @@ import { PiPencil, PiTrashSimple, PiUser } from 'react-icons/pi';
 import { ScreenshotLightbox } from './ScreenshotLightbox';
 
 interface EtbEntryDetailsProps {
-  entry: EtbEintragDto;
+  entry: EintragDto;
   getUserName: (id: string) => string | undefined;
 }
 

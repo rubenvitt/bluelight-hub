@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import type { OutboxEvent } from '@prisma/client';
+import { PrismaService } from '@/prisma/prisma.service';
 import type { DomainEvent } from '@domain/common/domain-event';
 import type { TransactionContext } from '@domain/common/transaction';
 import type { IOutboxRepository, OutboxEventDto } from '@domain/repositories/i-outbox.repository';
-import { PrismaService } from '@/prisma/prisma.service';
+import { Injectable, Logger } from '@nestjs/common';
+import type { OutboxEvent } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { EventSerializer, type SerializedEvent } from './event-serializer';
 
 /**
@@ -169,7 +169,9 @@ export class PrismaOutboxRepository implements IOutboxRepository {
       FOR UPDATE SKIP LOCKED
     `;
 
-    this.logger.debug(`Found and locked ${events.length} pending events (limit: ${limit})`);
+    if (events.length > 0) {
+      this.logger.debug(`Found and locked ${events.length} pending events (limit: ${limit})`);
+    }
 
     return events.map((event) => this.mapToDto(event));
   }

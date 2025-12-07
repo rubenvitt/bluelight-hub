@@ -1,4 +1,4 @@
-import type { CreateEtbEintragDtoKategorieEnum as EtbKategorie } from '@bluelight-hub/shared/client';
+import type { AddEintragDtoKategorieEnum as EtbKategorie } from '@bluelight-hub/shared/client';
 import { useCallback, useState } from 'react';
 import type { TextbausteinData } from '../types';
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { EtbEintragDto } from '@bluelight-hub/shared/client';
+import type { EintragDto } from '@bluelight-hub/shared/client';
 import { ScreenshotLightbox } from './ScreenshotLightbox';
 import { safeValidateScreenshotUrl } from '@/utils/validateScreenshotUrl';
 import { cn } from '@/utils/cn';
@@ -8,7 +8,7 @@ interface EtbTextCellProps {
   /**
    * ETB-Eintrag
    */
-  entry: EtbEintragDto;
+  entry: EintragDto;
   /**
    * Zeigt an, ob der Eintrag gelöscht wurde (für line-through Styling)
    */

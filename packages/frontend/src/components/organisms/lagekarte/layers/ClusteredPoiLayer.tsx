@@ -12,10 +12,10 @@ import { Marker, Popup } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { toast } from 'sonner';
 import type { LeafletMouseEvent } from 'leaflet';
-import type { PoiResponseDto } from '@bluelight-hub/shared/client';
+import type { PoiDto } from '@bluelight-hub/shared/client';
 
 interface ClusteredPoiLayerProps {
-  einsatzId: string;
+  lagekarteId: string | undefined;
 }
 
 /**
@@ -30,7 +30,7 @@ interface ClusteredPoiLayerProps {
  * - Performance-optimiert mit React.memo() und useMemo()
  * - Barrierefrei mit ARIA-Labels für Screen Reader
  *
- * @param einsatzId - ID des aktuellen Einsatzes
+ * @param lagekarteId - ID der aktuellen Lagekarte
  *
  * @remarks
  * Performance-Optimierungen:
@@ -49,14 +49,14 @@ interface ClusteredPoiLayerProps {
  * - Zoom out → POIs werden wieder geclustert
  * - Max-Zoom (18) → Spiderfy-Modus (overlapping markers spread out)
  */
-export const ClusteredPoiLayer: React.FC<ClusteredPoiLayerProps> = React.memo(({ einsatzId }) => {
-  const { data: pois, isLoading, error } = usePois(einsatzId);
+export const ClusteredPoiLayer: React.FC<ClusteredPoiLayerProps> = React.memo(({ lagekarteId }) => {
+  const { data: pois, isLoading, error } = usePois(lagekarteId);
   const updatePoiMutation = useUpdatePoi();
   const deletePoiMutation = useDeletePoi();
 
   // Delete Confirmation Dialog State
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [poiToDelete, setPoiToDelete] = useState<PoiResponseDto | null>(null);
+  const [poiToDelete, setPoiToDelete] = useState<PoiDto | null>(null);
 
   // Berechne gültige und ungültige POIs (Performance-optimiert mit useMemo)
   // WICHTIG: Muss VOR allen early returns stehen (React Hooks Rules)
@@ -69,10 +69,12 @@ export const ClusteredPoiLayer: React.FC<ClusteredPoiLayerProps> = React.memo(({
     let skipped = 0;
 
     for (const poi of pois) {
-      if (typeof poi.latitude !== 'number' || typeof poi.longitude !== 'number' || Number.isNaN(poi.latitude) || Number.isNaN(poi.longitude)) {
+      const lat = poi.coordinate?.lat;
+      const lng = poi.coordinate?.lng;
+      if (typeof lat !== 'number' || typeof lng !== 'number' || Number.isNaN(lat) || Number.isNaN(lng)) {
         console.warn(`POI ${poi.id} has invalid coordinates:`, {
-          latitude: poi.latitude,
-          longitude: poi.longitude,
+          lat,
+          lng,
         });
         skipped++;
       } else {
@@ -114,17 +116,18 @@ export const ClusteredPoiLayer: React.FC<ClusteredPoiLayerProps> = React.memo(({
    * @param poiId - ID des POI der verschoben wurde
    */
   const handleDragEnd = (e: LeafletMouseEvent, poiId: string) => {
+    if (!lagekarteId) return;
+
     const marker = e.target;
     const { lat, lng } = marker.getLatLng();
 
     // Update POI mit neuen Koordinaten
     updatePoiMutation.mutate(
       {
-        id: poiId,
-        einsatzId,
+        poiId,
+        lagekarteId,
         data: {
-          latitude: lat,
-          longitude: lng,
+          coordinate: { lat, lng },
         },
       },
       {
@@ -148,7 +151,7 @@ export const ClusteredPoiLayer: React.FC<ClusteredPoiLayerProps> = React.memo(({
    * @param e - Leaflet Mouse Event
    * @param poi - POI der gelöscht werden soll
    */
-  const handleRightClick = (e: LeafletMouseEvent, poi: PoiResponseDto) => {
+  const handleRightClick = (e: LeafletMouseEvent, poi: PoiDto) => {
     e.originalEvent.preventDefault(); // Verhindere natives Context-Menü
     setPoiToDelete(poi);
     setDeleteDialogOpen(true);
@@ -158,12 +161,12 @@ export const ClusteredPoiLayer: React.FC<ClusteredPoiLayerProps> = React.memo(({
    * Handler für POI-Löschen (nach Bestätigung)
    */
   const handleDeleteConfirm = () => {
-    if (!poiToDelete) return;
+    if (!poiToDelete || !lagekarteId) return;
 
     deletePoiMutation.mutate(
       {
-        id: poiToDelete.id,
-        einsatzId,
+        poiId: poiToDelete.id,
+        lagekarteId,
       },
       {
         onSuccess: () => {
@@ -209,14 +212,14 @@ export const ClusteredPoiLayer: React.FC<ClusteredPoiLayerProps> = React.memo(({
       <MarkerClusterGroup maxClusterRadius={50} spiderfyOnMaxZoom={true} showCoverageOnHover={false} zoomToBoundsOnClick={true} disableClusteringAtZoom={18} iconCreateFunction={createClusterIcon}>
         {/* Render gültige POI-Marker */}
         {validPois.map((poi) => {
-          const icon = getPoiIcon(poi.type);
+          const icon = getPoiIcon(poi.category);
           // ACCESSIBILITY: Create descriptive ARIA label for screen readers
-          const ariaLabel = `${poi.type}: ${poi.name}${poi.adresse ? ` bei ${poi.adresse}` : ''}`;
+          const ariaLabel = `${poi.category}: ${poi.name}${poi.beschreibung ? ` - ${poi.beschreibung}` : ''}`;
 
           return (
             <Marker
               key={poi.id}
-              position={[poi.latitude, poi.longitude]}
+              position={[poi.coordinate.lat, poi.coordinate.lng]}
               icon={icon}
               draggable={true}
               eventHandlers={{
@@ -232,14 +235,14 @@ export const ClusteredPoiLayer: React.FC<ClusteredPoiLayerProps> = React.memo(({
                   {/* POI-Name */}
                   <h3 className="mb-2 font-semibold text-lg">{poi.name}</h3>
 
-                  {/* POI-Type */}
-                  <p className="mb-1 text-gray-600 text-sm dark:text-gray-400">{poi.type}</p>
+                  {/* POI-Kategorie */}
+                  <p className="mb-1 text-gray-600 text-sm dark:text-gray-400">{poi.category}</p>
 
-                  {/* MGRS-Koordinaten (optional) */}
-                  {poi.mgrs && <p className="mb-1 font-mono text-gray-500 text-xs dark:text-gray-400">{formatMgrs(poi.mgrs)}</p>}
+                  {/* MGRS-Koordinaten */}
+                  {poi.coordinate.mgrs && <p className="mb-1 font-mono text-gray-500 text-xs dark:text-gray-400">{formatMgrs(poi.coordinate.mgrs)}</p>}
 
-                  {/* Adresse (optional) */}
-                  {poi.adresse && <p className="text-gray-700 text-sm dark:text-gray-300">{poi.adresse}</p>}
+                  {/* Beschreibung (optional) */}
+                  {poi.beschreibung && <p className="text-gray-700 text-sm dark:text-gray-300">{poi.beschreibung}</p>}
                 </div>
               </Popup>
             </Marker>

@@ -11,3 +11,5 @@ export { EtbDto } from './etb.dto';
 export { EintragDto } from './eintrag.dto';
 export { EtbVersionDto } from './etb-version.dto';
 export { EtbSnapshotDto } from './etb-snapshot.dto';
+export { TextbausteinDto } from './textbaustein.dto';
+export { TextbausteinListResponse } from './textbaustein-list-response.dto';

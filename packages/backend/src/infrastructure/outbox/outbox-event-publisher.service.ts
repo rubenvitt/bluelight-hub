@@ -4,6 +4,7 @@ import type { TransactionContext } from '@domain/common/transaction';
 import { IEventPublisher } from '@domain/services/ports/i-event-publisher.port';
 import type { OutboxEventDto } from '@domain/repositories/i-outbox.repository';
 import type { IAlertService } from '@domain/services/ports/i-alert.service';
+import { EVENT_PUBLISHER, ALERT_SERVICE } from '@/infrastructure/di-tokens';
 import { PrismaService } from '@/prisma/prisma.service';
 import { PrismaOutboxRepository } from './prisma-outbox.repository';
 import { EventDeserializer } from './event-deserializer';
@@ -75,8 +76,8 @@ export class OutboxEventPublisher implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly outboxRepository: PrismaOutboxRepository,
     private readonly eventDeserializer: EventDeserializer,
-    @Inject('IEventPublisher') private readonly eventPublisher: IEventPublisher,
-    @Optional() @Inject('IAlertService') private readonly alertService?: IAlertService,
+    @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
+    @Optional() @Inject(ALERT_SERVICE) private readonly alertService?: IAlertService,
     @Optional() @Inject(OUTBOX_PUBLISHER_CONFIG) config?: OutboxPublisherConfig,
   ) {
     this.config = config ?? DEFAULT_OUTBOX_PUBLISHER_CONFIG;

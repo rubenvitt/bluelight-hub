@@ -3,17 +3,36 @@ import { AddEintragHandler } from '@/application/etb/commands/add-eintrag/add-ei
 import { DeleteEintragHandler } from '@/application/etb/commands/delete-eintrag/delete-eintrag.handler';
 import { LockEtbHandler } from '@/application/etb/commands/lock-etb/lock-etb.handler';
 import { UpdateEintragHandler } from '@/application/etb/commands/update-eintrag/update-eintrag.handler';
-import { AddEintragDto, EintragDto, EtbDto, EtbSnapshotDto, UpdateEintragDto } from '@/application/etb/dto';
+import { AddEintragDto, EintragDto, EtbDto, EtbSnapshotDto, TextbausteinListResponse, UpdateEintragDto } from '@/application/etb/dto';
 import { EtbQueryMapper, type EtbSnapshotDto as EtbSnapshotDtoFromMapper } from '@/application/etb/mappers';
-import { GetEtbHistoryQuery, GetEtbHistoryQueryHandler, GetEtbQuery, GetEtbQueryHandler } from '@/application/etb/queries';
+import { GetEtbHistoryQuery, GetEtbHistoryQueryHandler, GetEtbQuery, GetEtbQueryHandler, GetTextbausteineQuery, GetTextbausteineHandler } from '@/application/etb/queries';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { Roles } from '@/auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import type { ValidatedUser } from '@/auth/strategies/jwt.strategy';
+import { SkipTransform } from '@/common/decorators/skip-transform.decorator';
 import { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import { EtbId } from '@domain/value-objects/etb-id';
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Logger, NotFoundException, Param, Post, Put, Query, UseGuards, ValidationPipe } from '@nestjs/common';
+import { ETB_REPOSITORY } from '@/infrastructure/di-tokens';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  Inject,
+  Logger,
+  NotFoundException,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+  ValidationPipe,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -56,6 +75,7 @@ import {
 @UseGuards(JwtAuthGuard)
 @ApiUnauthorizedResponse({ description: 'Nicht authentifiziert - JWT Token fehlt oder ungültig' })
 @ApiForbiddenResponse({ description: 'Keine Berechtigung für diese Aktion' })
+@SkipTransform()
 @Controller({
   path: 'etb',
   version: 'alpha',
@@ -70,13 +90,60 @@ export class EtbCqrsController {
     private readonly lockEtbHandler: LockEtbHandler,
     private readonly getEtbQueryHandler: GetEtbQueryHandler,
     private readonly getEtbHistoryQueryHandler: GetEtbHistoryQueryHandler,
-    @Inject('IEtbRepository')
+    private readonly getTextbausteineHandler: GetTextbausteineHandler,
+    @Inject(ETB_REPOSITORY)
     private readonly etbRepository: IEtbRepository,
   ) {}
 
   // ============================================
   // GET ENDPOINTS (Queries)
   // ============================================
+
+  /**
+   * Alle Textbausteine abrufen.
+   *
+   * Textbausteine sind vordefinierte Text-Templates fuer die schnelle
+   * Erstellung von ETB-Eintraegen. Sie reduzieren Tipparbeit und
+   * standardisieren haeufige Eintragstypen.
+   *
+   * **Route-Position:**
+   * MUSS VOR parametrisierten Routen wie :etbId/history kommen,
+   * da sonst "textbausteine" als etbId interpretiert wird.
+   *
+   * @param kategorie - Optional: Filtert nach Kategorie
+   * @param onlyActive - Nur aktive Textbausteine (Standard: true)
+   * @returns TextbausteinListResponse mit allen Textbausteinen
+   */
+  @Get('textbausteine')
+  @ApiOperation({
+    summary: 'Alle Textbausteine abrufen',
+    description: 'Gibt alle verfuegbaren Textbausteine zur schnellen ETB-Erstellung zurueck. Optional nach Kategorie filterbar.',
+  })
+  @ApiOkResponse({ type: TextbausteinListResponse, description: 'Textbausteine erfolgreich abgerufen' })
+  @ApiBadRequestResponse({ description: 'Fehler beim Laden der Textbausteine' })
+  @ApiQuery({ name: 'kategorie', required: false, description: 'Filter nach Kategorie (z.B. ALARMIERUNG, LAGE)' })
+  @ApiQuery({ name: 'onlyActive', required: false, type: Boolean, description: 'Nur aktive Textbausteine (Standard: true)' })
+  async getTextbausteine(@Query('kategorie') kategorie?: string, @Query('onlyActive') onlyActive?: string): Promise<TextbausteinListResponse> {
+    this.logger.log(`Getting Textbausteine (kategorie: ${kategorie ?? 'all'}, onlyActive: ${onlyActive ?? 'true'})`);
+
+    // Parse onlyActive - Standard ist true
+    const onlyActiveBoolean = onlyActive === undefined || onlyActive === 'true';
+
+    // Parse kategorie - undefined wenn nicht angegeben
+    const kategorieEnum = kategorie as import('@prisma/client').EtbKategorie | undefined;
+
+    const query = new GetTextbausteineQuery(kategorieEnum, onlyActiveBoolean);
+    const result = await this.getTextbausteineHandler.execute(query);
+
+    if (result.isFailure) {
+      throw new BadRequestException(result.error);
+    }
+
+    return {
+      meta: { timestamp: new Date().toISOString() },
+      data: result.value ?? [],
+    };
+  }
 
   /**
    * ETB für Einsatz abrufen (AC4)
@@ -216,7 +283,7 @@ export class EtbCqrsController {
   ): Promise<EintragDto> {
     this.logger.log(`Adding Eintrag to ETB ${etbId} by user ${user.userId}`);
 
-    const commandResult = AddEintragCommand.create(etbId, dto.text, user.userId, dto.kategorie, dto.einsatzId);
+    const commandResult = AddEintragCommand.create(etbId, dto.text, user.userId, dto.kategorie, dto.einsatzId, dto.metadata);
     if (commandResult.isFailure || !commandResult.value) {
       this.logger.error(`Invalid AddEintragCommand: ${commandResult.error}`);
       throw new BadRequestException(commandResult.error);
@@ -404,6 +471,9 @@ export class EtbCqrsController {
       this.logger.error(`Failed to lock ETB ${etbId}: ${result.error}`);
       if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) {
         throw new NotFoundException(result.error);
+      }
+      if (result.error?.includes('Administratoren')) {
+        throw new ForbiddenException(result.error);
       }
       throw new BadRequestException(result.error);
     }

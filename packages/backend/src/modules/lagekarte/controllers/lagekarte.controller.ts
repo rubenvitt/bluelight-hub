@@ -52,6 +52,7 @@ import { PoiMapper } from '@/application/lagekarte/mappers/poi.mapper';
 import type { ILagekarteRepository } from '@domain/repositories/i-lagekarte.repository';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
 import { Inject } from '@nestjs/common';
+import { LAGEKARTE_REPOSITORY } from '@/infrastructure/di-tokens';
 import { LagekarteRepository as LegacyLagekarteRepository } from '../repositories/lagekarte.repository';
 /**
  * Controller für Lagekarten-Management (Hybrid: CQRS + Legacy)
@@ -97,8 +98,7 @@ export class LagekarteController {
   constructor(
     private readonly queryBus: QueryBus,
     private readonly configService: ConfigService,
-    @Inject('ILagekarteRepository')
-    private readonly lagekarteRepository: ILagekarteRepository,
+    @Inject(LAGEKARTE_REPOSITORY) readonly _lagekarteRepository: ILagekarteRepository,
     private readonly legacyLagekarteRepository: LegacyLagekarteRepository,
   ) {
     // Get uploads path from ENV or use default (relative to project root)
@@ -445,7 +445,7 @@ export class LagekarteCqrsController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
-    @Inject('ILagekarteRepository')
+    @Inject(LAGEKARTE_REPOSITORY)
     private readonly lagekarteRepository: ILagekarteRepository,
   ) {}
 

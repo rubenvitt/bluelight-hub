@@ -10,7 +10,7 @@ import * as packageJson from '../package.json';
 import { AppModule } from './app.module';
 import { PerformanceInterceptor } from './common/interceptors/performance.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
-import { corsConfig, helmetConfig } from './config/security.config';
+import { corsConfig, helmetConfig } from './common/config/security.config';
 
 require('@dotenvx/dotenvx').config();
 

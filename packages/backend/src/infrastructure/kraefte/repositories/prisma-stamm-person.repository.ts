@@ -106,6 +106,10 @@ export class PrismaStammPersonRepository implements IStammPersonRepository {
           archivedBy: persistenceData.archivedBy,
           createdBy: persistenceData.createdBy,
           updatedBy: persistenceData.updatedBy,
+          // Story 7.2: Externe Integration Felder
+          externalSource: persistenceData.externalSource,
+          externalId: persistenceData.externalId,
+          lastSyncAt: persistenceData.lastSyncAt,
         },
         update: {
           vorname: persistenceData.vorname,
@@ -115,6 +119,10 @@ export class PrismaStammPersonRepository implements IStammPersonRepository {
           archivedAt: persistenceData.archivedAt,
           archivedBy: persistenceData.archivedBy,
           updatedBy: persistenceData.updatedBy,
+          // Story 7.2: Externe Integration Felder (können bei Re-Sync aktualisiert werden)
+          externalSource: persistenceData.externalSource,
+          externalId: persistenceData.externalId,
+          lastSyncAt: persistenceData.lastSyncAt,
           // id, createdAt, createdBy sind immutabel
         },
       });
@@ -393,6 +401,58 @@ export class PrismaStammPersonRepository implements IStammPersonRepository {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return Result.fail<StammPerson[]>(`Fehler bei der Suche: ${errorMessage}`);
+    }
+  }
+
+  // ============ Story 7.2: Externe Integration Methoden ============
+
+  /**
+   * Findet eine StammPerson nach externer ID und Quelle.
+   *
+   * Verwendet den Unique-Index [externalSource, externalId] für effiziente Suche.
+   *
+   * **Use Case Story 7-2:**
+   * - Import aus HiOrg-Server: Prüfung ob Person bereits existiert
+   * - Upsert-Logik: Update wenn vorhanden, Insert wenn neu
+   *
+   * **Result Semantik:** "Not found" ist SUCCESS mit null (kein FAILURE).
+   *
+   * @param externalSource - Externe Quelle (z.B. "HIORG_SERVER")
+   * @param externalId - Externe ID (z.B. HiOrg username)
+   * @param tx - Optional: Transaction Context
+   * @returns Result<StammPerson | null> - null wenn nicht gefunden
+   */
+  async findByExternalId(
+    externalSource: string,
+    externalId: string,
+    tx?: TransactionContext,
+  ): Promise<Result<StammPerson | null>> {
+    try {
+      const client = (tx as PrismaTransactionClient | undefined) ?? this.prisma;
+
+      const entity = await client.stammPerson.findUnique({
+        where: {
+          externalSource_externalId: {
+            externalSource,
+            externalId,
+          },
+        },
+        include: { qualifikationen: true },
+      });
+
+      if (!entity) {
+        return Result.ok<StammPerson | null>(null);
+      }
+
+      const domainResult = PrismaStammPersonMapper.toDomain(entity);
+      if (domainResult.isFailure || !domainResult.value) {
+        return Result.fail<StammPerson | null>(`Fehler beim Laden der StammPerson: ${domainResult.error}`);
+      }
+
+      return Result.ok<StammPerson | null>(domainResult.value);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return Result.fail<StammPerson | null>(`Fehler beim Laden der StammPerson: ${errorMessage}`);
     }
   }
 }

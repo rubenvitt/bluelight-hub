@@ -604,6 +604,9 @@ model Qualifikation {
   // M:N: Einsatz-Personen mit dieser Qualifikation (Story 4.0)
   einsatzPersonQualifikationen EinsatzPersonQualifikation[]
 
+  // 1:N: Externe Qualifikation-Mappings (Story 7.2)
+  mappings QualifikationMapping[]
+
   // Indexes
   @@index([kategorie, istAktiv])
   @@index([istAktiv, sortOrder])
@@ -797,6 +800,11 @@ model StammPerson {
   personalnummer String  @unique @db.VarChar(50) // Eindeutige Personalnummer
   funkkenungBOS  String? @db.VarChar(50) // BOS-Funkkennung
 
+  // Externe Integration (Story 7.2: HiOrg-Server Import)
+  externalSource String?   @db.VarChar(50) // z.B. "HIORG_SERVER"
+  externalId     String?   @db.VarChar(100) // z.B. HiOrg username
+  lastSyncAt     DateTime? // Letzte Synchronisation aus externem System
+
   // Archive-Pattern (NICHT isDeleted!)
   archivedAt DateTime?
   archivedBy String?   @db.VarChar(100)
@@ -822,6 +830,7 @@ model StammPerson {
   @@index([archivedAt])
   @@index([archivedAt, nachname])
   @@index([createdBy])
+  @@unique([externalSource, externalId]) // Externe ID eindeutig pro Quelle
   @@map("stamm_personen")
 }
 
@@ -1031,4 +1040,93 @@ model EinsatzRollenbesetzung {
   @@index([einsatzId, freigegebenAm]) // Aktive Besetzungen pro Einsatz (freigegebenAm = null)
   @@index([createdBy]) // Audit-Queries
   @@map("einsatz_rollen_besetzung")
+}
+
+// ========================================
+// Integrations: Externe Dienste
+// Epic 7 - Story 7.1
+// ========================================
+
+/// IntegrationCredential: Verschlüsselte Zugangsdaten für externe Dienste
+/// - type ist UNIQUE (nur eine Konfiguration pro Integration)
+/// - Token wird AES-256-GCM verschlüsselt gespeichert (Key aus ENV)
+/// - API-Token wird NIEMALS in Responses oder Logs zurückgegeben
+/// - Nutzt ausschließlich OAuth2-basierte Authentifizierung
+model IntegrationCredential {
+  id       String  @id @default(cuid())
+  type     String  @unique @db.VarChar(50) // z.B. "HIORG_SERVER"
+  isActive Boolean @default(true)
+
+  lastTestedAt DateTime? // Letzter erfolgreicher Connection Test
+  lastSyncAt   DateTime? // Letzte Synchronisation
+
+  // OAuth2 Felder
+  encryptedAccessToken  String?   @db.Text // Verschlüsseltes Access Token (AES-256-GCM)
+  encryptedRefreshToken String?   @db.Text // Verschlüsseltes Refresh Token (AES-256-GCM)
+  accessTokenExpiresAt  DateTime? // Access Token Ablaufzeit
+  refreshTokenExpiresAt DateTime? // Refresh Token Ablaufzeit (optional, Provider-abhängig)
+  oauthScopes           String?   @db.VarChar(500) // OAuth2 Scopes (space-separated)
+  lastTokenRefreshAt    DateTime? // Letzter erfolgreicher Token Refresh
+
+  // Audit-Trail
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?  @db.VarChar(100)
+  updatedBy String?  @db.VarChar(100)
+
+  // Indexes
+  @@index([type])
+  @@index([isActive])
+  @@index([accessTokenExpiresAt]) // Für Token-Refresh-Scheduler
+  @@map("integration_credentials")
+}
+
+/// OAuth2State: Temporärer State für CSRF-Schutz während OAuth Flow
+/// - state ist ein kryptographisch sicherer Zufallswert (32 Bytes hex-encoded)
+/// - codeVerifier wird für PKCE (Proof Key for Code Exchange) verwendet
+/// - Einträge werden nach expiresAt automatisch bereinigt (5 Minuten TTL)
+model OAuth2State {
+  id              String   @id @default(cuid())
+  state           String   @unique @db.VarChar(64) // Kryptographisch sicherer Zufallswert
+  codeVerifier    String   @db.VarChar(128) // PKCE Code Verifier (Base64URL)
+  integrationType String   @db.VarChar(50) // z.B. "HIORG_SERVER"
+  redirectUri     String   @db.VarChar(500) // Callback URI nach OAuth Flow
+  createdBy       String   @db.VarChar(100) // User der den Flow initiiert hat
+  expiresAt       DateTime // State Ablaufzeit (typisch 5 Minuten)
+  createdAt       DateTime @default(now())
+
+  @@index([state]) // Schnelle Lookup bei Callback
+  @@index([expiresAt]) // Für Cleanup-Job
+  @@map("oauth2_states")
+}
+
+/// QualifikationMapping: Mapping externer Qualifikationen auf interne
+/// Story 7.2: HiOrg-Server Import - Qualifikations-Mapping
+/// - externalName: Name der Qualifikation im externen System (z.B. "Gruppenführer")
+/// - externalSource: Quelle (z.B. "HIORG_SERVER")
+/// - qualifikationId: FK auf interne Qualifikation (null = nicht gemappt)
+/// - isAutoMatched: Automatisch via Levenshtein/exaktem Match gefunden?
+/// - confidence: Konfidenz-Score (0-100) für Auto-Match
+model QualifikationMapping {
+  id              String  @id @default(cuid())
+  externalName    String  @db.VarChar(200) // z.B. "Gruppenführer", "Sanitäter A"
+  externalSource  String  @db.VarChar(50) // z.B. "HIORG_SERVER"
+  qualifikationId String? // FK auf Qualifikation (null = nicht gemappt)
+  isAutoMatched   Boolean @default(false) // Automatisch gemappt?
+  confidence      Int?    // Konfidenz-Score (0-100) für Auto-Match
+
+  // Audit-Trail
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?  @db.VarChar(100)
+  updatedBy String?  @db.VarChar(100)
+
+  // Relations
+  qualifikation Qualifikation? @relation(fields: [qualifikationId], references: [id], onDelete: SetNull)
+
+  // Constraints
+  @@unique([externalName, externalSource]) // Jeder externe Name pro Quelle einmalig
+  @@index([externalSource])
+  @@index([qualifikationId])
+  @@map("qualifikation_mappings")
 }

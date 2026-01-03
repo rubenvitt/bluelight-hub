@@ -57,6 +57,10 @@ export class PrismaStammPersonMapper {
       archivedBy: aggregate.archivedBy ?? null,
       createdBy: aggregate.createdBy,
       updatedBy: aggregate.updatedBy ?? null,
+      // Story 7.2: Externe Integration Felder
+      externalSource: aggregate.externalSource ?? null,
+      externalId: aggregate.externalId ?? null,
+      lastSyncAt: aggregate.lastSyncAt ?? null,
     };
   }
 
@@ -108,6 +112,10 @@ export class PrismaStammPersonMapper {
       updatedBy: (entity.updatedBy as string | null) ?? undefined,
       // Qualifikationen aus Junction Table extrahieren
       qualifikationIds: entity.qualifikationen?.map((q) => q.qualifikationId) ?? [],
+      // Story 7.2: Externe Integration Felder
+      externalSource: (entity.externalSource as string | null) ?? undefined,
+      externalId: (entity.externalId as string | null) ?? undefined,
+      lastSyncAt: (entity.lastSyncAt as Date | null) ?? undefined,
     });
 
     if (result.isFailure || !result.value) {

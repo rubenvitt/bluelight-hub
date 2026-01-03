@@ -96,4 +96,26 @@ export interface IStammPersonRepository {
    * @returns Result<StammPerson[]> - Gefundene Personen (max. limit Ergebnisse)
    */
   search(searchTerm: string, limit?: number, tx?: TransactionContext): Promise<Result<StammPerson[]>>;
+
+  // ============ Story 7.2: Externe Integration Methoden ============
+
+  /**
+   * Findet eine Stamm-Person nach externer ID und Quelle.
+   *
+   * Verwendet den Unique-Index [externalSource, externalId] für effiziente Suche.
+   *
+   * **Use Case Story 7-2:**
+   * - Import aus HiOrg-Server: Prüfung ob Person bereits existiert
+   * - Upsert-Logik: Update wenn vorhanden, Insert wenn neu
+   *
+   * @param externalSource - Externe Quelle (z.B. "HIORG_SERVER")
+   * @param externalId - Externe ID (z.B. HiOrg username)
+   * @param tx - Optionaler Transaction Context
+   * @returns Result<StammPerson | null> - null wenn nicht gefunden
+   */
+  findByExternalId(
+    externalSource: string,
+    externalId: string,
+    tx?: TransactionContext,
+  ): Promise<Result<StammPerson | null>>;
 }

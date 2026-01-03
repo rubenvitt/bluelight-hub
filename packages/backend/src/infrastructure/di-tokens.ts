@@ -147,3 +147,42 @@ export const EVENT_HANDLER = {
   /** RolleFreigegeben ETB-Eintrag Handler Token (Story 5-1) */
   ROLLE_FREIGEGEBEN_ETB: Symbol('IEventHandler<RolleFreigegebenEvent>:EtbEintrag'),
 } as const;
+
+/**
+ * Integration Tokens für externe Dienste (Story 7-1).
+ *
+ * Tokens für Ports und Repositories der HiOrg-Server Integration.
+ *
+ * **WARUM nested Object:**
+ * - Namespacing: Integration-Modul hat mehrere zusammenhängende Services
+ * - Zukunftssicher: Weitere Integrationen können hinzugefügt werden
+ * - Trennung: Klar getrennt von KRAEFTE_REPOSITORIES
+ */
+export const INTEGRATIONS = {
+  /** Port Token für IEncryptionPort (AES-256-GCM) */
+  ENCRYPTION_PORT: Symbol('IEncryptionPort'),
+  /** Port Token für IHiOrgServerPort (API Client) */
+  HIORG_SERVER_PORT: Symbol('IHiOrgServerPort'),
+  /** Repository Token für IIntegrationCredentialRepository */
+  CREDENTIAL_REPOSITORY: Symbol('IIntegrationCredentialRepository'),
+  /** Port Token für IOAuth2Port (OAuth2 Authorization Code Flow mit PKCE) */
+  OAUTH2_PORT: Symbol('IOAuth2Port'),
+  /** Repository Token für IOAuth2StateRepository (PKCE State Speicherung) */
+  OAUTH2_STATE_REPOSITORY: Symbol('IOAuth2StateRepository'),
+  /** Port Token für IHiOrgOAuthConfigPort (OAuth2 Client Credentials) */
+  HIORG_OAUTH_CONFIG_PORT: Symbol('IHiOrgOAuthConfigPort'),
+  /** Repository Token für IQualifikationMappingRepository (Story 7-2) */
+  QUALIFIKATION_MAPPING_REPOSITORY: Symbol('IQualifikationMappingRepository'),
+} as const;
+
+/**
+ * Alias für konsistente Verwendung in Application Layer.
+ *
+ * **Verwendung:**
+ * ```typescript
+ * @Inject(DI_TOKENS.REPOSITORIES.QUALIFIKATION)
+ * ```
+ */
+export const DI_TOKENS = {
+  REPOSITORIES: KRAEFTE_REPOSITORIES,
+} as const;

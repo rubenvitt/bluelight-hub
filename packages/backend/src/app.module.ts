@@ -23,6 +23,7 @@ import { AuthInfrastructureModule } from './infrastructure/auth';
 import { OutboxModule } from './infrastructure/outbox/outbox.module';
 import { EventAdaptersModule } from './infrastructure/events/event-adapters.module';
 import { KraefteModule } from './modules/kraefte/kraefte.module';
+import { IntegrationsModule } from './modules/integrations/integrations.module';
 
 /**
  * Haupt-Anwendungsmodul der Bluelight Hub Backend-Anwendung
@@ -89,6 +90,7 @@ import { KraefteModule } from './modules/kraefte/kraefte.module';
     OutboxModule, // Transactional Outbox Pattern (Story 4-4)
     EventAdaptersModule, // Event Adapters (delegiert @OnEvent an Application Layer Handler)
     KraefteModule, // Kräftemanagement: Qualifikationen, Rollen, Fahrzeugtypen (Story 1-1)
+    IntegrationsModule, // HiOrg-Server Integration (Story 7-1)
   ],
   controllers: [AppController],
   providers: [

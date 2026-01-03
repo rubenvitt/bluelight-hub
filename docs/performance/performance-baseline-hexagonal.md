@@ -21,7 +21,7 @@ Die Performance-Tests nach der Migration auf die Hexagonal Architecture zeigen *
 ## Test-Konfiguration
 
 ```yaml
-Target: http://localhost:3090
+Target: http://localhost:3091
 Test-Dauer: 60 Sekunden (nach 30s Warmup)
 Last: 20 Requests/Sekunde
 Gesamt-Requests: 1173

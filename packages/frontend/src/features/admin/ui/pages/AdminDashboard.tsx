@@ -8,7 +8,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { isTauri } from '@tauri-apps/api/core';
 import { AdminDashboardLayout } from '@/shared/ui/templates/AdminDashboardLayout';
 import { useCallback } from 'react';
-import { PiCertificate, PiIdentificationBadge, PiSignOut, PiUsers, PiTruck, PiUserList } from 'react-icons/pi';
+import { PiCertificate, PiIdentificationBadge, PiPlugsConnected, PiSignOut, PiUsers, PiTruck, PiUserList } from 'react-icons/pi';
 
 /**
  * Admin-Dashboard Seite
@@ -60,6 +60,10 @@ export function AdminDashboard() {
 
   const handleNavigateToStammPersonen = useCallback(async () => {
     await navigate({ to: '/admin/stammdaten/personen' });
+  }, [navigate]);
+
+  const handleNavigateToHiOrgIntegration = useCallback(async () => {
+    await navigate({ to: '/admin/integrations/hiorg' });
   }, [navigate]);
 
   return (
@@ -117,6 +121,25 @@ export function AdminDashboard() {
             <Button intent="primary" size="md" onClick={handleNavigateToStammPersonen} fullWidth>
               <PiUserList className="mr-2" />
               Stamm-Personen
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Integrationen Card */}
+      <Card padding="md">
+        <div className="flex flex-col items-start gap-4">
+          <div>
+            <Text className="font-semibold text-lg">Integrationen</Text>
+            <Text size="sm" color="muted" className="mt-1">
+              Verbinden Sie externe Systeme wie HiOrg-Server.
+            </Text>
+          </div>
+
+          <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
+            <Button intent="primary" size="md" onClick={handleNavigateToHiOrgIntegration} fullWidth>
+              <PiPlugsConnected className="mr-2" />
+              HiOrg-Server
             </Button>
           </div>
         </div>

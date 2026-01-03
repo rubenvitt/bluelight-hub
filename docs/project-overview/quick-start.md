@@ -31,9 +31,9 @@ pnpm -r dev
 ```
 
 **Access Points:**
-- Frontend (Vite): http://localhost:3091
-- Backend API: http://localhost:3090
-- Swagger Docs: http://localhost:3090/api
+- Frontend (Vite): http://localhost:3090
+- Backend API: http://localhost:3091
+- Swagger Docs: http://localhost:3091/api
 - Prisma Studio: http://localhost:3093 (`pnpm --filter @bluelight-hub/backend prisma:studio`)
 
 ---

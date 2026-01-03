@@ -5,6 +5,7 @@ import { RollenBesetzungId } from '@domain/kraefte/value-objects/rollen-besetzun
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EinsatzPersonId } from '@domain/kraefte/value-objects/einsatz-person-id';
 import { RolleId } from '@domain/kraefte/value-objects/rolle-id';
+import { RolleFreigegeben } from '@domain/kraefte/events/rolle-freigegeben.event';
 import { GebeRolleFreiCommand } from '../gebe-rolle-frei.command';
 import { GebeRolleFreiHandler } from '../gebe-rolle-frei.handler';
 import type { IRollenBesetzungRepository } from '@domain/kraefte/repositories/i-rollen-besetzung.repository';
@@ -226,6 +227,105 @@ describe('GebeRolleFreiHandler', () => {
       // Then
       expect(result.isFailure).toBe(true);
       expect(result.error).toContain('Save failed');
+    });
+  });
+
+  describe('Event Emission (TD2.7 - AC1)', () => {
+    it('sollte RolleFreigegeben Event in Outbox speichern', async () => {
+      // Given
+      const besetzung = createMockRollenBesetzung({ isActive: true });
+      mockRollenBesetzungRepo.findById.mockResolvedValue(Result.ok(besetzung));
+      mockRollenBesetzungRepo.save.mockResolvedValue(Result.ok(undefined));
+
+      const command = GebeRolleFreiCommand.create({
+        rollenBesetzungId: validCuid,
+        freigegebenVon: validUserId,
+      }).value!;
+
+      // When
+      const result = await handler.execute(command);
+
+      // Then
+      expect(result.isSuccess).toBe(true);
+      expect(mockOutboxRepo.save).toHaveBeenCalledTimes(1);
+
+      const events = mockOutboxRepo.save.mock.calls[0][0];
+      expect(Array.isArray(events)).toBe(true);
+      expect(events.length).toBe(1);
+      expect(events[0]).toBeInstanceOf(RolleFreigegeben);
+    });
+
+    it('sollte RolleFreigegeben Event mit korrekten Properties erstellen', async () => {
+      // Given
+      const besetzung = createMockRollenBesetzung({ isActive: true });
+      mockRollenBesetzungRepo.findById.mockResolvedValue(Result.ok(besetzung));
+      mockRollenBesetzungRepo.save.mockResolvedValue(Result.ok(undefined));
+
+      const command = GebeRolleFreiCommand.create({
+        rollenBesetzungId: validCuid,
+        freigegebenVon: validUserId,
+      }).value!;
+
+      // When
+      const result = await handler.execute(command);
+
+      // Then
+      expect(result.isSuccess).toBe(true);
+
+      const events = mockOutboxRepo.save.mock.calls[0][0];
+      const freigegebenEvent = events[0] as RolleFreigegeben;
+
+      expect(freigegebenEvent.einsatzId).toBe(validCuid2);
+      expect(freigegebenEvent.einsatzPersonId).toBe(validCuid3);
+      expect(freigegebenEvent.rollenDefinitionId).toBe(validCuid4);
+      expect(freigegebenEvent.rollenName).toBe('LNA');
+      expect(freigegebenEvent.personVorname).toBe('Max');
+      expect(freigegebenEvent.personNachname).toBe('Mustermann');
+      expect(freigegebenEvent.freigegebenVon).toBe(validUserId);
+    });
+
+    it('sollte KEIN Event emittieren wenn Rolle bereits freigegeben (Idempotenz)', async () => {
+      // Given - Besetzung ist bereits freigegeben (isActive = false)
+      const besetzung = createMockRollenBesetzung({ isActive: false });
+      mockRollenBesetzungRepo.findById.mockResolvedValue(Result.ok(besetzung));
+
+      const command = GebeRolleFreiCommand.create({
+        rollenBesetzungId: validCuid,
+        freigegebenVon: validUserId,
+      }).value!;
+
+      // When
+      const result = await handler.execute(command);
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe(ROLLEN_BESETZUNG_ERROR_CODES.BEREITS_FREIGEGEBEN);
+      // KEIN Event wird gespeichert bei Idempotenz
+      expect(mockOutboxRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('sollte freigegebenVon korrekt im Event setzen', async () => {
+      // Given
+      const besetzung = createMockRollenBesetzung({ isActive: true });
+      mockRollenBesetzungRepo.findById.mockResolvedValue(Result.ok(besetzung));
+      mockRollenBesetzungRepo.save.mockResolvedValue(Result.ok(undefined));
+
+      // Valid CUID2 format for customFreigegebenVon
+      const customFreigegebenVon = 'cm5h8k2x1000008l87v8gadmn';
+      const command = GebeRolleFreiCommand.create({
+        rollenBesetzungId: validCuid,
+        freigegebenVon: customFreigegebenVon,
+      }).value!;
+
+      // When
+      const result = await handler.execute(command);
+
+      // Then
+      expect(result.isSuccess).toBe(true);
+
+      const events = mockOutboxRepo.save.mock.calls[0][0];
+      const freigegebenEvent = events[0] as RolleFreigegeben;
+      expect(freigegebenEvent.freigegebenVon).toBe(customFreigegebenVon);
     });
   });
 });

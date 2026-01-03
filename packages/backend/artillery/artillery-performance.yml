@@ -17,7 +17,7 @@
 #   - GET /api/v-alpha/einsatz/active-with-counts (Dashboard Query)
 
 config:
-  target: 'http://localhost:3090'
+  target: 'http://localhost:3091'
   phases:
     - duration: 60
       arrivalRate: 5

@@ -2,8 +2,15 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "enables the default permissions",
-  "windows": ["main", "etb-dashboard", "admin"],
-  "webviews": ["etb-dashboard", "admin"],
+  "windows": [
+    "main",
+    "etb-dashboard",
+    "admin"
+  ],
+  "webviews": [
+    "etb-dashboard",
+    "admin"
+  ],
   "permissions": [
     "core:default",
     {
@@ -19,7 +26,10 @@
     },
     {
       "identifier": "core:webview:default",
-      "allow": ["create", "webview-show"]
+      "allow": [
+        "create",
+        "webview-show"
+      ]
     },
     "core:window:allow-show",
     "core:window:allow-set-focus",
@@ -33,6 +43,8 @@
     "core:webview:allow-create-webview-window",
     "store:default",
     "store:allow-get",
-    "barcode-scanner:default"
+    "barcode-scanner:default",
+    "shell:allow-open",
+    "shell:default"
   ]
 }

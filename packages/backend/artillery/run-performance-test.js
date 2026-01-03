@@ -9,7 +9,7 @@
  *   node artillery/run-performance-test.js
  *
  * Voraussetzungen:
- *   - Backend läuft auf localhost:3090
+ *   - Backend läuft auf localhost:3091
  *   - Node.js 18+
  */
 
@@ -19,7 +19,7 @@ const path = require('node:path');
 
 // Configuration
 const CONFIG = {
-  target: 'http://localhost:3090',
+  target: 'http://localhost:3091',
   warmupDuration: 30, // 30 seconds
   testDuration: 60, // 60 seconds
   warmupRPS: 5,
@@ -80,7 +80,7 @@ function makeRequest(options, body = null) {
 
     const requestOptions = {
       hostname: url.hostname,
-      port: url.port || 3090,
+      port: url.port || 3091,
       path: url.pathname + url.search,
       method: options.method,
       headers: {

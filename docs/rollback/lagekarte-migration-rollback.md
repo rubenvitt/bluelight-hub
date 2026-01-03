@@ -105,7 +105,7 @@ pnpm --filter @bluelight-hub/backend test -- --testPathPattern="lagekarte"
 pnpm --filter @bluelight-hub/backend test -- lagekarte.e2e
 
 # 3. Manual API Check
-curl -X GET http://localhost:3090/api/alpha/lagekarte/einsatz/{einsatzId} \
+curl -X GET http://localhost:3091/api/alpha/lagekarte/einsatz/{einsatzId} \
   -H "Authorization: Bearer {token}"
 ```
 
@@ -193,10 +193,10 @@ WHERE mgrs IS NULL OR latitude IS NULL OR longitude IS NULL;
 
 ```bash
 # Backend Health
-curl http://localhost:3090/health
+curl http://localhost:3091/health
 
 # Lagekarte-spezifischer Check
-curl -X GET http://localhost:3090/api/alpha/lagekarte/einsatz/{test-einsatz-id} \
+curl -X GET http://localhost:3091/api/alpha/lagekarte/einsatz/{test-einsatz-id} \
   -H "Authorization: Bearer {token}"
 ```
 

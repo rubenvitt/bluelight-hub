@@ -12,3 +12,4 @@ export { AdminQualifikationen } from './AdminQualifikationen';
 export { AdminStammFahrzeuge } from './AdminStammFahrzeuge';
 export { AdminStammPersonen } from './AdminStammPersonen';
 export { AdminRollenDefinitionen } from './AdminRollenDefinitionen';
+export { AdminHiOrgIntegration } from './AdminHiOrgIntegration';

@@ -1,5 +1,6 @@
 import { logger } from '@/shared/lib/logger';
 import {
+  AdminIntegrationsHiorgApi,
   AdminKraefteQualifikationenApi,
   AdminKraefteRollenApi,
   AdminStammdatenFahrzeugeApi,
@@ -42,7 +43,7 @@ export const getBaseUrl = (): string => {
     return configuredUrl;
   }
   // Fallback für Entwicklung
-  const fallbackUrl = 'http://localhost:3090';
+  const fallbackUrl = 'http://localhost:3091';
   logger.debug('Using fallback API URL', { fallbackUrl });
   return fallbackUrl;
 };
@@ -82,6 +83,7 @@ class BackendApi {
   private readonly adminKraefteRollenApi: AdminKraefteRollenApi;
   private readonly kraefteRollenDefinitionenApi: KraefteRollenDefinitionenApi;
   private readonly rollenBesetzungApi: RollenBesetzungApi;
+  private readonly adminIntegrationsHiorgApi: AdminIntegrationsHiorgApi;
 
   /**
    * Erstellt eine neue Instanz der BackendApi-Klasse
@@ -120,6 +122,7 @@ class BackendApi {
     this.kraefteStammFahrzeugeApi = new KraefteStammFahrzeugeApi(this.configuration);
     this.kraefteStammPersonenApi = new KraefteStammPersonenApi(this.configuration);
     this.rollenBesetzungApi = new RollenBesetzungApi(this.configuration);
+    this.adminIntegrationsHiorgApi = new AdminIntegrationsHiorgApi(this.configuration);
   }
 
   /**
@@ -309,6 +312,15 @@ class BackendApi {
    */
   rollenBesetzung(): RollenBesetzungApi {
     return this.rollenBesetzungApi;
+  }
+
+  /**
+   * Gibt die gecachte AdminIntegrationsHiorg-API-Instanz zurück
+   *
+   * @returns Die AdminIntegrationsHiorg-API-Instanz für HiOrg-Server Integration
+   */
+  adminIntegrationsHiorg(): AdminIntegrationsHiorgApi {
+    return this.adminIntegrationsHiorgApi;
   }
 }
 

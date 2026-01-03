@@ -1031,7 +1031,7 @@ pnpm lint
 pnpm --filter @bluelight-hub/frontend dev:vite
 
 # 6. Manual Testing via Chrome DevTools MCP
-# Öffne http://localhost:3091/admin/kraefte/qualifikationen
+# Öffne http://localhost:3090/admin/kraefte/qualifikationen
 ```
 
 ---

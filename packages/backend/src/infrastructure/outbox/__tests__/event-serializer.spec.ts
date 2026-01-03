@@ -38,6 +38,10 @@ import { UserRoleChangedEvent } from '@domain/events/user-role-changed.event';
 import { PermissionGrantedEvent } from '@domain/events/permission-granted.event';
 import { PermissionRevokedEvent } from '@domain/events/permission-revoked.event';
 
+// Kraefte RollenBesetzung Events (TD2.7)
+import { RolleBesetzt } from '@domain/kraefte/events/rolle-besetzt.event';
+import { RolleFreigegeben } from '@domain/kraefte/events/rolle-freigegeben.event';
+
 // Value Objects
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { EtbId } from '@domain/value-objects/etb-id';
@@ -390,6 +394,86 @@ describe('EventSerializer', () => {
         permission: 'einsatz:read',
         revokedBy: userId2.value,
       });
+    });
+  });
+
+  // ===== KRAEFTE ROLLEN-BESETZUNG EVENTS (TD2.7) =====
+
+  describe('Kraefte RollenBesetzung Events (TD2.7 - AC2)', () => {
+    // Test CUID2 values
+    const testEinsatzId = 'cm5h8k2x1000008l87v8g3c5a';
+    const testEinsatzPersonId = 'cm5h8k2x1000008l87v8g3c5b';
+    const testRollenDefinitionId = 'cm5h8k2x1000008l87v8g3c5c';
+    const testBesetztVon = 'cm5h8k2x1000008l87v8g3c5d';
+    const testFreigegebenVon = 'cm5h8k2x1000008l87v8g3c5e';
+
+    it('should serialize RolleBesetzt correctly', () => {
+      // Given
+      const event = new RolleBesetzt(testEinsatzId, testEinsatzPersonId, testRollenDefinitionId, 'Leitender Notarzt (LNA)', 'Max', 'Mustermann', testBesetztVon);
+
+      // When
+      const serialized = serializer.serialize(event);
+
+      // Then
+      expectValidSerializedEvent(serialized, 'rollen_besetzung.besetzt');
+      expect(serialized.payload).toEqual({
+        einsatzId: testEinsatzId,
+        einsatzPersonId: testEinsatzPersonId,
+        rollenDefinitionId: testRollenDefinitionId,
+        rollenName: 'Leitender Notarzt (LNA)',
+        personVorname: 'Max',
+        personNachname: 'Mustermann',
+        besetztVon: testBesetztVon,
+      });
+    });
+
+    it('should serialize RolleFreigegeben correctly', () => {
+      // Given
+      const event = new RolleFreigegeben(testEinsatzId, testEinsatzPersonId, testRollenDefinitionId, 'Organisatorischer Leiter (OrgL)', 'Anna', 'Schmidt', testFreigegebenVon);
+
+      // When
+      const serialized = serializer.serialize(event);
+
+      // Then
+      expectValidSerializedEvent(serialized, 'rollen_besetzung.freigegeben');
+      expect(serialized.payload).toEqual({
+        einsatzId: testEinsatzId,
+        einsatzPersonId: testEinsatzPersonId,
+        rollenDefinitionId: testRollenDefinitionId,
+        rollenName: 'Organisatorischer Leiter (OrgL)',
+        personVorname: 'Anna',
+        personNachname: 'Schmidt',
+        freigegebenVon: testFreigegebenVon,
+      });
+    });
+
+    it('should include snapshot fields in RolleBesetzt payload', () => {
+      // Given - Snapshot-Felder für ETB-Historisierung
+      const event = new RolleBesetzt(testEinsatzId, testEinsatzPersonId, testRollenDefinitionId, 'Zugführer', 'Hans', 'Meier', testBesetztVon);
+
+      // When
+      const serialized = serializer.serialize(event);
+
+      // Then - Snapshot-Felder müssen im Payload enthalten sein
+      expect(serialized.payload.rollenName).toBe('Zugführer');
+      expect(serialized.payload.personVorname).toBe('Hans');
+      expect(serialized.payload.personNachname).toBe('Meier');
+    });
+
+    it('should produce JSON-serializable RolleBesetzt', () => {
+      // Given
+      const event = new RolleBesetzt(testEinsatzId, testEinsatzPersonId, testRollenDefinitionId, 'LNA', 'Test', 'User', testBesetztVon);
+
+      // When
+      const serialized = serializer.serialize(event);
+
+      // Then
+      const json = JSON.stringify(serialized);
+      expect(json).toBeDefined();
+
+      const parsed = JSON.parse(json);
+      expect(parsed.eventName).toBe('rollen_besetzung.besetzt');
+      expect(parsed.payload.rollenName).toBe('LNA');
     });
   });
 

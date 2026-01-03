@@ -4,8 +4,8 @@
 
 | Part | Tech Stack | Port | Entry Point |
 |------|-----------|------|-------------|
-| **Backend** | NestJS 11 + Prisma + PostgreSQL | 3090 | `packages/backend/src/main.ts` |
-| **Frontend** | React 19 + Tauri 2 + Tailwind | 3091 | `packages/frontend/src/main.tsx` |
+| **Backend** | NestJS 11 + Prisma + PostgreSQL | 3091 | `packages/backend/src/main.ts` |
+| **Frontend** | React 19 + Tauri 2 + Tailwind | 3090 | `packages/frontend/src/main.tsx` |
 | **Shared** | OpenAPI Generator (TypeScript) | N/A | `packages/shared/client/apis/index.ts` |
 
 ## Key Metrics

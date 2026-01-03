@@ -14,3 +14,6 @@ export { FahrzeugtypUpdatedEvent } from './fahrzeugtyp-updated.event';
 export { RollenDefinitionCreatedEvent } from './rollen-definition-created.event';
 export { RollenDefinitionUpdatedEvent } from './rollen-definition-updated.event';
 export { FunkStatusConfigUpdatedEvent } from './funk-status-config-updated.event';
+export { RolleBesetzt } from './rolle-besetzt.event';
+export { RolleFreigegeben } from './rolle-freigegeben.event';
+export { PersonenImportiertEvent } from './personen-importiert.event';

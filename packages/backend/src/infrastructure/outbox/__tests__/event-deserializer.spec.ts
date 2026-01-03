@@ -42,6 +42,8 @@ import { PermissionRevokedEvent } from '@domain/events/permission-revoked.event'
 // Kraefte Events
 import { PersonZuFahrzeugZugewiesenEvent } from '@domain/kraefte/events/person-zu-fahrzeug-zugewiesen.event';
 import { PersonVonFahrzeugEntferntEvent } from '@domain/kraefte/events/person-von-fahrzeug-entfernt.event';
+import { RolleBesetzt } from '@domain/kraefte/events/rolle-besetzt.event';
+import { RolleFreigegeben } from '@domain/kraefte/events/rolle-freigegeben.event';
 
 // Value Objects (für Test IDs)
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
@@ -495,6 +497,151 @@ describe('EventDeserializer', () => {
       expect(event.personNachname).toBe('Mustermann');
       expect(event.fahrzeugFunkrufname).toBe('LF 10/1');
       expect(event.entferntVon).toBe(userIdValue);
+    });
+  });
+
+  // ===== KRAEFTE ROLLEN-BESETZUNG EVENTS (TD2.7) =====
+
+  describe('Kraefte RollenBesetzung Events (TD2.7 - AC2)', () => {
+    // Test CUID2 values
+    const testEinsatzId = 'cm5h8k2x1000008l87v8g3c5a';
+    const testEinsatzPersonId = 'cm5h8k2x1000008l87v8g3c5b';
+    const testRollenDefinitionId = 'cm5h8k2x1000008l87v8g3c5c';
+    const testBesetztVon = 'cm5h8k2x1000008l87v8g3c5d';
+    const testFreigegebenVon = 'cm5h8k2x1000008l87v8g3c5e';
+
+    it('should deserialize RolleBesetzt correctly', () => {
+      // Given
+      const serialized = createSerializedEvent(
+        'rollen_besetzung.besetzt',
+        {
+          einsatzId: testEinsatzId,
+          einsatzPersonId: testEinsatzPersonId,
+          rollenDefinitionId: testRollenDefinitionId,
+          rollenName: 'Leitender Notarzt (LNA)',
+          personVorname: 'Max',
+          personNachname: 'Mustermann',
+          besetztVon: testBesetztVon,
+        },
+        testEinsatzPersonId, // aggregateId
+      );
+
+      // When
+      const result = deserializer.deserialize(serialized);
+
+      // Then
+      expect(result.isSuccess).toBe(true);
+      const event = result.value as RolleBesetzt;
+      expect(event).toBeInstanceOf(RolleBesetzt);
+      expect(event.einsatzId).toBe(testEinsatzId);
+      expect(event.einsatzPersonId).toBe(testEinsatzPersonId);
+      expect(event.rollenDefinitionId).toBe(testRollenDefinitionId);
+      expect(event.rollenName).toBe('Leitender Notarzt (LNA)');
+      expect(event.personVorname).toBe('Max');
+      expect(event.personNachname).toBe('Mustermann');
+      expect(event.besetztVon).toBe(testBesetztVon);
+    });
+
+    it('should deserialize RolleFreigegeben correctly', () => {
+      // Given
+      const serialized = createSerializedEvent(
+        'rollen_besetzung.freigegeben',
+        {
+          einsatzId: testEinsatzId,
+          einsatzPersonId: testEinsatzPersonId,
+          rollenDefinitionId: testRollenDefinitionId,
+          rollenName: 'Organisatorischer Leiter (OrgL)',
+          personVorname: 'Anna',
+          personNachname: 'Schmidt',
+          freigegebenVon: testFreigegebenVon,
+        },
+        testEinsatzPersonId, // aggregateId
+      );
+
+      // When
+      const result = deserializer.deserialize(serialized);
+
+      // Then
+      expect(result.isSuccess).toBe(true);
+      const event = result.value as RolleFreigegeben;
+      expect(event).toBeInstanceOf(RolleFreigegeben);
+      expect(event.einsatzId).toBe(testEinsatzId);
+      expect(event.einsatzPersonId).toBe(testEinsatzPersonId);
+      expect(event.rollenDefinitionId).toBe(testRollenDefinitionId);
+      expect(event.rollenName).toBe('Organisatorischer Leiter (OrgL)');
+      expect(event.personVorname).toBe('Anna');
+      expect(event.personNachname).toBe('Schmidt');
+      expect(event.freigegebenVon).toBe(testFreigegebenVon);
+    });
+
+    it('should roundtrip RolleBesetzt: serialize -> deserialize -> equals original', () => {
+      // Given - Originale Event-Instanz
+      const originalEvent = new RolleBesetzt(testEinsatzId, testEinsatzPersonId, testRollenDefinitionId, 'Zugführer', 'Hans', 'Meier', testBesetztVon);
+
+      // Serialized payload (wie es in der DB gespeichert wäre)
+      const serialized = createSerializedEvent(
+        'rollen_besetzung.besetzt',
+        {
+          einsatzId: originalEvent.einsatzId,
+          einsatzPersonId: originalEvent.einsatzPersonId,
+          rollenDefinitionId: originalEvent.rollenDefinitionId,
+          rollenName: originalEvent.rollenName,
+          personVorname: originalEvent.personVorname,
+          personNachname: originalEvent.personNachname,
+          besetztVon: originalEvent.besetztVon,
+        },
+        originalEvent.aggregateId,
+      );
+
+      // When - Deserialisieren
+      const result = deserializer.deserialize(serialized);
+
+      // Then - Alle Felder stimmen überein
+      expect(result.isSuccess).toBe(true);
+      const deserializedEvent = result.value as RolleBesetzt;
+
+      expect(deserializedEvent.einsatzId).toBe(originalEvent.einsatzId);
+      expect(deserializedEvent.einsatzPersonId).toBe(originalEvent.einsatzPersonId);
+      expect(deserializedEvent.rollenDefinitionId).toBe(originalEvent.rollenDefinitionId);
+      expect(deserializedEvent.rollenName).toBe(originalEvent.rollenName);
+      expect(deserializedEvent.personVorname).toBe(originalEvent.personVorname);
+      expect(deserializedEvent.personNachname).toBe(originalEvent.personNachname);
+      expect(deserializedEvent.besetztVon).toBe(originalEvent.besetztVon);
+    });
+
+    it('should roundtrip RolleFreigegeben: serialize -> deserialize -> equals original', () => {
+      // Given - Originale Event-Instanz
+      const originalEvent = new RolleFreigegeben(testEinsatzId, testEinsatzPersonId, testRollenDefinitionId, 'Gruppenführer', 'Peter', 'Weber', testFreigegebenVon);
+
+      // Serialized payload (wie es in der DB gespeichert wäre)
+      const serialized = createSerializedEvent(
+        'rollen_besetzung.freigegeben',
+        {
+          einsatzId: originalEvent.einsatzId,
+          einsatzPersonId: originalEvent.einsatzPersonId,
+          rollenDefinitionId: originalEvent.rollenDefinitionId,
+          rollenName: originalEvent.rollenName,
+          personVorname: originalEvent.personVorname,
+          personNachname: originalEvent.personNachname,
+          freigegebenVon: originalEvent.freigegebenVon,
+        },
+        originalEvent.aggregateId,
+      );
+
+      // When - Deserialisieren
+      const result = deserializer.deserialize(serialized);
+
+      // Then - Alle Felder stimmen überein
+      expect(result.isSuccess).toBe(true);
+      const deserializedEvent = result.value as RolleFreigegeben;
+
+      expect(deserializedEvent.einsatzId).toBe(originalEvent.einsatzId);
+      expect(deserializedEvent.einsatzPersonId).toBe(originalEvent.einsatzPersonId);
+      expect(deserializedEvent.rollenDefinitionId).toBe(originalEvent.rollenDefinitionId);
+      expect(deserializedEvent.rollenName).toBe(originalEvent.rollenName);
+      expect(deserializedEvent.personVorname).toBe(originalEvent.personVorname);
+      expect(deserializedEvent.personNachname).toBe(originalEvent.personNachname);
+      expect(deserializedEvent.freigegebenVon).toBe(originalEvent.freigegebenVon);
     });
   });
 

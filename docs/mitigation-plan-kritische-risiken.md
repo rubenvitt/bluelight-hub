@@ -842,7 +842,7 @@ describe('Lagekarte Load Test', () => {
 
     // 50 parallele Verbindungen
     for (let i = 0; i < 50; i++) {
-      const socket = io('ws://localhost:3090/lagekarte');
+      const socket = io('ws://localhost:3091/lagekarte');
       socket.emit('subscribe', { einsatzId: testEinsatzId });
       connections.push(socket);
     }

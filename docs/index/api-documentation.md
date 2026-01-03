@@ -2,7 +2,7 @@
 
 ## Swagger UI
 
-**Access:** http://localhost:3090/api (when backend running)
+**Access:** http://localhost:3091/api (when backend running)
 
 **Features:**
 - Interactive API documentation
@@ -12,7 +12,7 @@
 
 ## OpenAPI Spec
 
-**Access:** http://localhost:3090/api-json
+**Access:** http://localhost:3091/api-json
 
 **Usage:**
 - Input for OpenAPI Generator

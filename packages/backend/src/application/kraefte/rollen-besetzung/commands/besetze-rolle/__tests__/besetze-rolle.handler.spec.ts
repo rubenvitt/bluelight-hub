@@ -509,4 +509,131 @@ describe('BesetzeRolleHandler', () => {
       expect(mockRollenBesetzungRepository.save).toHaveBeenCalledWith(expect.anything(), capturedTxContext);
     });
   });
+
+  describe('Event Properties (TD2.7 - AC1)', () => {
+    it('sollte RolleBesetzt Event mit korrekten Properties erstellen', async () => {
+      // Given (Arrange)
+      mockEinsatzPersonRepository.findById.mockResolvedValue(Result.ok(createMockEinsatzPerson({ vorname: 'Anna', nachname: 'Schmidt' })));
+      mockRollenDefinitionRepository.findById.mockResolvedValue(Result.ok(createMockRollenDefinition({ name: 'Leitender Notarzt (LNA)' })));
+
+      const command = BesetzeRolleCommand.create({
+        einsatzId: validEinsatzId,
+        einsatzPersonId: validEinsatzPersonId,
+        rollenDefinitionId: validRollenDefinitionId,
+        besetztVon: validBesetztVon,
+      }).value!;
+
+      // When (Act)
+      const result = await handler.execute(command);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+
+      const events = mockOutboxRepository.save.mock.calls[0][0];
+      expect(events.length).toBe(1);
+
+      const rolleBesetztEvent = events[0] as RolleBesetzt;
+      expect(rolleBesetztEvent.einsatzId).toBe(validEinsatzId);
+      expect(rolleBesetztEvent.einsatzPersonId).toBe(validEinsatzPersonId);
+      expect(rolleBesetztEvent.rollenDefinitionId).toBe(validRollenDefinitionId);
+      expect(rolleBesetztEvent.rollenName).toBe('Leitender Notarzt (LNA)');
+      expect(rolleBesetztEvent.personVorname).toBe('Anna');
+      expect(rolleBesetztEvent.personNachname).toBe('Schmidt');
+      expect(rolleBesetztEvent.besetztVon).toBe(validBesetztVon);
+    });
+
+    it('sollte RolleFreigegeben Event Properties bei Auto-Freigabe korrekt setzen', async () => {
+      // Given (Arrange)
+      const altPersonId = createId();
+      const freigegebenEvent = new RolleFreigegeben(validEinsatzId, altPersonId, validRollenDefinitionId, 'OrgL', 'Alt', 'Person', validBesetztVon);
+
+      const existingBesetzung = {
+        id: { value: createId() },
+        einsatzId: { value: validEinsatzId },
+        einsatzPersonId: { value: altPersonId },
+        rolleId: { value: validRollenDefinitionId },
+        rollenName: 'OrgL',
+        personVorname: 'Alt',
+        personNachname: 'Person',
+        createdBy: createId(),
+        freigeben: jest.fn().mockReturnValue(Result.ok(undefined)),
+        getDomainEvents: jest.fn().mockReturnValue([freigegebenEvent]),
+        clearDomainEvents: jest.fn(),
+      };
+
+      mockRollenBesetzungRepository.findByEinsatzIdAndRolleId.mockResolvedValue(Result.ok(existingBesetzung));
+
+      const command = BesetzeRolleCommand.create({
+        einsatzId: validEinsatzId,
+        einsatzPersonId: validEinsatzPersonId,
+        rollenDefinitionId: validRollenDefinitionId,
+        besetztVon: validBesetztVon,
+      }).value!;
+
+      // When (Act)
+      const result = await handler.execute(command);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+
+      const events = mockOutboxRepository.save.mock.calls[0][0];
+      expect(events.length).toBe(2);
+
+      // Erstes Event: RolleFreigegeben (alte Besetzung)
+      const freigegebenEvt = events[0] as RolleFreigegeben;
+      expect(freigegebenEvt.einsatzId).toBe(validEinsatzId);
+      expect(freigegebenEvt.einsatzPersonId).toBe(altPersonId);
+      expect(freigegebenEvt.rollenDefinitionId).toBe(validRollenDefinitionId);
+      expect(freigegebenEvt.rollenName).toBe('OrgL');
+      expect(freigegebenEvt.personVorname).toBe('Alt');
+      expect(freigegebenEvt.personNachname).toBe('Person');
+      expect(freigegebenEvt.freigegebenVon).toBe(validBesetztVon);
+
+      // Zweites Event: RolleBesetzt (neue Besetzung)
+      const besetztEvt = events[1] as RolleBesetzt;
+      expect(besetztEvt.einsatzId).toBe(validEinsatzId);
+      expect(besetztEvt.einsatzPersonId).toBe(validEinsatzPersonId);
+      expect(besetztEvt.besetztVon).toBe(validBesetztVon);
+    });
+
+    it('sollte Event-Reihenfolge einhalten: RolleFreigegeben vor RolleBesetzt', async () => {
+      // Given (Arrange)
+      const freigegebenEvent = new RolleFreigegeben(validEinsatzId, createId(), validRollenDefinitionId, 'OrgL', 'Alt', 'Person', validBesetztVon);
+
+      const existingBesetzung = {
+        id: { value: createId() },
+        einsatzId: { value: validEinsatzId },
+        einsatzPersonId: { value: createId() },
+        rolleId: { value: validRollenDefinitionId },
+        rollenName: 'OrgL',
+        personVorname: 'Alt',
+        personNachname: 'Person',
+        createdBy: createId(),
+        freigeben: jest.fn().mockReturnValue(Result.ok(undefined)),
+        getDomainEvents: jest.fn().mockReturnValue([freigegebenEvent]),
+        clearDomainEvents: jest.fn(),
+      };
+
+      mockRollenBesetzungRepository.findByEinsatzIdAndRolleId.mockResolvedValue(Result.ok(existingBesetzung));
+
+      const command = BesetzeRolleCommand.create({
+        einsatzId: validEinsatzId,
+        einsatzPersonId: validEinsatzPersonId,
+        rollenDefinitionId: validRollenDefinitionId,
+        besetztVon: validBesetztVon,
+      }).value!;
+
+      // When (Act)
+      const result = await handler.execute(command);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+
+      const events = mockOutboxRepository.save.mock.calls[0][0];
+
+      // Reihenfolge kritisch fuer ETB-Eintraege: Freigabe vor Neubesetzung
+      expect(events[0].constructor.name).toBe('RolleFreigegeben');
+      expect(events[1].constructor.name).toBe('RolleBesetzt');
+    });
+  });
 });

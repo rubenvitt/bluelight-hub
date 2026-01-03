@@ -44,6 +44,10 @@ export interface ReconstituteStammPersonProps {
   updatedAt: Date;
   createdBy: string;
   updatedBy?: string;
+  // Story 7.2: Externe Integration Felder
+  externalSource?: string;
+  externalId?: string;
+  lastSyncAt?: Date;
 }
 
 /**
@@ -114,6 +118,10 @@ export class StammPerson extends AggregateRoot<StammPersonId> {
   private _archivedBy?: string;
   private _createdBy: string;
   private _updatedBy?: string;
+  // Story 7.2: Externe Integration Felder
+  private _externalSource?: string;
+  private _externalId?: string;
+  private _lastSyncAt?: Date;
 
   private constructor(
     id: StammPersonId,
@@ -128,6 +136,9 @@ export class StammPerson extends AggregateRoot<StammPersonId> {
     createdAt?: Date,
     updatedAt?: Date,
     updatedBy?: string,
+    externalSource?: string,
+    externalId?: string,
+    lastSyncAt?: Date,
   ) {
     super(id, createdAt, updatedAt);
     this._vorname = vorname;
@@ -139,6 +150,9 @@ export class StammPerson extends AggregateRoot<StammPersonId> {
     this._archivedBy = archivedBy;
     this._createdBy = createdBy;
     this._updatedBy = updatedBy;
+    this._externalSource = externalSource;
+    this._externalId = externalId;
+    this._lastSyncAt = lastSyncAt;
   }
 
   // ============ Getters ============
@@ -238,6 +252,42 @@ export class StammPerson extends AggregateRoot<StammPersonId> {
    */
   get updatedBy(): string | undefined {
     return this._updatedBy;
+  }
+
+  // ============ External Integration Getters (Story 7.2) ============
+
+  /**
+   * Gibt die externe Quelle zurück (z.B. "HIORG_SERVER").
+   *
+   * **Use Case:** Import aus externem System erfordert Tracking der Herkunft.
+   */
+  get externalSource(): string | undefined {
+    return this._externalSource;
+  }
+
+  /**
+   * Gibt die externe ID zurück (z.B. HiOrg Username).
+   *
+   * **Use Case:** Für Re-Sync / Update von externen Datenquellen.
+   */
+  get externalId(): string | undefined {
+    return this._externalId;
+  }
+
+  /**
+   * Gibt den letzten Sync-Zeitpunkt zurück.
+   *
+   * **Use Case:** Erkennung ob Daten veraltet sind.
+   */
+  get lastSyncAt(): Date | undefined {
+    return this._lastSyncAt;
+  }
+
+  /**
+   * Prüft ob die Person aus einer externen Quelle importiert wurde.
+   */
+  get isExternallyManaged(): boolean {
+    return this._externalSource !== undefined && this._externalId !== undefined;
   }
 
   // ============ Private Helper Methods ============
@@ -422,6 +472,10 @@ export class StammPerson extends AggregateRoot<StammPersonId> {
         props.createdAt,
         props.updatedAt,
         props.updatedBy?.trim(),
+        // Story 7.2: Externe Integration Felder
+        props.externalSource?.trim(),
+        props.externalId?.trim(),
+        props.lastSyncAt,
       ),
     );
   }
@@ -590,6 +644,73 @@ export class StammPerson extends AggregateRoot<StammPersonId> {
         trimmedRestoredBy,
       ),
     );
+
+    return Result.ok<void>(undefined);
+  }
+
+  // ============ External Integration Methods (Story 7.2) ============
+
+  /**
+   * Setzt die externe Synchronisations-Informationen.
+   *
+   * Wird aufgerufen wenn Person aus externer Quelle (z.B. HiOrg-Server) importiert wird.
+   *
+   * **Use Cases:**
+   * - Initiales Import: externalSource + externalId werden gesetzt
+   * - Re-Sync: lastSyncAt wird aktualisiert
+   *
+   * @param externalSource - Externe Quelle (z.B. "HIORG_SERVER")
+   * @param externalId - Externe ID (z.B. HiOrg username)
+   * @param syncedBy - User ID für Audit-Trail
+   * @returns Result<void>
+   */
+  markAsSynced(externalSource: string, externalId: string, syncedBy: string): Result<void> {
+    // Validation
+    const trimmedSource = externalSource?.trim() ?? '';
+    if (trimmedSource.length === 0) {
+      return Result.fail<void>('externalSource ist erforderlich');
+    }
+
+    const trimmedExternalId = externalId?.trim() ?? '';
+    if (trimmedExternalId.length === 0) {
+      return Result.fail<void>('externalId ist erforderlich');
+    }
+
+    const trimmedSyncedBy = syncedBy?.trim() ?? '';
+    if (!isCuid(trimmedSyncedBy)) {
+      return Result.fail<void>('syncedBy muss ein gültiger CUID2-Identifier sein');
+    }
+
+    this._externalSource = trimmedSource;
+    this._externalId = trimmedExternalId;
+    this._lastSyncAt = new Date();
+    this._updatedBy = trimmedSyncedBy;
+    this.updateTimestamp();
+
+    return Result.ok<void>(undefined);
+  }
+
+  /**
+   * Aktualisiert nur den lastSyncAt Timestamp.
+   *
+   * Wird bei Re-Sync aufgerufen wenn keine Datenänderungen vorliegen.
+   *
+   * @param syncedBy - User ID für Audit-Trail
+   * @returns Result<void>
+   */
+  updateLastSync(syncedBy: string): Result<void> {
+    if (!this.isExternallyManaged) {
+      return Result.fail<void>('Person ist nicht extern verwaltet');
+    }
+
+    const trimmedSyncedBy = syncedBy?.trim() ?? '';
+    if (!isCuid(trimmedSyncedBy)) {
+      return Result.fail<void>('syncedBy muss ein gültiger CUID2-Identifier sein');
+    }
+
+    this._lastSyncAt = new Date();
+    this._updatedBy = trimmedSyncedBy;
+    this.updateTimestamp();
 
     return Result.ok<void>(undefined);
   }

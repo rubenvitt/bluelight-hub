@@ -44,4 +44,12 @@ export const ADMIN_QUERY_KEYS = {
       detail: (id: string) => [...ADMIN_QUERY_KEYS.stammdaten.personen.all(), 'detail', id] as const,
     },
   },
+  integrations: {
+    all: ['admin', 'integrations'] as const,
+    hiorg: {
+      all: () => [...ADMIN_QUERY_KEYS.integrations.all, 'hiorg'] as const,
+      credentials: () => [...ADMIN_QUERY_KEYS.integrations.hiorg.all(), 'credentials'] as const,
+      preview: (filters?: { activeOnly?: boolean }) => [...ADMIN_QUERY_KEYS.integrations.hiorg.all(), 'preview', filters].filter((v) => v !== undefined) as const,
+    },
+  },
 } as const;

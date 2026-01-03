@@ -27,6 +27,7 @@ import { Route as AdminStammdatenPersonenRouteImport } from './routes/admin/stam
 import { Route as AdminStammdatenFahrzeugeRouteImport } from './routes/admin/stammdaten/fahrzeuge'
 import { Route as AdminKraefteRollenDefinitionenRouteImport } from './routes/admin/kraefte/rollen-definitionen'
 import { Route as AdminKraefteQualifikationenRouteImport } from './routes/admin/kraefte/qualifikationen'
+import { Route as AdminIntegrationsHiorgRouteImport } from './routes/admin/integrations/hiorg'
 import { Route as AppEinsatzEinsatzIdIndexRouteImport } from './routes/app/einsatz/$einsatzId/index'
 import { Route as AppEinsatzEinsatzIdChar220bersichtIndexRouteImport } from './routes/app/einsatz/$einsatzId/übersicht/index'
 import { Route as AppEinsatzEinsatzIdPatientenIndexRouteImport } from './routes/app/einsatz/$einsatzId/patienten/index'
@@ -152,6 +153,11 @@ const AdminKraefteQualifikationenRoute =
     path: '/kraefte/qualifikationen',
     getParentRoute: () => AdminRoute,
   } as any)
+const AdminIntegrationsHiorgRoute = AdminIntegrationsHiorgRouteImport.update({
+  id: '/integrations/hiorg',
+  path: '/integrations/hiorg',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AppEinsatzEinsatzIdIndexRoute =
   AppEinsatzEinsatzIdIndexRouteImport.update({
     id: '/',
@@ -351,6 +357,7 @@ export interface FileRoutesByFullPath {
   '/app/einsaetze': typeof AppEinsaetzeRouteWithChildren
   '/app/einsatz': typeof AppEinsatzRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/admin/integrations/hiorg': typeof AdminIntegrationsHiorgRoute
   '/admin/kraefte/qualifikationen': typeof AdminKraefteQualifikationenRoute
   '/admin/kraefte/rollen-definitionen': typeof AdminKraefteRollenDefinitionenRoute
   '/admin/stammdaten/fahrzeuge': typeof AdminStammdatenFahrzeugeRoute
@@ -400,6 +407,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/app/einsatz': typeof AppEinsatzRouteWithChildren
   '/admin': typeof AdminIndexRoute
+  '/admin/integrations/hiorg': typeof AdminIntegrationsHiorgRoute
   '/admin/kraefte/qualifikationen': typeof AdminKraefteQualifikationenRoute
   '/admin/kraefte/rollen-definitionen': typeof AdminKraefteRollenDefinitionenRoute
   '/admin/stammdaten/fahrzeuge': typeof AdminStammdatenFahrzeugeRoute
@@ -450,6 +458,7 @@ export interface FileRoutesById {
   '/app/einsaetze': typeof AppEinsaetzeRouteWithChildren
   '/app/einsatz': typeof AppEinsatzRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/admin/integrations/hiorg': typeof AdminIntegrationsHiorgRoute
   '/admin/kraefte/qualifikationen': typeof AdminKraefteQualifikationenRoute
   '/admin/kraefte/rollen-definitionen': typeof AdminKraefteRollenDefinitionenRoute
   '/admin/stammdaten/fahrzeuge': typeof AdminStammdatenFahrzeugeRoute
@@ -503,6 +512,7 @@ export interface FileRouteTypes {
     | '/app/einsaetze'
     | '/app/einsatz'
     | '/admin/'
+    | '/admin/integrations/hiorg'
     | '/admin/kraefte/qualifikationen'
     | '/admin/kraefte/rollen-definitionen'
     | '/admin/stammdaten/fahrzeuge'
@@ -552,6 +562,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/app/einsatz'
     | '/admin'
+    | '/admin/integrations/hiorg'
     | '/admin/kraefte/qualifikationen'
     | '/admin/kraefte/rollen-definitionen'
     | '/admin/stammdaten/fahrzeuge'
@@ -601,6 +612,7 @@ export interface FileRouteTypes {
     | '/app/einsaetze'
     | '/app/einsatz'
     | '/admin/'
+    | '/admin/integrations/hiorg'
     | '/admin/kraefte/qualifikationen'
     | '/admin/kraefte/rollen-definitionen'
     | '/admin/stammdaten/fahrzeuge'
@@ -775,6 +787,13 @@ declare module '@tanstack/react-router' {
       path: '/kraefte/qualifikationen'
       fullPath: '/admin/kraefte/qualifikationen'
       preLoaderRoute: typeof AdminKraefteQualifikationenRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/integrations/hiorg': {
+      id: '/admin/integrations/hiorg'
+      path: '/integrations/hiorg'
+      fullPath: '/admin/integrations/hiorg'
+      preLoaderRoute: typeof AdminIntegrationsHiorgRouteImport
       parentRoute: typeof AdminRoute
     }
     '/app/einsatz/$einsatzId/': {
@@ -1002,6 +1021,7 @@ interface AdminRouteChildren {
   AdminSetupRoute: typeof AdminSetupRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminIntegrationsHiorgRoute: typeof AdminIntegrationsHiorgRoute
   AdminKraefteQualifikationenRoute: typeof AdminKraefteQualifikationenRoute
   AdminKraefteRollenDefinitionenRoute: typeof AdminKraefteRollenDefinitionenRoute
   AdminStammdatenFahrzeugeRoute: typeof AdminStammdatenFahrzeugeRoute
@@ -1013,6 +1033,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSetupRoute: AdminSetupRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminIntegrationsHiorgRoute: AdminIntegrationsHiorgRoute,
   AdminKraefteQualifikationenRoute: AdminKraefteQualifikationenRoute,
   AdminKraefteRollenDefinitionenRoute: AdminKraefteRollenDefinitionenRoute,
   AdminStammdatenFahrzeugeRoute: AdminStammdatenFahrzeugeRoute,

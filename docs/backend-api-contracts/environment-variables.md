@@ -8,8 +8,8 @@
 
 ## Optional
 - `NODE_ENV`: `development` | `production` (default: development)
-- `APP_URL`: Base URL der Anwendung (default: http://localhost:3090)
+- `APP_URL`: Base URL der Anwendung (default: http://localhost:3091)
 - `UPLOADS_PATH`: Pfad für File-Uploads (default: uploads)
-- `PORT`: Server-Port (default: 3090)
+- `PORT`: Server-Port (default: 3091)
 
 ---

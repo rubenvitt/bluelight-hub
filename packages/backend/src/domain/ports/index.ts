@@ -15,3 +15,6 @@
 export * from './i-jwt-auth-service.port';
 export * from './i-event-handler.port';
 export * from './i-logger.port';
+export * from './i-encryption.port';
+export * from './i-oauth2.port';
+export * from './i-hiorg-server.port';

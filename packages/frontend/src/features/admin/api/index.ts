@@ -14,9 +14,11 @@ export { useAdminQualifikationenManagement, type QualifikationKategorie, KATEGOR
 export { useAdminRollenDefinitionenManagement } from './use-admin-rollen-definitionen-management';
 export { useAdminStammFahrzeugeManagement } from './use-admin-stamm-fahrzeuge-management';
 export { useAdminStammPersonenManagement } from './use-admin-stamm-personen-management';
+export { useAdminHiOrgIntegration } from './use-admin-hiorg-integration';
 
 // Re-export generierte DTOs für Convenience
 export type { CreateQualifikationDto, QualifikationDto, UpdateQualifikationDto } from '@bluelight-hub/shared/client';
 export type { CreateRollenDefinitionDto, RollenDefinitionDto, UpdateRollenDefinitionDto } from '@bluelight-hub/shared/client';
 export type { CreateStammFahrzeugDto, StammFahrzeugDto, UpdateStammFahrzeugDto } from '@bluelight-hub/shared/client';
 export type { CreateStammPersonDto, StammPersonDto, UpdateStammPersonDto, StammPersonQualifikationDto } from '@bluelight-hub/shared/client';
+export type { SaveHiOrgCredentialsDto, HiOrgCredentialsResponseDto, HiOrgConnectionInfoDto, HiOrgPersonsPreviewResponseDto } from '@bluelight-hub/shared/client';

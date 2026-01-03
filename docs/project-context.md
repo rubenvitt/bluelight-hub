@@ -327,8 +327,8 @@ describe('CreateEinsatzHandler', () => {
 ```bash
 # Development
 pnpm -r dev                                    # Alle Services
-pnpm --filter @bluelight-hub/backend dev      # Backend (Port 3090)
-pnpm --filter @bluelight-hub/frontend dev:vite # Frontend (Port 3091)
+pnpm --filter @bluelight-hub/backend dev      # Backend (Port 3091)
+pnpm --filter @bluelight-hub/frontend dev:vite # Frontend (Port 3090)
 
 # API Client generieren (WICHTIG nach Backend-Änderungen!)
 pnpm run generate-api
@@ -349,9 +349,9 @@ pnpm --filter @bluelight-hub/backend check:jsdoc:public
 
 | Service | Port |
 |---------|------|
-| Backend API | 3090 |
-| Swagger UI | 3090/api |
-| Frontend | 3091 |
+| Backend API | 3091 |
+| Swagger UI | 3091/api |
+| Frontend | 3090 |
 | PostgreSQL | 3092 |
 | Prisma Studio | 3093 |
 

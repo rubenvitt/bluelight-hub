@@ -30,7 +30,7 @@ function performLogin(username) {
 
     const options = {
       hostname: 'localhost',
-      port: 3090,
+      port: 3091,
       path: '/api/auth/unified',
       method: 'POST',
       headers: {

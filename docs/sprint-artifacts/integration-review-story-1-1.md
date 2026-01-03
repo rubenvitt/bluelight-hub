@@ -477,11 +477,11 @@ Aktuelles Verhalten ist korrekt und konsistent. `422` wäre nur relevant, wenn e
 
 ### 6.2 Swagger UI Verfügbarkeit ✅
 
-**URL:** `http://localhost:3090/api`
+**URL:** `http://localhost:3091/api`
 
 **Status:** ✅ **ACCESSIBLE**
 - Swagger UI Setup korrekt (Line 74 in `/packages/backend/src/main.ts`)
-- OpenAPI JSON verfügbar unter `http://localhost:3090/api-json`
+- OpenAPI JSON verfügbar unter `http://localhost:3091/api-json`
 
 ---
 
@@ -577,7 +577,7 @@ async create(...) { ... }
 1. **OpenAPI Spec Validation:**
    ```bash
    # Verify Swagger JSON is valid
-   curl http://localhost:3090/api-json | npx @apidevtools/swagger-cli validate -
+   curl http://localhost:3091/api-json | npx @apidevtools/swagger-cli validate -
    ```
 
 2. **API Client Generation:**
@@ -590,14 +590,14 @@ async create(...) { ... }
 3. **Route Registration:**
    ```bash
    # Test if route is accessible (Frontend)
-   curl http://localhost:3091/admin/kraefte/qualifikationen
+   curl http://localhost:3090/admin/kraefte/qualifikationen
    # Should return 200 (after redirect to login if not authenticated)
    ```
 
 4. **ThrottlerGuard:**
    ```bash
    # Test rate limiting
-   for i in {1..25}; do curl -X GET http://localhost:3090/api/v-alpha/admin/kraefte/qualifikationen; done
+   for i in {1..25}; do curl -X GET http://localhost:3091/api/v-alpha/admin/kraefte/qualifikationen; done
    # Should return 429 after 20 requests
    ```
 

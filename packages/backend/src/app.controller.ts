@@ -34,7 +34,7 @@ export class AppController {
    */
   constructor(private readonly configService: ConfigService) {
     this.logger = new Logger(AppController.name);
-    const rawUrl = this.configService.get<string>('APP_URL', 'http://localhost:3090');
+    const rawUrl = this.configService.get<string>('APP_URL', 'http://localhost:3091');
     this.url = trimTrailingSlash(rawUrl);
     this.logger.debug(`AppController initialisiert mit URL: ${this.url}`);
   }

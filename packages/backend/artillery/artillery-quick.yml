@@ -8,7 +8,7 @@
 # Usage: pnpm --filter @bluelight-hub/backend test:perf:quick
 
 config:
-  target: 'http://localhost:3090'
+  target: 'http://localhost:3091'
   phases:
     - duration: 10
       arrivalRate: 2

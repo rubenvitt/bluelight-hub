@@ -23,15 +23,15 @@ export default defineConfig({
     strictPort: true,
     host: host || true,
     allowedHosts: true, // allow access from all hosts
-    port: 3091,
+    port: 3090,
     proxy: {
       '/uploads': {
-        target: process.env.VITE_API_URL || 'http://localhost:3090',
+        target: process.env.VITE_API_URL || 'http://localhost:3091',
         changeOrigin: true,
         secure: false,
       },
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:3090',
+        target: process.env.VITE_API_URL || 'http://localhost:3091',
         changeOrigin: true,
         secure: false,
       },

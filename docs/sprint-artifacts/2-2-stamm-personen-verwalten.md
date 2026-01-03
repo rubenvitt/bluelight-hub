@@ -263,7 +263,7 @@ graph TB
 ### Quick Start
 
 ```bash
-# 1. Backend starten (Port 3090)
+# 1. Backend starten (Port 3091)
 pnpm --filter @bluelight-hub/backend dev
 
 # 2. Nach Implementierung: API-Client generieren
@@ -1007,7 +1007,7 @@ Modifikationen:
 # Backend starten
 pnpm --filter @bluelight-hub/backend dev
 
-# Swagger UI öffnen: http://localhost:3090/api
+# Swagger UI öffnen: http://localhost:3091/api
 
 # Test-Sequenz:
 # 1. GET /api/v-alpha/admin/stammdaten/personen → Leere Liste oder Seed-Daten

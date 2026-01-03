@@ -365,9 +365,9 @@ pnpm -r build                                  # Alles bauen
 pnpm run generate-api                          # API-Client generieren (WICHTIG!)
 
 # Package-spezifisch
-pnpm --filter @bluelight-hub/backend dev      # Nur Backend (Port 3090)
-pnpm --filter @bluelight-hub/frontend dev     # Tauri Desktop App (Port 3091)
-pnpm --filter @bluelight-hub/frontend dev:vite # Nur Vite Dev Server (Port 3091)
+pnpm --filter @bluelight-hub/backend dev      # Nur Backend (Port 3091)
+pnpm --filter @bluelight-hub/frontend dev     # Tauri Desktop App (Port 3090)
+pnpm --filter @bluelight-hub/frontend dev:vite # Nur Vite Dev Server (Port 3090)
 
 # Database
 pnpm --filter @bluelight-hub/backend prisma:migrate  # Migrations ausführen
@@ -400,11 +400,11 @@ pnpm --filter @bluelight-hub/backend test:integration  # Integration Tests
 
 ### Environment
 
-- **Backend:** `http://localhost:3090`
-  - API: `http://localhost:3090/api`
-  - Swagger UI: `http://localhost:3090/api`
-  - API Spec: `http://localhost:3090/api-json`
-- **Frontend:** `http://localhost:3091` (Vite Dev Server + Tauri Window)
+- **Backend:** `http://localhost:3091`
+  - API: `http://localhost:3091/api`
+  - Swagger UI: `http://localhost:3091/api`
+  - API Spec: `http://localhost:3091/api-json`
+- **Frontend:** `http://localhost:3090` (Vite Dev Server + Tauri Window)
 - **Database:** PostgreSQL 17 (Port 3092 Docker Host, siehe `.env` für Connection String)
 - **Prisma Studio:** `http://localhost:3093`
 
@@ -768,9 +768,9 @@ Die Projektdokumentation ist modular aufgebaut:
 | **Database Migration** | Backend | `pnpm --filter @bluelight-hub/backend prisma:migrate` |
 | **Code Linting** | Überall | `pnpm lint` (Biome) |
 | **Architecture Check** | Backend | `pnpm --filter @bluelight-hub/backend check:arch` |
-| **API Docs** | Backend | Swagger UI: `http://localhost:3090/api` |
+| **API Docs** | Backend | Swagger UI: `http://localhost:3091/api` |
 | **Code Docs** | Backend | `pnpm --filter @bluelight-hub/backend docs:generate` (Compodoc) |
-| **Manual Testing** | Frontend | Chrome DevTools MCP + `http://localhost:3091` |
+| **Manual Testing** | Frontend | Chrome DevTools MCP + `http://localhost:3090` |
 
 ---
 

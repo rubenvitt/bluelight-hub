@@ -111,13 +111,13 @@ development_status:
   td2-dialog-integration: done # BesetzeRolleDialog + FreigebeRolleDialog einbinden ✅
   td2-rolle-besetzen-button: done # "Rolle besetzen" Button - Accessibility-Fixes implementiert ✅
   td2-person-picker: done # Person-Picker statt ID-Eingabe ✅
-  td2-domain-events: backlog # RolleBesetzt, RolleFreigegeben Events
-  td2-transactional-handler: backlog # TransactionalCommandHandler Migration
+  td2-domain-events: done # RolleBesetzt, RolleFreigegeben Events - Test-Coverage & Verifizierung
+  td2-transactional-handler: done # TransactionalCommandHandler Migration - bereits durch Story 5.1 implizit erledigt ✅
 
   # ===== Epic 7: HiOrg-Server Integration =====
-  epic-7: backlog
-  7-1-hiorg-server-verbindung-synchronisation: backlog
-  7-2-import-auswahl-qualifikations-mapping: backlog
+  epic-7: in-progress
+  7-1-hiorg-server-verbindung-synchronisation: done
+  7-2-import-auswahl-qualifikations-mapping: ready-for-dev
   epic-7-retrospective: optional
 
   # ===== Epic 8: Lagekarte-Integration =====

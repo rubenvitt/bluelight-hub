@@ -183,14 +183,14 @@ graph TB
 ### Quick Start
 
 ```bash
-# 1. Backend starten (Port 3090)
+# 1. Backend starten (Port 3091)
 pnpm --filter @bluelight-hub/backend dev
 
 # 2. Nach Implementierung: API-Client generieren
 pnpm run generate-api
 
 # 3. Swagger UI für Tests
-open http://localhost:3090/api
+open http://localhost:3091/api
 ```
 
 ---

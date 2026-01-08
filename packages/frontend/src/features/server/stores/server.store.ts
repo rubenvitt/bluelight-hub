@@ -34,9 +34,25 @@ const initialState: ServerState = {
 export const serverStore = new Store<ServerState>(initialState);
 
 /**
+ * Generiert eine eindeutige Server-ID.
+ *
+ * Verwendet native crypto.randomUUID() wenn verfügbar (moderne Browser),
+ * fällt zurück auf Timestamp + Random-String für Kompatibilität.
+ *
+ * @returns Eine eindeutige ID im UUID-Format oder Fallback-Format
+ */
+function generateServerId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/**
  * Validiert eine Server-URL.
  *
  * Erlaubt nur HTTPS-URLs oder localhost für Entwicklung.
+ * Verwendet native URL-Konstruktor für sichere Validierung.
  *
  * @param url - Die zu validierende URL
  * @returns true wenn gültig, false andernfalls
@@ -83,7 +99,7 @@ export async function addServer(config: Omit<ServerConfig, 'id' | 'createdAt'>):
   const now = new Date().toISOString();
   const newServer: ServerConfig = {
     ...config,
-    id: crypto.randomUUID(),
+    id: generateServerId(),
     createdAt: now,
     lastUsedAt: now,
   };
@@ -172,25 +188,23 @@ export async function removeServer(serverId: string): Promise<void> {
 
   // Auto-Fallback: Wenn aktiver Server gelöscht
   let newActiveServerId = state.activeServerId;
-  if (state.activeServerId === serverId) {
-    if (filteredServers.length > 0) {
-      // Ersten Server aktiv setzen
-      newActiveServerId = filteredServers[0].id;
-      filteredServers[0] = {
-        ...filteredServers[0],
-        isDefault: true,
-        lastUsedAt: new Date().toISOString(),
-      };
-    } else {
-      // Keine Server übrig
-      newActiveServerId = null;
-    }
+  let updatedServers = filteredServers;
+
+  if (state.activeServerId === serverId && filteredServers.length > 0) {
+    // Ersten Server aktiv setzen
+    newActiveServerId = filteredServers[0].id;
+
+    // Immutable update
+    updatedServers = filteredServers.map((server, index) => (index === 0 ? { ...server, isDefault: true, lastUsedAt: new Date().toISOString() } : server));
+  } else if (state.activeServerId === serverId) {
+    // Keine Server übrig
+    newActiveServerId = null;
   }
 
   // Store Update
   serverStore.setState((state) => ({
     ...state,
-    servers: filteredServers,
+    servers: updatedServers,
     activeServerId: newActiveServerId,
   }));
 
@@ -220,24 +234,19 @@ export async function hydrateServerStore(): Promise<void> {
     return;
   }
 
-  try {
-    // Load servers from storage
-    const servers = await loadServers();
+  // Load servers from storage (errors propagate to caller)
+  const servers = await loadServers();
 
-    // Find default server
-    const defaultServer = servers.find((s) => s.isDefault);
+  // Find default server
+  const defaultServer = servers.find((s) => s.isDefault);
 
-    // Update store state
-    serverStore.setState((state) => ({
-      ...state,
-      servers,
-      activeServerId: defaultServer?.id ?? null,
-      isHydrated: true,
-    }));
-  } catch (error) {
-    // Graceful degradation: Log warning, but keep store empty
-    console.warn('[ServerStore] Hydration failed:', error);
-  }
+  // Update store state
+  serverStore.setState((state) => ({
+    ...state,
+    servers,
+    activeServerId: defaultServer?.id ?? null,
+    isHydrated: true,
+  }));
 }
 
 /**

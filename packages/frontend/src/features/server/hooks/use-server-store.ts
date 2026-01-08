@@ -4,14 +4,34 @@ import { addServer, hydrateServerStore, removeServer, serverStore, setActiveServ
 /**
  * Wrapper Hook für den kompletten Server Store.
  *
- * Bietet direkten Zugriff auf alle Actions und State-Selectors.
- * Convenience Hook ähnlich wie useEinsatzStore Pattern.
+ * ⚠️ WARNUNG: Dieser Hook subscribt den GESAMTEN Store-State!
+ * Komponente re-rendert bei JEDER Store-Änderung (auch connectionStatus).
  *
- * @returns Object mit State-Selectors und Actions
+ * **Performance:** Für optimierte Re-Renders nutze spezialisierte Hooks:
+ * - `useActiveServer()` - Nur bei aktivem Server Änderung
+ * - `useServerList()` - Nur bei Server-Liste Änderung
+ * - `useConnectionStatus(id)` - Nur bei Status-Änderung des EINEN Servers
+ *
+ * **Verwendung:** Nur für Settings-Seiten oder Komponenten die ALLE
+ * Server-Daten benötigen.
+ *
+ * @returns Server Store State mit allen Actions
  *
  * @example
  * ```typescript
- * function ServerSettings() {
+ * // ❌ SCHLECHT: In Listen-Item (re-rendert bei jedem Server)
+ * function ServerItem({ id }) {
+ *   const { servers } = useServerStore(); // Re-renders für ALLE servers
+ *   const server = servers.find(s => s.id === id);
+ * }
+ *
+ * // ✅ GUT: Nutze spezialisierten Hook
+ * function ServerItem({ id }) {
+ *   const server = useServerById(id); // Nur bei DIESEM Server
+ * }
+ *
+ * // ✅ GUT: Settings-Page benötigt alles
+ * function ServerSettingsPage() {
  *   const {
  *     servers,
  *     activeServer,

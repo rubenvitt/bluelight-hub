@@ -135,14 +135,20 @@ describe('serverStore', () => {
     });
 
     it('should update lastUsedAt timestamp', async () => {
-      // Given
+      // Use fake timers for deterministic timing
+      vi.useFakeTimers();
+      const initialTime = new Date('2025-01-08T11:00:00.000Z');
+      vi.setSystemTime(initialTime);
+
+      // Given: Server with old timestamp
+      const oldTimestamp = '2025-01-01T00:00:00.000Z';
       const server: ServerConfig = {
         id: '1',
         name: 'Server 1',
         url: 'https://server1.com',
         isDefault: true,
-        createdAt: '2025-01-01T00:00:00.000Z',
-        lastUsedAt: '2025-01-01T00:00:00.000Z',
+        createdAt: oldTimestamp,
+        lastUsedAt: oldTimestamp,
       };
 
       serverStore.setState((state) => ({
@@ -151,15 +157,17 @@ describe('serverStore', () => {
         activeServerId: '1',
       }));
 
-      const oldLastUsedAt = server.lastUsedAt;
-
-      // When
+      // When: Advance time and set active
+      const newTime = new Date('2025-01-08T12:01:00.000Z');
+      vi.setSystemTime(newTime);
       await setActiveServer('1');
 
-      // Then
+      // Then: Timestamp should match exact new time
       const updatedServer = serverStore.state.servers[0];
-      expect(updatedServer.lastUsedAt).not.toBe(oldLastUsedAt);
-      expect(new Date(updatedServer.lastUsedAt!).getTime()).toBeGreaterThan(new Date(oldLastUsedAt!).getTime());
+      expect(updatedServer.lastUsedAt).toBe(newTime.toISOString());
+
+      // Cleanup
+      vi.useRealTimers();
     });
   });
 

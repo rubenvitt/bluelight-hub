@@ -206,7 +206,6 @@ dev-debug.log
 # Debug files
 *-debug.png
 auth-page-debug.png
-/.bmad-ephemeral/
 
 # Artillery Performance Tests (nur Ergebnisse ignorieren)
 packages/backend/artillery/results/
@@ -219,3 +218,5 @@ packages/backend/src/generated/
 
 # Certificates
 certs/
+
+_bmad-output

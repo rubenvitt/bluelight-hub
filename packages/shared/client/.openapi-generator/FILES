@@ -14,6 +14,7 @@ apis/EinsatzApi.ts
 apis/EinsatzFahrzeugeApi.ts
 apis/EinsatzPersonenApi.ts
 apis/EinsatzTeilnehmerApi.ts
+apis/ErinnerungenApi.ts
 apis/GeocodingApi.ts
 apis/HealthApi.ts
 apis/KraefteDashboardApi.ts
@@ -105,6 +106,7 @@ models/CoordinateDto.ts
 models/CreateAccessTokenDto.ts
 models/CreateAccessTokenResponseDto.ts
 models/CreateEinsatzDto.ts
+models/CreateErinnerungDto.ts
 models/CreateFahrzeugtypDto.ts
 models/CreateInviteDto.ts
 models/CreateInviteResponseDto.ts
@@ -147,6 +149,9 @@ models/EintragDto.ts
 models/ErfasseFahrzeugAusStammdatenDto.ts
 models/ErfasseTemporalesFahrzeugDto.ts
 models/ErforderlicheQualifikationDto.ts
+models/ErinnerungControllerCreateVAlpha201Response.ts
+models/ErinnerungControllerGetByEinsatzVAlpha200Response.ts
+models/ErinnerungResponseDto.ts
 models/EtbCqrsControllerAddEintragVAlpha201Response.ts
 models/EtbCqrsControllerGetEtbByEinsatzIdVAlpha200Response.ts
 models/EtbCqrsControllerGetEtbHistoryVAlpha200Response.ts

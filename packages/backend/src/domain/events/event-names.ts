@@ -135,6 +135,24 @@ export const EVENT_NAMES = {
     /** Event: Server wurde von INSECURE zu SECURE Mode migriert */
     MIGRATED_TO_SECURE: 'server_config.migrated_to_secure',
   },
+
+  /**
+   * Erinnerung Bounded Context Events (Story 1.1+)
+   */
+  ERINNERUNG: {
+    /** Event: Neue Erinnerung wurde erstellt */
+    ERSTELLT: 'erinnerung.erstellt',
+    /** Event: Erinnerung wurde ausgelöst (Timer abgelaufen) */
+    AUSGELOEST: 'erinnerung.ausgeloest',
+    /** Event: Erinnerung wurde bestätigt (acknowledged) */
+    ACKNOWLEDGED: 'erinnerung.acknowledged',
+    /** Event: Erinnerung wurde verschoben (snoozed) */
+    SNOOZED: 'erinnerung.snoozed',
+    /** Event: Erinnerung wurde eskaliert */
+    ESKALIERT: 'erinnerung.eskaliert',
+    /** Event: Erinnerung wurde erledigt */
+    ERLEDIGT: 'erinnerung.erledigt',
+  },
 } as const;
 
 /**
@@ -157,4 +175,5 @@ export type EventName =
   | (typeof EVENT_NAMES.USER)[keyof typeof EVENT_NAMES.USER]
   | (typeof EVENT_NAMES.SERVER_ACCESS_TOKEN)[keyof typeof EVENT_NAMES.SERVER_ACCESS_TOKEN]
   | (typeof EVENT_NAMES.INVITE_CODE)[keyof typeof EVENT_NAMES.INVITE_CODE]
-  | (typeof EVENT_NAMES.SERVER_CONFIG)[keyof typeof EVENT_NAMES.SERVER_CONFIG];
+  | (typeof EVENT_NAMES.SERVER_CONFIG)[keyof typeof EVENT_NAMES.SERVER_CONFIG]
+  | (typeof EVENT_NAMES.ERINNERUNG)[keyof typeof EVENT_NAMES.ERINNERUNG];

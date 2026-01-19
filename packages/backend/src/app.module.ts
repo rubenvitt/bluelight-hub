@@ -32,6 +32,7 @@ import { SetupPendingGuard } from './infrastructure/guards/setup-pending.guard';
 import { AdminModule } from './modules/admin/admin.module';
 import { PasswordModule } from './infrastructure/password/password.module';
 import { EinsatzTeilnehmerModule } from './modules/einsatz-teilnehmer/einsatz-teilnehmer.module';
+import { ErinnerungModule } from './modules/erinnerung/erinnerung.module';
 
 /**
  * Haupt-Anwendungsmodul der Bluelight Hub Backend-Anwendung
@@ -103,6 +104,7 @@ import { EinsatzTeilnehmerModule } from './modules/einsatz-teilnehmer/einsatz-te
     AdminModule, // Admin Setup & Management (Story 1.3)
     PasswordModule, // HIBP Password Breach Check (NIST SP 800-63B-4)
     EinsatzTeilnehmerModule, // Einsatz-Teilnehmer Management (Story 115)
+    ErinnerungModule, // Erinnerungen/Wecker für Einsätze (Story 1.1)
   ],
   controllers: [AppController],
   providers: [

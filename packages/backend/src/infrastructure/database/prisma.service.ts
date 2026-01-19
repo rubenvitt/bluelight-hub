@@ -151,6 +151,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get einsatzTeilnehmer() {
     return this._client.einsatzTeilnehmer;
   }
+  get erinnerung() {
+    return this._client.erinnerung;
+  }
 
   // Delegate Prisma Client methods
   $connect() {

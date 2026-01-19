@@ -6,6 +6,7 @@ import { EinsatzStatusBadge } from '@/features/einsatz/ui/molecules/einsatz-stat
 import { ModuleButton } from '@/features/einsatz/ui/molecules/ModuleButton';
 import { ModuleOverviewCard } from '@/features/einsatz/ui/molecules/ModuleOverviewCard';
 import { EinsatzBeitrittDialog } from '@/features/einsatz/ui/organisms';
+import { QuickCreateErinnerungDialog, closeQuickCreateDialog, useQuickCreateDialogState, useQuickCreateErinnerungHotkeys } from '@/features/reminders';
 import { CommandPalette } from '@/shared/ui/organisms/command-palette';
 import { CommandPaletteErrorBoundary } from '@/shared/ui/organisms/command-palette/CommandPaletteErrorBoundary';
 import { EINSATZ_QUERY_KEYS, useEinsatzDetails, useEinsatzModules, useMyEinsatzTeilnahme } from '@/features/einsatz';
@@ -35,6 +36,13 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
   const [showEndConfirmation, setShowEndConfirmation] = useState(false);
   const [showBeitrittDialog, setShowBeitrittDialog] = useState(false);
   const activeServer = useActiveServer();
+
+  // Quick-Create Erinnerung Dialog State und Hotkeys (Story 1.1 AC1)
+  const [isQuickCreateOpen, quickCreateEinsatzId] = useQuickCreateDialogState();
+  useQuickCreateErinnerungHotkeys({
+    einsatzId,
+    enabled: !commandPaletteOpen && !showEndConfirmation && !showBeitrittDialog && !isQuickCreateOpen,
+  });
 
   // Prüfe ob User bereits dem Einsatz beigetreten ist (Funkrufname gesetzt)
   const { data: teilnahmeData, isLoading: isTeilnahmeLoading } = useMyEinsatzTeilnahme(einsatzId);
@@ -538,6 +546,9 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
 
       {/* Einsatz Beitritt / Funkrufname Dialog */}
       <EinsatzBeitrittDialog einsatzId={einsatzId} isOpen={showBeitrittDialog} onClose={() => setShowBeitrittDialog(false)} />
+
+      {/* Quick-Create Erinnerung Dialog (Story 1.1 AC1) */}
+      <QuickCreateErinnerungDialog isOpen={isQuickCreateOpen} einsatzId={quickCreateEinsatzId ?? einsatzId} onClose={closeQuickCreateDialog} />
     </>
   );
 }

@@ -65,3 +65,6 @@ export {
 
 // EinsatzTeilnehmer Repository Interface (Story 115)
 export type { IEinsatzTeilnehmerRepository, EinsatzTeilnehmerDto } from './i-einsatz-teilnehmer.repository';
+
+// Erinnerung Repository Interface (Story 1.1)
+export { IErinnerungRepository } from './i-erinnerung.repository';

@@ -24,8 +24,9 @@ export function calculateCustomFaelligAm(hours: number, minutes: number): Date {
   const target = new Date();
   target.setHours(hours, minutes, 0, 0);
 
-  // Wenn Zeit bereits vorbei (oder genau jetzt), morgen nehmen
-  if (target <= now) {
+  // Wenn Zeit bereits vorbei ist, morgen nehmen
+  // AC3: "wenn 14:45 bereits vorbei ist" - exakt gleiche Zeit ist NICHT vorbei
+  if (target < now) {
     target.setDate(target.getDate() + 1);
   }
 

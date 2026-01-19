@@ -142,6 +142,8 @@ export const EVENT_NAMES = {
   ERINNERUNG: {
     /** Event: Neue Erinnerung wurde erstellt */
     ERSTELLT: 'erinnerung.erstellt',
+    /** Event: Existierende Erinnerung wurde aktualisiert (Story 1.3) */
+    AKTUALISIERT: 'erinnerung.aktualisiert',
     /** Event: Erinnerung wurde ausgelöst (Timer abgelaufen) */
     AUSGELOEST: 'erinnerung.ausgeloest',
     /** Event: Erinnerung wurde bestätigt (acknowledged) */

@@ -10,7 +10,7 @@
 import { api } from '@/shared';
 import { getApiErrorMessage } from '@/shared/lib/errors/apiErrorHandler';
 import { logger } from '@/shared/lib/logger';
-import type { CreateErinnerungDto, ErinnerungResponseDto, ResponseError } from '@/shared';
+import type { CreateErinnerungDto, ErinnerungResponseDto, ResponseError, UpdateErinnerungDto } from '@/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ERINNERUNG_QUERY_KEYS, calculateRetryDelay } from './queries';
@@ -109,16 +109,137 @@ export const useCreateErinnerung = () => {
       logger.error('Failed to create Erinnerung', error);
       toast.error('Fehler', { description: message });
     },
-    onSuccess: () => {
-      toast.success('Erinnerung erstellt', {
-        description: 'Die Erinnerung wurde erfolgreich angelegt.',
-      });
-    },
+    // Success-Toast wird vom Aufrufer gesteuert (z.B. Dialog mit spezifischer Zeit-Info)
     onSettled: async (_data, _error, { einsatzId }) => {
       // Ensure consistency - invalidate Erinnerungen for this Einsatz
       // Dies ersetzt die optimistische Erinnerung mit der echten vom Server
       await queryClient.invalidateQueries({
         queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+      });
+    },
+    retry: 3,
+    retryDelay: calculateRetryDelay,
+  });
+};
+
+export interface UpdateErinnerungVariables {
+  /**
+   * Einsatz-ID
+   */
+  einsatzId: string;
+
+  /**
+   * Erinnerungs-ID
+   */
+  erinnerungId: string;
+
+  /**
+   * Daten für Erinnerungs-Update
+   */
+  data: UpdateErinnerungDto;
+}
+
+interface UpdateErinnerungContext {
+  einsatzId: string;
+  erinnerungId: string;
+  previousErinnerungen: ErinnerungResponseDto[] | undefined;
+}
+
+/**
+ * Hook für Erinnerungs-Update mit Optimistic Updates
+ *
+ * Aktualisiert eine bestehende Erinnerung. Nur Erinnerungen im Status GEPLANT
+ * können bearbeitet werden. Bei Erfolg werden automatisch alle Erinnerungs-Queries
+ * invalidiert um Konsistenz sicherzustellen. Bei Fehler wird der vorherige Zustand
+ * wiederhergestellt (Rollback).
+ *
+ * **Story 1.3 AC2:** "Bei Zeit-Änderung: Timer wird neu berechnet"
+ *
+ * @returns Mutation für Erinnerungs-Update
+ *
+ * @example
+ * ```tsx
+ * const updateErinnerung = useUpdateErinnerung();
+ *
+ * const handleSubmit = (formData: UpdateErinnerungFormData) => {
+ *   const data: UpdateErinnerungDto = {
+ *     titel: formData.titel,
+ *     faelligAm: formData.faelligAm?.toISOString(),
+ *     beschreibung: formData.beschreibung,
+ *   };
+ *
+ *   updateErinnerung.mutate({
+ *     einsatzId: 'abc-123',
+ *     erinnerungId: 'def-456',
+ *     data,
+ *   });
+ * };
+ * ```
+ */
+export const useUpdateErinnerung = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<ErinnerungResponseDto, ResponseError, UpdateErinnerungVariables, UpdateErinnerungContext>({
+    mutationFn: async ({ einsatzId, erinnerungId, data }) => {
+      const response = await api.erinnerungen().erinnerungControllerUpdateVAlpha({
+        einsatzId,
+        id: erinnerungId,
+        updateErinnerungDto: data,
+      });
+      return response.data;
+    },
+    onMutate: async ({ einsatzId, erinnerungId, data }) => {
+      // Cancel ALL related queries to prevent race conditions
+      await Promise.all([
+        queryClient.cancelQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+        }),
+        queryClient.cancelQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
+        }),
+      ]);
+
+      // Snapshot the previous value
+      const previousErinnerungen = queryClient.getQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId));
+
+      // Optimistically update to the new value
+      if (previousErinnerungen) {
+        const updatedErinnerungen = previousErinnerungen.map((e) => {
+          if (e.id === erinnerungId) {
+            return {
+              ...e,
+              titel: data.titel ?? e.titel,
+              faelligAm: data.faelligAm ?? e.faelligAm,
+              beschreibung: data.beschreibung !== undefined ? (data.beschreibung as string | null) : e.beschreibung,
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return e;
+        });
+
+        queryClient.setQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId), updatedErinnerungen);
+      }
+
+      // Return context object with previous value for rollback
+      return { einsatzId, erinnerungId, previousErinnerungen };
+    },
+    onError: async (error: ResponseError, _variables, context) => {
+      // Rollback to previous value on error
+      if (context?.previousErinnerungen !== undefined) {
+        queryClient.setQueryData(ERINNERUNG_QUERY_KEYS.list(context.einsatzId), context.previousErinnerungen);
+      }
+      // KEIN toast.error hier - Dialog handled Error via apiErrorMessage (verhindert Double Error Display)
+      logger.error('Failed to update Erinnerung', error);
+    },
+    // Success-Toast wird vom Aufrufer gesteuert (z.B. Dialog mit spezifischer Info)
+    onSettled: async (_data, _error, { einsatzId, erinnerungId }) => {
+      // Ensure consistency - invalidate Erinnerungen list and detail for this Einsatz
+      await queryClient.invalidateQueries({
+        queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+      });
+      // Invalidate specific detail query if it exists
+      await queryClient.invalidateQueries({
+        queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
       });
     },
     retry: 3,

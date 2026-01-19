@@ -20,3 +20,4 @@ export * from './einsatz-person-hinzugefuegt-event.adapter';
 export * from './person-fahrzeug-zuweisung-event.adapter';
 export * from './rolle-besetzt-event.adapter';
 export * from './rolle-freigegeben-event.adapter';
+export * from './erinnerung-aktualisiert-event.adapter';

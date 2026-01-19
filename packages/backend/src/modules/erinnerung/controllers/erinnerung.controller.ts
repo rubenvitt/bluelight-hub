@@ -1,14 +1,17 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards, ValidationPipe } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Put, UseGuards, ValidationPipe } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiConflictResponse, ApiNotFoundResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import type { ValidatedUser } from '@/modules/auth/strategies/jwt.strategy';
 import { ApiWrappedCreatedResponse, ApiWrappedResponse } from '@/modules/common/decorators/api-wrapped-response.decorator';
-import { CreateErinnerungDto, ErinnerungResponseDto } from '@/application/erinnerung/dto';
+import { CreateErinnerungDto, UpdateErinnerungDto, ErinnerungResponseDto } from '@/application/erinnerung/dto';
 import { CreateErinnerungCommand } from '@/application/erinnerung/commands/create-erinnerung/create-erinnerung.command';
 import { CreateErinnerungHandler } from '@/application/erinnerung/commands/create-erinnerung/create-erinnerung.handler';
+import { UpdateErinnerungCommand } from '@/application/erinnerung/commands/update-erinnerung/update-erinnerung.command';
+import { UpdateErinnerungHandler } from '@/application/erinnerung/commands/update-erinnerung/update-erinnerung.handler';
 import { GetErinnerungenByEinsatzQuery } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.query';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
+import { ERINNERUNG_ERROR_CODES } from '@/application/erinnerung/errors/erinnerung-error.codes';
 
 /**
  * Controller für Erinnerungen innerhalb eines Einsatzes.
@@ -32,6 +35,7 @@ import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/querie
 export class ErinnerungController {
   constructor(
     private readonly createHandler: CreateErinnerungHandler,
+    private readonly updateHandler: UpdateErinnerungHandler,
     private readonly getByEinsatzHandler: GetErinnerungenByEinsatzHandler,
   ) {}
 
@@ -114,6 +118,72 @@ export class ErinnerungController {
 
     if (!result.value) {
       throw new BadRequestException('Erinnerung konnte nicht erstellt werden');
+    }
+
+    return result.value;
+  }
+
+  /**
+   * Aktualisiert eine bestehende Erinnerung.
+   *
+   * Nur Erinnerungen im Status GEPLANT können bearbeitet werden, da
+   * bereits ausgelöste oder abgeschlossene Erinnerungen historische
+   * Fakten darstellen und nicht nachträglich verändert werden dürfen.
+   *
+   * **Story 1.3 AC2:**
+   * - Änderungen werden gespeichert
+   * - Bei Zeit-Änderung: Timer wird neu berechnet
+   * - WebSocket-Event `erinnerung.updated` wird gesendet
+   *
+   * **Story 1.3 AC3:**
+   * - Nur Erinnerungen im Status GEPLANT können bearbeitet werden
+   * - Andere Status: 409 Conflict
+   */
+  @Put(':id')
+  @ApiOperation({
+    summary: 'Erinnerung aktualisieren',
+    description: 'Aktualisiert eine bestehende Erinnerung. Nur Erinnerungen im Status GEPLANT können bearbeitet werden.',
+  })
+  @ApiWrappedResponse(ErinnerungResponseDto, {
+    description: 'Erinnerung erfolgreich aktualisiert',
+  })
+  @ApiBadRequestResponse({ description: 'Validierungsfehler in den Eingabedaten oder keine Änderungen angegeben' })
+  @ApiNotFoundResponse({ description: 'Erinnerung nicht gefunden' })
+  @ApiConflictResponse({ description: 'Erinnerung kann nicht bearbeitet werden (Status ist nicht GEPLANT)' })
+  async update(
+    @Param('einsatzId') _einsatzId: string, // Für URL-Struktur, nicht für Validierung genutzt
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    dto: UpdateErinnerungDto,
+    @CurrentUser() user: ValidatedUser,
+  ): Promise<ErinnerungResponseDto> {
+    const commandResult = UpdateErinnerungCommand.create({
+      erinnerungId: id,
+      aktualisierVon: user.userId,
+      titel: dto.titel,
+      beschreibung: dto.beschreibung,
+      faelligAm: dto.faelligAm ? new Date(dto.faelligAm) : undefined,
+    });
+
+    if (commandResult.isFailure || !commandResult.value) {
+      throw new BadRequestException(commandResult.error);
+    }
+
+    const result = await this.updateHandler.execute(commandResult.value);
+
+    if (result.isFailure) {
+      // Error Mapping: NOT_FOUND → 404, NOT_EDITABLE → 409, sonst 400
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_FOUND) {
+        throw new NotFoundException('Erinnerung nicht gefunden');
+      }
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_EDITABLE) {
+        throw new ConflictException('Nur geplante Erinnerungen können bearbeitet werden');
+      }
+      throw new BadRequestException(result.error);
+    }
+
+    if (!result.value) {
+      throw new BadRequestException('Erinnerung konnte nicht aktualisiert werden');
     }
 
     return result.value;

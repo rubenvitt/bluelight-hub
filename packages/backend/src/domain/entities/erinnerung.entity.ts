@@ -6,6 +6,8 @@ import { ErinnerungStatus } from '@domain/value-objects/erinnerung-status';
 import { ErinnerungTitel } from '@domain/value-objects/erinnerung-titel';
 import type { UserId } from '@domain/value-objects/user-id';
 import { ErinnerungErstelltEvent } from '@domain/events/erinnerung-erstellt.event';
+import { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktualisiert.event';
+import type { ErinnerungAenderungen } from '@domain/events/erinnerung-aktualisiert.event';
 
 /**
  * Props für die Erstellung einer neuen Erinnerung.
@@ -16,6 +18,18 @@ export interface CreateErinnerungProps {
   beschreibung?: string;
   faelligAm: Date;
   erstelltVon: UserId;
+}
+
+/**
+ * Props für das Aktualisieren einer Erinnerung.
+ * Alle Felder sind optional - nur gesetzte Felder werden aktualisiert.
+ * `aktualisierVon` ist erforderlich für Audit-Trail und ETB-Integration.
+ */
+export interface UpdateErinnerungProps {
+  titel?: string;
+  beschreibung?: string | null;
+  faelligAm?: Date;
+  aktualisierVon: UserId;
 }
 
 /**
@@ -73,9 +87,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
   public static readonly MAX_BESCHREIBUNG_LENGTH = 500;
 
   private readonly _einsatzId: EinsatzId;
-  private readonly _titel: ErinnerungTitel;
-  private readonly _beschreibung: string | null;
-  private readonly _faelligAm: Date;
+  private _titel: ErinnerungTitel;
+  private _beschreibung: string | null;
+  private _faelligAm: Date;
   private _status: ErinnerungStatus;
   private readonly _erstelltVon: UserId;
 
@@ -231,5 +245,75 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
   public verbleibendeZeitMs(): number {
     const diff = this._faelligAm.getTime() - Date.now();
     return Math.max(0, diff);
+  }
+
+  // ============================================================
+  // Mutation Methods
+  // ============================================================
+
+  /**
+   * Aktualisiert eine Erinnerung mit partiellen Änderungen.
+   *
+   * **Business Rules:**
+   * - Nur Erinnerungen mit Status GEPLANT können bearbeitet werden
+   * - Titel muss gültig sein (nicht leer, max 100 Zeichen)
+   * - faelligAm muss in der Zukunft liegen
+   * - Beschreibung ist optional, maximal 500 Zeichen
+   * - Emittiert ErinnerungAktualisiertEvent mit den Änderungen
+   *
+   * @param props - UpdateErinnerungProps mit den zu ändernden Feldern
+   * @returns Result<void> - Success oder Failure mit Error Code
+   */
+  public update(props: UpdateErinnerungProps): Result<void> {
+    // Business Rule: Nur GEPLANT Status erlaubt Update (AC3)
+    if (!this._status.isGeplant()) {
+      return Result.fail<void>('ERINNERUNG_NOT_EDITABLE');
+    }
+
+    // Mindestens ein Feld muss geändert werden
+    if (props.titel === undefined && props.beschreibung === undefined && props.faelligAm === undefined) {
+      return Result.fail<void>('ERINNERUNG_NO_CHANGES');
+    }
+
+    const aenderungen: ErinnerungAenderungen = {};
+
+    // Validiere und update Titel
+    if (props.titel !== undefined) {
+      const titelResult = ErinnerungTitel.create(props.titel);
+      if (titelResult.isFailure || !titelResult.value) {
+        return Result.fail<void>(titelResult.error ?? 'ERINNERUNG_TITEL_INVALID');
+      }
+      this._titel = titelResult.value;
+      aenderungen.titel = props.titel;
+    }
+
+    // Validiere und update Beschreibung
+    if (props.beschreibung !== undefined) {
+      if (props.beschreibung !== null) {
+        const trimmedBeschreibung = props.beschreibung.trim();
+        if (trimmedBeschreibung.length > Erinnerung.MAX_BESCHREIBUNG_LENGTH) {
+          return Result.fail<void>(`ERINNERUNG_BESCHREIBUNG_TOO_LONG: Beschreibung darf maximal ${Erinnerung.MAX_BESCHREIBUNG_LENGTH} Zeichen haben`);
+        }
+        this._beschreibung = trimmedBeschreibung.length > 0 ? trimmedBeschreibung : null;
+      } else {
+        this._beschreibung = null;
+      }
+      aenderungen.beschreibung = this._beschreibung;
+    }
+
+    // Validiere und update faelligAm
+    if (props.faelligAm !== undefined) {
+      const now = new Date();
+      if (props.faelligAm <= now) {
+        return Result.fail<void>('ERINNERUNG_FAELLIG_AM_IN_PAST');
+      }
+      this._faelligAm = props.faelligAm;
+      aenderungen.faelligAm = props.faelligAm;
+    }
+
+    // Emit Domain Event mit allen Änderungen
+    this.addDomainEvent(new ErinnerungAktualisiertEvent(this.id, this._einsatzId, aenderungen, props.aktualisierVon, this._titel.value, this.id.toString()));
+
+    return Result.ok<void>(undefined);
   }
 }

@@ -67,6 +67,26 @@ describe('createErinnerungSchema', () => {
       expect(result.success).toBe(false);
     });
 
+    it('should set error path to "minuten" when preset mode validation fails (Story 1.2 Error Path Fix)', () => {
+      // Given (Arrange)
+      const input = {
+        titel: 'Lagebesprechung',
+        timeMode: 'preset' as const,
+        // minuten fehlt - Fehler sollte bei 'minuten' angezeigt werden
+      };
+
+      // When (Act)
+      const result = createErinnerungSchema.safeParse(input);
+
+      // Then (Assert)
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const zeitIssue = result.error.issues.find((issue) => issue.message === 'Zeit ist erforderlich');
+        expect(zeitIssue).toBeDefined();
+        expect(zeitIssue?.path).toEqual(['minuten']);
+      }
+    });
+
     it('should reject preset mode with minuten less than 1', () => {
       // Given (Arrange)
       const input = {
@@ -213,6 +233,26 @@ describe('createErinnerungSchema', () => {
 
       // Then (Assert)
       expect(result.success).toBe(false);
+    });
+
+    it('should set error path to "customTime" when custom mode validation fails (Story 1.2 Error Path Fix)', () => {
+      // Given (Arrange)
+      const input = {
+        titel: 'Test',
+        timeMode: 'custom' as const,
+        // customTime fehlt - Fehler sollte bei 'customTime' angezeigt werden
+      };
+
+      // When (Act)
+      const result = createErinnerungSchema.safeParse(input);
+
+      // Then (Assert)
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const zeitIssue = result.error.issues.find((issue) => issue.message === 'Zeit ist erforderlich');
+        expect(zeitIssue).toBeDefined();
+        expect(zeitIssue?.path).toEqual(['customTime']);
+      }
     });
 
     it('should validate custom mode with beschreibung', () => {

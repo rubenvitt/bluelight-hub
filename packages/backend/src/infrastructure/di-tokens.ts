@@ -161,6 +161,9 @@ export const EVENT_HANDLER = {
 
   /** RolleFreigegeben ETB-Eintrag Handler Token (Story 5-1) */
   ROLLE_FREIGEGEBEN_ETB: Symbol('IEventHandler<RolleFreigegebenEvent>:EtbEintrag'),
+
+  /** ErinnerungAktualisiert ETB-Eintrag Handler Token (Story 1.3 AC5) */
+  ERINNERUNG_AKTUALISIERT_ETB: Symbol('IEventHandler<ErinnerungAktualisiertEvent>:EtbEintrag'),
 } as const;
 
 /**

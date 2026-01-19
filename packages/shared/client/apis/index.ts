@@ -15,6 +15,7 @@ export * from './EinsatzApi';
 export * from './EinsatzFahrzeugeApi';
 export * from './EinsatzPersonenApi';
 export * from './EinsatzTeilnehmerApi';
+export * from './ErinnerungenApi';
 export * from './GeocodingApi';
 export * from './HealthApi';
 export * from './KraefteDashboardApi';

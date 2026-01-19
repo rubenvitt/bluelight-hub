@@ -151,6 +151,11 @@ model User {
   // ========================================
   einsatzTeilnahmen EinsatzTeilnehmer[]
 
+  // ========================================
+  // Erinnerungen Relations (Story 1.1 Erinnerungen)
+  // ========================================
+  createdErinnerungen Erinnerung[] @relation("ErinnerungCreator")
+
   // Indexes
   @@index([username], map: "idx_user_username")
   @@index([role, isActive], map: "idx_user_role_active")
@@ -211,6 +216,9 @@ model Einsatz {
 
   // Einsatz-Teilnehmer Relation (1:N, Story 115)
   teilnehmer EinsatzTeilnehmer[]
+
+  // Erinnerungen Relation (1:N, Story 1.1 Erinnerungen)
+  erinnerungen Erinnerung[]
 
   // Indexes
   @@index([status, createdAt])
@@ -1273,4 +1281,50 @@ model EinsatzTeilnehmer {
   @@index([userId])
   @@index([einsatzId, leftAt]) // Aktive Teilnehmer pro Einsatz
   @@map("einsatz_teilnehmer")
+}
+
+// ========================================
+// Erinnerungen (Story 1.1 - Quick Create)
+// Epic 1: Persönliche Erinnerungen erstellen und bestätigen
+// ========================================
+
+/// Erinnerung Status Enum
+/// Definiert den Lebenszyklus einer Erinnerung gemäß State Machine
+enum ErinnerungStatus {
+  GEPLANT // Initial: Erinnerung wartet auf Fälligkeit
+  AUSGELOEST // Timer ist abgelaufen, Alarm wurde ausgelöst
+  ACKNOWLEDGED // User hat Erinnerung bestätigt
+  SNOOZED // Temporär verschoben (mit neuem Timer)
+  ESKALIERT // An Eskalationsperson weitergeleitet
+  ERLEDIGT // Abgeschlossen/Erledigt
+}
+
+/// Erinnerung: Zeitgesteuerte Benachrichtigung für FüKw-Personal
+/// - Cascade-Delete mit Einsatz (Erinnerungen sind transient)
+/// - Status-Transitions folgen der State Machine in ErinnerungStatus Value Object
+/// - Timer wird client-seitig verwaltet, Server speichert nur State
+model Erinnerung {
+  id           String           @id @default(cuid())
+  einsatzId    String           @map("einsatz_id")
+  titel        String           @db.VarChar(100)
+  beschreibung String?          @db.VarChar(500)
+  faelligAm    DateTime         @map("faellig_am")
+  status       ErinnerungStatus @default(GEPLANT)
+  erstelltVon  String           @map("erstellt_von") @db.VarChar(100)
+
+  // Audit Trail
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  einsatz  Einsatz @relation(fields: [einsatzId], references: [id], onDelete: Cascade)
+  ersteller User    @relation("ErinnerungCreator", fields: [erstelltVon], references: [id], onDelete: Restrict)
+
+  // Indexes
+  @@index([einsatzId])
+  @@index([einsatzId, faelligAm]) // Sortierte Abfrage nach Fälligkeit
+  @@index([einsatzId, status]) // Filter nach Status
+  @@index([status])
+  @@index([erstelltVon])
+  @@map("erinnerungen")
 }

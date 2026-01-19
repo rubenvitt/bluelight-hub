@@ -19,6 +19,7 @@ import {
   EinsatzFahrzeugeApi,
   EinsatzPersonenApi,
   EinsatzTeilnehmerApi,
+  ErinnerungenApi,
   ETBApi,
   GeocodingApi,
   HealthApi,
@@ -111,6 +112,7 @@ class BackendApi {
   private readonly rollenBesetzungApi: RollenBesetzungApi;
   private readonly adminIntegrationsHiorgApi: AdminIntegrationsHiorgApi;
   private readonly einsatzTeilnehmerApi: EinsatzTeilnehmerApi;
+  private readonly erinnerungenApi: ErinnerungenApi;
 
   /**
    * Erstellt eine neue Instanz der BackendApi-Klasse
@@ -152,6 +154,7 @@ class BackendApi {
     this.rollenBesetzungApi = new RollenBesetzungApi(this.configuration);
     this.adminIntegrationsHiorgApi = new AdminIntegrationsHiorgApi(this.configuration);
     this.einsatzTeilnehmerApi = new EinsatzTeilnehmerApi(this.configuration);
+    this.erinnerungenApi = new ErinnerungenApi(this.configuration);
   }
 
   /**
@@ -368,6 +371,15 @@ class BackendApi {
    */
   einsatzTeilnehmer(): EinsatzTeilnehmerApi {
     return this.einsatzTeilnehmerApi;
+  }
+
+  /**
+   * Gibt die gecachte Erinnerungen-API-Instanz zurück
+   *
+   * @returns Die Erinnerungen-API-Instanz für Erinnerungs-Management (Wecker)
+   */
+  erinnerungen(): ErinnerungenApi {
+    return this.erinnerungenApi;
   }
 }
 

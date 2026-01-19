@@ -19,6 +19,7 @@ export { EINSATZ_QUERY_KEYS } from '@/features/einsatz';
 export { ETB_QUERY_KEYS } from '@/features/etb';
 export { LAGEKARTE_QUERY_KEYS } from '@/features/lagekarte';
 export { SYSTEM_QUERY_KEYS } from '@/features/system';
+export { ERINNERUNG_QUERY_KEYS } from '@/features/reminders';
 
 /**
  * @deprecated Verwende direkte Imports aus Features stattdessen
@@ -42,4 +43,5 @@ export const QUERY_KEYS = {
   etb: ETB_QUERY_KEYS,
   lagekarte: LAGEKARTE_QUERY_KEYS,
   system: SYSTEM_QUERY_KEYS,
+  erinnerung: ERINNERUNG_QUERY_KEYS,
 } as const;

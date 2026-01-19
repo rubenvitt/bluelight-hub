@@ -2,18 +2,24 @@
  * Quick-Create Erinnerung Dialog
  *
  * **Story 1.1:** "Erinnerung mit Quick-Create anlegen"
- *
  * AC1: Zeit-Presets (5, 10, 15, 30, 60 Min) sind als Chips waehlbar
  * AC2: Titel-Eingabe mit max. 100 Zeichen
  * AC3: Optional: Beschreibung mit max. 500 Zeichen
  * AC4: "Erstellen" Button erstellt Erinnerung
  * AC5: Berechnet faelligAm = now + Minuten
+ *
+ * **Story 1.2:** "Erinnerung mit benutzerdefinierter Zeit anlegen"
+ * AC1: Benutzerdefiniert-Option im Quick-Create Formular
+ * AC2: Time-Picker erscheint bei Benutzerdefiniert
+ * AC3: Absolute Zeit speichern
+ * AC4: Wechsel zwischen Modi
+ * AC5: Validierung bei Benutzerdefiniert
  */
 
 import { useCallback, useState } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { zodValidator } from '@tanstack/zod-form-adapter';
-import { PiAlarm } from 'react-icons/pi';
+import { PiAlarm, PiClock } from 'react-icons/pi';
 
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { Input } from '@/shared/ui/atoms/input.atom';
@@ -22,6 +28,8 @@ import { cn } from '@/shared/ui/cn';
 
 import { useCreateErinnerung } from '../../api';
 import { createErinnerungSchema, TIME_PRESETS, type CreateErinnerungFormData } from '../../schemas/erinnerung.schema';
+import { TimeInput } from '../molecules/TimeInput';
+import { calculateCustomFaelligAm, formatTimeForToast, getDefaultCustomTime } from '../../utils/time-calculation';
 
 interface QuickCreateErinnerungDialogProps {
   /** Ob der Dialog offen ist */
@@ -46,7 +54,9 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
   const form = useForm<CreateErinnerungFormData>({
     defaultValues: {
       titel: '',
+      timeMode: 'preset', // Story 1.2: Default ist Preset-Modus
       minuten: 30, // Default: 30 Minuten
+      customTime: getDefaultCustomTime(), // Story 1.2 AC2: aktuelle Zeit + 30 Min
       beschreibung: undefined,
     },
     validatorAdapter: zodValidator(),
@@ -56,8 +66,20 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
     onSubmit: async ({ value }) => {
       setApiErrorMessage(null);
 
-      // AC5: Berechne faelligAm = jetzt + gewaehlte Minuten
-      const faelligAm = new Date(Date.now() + value.minuten * 60 * 1000);
+      // Story 1.2 AC3: Berechne faelligAm basierend auf Modus
+      let faelligAm: Date;
+      let toastMessage: string;
+
+      if (value.timeMode === 'preset') {
+        // Story 1.1 AC5: Berechne faelligAm = jetzt + gewaehlte Minuten
+        faelligAm = new Date(Date.now() + (value.minuten ?? 30) * 60 * 1000);
+        toastMessage = `Erinnerung in ${value.minuten} Min erstellt`;
+      } else {
+        // Story 1.2 AC3: Absolute Zeit
+        const { hours, minutes } = value.customTime ?? { hours: 0, minutes: 0 };
+        faelligAm = calculateCustomFaelligAm(hours, minutes);
+        toastMessage = `Erinnerung für ${formatTimeForToast(faelligAm)} erstellt`;
+      }
 
       createErinnerung(
         {
@@ -70,8 +92,11 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
         },
         {
           onSuccess: () => {
-            form.reset();
-            onClose();
+            // TODO: Toast mit toastMessage anzeigen (wenn Toast-System vorhanden)
+            setTimeout(() => {
+              form.reset();
+              onClose();
+            }, 0);
           },
           onError: (error) => {
             setApiErrorMessage(error instanceof Error ? error.message : 'Fehler beim Erstellen der Erinnerung');
@@ -132,36 +157,98 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
             )}
           </form.Field>
 
-          {/* AC1: Zeit-Presets als Chips */}
-          <form.Field name="minuten">
-            {(field) => (
-              <fieldset className="border-none p-0 m-0">
-                <legend className="mb-2 font-medium text-gray-700 text-sm dark:text-gray-300">
-                  Erinnern in <span className="text-red-500">*</span>
-                </legend>
-                <div className="flex flex-wrap gap-2">
-                  {TIME_PRESETS.map((preset) => (
-                    <button
-                      key={preset.value}
-                      type="button"
-                      aria-pressed={field.state.value === preset.value}
-                      onClick={() => field.handleChange(preset.value)}
-                      disabled={isPending}
-                      className={cn(
-                        'rounded-full px-4 py-2 min-h-[48px] font-medium text-sm transition-all duration-200',
-                        'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800',
-                        field.state.value === preset.value
-                          ? 'bg-amber-500 text-white shadow-md hover:bg-amber-600'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600',
-                        isPending && 'cursor-not-allowed opacity-50',
-                      )}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-                {field.state.meta.isTouched && field.state.meta.errors.length > 0 && <p className="mt-1 text-red-600 text-sm dark:text-red-400">{field.state.meta.errors.join(', ')}</p>}
-              </fieldset>
+          {/* Story 1.1 AC1 & Story 1.2 AC1-4: Zeit-Auswahl */}
+          <form.Field name="timeMode">
+            {(timeModeField) => (
+              <form.Field name="minuten">
+                {(minutenField) => (
+                  <form.Field name="customTime">
+                    {(customTimeField) => (
+                      <fieldset className="border-none p-0 m-0">
+                        <legend className="mb-2 font-medium text-gray-700 text-sm dark:text-gray-300">
+                          Erinnern in <span className="text-red-500">*</span>
+                        </legend>
+
+                        {/* Zeit-Presets und Benutzerdefiniert als Chips */}
+                        <div className="flex flex-wrap gap-2">
+                          {/* Preset Chips */}
+                          {TIME_PRESETS.map((preset) => (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              aria-pressed={timeModeField.state.value === 'preset' && minutenField.state.value === preset.value}
+                              onClick={() => {
+                                // Story 1.2 AC4: Wechsel zu Preset-Modus
+                                timeModeField.handleChange('preset');
+                                minutenField.handleChange(preset.value);
+                              }}
+                              disabled={isPending}
+                              className={cn(
+                                'rounded-full px-4 py-2 min-h-[48px] font-medium text-sm transition-all duration-200',
+                                'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800',
+                                timeModeField.state.value === 'preset' && minutenField.state.value === preset.value
+                                  ? 'bg-amber-500 text-white shadow-md hover:bg-amber-600'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600',
+                                isPending && 'cursor-not-allowed opacity-50',
+                              )}
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+
+                          {/* Story 1.2 AC1: Benutzerdefiniert Chip */}
+                          <button
+                            type="button"
+                            aria-pressed={timeModeField.state.value === 'custom'}
+                            onClick={() => {
+                              // Wechsel zu Custom-Modus
+                              timeModeField.handleChange('custom');
+                              // Story 1.2 AC2: Default-Zeit setzen falls noch nicht gesetzt
+                              if (!customTimeField.state.value) {
+                                customTimeField.handleChange(getDefaultCustomTime());
+                              }
+                            }}
+                            disabled={isPending}
+                            className={cn(
+                              'rounded-full px-4 py-2 min-h-[48px] font-medium text-sm transition-all duration-200',
+                              'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800',
+                              'flex items-center gap-1.5',
+                              timeModeField.state.value === 'custom'
+                                ? 'bg-amber-500 text-white shadow-md hover:bg-amber-600'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600',
+                              isPending && 'cursor-not-allowed opacity-50',
+                            )}
+                          >
+                            <PiClock className="h-4 w-4" />
+                            Uhrzeit
+                          </button>
+                        </div>
+
+                        {/* Story 1.2 AC2: TimeInput erscheint bei Benutzerdefiniert */}
+                        {timeModeField.state.value === 'custom' && (
+                          <div className="mt-4">
+                            <label className="mb-1.5 block font-medium text-gray-700 text-sm dark:text-gray-300">Uhrzeit eingeben</label>
+                            <TimeInput
+                              value={customTimeField.state.value ?? { hours: 12, minutes: 0 }}
+                              onChange={(newTime) => customTimeField.handleChange(newTime)}
+                              disabled={isPending}
+                              error={customTimeField.state.meta.isTouched && customTimeField.state.meta.errors.length > 0}
+                            />
+                            {customTimeField.state.meta.isTouched && customTimeField.state.meta.errors.length > 0 && (
+                              <p className="mt-1 text-red-600 text-sm dark:text-red-400">{customTimeField.state.meta.errors.join(', ')}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Validation Errors für minuten (bei preset mode) */}
+                        {timeModeField.state.value === 'preset' && minutenField.state.meta.isTouched && minutenField.state.meta.errors.length > 0 && (
+                          <p className="mt-1 text-red-600 text-sm dark:text-red-400">{minutenField.state.meta.errors.join(', ')}</p>
+                        )}
+                      </fieldset>
+                    )}
+                  </form.Field>
+                )}
+              </form.Field>
             )}
           </form.Field>
 

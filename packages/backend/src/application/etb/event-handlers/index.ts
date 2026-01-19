@@ -13,3 +13,4 @@ export { EinsatzPersonHinzugefuegtEventHandler } from './einsatz-person-hinzugef
 export { PersonFahrzeugZuweisungHandler } from './person-fahrzeug-zuweisung.handler';
 export { RolleBesetztEventHandler } from './rolle-besetzt.handler';
 export { RolleFreigegebenEventHandler } from './rolle-freigegeben.handler';
+export { ErinnerungAktualisiertEventHandler } from './erinnerung-aktualisiert.handler';

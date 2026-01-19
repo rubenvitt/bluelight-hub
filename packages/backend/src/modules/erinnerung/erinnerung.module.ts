@@ -5,6 +5,7 @@ import { OutboxModule } from '@infrastructure/outbox/outbox.module';
 import { ERINNERUNG_REPOSITORY } from '@infrastructure/di-tokens';
 import { PrismaErinnerungRepository } from '@infrastructure/repositories/prisma-erinnerung.repository';
 import { CreateErinnerungHandler } from '@/application/erinnerung/commands/create-erinnerung/create-erinnerung.handler';
+import { UpdateErinnerungHandler } from '@/application/erinnerung/commands/update-erinnerung/update-erinnerung.handler';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
 import { ErinnerungController } from './controllers/erinnerung.controller';
 
@@ -32,8 +33,9 @@ import { ErinnerungController } from './controllers/erinnerung.controller';
     },
     // Handlers
     CreateErinnerungHandler,
+    UpdateErinnerungHandler,
     GetErinnerungenByEinsatzHandler,
   ],
-  exports: [ERINNERUNG_REPOSITORY, CreateErinnerungHandler, GetErinnerungenByEinsatzHandler],
+  exports: [ERINNERUNG_REPOSITORY, CreateErinnerungHandler, UpdateErinnerungHandler, GetErinnerungenByEinsatzHandler],
 })
 export class ErinnerungModule {}

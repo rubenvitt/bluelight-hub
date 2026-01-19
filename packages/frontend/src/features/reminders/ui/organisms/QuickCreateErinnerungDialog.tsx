@@ -20,6 +20,7 @@ import { useCallback, useState } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { zodValidator } from '@tanstack/zod-form-adapter';
 import { PiAlarm, PiClock } from 'react-icons/pi';
+import { toast } from 'sonner';
 
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { Input } from '@/shared/ui/atoms/input.atom';
@@ -86,7 +87,9 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
 
       if (value.timeMode === 'preset') {
         // Story 1.1 AC5: Berechne faelligAm = jetzt + gewaehlte Minuten
-        faelligAm = new Date(Date.now() + (value.minuten ?? 30) * 60 * 1000);
+        // Expliziter Check auf undefined, da minuten = 0 ein valider Wert ist
+        const minuten = value.minuten !== undefined ? value.minuten : 30;
+        faelligAm = new Date(Date.now() + minuten * 60 * 1000);
         toastMessage = `Erinnerung in ${value.minuten} Min erstellt`;
       } else {
         // Story 1.2 AC3: Absolute Zeit
@@ -106,7 +109,10 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
         },
         {
           onSuccess: () => {
-            // TODO: Toast mit toastMessage anzeigen (wenn Toast-System vorhanden)
+            // Story 1.2 AC3: Zeige spezifischen Toast mit Zeit-Information
+            toast.success('Erinnerung erstellt', {
+              description: toastMessage,
+            });
             setTimeout(() => {
               form.reset();
               onClose();
@@ -233,7 +239,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                             )}
                           >
                             <PiClock className="h-4 w-4" />
-                            Uhrzeit
+                            Benutzerdefiniert
                           </button>
                         </div>
 
@@ -242,7 +248,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                           <div className="mt-4">
                             <label className="mb-1.5 block font-medium text-gray-700 text-sm dark:text-gray-300">Uhrzeit eingeben</label>
                             <TimeInput
-                              value={customTimeField.state.value ?? { hours: 12, minutes: 0 }}
+                              value={customTimeField.state.value ?? getDefaultCustomTime()}
                               onChange={(newTime) => customTimeField.handleChange(newTime)}
                               disabled={isPending}
                               error={customTimeField.state.meta.errors.length > 0}

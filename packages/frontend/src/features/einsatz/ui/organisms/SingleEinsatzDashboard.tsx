@@ -10,6 +10,7 @@ import { useActiveEinsatz, EINSATZ_QUERY_KEYS, useEinsatzFahrzeuge, useUpdateFms
 import type { FmsStatus } from '@/features/einsatz';
 import { useEtb } from '@/features/etb';
 import { useLagekarte } from '@/features/lagekarte';
+import { ErinnerungenList } from '@/features/reminders';
 import { formatNatoDateTime } from '@/shared/lib/dateFormatter';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { useQuery } from '@tanstack/react-query';
@@ -17,7 +18,7 @@ import { useParams } from '@tanstack/react-router';
 import { addMinutes, format, formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useCallback, useEffect, useState } from 'react';
-import { PiCheckCircle, PiClipboard, PiClock, PiFileText, PiMapPin, PiPhone, PiRadio, PiTruck, PiUsers } from 'react-icons/pi';
+import { PiClipboard, PiClock, PiFileText, PiMapPin, PiPhone, PiRadio, PiTruck, PiUsers } from 'react-icons/pi';
 
 /**
  * Dashboard für einen einzelnen aktiven Einsatz
@@ -262,23 +263,9 @@ export function SingleEinsatzDashboard() {
             </div>
           </div>
 
-          {/* Nächste Schritte */}
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 dark:border-amber-800 dark:bg-amber-900/20">
-            <h3 className="mb-3 font-semibold text-amber-900 text-lg dark:text-amber-100">Nächste Schritte</h3>
-            <ul className="space-y-2">
-              <li className="flex items-start gap-2">
-                <PiCheckCircle className="mt-0.5 h-4 w-4 text-green-600 dark:text-green-400" />
-                <span className="text-gray-700 text-sm line-through dark:text-gray-300">Lage erkunden</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <div className="mt-0.5 h-4 w-4 rounded-full border-2 border-gray-300 dark:border-gray-600" />
-                <span className="text-gray-700 text-sm dark:text-gray-300">Nachalarmierung prüfen</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <div className="mt-0.5 h-4 w-4 rounded-full border-2 border-gray-300 dark:border-gray-600" />
-                <span className="text-gray-700 text-sm dark:text-gray-300">Einsatzbericht vorbereiten</span>
-              </li>
-            </ul>
+          {/* Erinnerungen (Story 1.3) */}
+          <div className="rounded-lg bg-white p-6 shadow-sm dark:bg-gray-800">
+            <ErinnerungenList einsatzId={einsatzId} />
           </div>
         </div>
       </div>

@@ -245,6 +245,7 @@ models/TextbausteinListResponse.ts
 models/TokenListItemDto.ts
 models/UpdateEinsatzDto.ts
 models/UpdateEintragDto.ts
+models/UpdateErinnerungDto.ts
 models/UpdateFahrzeugtypDto.ts
 models/UpdateFmsStatusDto.ts
 models/UpdateFunkStatusConfigDto.ts

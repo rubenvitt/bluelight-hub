@@ -8,6 +8,7 @@ import {
   PersonFahrzeugZuweisungEventAdapter,
   RolleBesetztEventAdapter,
   RolleFreigegebenEventAdapter,
+  ErinnerungAktualisiertEventAdapter,
 } from './adapters';
 import { EtbApplicationModule } from '@application/etb/etb-application.module';
 import { LagekarteApplicationModule } from '@application/lagekarte/lagekarte-application.module';
@@ -84,6 +85,7 @@ import { NestLoggerAdapter } from '@infrastructure/common/adapters/nest-logger.a
     PersonFahrzeugZuweisungEventAdapter, // Story 4-3: Person-Fahrzeug-Zuweisung/Entfernung
     RolleBesetztEventAdapter, // Story 5-1: RolleBesetzt ETB-Eintrag
     RolleFreigegebenEventAdapter, // Story 5-1: RolleFreigegeben ETB-Eintrag
+    ErinnerungAktualisiertEventAdapter, // Story 1.3 AC5: ErinnerungAktualisiert ETB-Eintrag
     // Event Logging Handler (Infrastructure-specific)
     LagekarteEventLoggerHandler,
     EinsatzEventLoggerHandler,

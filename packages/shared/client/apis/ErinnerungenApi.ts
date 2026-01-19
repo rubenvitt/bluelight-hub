@@ -13,7 +13,7 @@
  */
 
 import * as runtime from '../runtime';
-import type { CreateErinnerungDto, ErinnerungControllerCreateVAlpha201Response, ErinnerungControllerGetByEinsatzVAlpha200Response } from '../models/index';
+import type { CreateErinnerungDto, ErinnerungControllerCreateVAlpha201Response, ErinnerungControllerGetByEinsatzVAlpha200Response, UpdateErinnerungDto } from '../models/index';
 import {
   CreateErinnerungDtoFromJSON,
   CreateErinnerungDtoToJSON,
@@ -21,6 +21,8 @@ import {
   ErinnerungControllerCreateVAlpha201ResponseToJSON,
   ErinnerungControllerGetByEinsatzVAlpha200ResponseFromJSON,
   ErinnerungControllerGetByEinsatzVAlpha200ResponseToJSON,
+  UpdateErinnerungDtoFromJSON,
+  UpdateErinnerungDtoToJSON,
 } from '../models/index';
 
 export interface ErinnerungControllerCreateVAlphaRequest {
@@ -30,6 +32,12 @@ export interface ErinnerungControllerCreateVAlphaRequest {
 
 export interface ErinnerungControllerGetByEinsatzVAlphaRequest {
   einsatzId: string;
+}
+
+export interface ErinnerungControllerUpdateVAlphaRequest {
+  einsatzId: string;
+  id: string;
+  updateErinnerungDto: UpdateErinnerungDto;
 }
 
 /**
@@ -122,6 +130,60 @@ export class ErinnerungenApi extends runtime.BaseAPI {
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
   ): Promise<ErinnerungControllerGetByEinsatzVAlpha200Response> {
     const response = await this.erinnerungControllerGetByEinsatzVAlphaRaw(requestParameters, initOverrides);
+    return await response.value();
+  }
+
+  /**
+   * Aktualisiert eine bestehende Erinnerung. Nur Erinnerungen im Status GEPLANT können bearbeitet werden.
+   * Erinnerung aktualisieren
+   */
+  async erinnerungControllerUpdateVAlphaRaw(
+    requestParameters: ErinnerungControllerUpdateVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ErinnerungControllerCreateVAlpha201Response>> {
+    if (requestParameters['einsatzId'] == null) {
+      throw new runtime.RequiredError('einsatzId', 'Required parameter "einsatzId" was null or undefined when calling erinnerungControllerUpdateVAlpha().');
+    }
+
+    if (requestParameters['id'] == null) {
+      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling erinnerungControllerUpdateVAlpha().');
+    }
+
+    if (requestParameters['updateErinnerungDto'] == null) {
+      throw new runtime.RequiredError('updateErinnerungDto', 'Required parameter "updateErinnerungDto" was null or undefined when calling erinnerungControllerUpdateVAlpha().');
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    headerParameters['Content-Type'] = 'application/json';
+
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/einsatz/{einsatzId}/erinnerungen/{id}`
+          .replace(`{${'einsatzId'}}`, encodeURIComponent(String(requestParameters['einsatzId'])))
+          .replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
+        method: 'PUT',
+        headers: headerParameters,
+        query: queryParameters,
+        body: UpdateErinnerungDtoToJSON(requestParameters['updateErinnerungDto']),
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response, (jsonValue) => ErinnerungControllerCreateVAlpha201ResponseFromJSON(jsonValue));
+  }
+
+  /**
+   * Aktualisiert eine bestehende Erinnerung. Nur Erinnerungen im Status GEPLANT können bearbeitet werden.
+   * Erinnerung aktualisieren
+   */
+  async erinnerungControllerUpdateVAlpha(
+    requestParameters: ErinnerungControllerUpdateVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ErinnerungControllerCreateVAlpha201Response> {
+    const response = await this.erinnerungControllerUpdateVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
 }

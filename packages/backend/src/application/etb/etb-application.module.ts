@@ -13,6 +13,7 @@ import {
   PersonFahrzeugZuweisungHandler,
   RolleBesetztEventHandler,
   RolleFreigegebenEventHandler,
+  ErinnerungAktualisiertEventHandler,
 } from './event-handlers';
 import { EtbQueryMapper } from './mappers';
 import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler, GetTextbausteineHandler } from './queries';
@@ -129,6 +130,11 @@ import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler
       provide: EVENT_HANDLER.ROLLE_FREIGEGEBEN_ETB,
       useClass: RolleFreigegebenEventHandler,
     },
+    // ErinnerungAktualisiert Event Handler (Story 1.3 AC5) - ETB-Eintrag bei Erinnerung-Update
+    {
+      provide: EVENT_HANDLER.ERINNERUNG_AKTUALISIERT_ETB,
+      useClass: ErinnerungAktualisiertEventHandler,
+    },
 
     // Mappers (Story 3.3)
     EtbQueryMapper,
@@ -157,6 +163,7 @@ import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler
     EVENT_HANDLER.PERSON_VON_FAHRZEUG_ENTFERNT_ETB,
     EVENT_HANDLER.ROLLE_BESETZT_ETB,
     EVENT_HANDLER.ROLLE_FREIGEGEBEN_ETB,
+    EVENT_HANDLER.ERINNERUNG_AKTUALISIERT_ETB,
 
     // Mappers (Story 3.3)
     EtbQueryMapper,

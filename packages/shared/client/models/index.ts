@@ -215,6 +215,7 @@ export * from './TextbausteinListResponse';
 export * from './TokenListItemDto';
 export * from './UpdateEinsatzDto';
 export * from './UpdateEintragDto';
+export * from './UpdateErinnerungDto';
 export * from './UpdateFahrzeugtypDto';
 export * from './UpdateFmsStatusDto';
 export * from './UpdateFunkStatusConfigDto';

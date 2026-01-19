@@ -54,8 +54,9 @@ describe('calculateCustomFaelligAm', () => {
     expect(result.getMinutes()).toBe(30);
   });
 
-  it('should return next day when time is exactly now', () => {
+  it('should return same day when time is exactly now (AC3: equal time is NOT past)', () => {
     // Given (Arrange)
+    // AC3: "wenn 14:45 bereits vorbei ist" - exakt gleiche Zeit ist NICHT vorbei
     const hours = 12; // Exactly current time
     const minutes = 0;
 
@@ -63,7 +64,26 @@ describe('calculateCustomFaelligAm', () => {
     const result = calculateCustomFaelligAm(hours, minutes);
 
     // Then (Assert)
+    // Exakt gleiche Zeit sollte heute bleiben, da sie technisch nicht "vorbei" ist
+    expect(result.getDate()).toBe(19); // Same day
+    expect(result.getHours()).toBe(12);
+    expect(result.getMinutes()).toBe(0);
+  });
+
+  it('should return next day when time is just 1 millisecond in the past', () => {
+    // Given (Arrange)
+    // Edge Case: Zeit ist minimal vorbei
+    vi.setSystemTime(new Date(2026, 0, 19, 12, 0, 1)); // 12:00:01
+    const hours = 12;
+    const minutes = 0; // 12:00:00 ist jetzt in der Vergangenheit
+
+    // When (Act)
+    const result = calculateCustomFaelligAm(hours, minutes);
+
+    // Then (Assert)
     expect(result.getDate()).toBe(20); // Should be tomorrow
+    expect(result.getHours()).toBe(12);
+    expect(result.getMinutes()).toBe(0);
   });
 
   it('should handle midnight (00:00) correctly', () => {

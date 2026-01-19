@@ -67,6 +67,7 @@ export class CreateErinnerungDto {
   @ApiProperty({
     description: 'Optionale Beschreibung (max 500 Zeichen)',
     example: 'Im ELW 1 mit Einsatzleitung',
+    type: String,
     required: false,
     maxLength: 500,
   })

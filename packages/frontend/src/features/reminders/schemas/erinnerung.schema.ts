@@ -42,18 +42,22 @@ export const createErinnerungSchema = z
     customTime: customTimeSchema.optional(),
     beschreibung: z.string().max(500, 'Beschreibung darf maximal 500 Zeichen lang sein').optional(),
   })
-  .refine(
-    (data) => {
-      if (data.timeMode === 'preset') {
-        return data.minuten !== undefined;
-      }
-      return data.customTime !== undefined;
-    },
-    {
-      message: 'Zeit ist erforderlich',
-      path: ['minuten'],
-    },
-  );
+  .superRefine((data, ctx) => {
+    if (data.timeMode === 'preset' && data.minuten === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Zeit ist erforderlich',
+        path: ['minuten'],
+      });
+    }
+    if (data.timeMode === 'custom' && data.customTime === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Zeit ist erforderlich',
+        path: ['customTime'],
+      });
+    }
+  });
 
 export type CreateErinnerungFormData = z.infer<typeof createErinnerungSchema>;
 
@@ -71,3 +75,61 @@ export const TIME_PRESETS = [
 ] as const;
 
 export type TimePreset = (typeof TIME_PRESETS)[number];
+
+/**
+ * Schema für Update-Erinnerung Form.
+ *
+ * **Story 1.3 AC1/AC4:**
+ * - Alle Felder sind optional
+ * - Mindestens ein Feld muss gesetzt sein
+ * - Discriminated Union für Zeit: timeMode = 'preset' | 'custom' | 'unchanged'
+ *
+ * @example
+ * ```typescript
+ * const form = useForm({
+ *   defaultValues: {
+ *     titel: existingErinnerung.titel,
+ *     timeMode: 'unchanged',
+ *     beschreibung: existingErinnerung.beschreibung ?? '',
+ *   },
+ *   validatorAdapter: zodValidator(),
+ *   validators: { onChange: updateErinnerungSchema },
+ * });
+ * ```
+ */
+export const updateErinnerungSchema = z
+  .object({
+    titel: z.string().max(100, 'Titel darf maximal 100 Zeichen lang sein').optional(),
+    timeMode: z.enum(['preset', 'custom', 'unchanged']),
+    minuten: z.number().int('Minuten muss eine ganze Zahl sein').min(1, 'Minuten muss mindestens 1 sein').max(1440, 'Minuten darf maximal 1440 (24h) sein').optional(),
+    customTime: customTimeSchema.optional(),
+    beschreibung: z.string().max(500, 'Beschreibung darf maximal 500 Zeichen lang sein').optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    // Wenn timeMode='preset', muss minuten gesetzt sein
+    if (data.timeMode === 'preset' && data.minuten === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Zeit ist erforderlich',
+        path: ['minuten'],
+      });
+    }
+    // Wenn timeMode='custom', muss customTime gesetzt sein
+    if (data.timeMode === 'custom' && data.customTime === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Zeit ist erforderlich',
+        path: ['customTime'],
+      });
+    }
+    // Titel darf nicht leer sein wenn gesetzt (nicht nur Whitespace)
+    if (data.titel !== undefined && data.titel.trim().length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Titel darf nicht leer sein',
+        path: ['titel'],
+      });
+    }
+  });
+
+export type UpdateErinnerungFormData = z.infer<typeof updateErinnerungSchema>;

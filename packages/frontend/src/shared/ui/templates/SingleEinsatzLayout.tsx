@@ -6,7 +6,15 @@ import { EinsatzStatusBadge } from '@/features/einsatz/ui/molecules/einsatz-stat
 import { ModuleButton } from '@/features/einsatz/ui/molecules/ModuleButton';
 import { ModuleOverviewCard } from '@/features/einsatz/ui/molecules/ModuleOverviewCard';
 import { EinsatzBeitrittDialog } from '@/features/einsatz/ui/organisms';
-import { QuickCreateErinnerungDialog, closeQuickCreateDialog, useQuickCreateDialogState, useQuickCreateErinnerungHotkeys } from '@/features/reminders';
+import {
+  QuickCreateErinnerungDialog,
+  ErinnerungEditDialog,
+  closeQuickCreateDialog,
+  closeEditDialog,
+  useQuickCreateDialogState,
+  useEditDialogState,
+  useQuickCreateErinnerungHotkeys,
+} from '@/features/reminders';
 import { CommandPalette } from '@/shared/ui/organisms/command-palette';
 import { CommandPaletteErrorBoundary } from '@/shared/ui/organisms/command-palette/CommandPaletteErrorBoundary';
 import { EINSATZ_QUERY_KEYS, useEinsatzDetails, useEinsatzModules, useMyEinsatzTeilnahme } from '@/features/einsatz';
@@ -39,9 +47,11 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
 
   // Quick-Create Erinnerung Dialog State und Hotkeys (Story 1.1 AC1)
   const [isQuickCreateOpen, quickCreateEinsatzId] = useQuickCreateDialogState();
+  // Edit Erinnerung Dialog State (Story 1.3 AC1)
+  const [isEditDialogOpen, erinnerungToEdit, editDialogEinsatzId] = useEditDialogState();
   useQuickCreateErinnerungHotkeys({
     einsatzId,
-    enabled: !commandPaletteOpen && !showEndConfirmation && !showBeitrittDialog && !isQuickCreateOpen,
+    enabled: !commandPaletteOpen && !showEndConfirmation && !showBeitrittDialog && !isQuickCreateOpen && !isEditDialogOpen,
   });
 
   // Prüfe ob User bereits dem Einsatz beigetreten ist (Funkrufname gesetzt)
@@ -549,6 +559,9 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
 
       {/* Quick-Create Erinnerung Dialog (Story 1.1 AC1) */}
       <QuickCreateErinnerungDialog isOpen={isQuickCreateOpen} einsatzId={quickCreateEinsatzId ?? einsatzId} onClose={closeQuickCreateDialog} />
+
+      {/* Edit Erinnerung Dialog (Story 1.3 AC1) */}
+      <ErinnerungEditDialog isOpen={isEditDialogOpen} erinnerung={erinnerungToEdit} einsatzId={editDialogEinsatzId ?? einsatzId} onClose={closeEditDialog} />
     </>
   );
 }

@@ -31,6 +31,20 @@ import { createErinnerungSchema, TIME_PRESETS, type CreateErinnerungFormData } f
 import { TimeInput } from '../molecules/TimeInput';
 import { calculateCustomFaelligAm, formatTimeForToast, getDefaultCustomTime } from '../../utils/time-calculation';
 
+/**
+ * Extrahiert Fehlermeldungen aus TanStack Form Errors.
+ * Zod-Adapter liefert Objekte mit `message` Property, nicht plain Strings.
+ */
+function formatErrors(errors: unknown[]): string {
+  return errors
+    .map((e) => {
+      if (typeof e === 'string') return e;
+      if (e && typeof e === 'object' && 'message' in e) return (e as { message: string }).message;
+      return String(e);
+    })
+    .join(', ');
+}
+
 interface QuickCreateErinnerungDialogProps {
   /** Ob der Dialog offen ist */
   isOpen: boolean;
@@ -61,7 +75,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
     },
     validatorAdapter: zodValidator(),
     validators: {
-      onChange: createErinnerungSchema,
+      onSubmit: createErinnerungSchema,
     },
     onSubmit: async ({ value }) => {
       setApiErrorMessage(null);
@@ -146,13 +160,12 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                   placeholder="z.B. Lagebesprechung, Funkrunde..."
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
                   disabled={isPending}
-                  variant={field.state.meta.isTouched && field.state.meta.errors.length > 0 ? 'error' : 'default'}
+                  variant={field.state.meta.errors.length > 0 ? 'error' : 'default'}
                   maxLength={100}
                   autoFocus
                 />
-                {field.state.meta.isTouched && field.state.meta.errors.length > 0 && <p className="mt-1 text-red-600 text-sm dark:text-red-400">{field.state.meta.errors.join(', ')}</p>}
+                {field.state.meta.errors.length > 0 && <p className="mt-1 text-red-600 text-sm dark:text-red-400">{formatErrors(field.state.meta.errors)}</p>}
               </div>
             )}
           </form.Field>
@@ -232,17 +245,15 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                               value={customTimeField.state.value ?? { hours: 12, minutes: 0 }}
                               onChange={(newTime) => customTimeField.handleChange(newTime)}
                               disabled={isPending}
-                              error={customTimeField.state.meta.isTouched && customTimeField.state.meta.errors.length > 0}
+                              error={customTimeField.state.meta.errors.length > 0}
                             />
-                            {customTimeField.state.meta.isTouched && customTimeField.state.meta.errors.length > 0 && (
-                              <p className="mt-1 text-red-600 text-sm dark:text-red-400">{customTimeField.state.meta.errors.join(', ')}</p>
-                            )}
+                            {customTimeField.state.meta.errors.length > 0 && <p className="mt-1 text-red-600 text-sm dark:text-red-400">{formatErrors(customTimeField.state.meta.errors)}</p>}
                           </div>
                         )}
 
                         {/* Validation Errors für minuten (bei preset mode) */}
-                        {timeModeField.state.value === 'preset' && minutenField.state.meta.isTouched && minutenField.state.meta.errors.length > 0 && (
-                          <p className="mt-1 text-red-600 text-sm dark:text-red-400">{minutenField.state.meta.errors.join(', ')}</p>
+                        {timeModeField.state.value === 'preset' && minutenField.state.meta.errors.length > 0 && (
+                          <p className="mt-1 text-red-600 text-sm dark:text-red-400">{formatErrors(minutenField.state.meta.errors)}</p>
                         )}
                       </fieldset>
                     )}
@@ -264,7 +275,6 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                   placeholder="Zusaetzliche Details zur Erinnerung..."
                   value={field.state.value ?? ''}
                   onChange={(e) => field.handleChange(e.target.value || undefined)}
-                  onBlur={field.handleBlur}
                   disabled={isPending}
                   maxLength={500}
                   rows={3}
@@ -275,7 +285,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                     'dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500',
                     'resize-none',
                     // Error state styling (consistent with Input component)
-                    field.state.meta.isTouched && field.state.meta.errors.length > 0
+                    field.state.meta.errors.length > 0
                       ? [
                           'border-red-500 hover:border-red-600',
                           'focus:border-red-500 focus:bg-white focus:ring-red-500',
@@ -290,7 +300,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                         ],
                   )}
                 />
-                {field.state.meta.isTouched && field.state.meta.errors.length > 0 && <p className="mt-1 text-red-600 text-sm dark:text-red-400">{field.state.meta.errors.join(', ')}</p>}
+                {field.state.meta.errors.length > 0 && <p className="mt-1 text-red-600 text-sm dark:text-red-400">{formatErrors(field.state.meta.errors)}</p>}
               </div>
             )}
           </form.Field>

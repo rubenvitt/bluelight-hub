@@ -7,6 +7,7 @@ import { PrismaErinnerungRepository } from '@infrastructure/repositories/prisma-
 import { CreateErinnerungHandler } from '@/application/erinnerung/commands/create-erinnerung/create-erinnerung.handler';
 import { UpdateErinnerungHandler } from '@/application/erinnerung/commands/update-erinnerung/update-erinnerung.handler';
 import { DeleteErinnerungHandler } from '@/application/erinnerung/commands/delete-erinnerung/delete-erinnerung.handler';
+import { TriggerErinnerungHandler } from '@/application/erinnerung/commands/trigger-erinnerung/trigger-erinnerung.handler';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
 import { ErinnerungController } from './controllers/erinnerung.controller';
 
@@ -36,8 +37,9 @@ import { ErinnerungController } from './controllers/erinnerung.controller';
     CreateErinnerungHandler,
     UpdateErinnerungHandler,
     DeleteErinnerungHandler,
+    TriggerErinnerungHandler,
     GetErinnerungenByEinsatzHandler,
   ],
-  exports: [ERINNERUNG_REPOSITORY, CreateErinnerungHandler, UpdateErinnerungHandler, DeleteErinnerungHandler, GetErinnerungenByEinsatzHandler],
+  exports: [ERINNERUNG_REPOSITORY, CreateErinnerungHandler, UpdateErinnerungHandler, DeleteErinnerungHandler, TriggerErinnerungHandler, GetErinnerungenByEinsatzHandler],
 })
 export class ErinnerungModule {}

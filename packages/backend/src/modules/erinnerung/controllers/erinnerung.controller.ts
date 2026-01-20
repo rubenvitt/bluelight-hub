@@ -11,6 +11,8 @@ import { UpdateErinnerungCommand } from '@/application/erinnerung/commands/updat
 import { UpdateErinnerungHandler } from '@/application/erinnerung/commands/update-erinnerung/update-erinnerung.handler';
 import { DeleteErinnerungCommand } from '@/application/erinnerung/commands/delete-erinnerung/delete-erinnerung.command';
 import { DeleteErinnerungHandler } from '@/application/erinnerung/commands/delete-erinnerung/delete-erinnerung.handler';
+import { TriggerErinnerungCommand } from '@/application/erinnerung/commands/trigger-erinnerung/trigger-erinnerung.command';
+import { TriggerErinnerungHandler } from '@/application/erinnerung/commands/trigger-erinnerung/trigger-erinnerung.handler';
 import { GetErinnerungenByEinsatzQuery } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.query';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
 import { ERINNERUNG_ERROR_CODES } from '@/application/erinnerung/errors/erinnerung-error.codes';
@@ -39,6 +41,7 @@ export class ErinnerungController {
     private readonly createHandler: CreateErinnerungHandler,
     private readonly updateHandler: UpdateErinnerungHandler,
     private readonly deleteHandler: DeleteErinnerungHandler,
+    private readonly triggerHandler: TriggerErinnerungHandler,
     private readonly getByEinsatzHandler: GetErinnerungenByEinsatzHandler,
   ) {}
 
@@ -190,6 +193,61 @@ export class ErinnerungController {
     }
 
     return result.value;
+  }
+
+  /**
+   * Loest eine Erinnerung manuell aus.
+   *
+   * Setzt den Status auf AUSGELOEST und speichert den Auslösezeitpunkt.
+   * Nur Erinnerungen im Status GEPLANT können ausgelöst werden.
+   *
+   * **Story 1.5 ACs:**
+   * - AC1: Status wechselt zu AUSGELOEST
+   * - AC4: WebSocket Event 'erinnerung.triggered' wird emittiert
+   * - AC5: ETB-Eintrag wird automatisch erstellt (via Event Handler)
+   *
+   * **Trigger-Szenarien:**
+   * - Timer-basiert: Client löst bei Erreichen von faelligAm aus
+   * - Manuell: User kann Erinnerung vorzeitig auslösen
+   */
+  @Post(':id/trigger')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Erinnerung ausloesen',
+    description: 'Löst eine Erinnerung aus (Status → AUSGELOEST). Nur Erinnerungen im Status GEPLANT können ausgelöst werden.',
+  })
+  @ApiWrappedResponse(ErinnerungResponseDto, {
+    description: 'Erinnerung erfolgreich ausgelöst',
+  })
+  @ApiBadRequestResponse({ description: 'Ungültige ErinnerungId' })
+  @ApiNotFoundResponse({ description: 'Erinnerung nicht gefunden' })
+  @ApiConflictResponse({ description: 'Erinnerung kann nicht ausgelöst werden (Status ist nicht GEPLANT)' })
+  async trigger(
+    @Param('einsatzId') _einsatzId: string, // Für URL-Struktur, nicht für Validierung genutzt
+    @Param('id') id: string,
+  ): Promise<void> {
+    const commandResult = TriggerErinnerungCommand.create({
+      erinnerungId: id,
+    });
+
+    if (commandResult.isFailure || !commandResult.value) {
+      throw new BadRequestException(commandResult.error);
+    }
+
+    const result = await this.triggerHandler.execute(commandResult.value);
+
+    if (result.isFailure) {
+      // Error Mapping: NOT_FOUND → 404, NOT_TRIGGERABLE → 409, sonst 400
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_FOUND) {
+        throw new NotFoundException('Erinnerung nicht gefunden');
+      }
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_TRIGGERABLE) {
+        throw new ConflictException('Nur geplante Erinnerungen können ausgelöst werden');
+      }
+      throw new BadRequestException(result.error);
+    }
+
+    // 200 OK - Trigger erfolgreich
   }
 
   /**

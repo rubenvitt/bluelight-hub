@@ -39,6 +39,11 @@ export interface ErinnerungControllerGetByEinsatzVAlphaRequest {
   einsatzId: string;
 }
 
+export interface ErinnerungControllerTriggerVAlphaRequest {
+  einsatzId: string;
+  id: string;
+}
+
 export interface ErinnerungControllerUpdateVAlphaRequest {
   einsatzId: string;
   id: string;
@@ -178,6 +183,53 @@ export class ErinnerungenApi extends runtime.BaseAPI {
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
   ): Promise<ErinnerungControllerGetByEinsatzVAlpha200Response> {
     const response = await this.erinnerungControllerGetByEinsatzVAlphaRaw(requestParameters, initOverrides);
+    return await response.value();
+  }
+
+  /**
+   * Löst eine Erinnerung aus (Status → AUSGELOEST). Nur Erinnerungen im Status GEPLANT können ausgelöst werden.
+   * Erinnerung ausloesen
+   */
+  async erinnerungControllerTriggerVAlphaRaw(
+    requestParameters: ErinnerungControllerTriggerVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ErinnerungControllerCreateVAlpha201Response>> {
+    if (requestParameters['einsatzId'] == null) {
+      throw new runtime.RequiredError('einsatzId', 'Required parameter "einsatzId" was null or undefined when calling erinnerungControllerTriggerVAlpha().');
+    }
+
+    if (requestParameters['id'] == null) {
+      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling erinnerungControllerTriggerVAlpha().');
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/einsatz/{einsatzId}/erinnerungen/{id}/trigger`
+          .replace(`{${'einsatzId'}}`, encodeURIComponent(String(requestParameters['einsatzId'])))
+          .replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
+        method: 'POST',
+        headers: headerParameters,
+        query: queryParameters,
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response, (jsonValue) => ErinnerungControllerCreateVAlpha201ResponseFromJSON(jsonValue));
+  }
+
+  /**
+   * Löst eine Erinnerung aus (Status → AUSGELOEST). Nur Erinnerungen im Status GEPLANT können ausgelöst werden.
+   * Erinnerung ausloesen
+   */
+  async erinnerungControllerTriggerVAlpha(
+    requestParameters: ErinnerungControllerTriggerVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ErinnerungControllerCreateVAlpha201Response> {
+    const response = await this.erinnerungControllerTriggerVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
 

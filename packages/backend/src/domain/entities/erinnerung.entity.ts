@@ -9,6 +9,7 @@ import { ErinnerungErstelltEvent } from '@domain/events/erinnerung-erstellt.even
 import { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktualisiert.event';
 import type { ErinnerungAenderungen } from '@domain/events/erinnerung-aktualisiert.event';
 import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.event';
+import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
 
 /**
  * Props für die Erstellung einer neuen Erinnerung.
@@ -52,6 +53,8 @@ export interface ReconstructErinnerungProps {
   deletedAt?: Date | null;
   /** User der gelöscht hat (Story 1.4) */
   deletedBy?: UserId | null;
+  /** Zeitpunkt der Auslösung (Story 1.5) */
+  ausgeloestAm?: Date | null;
 }
 
 /**
@@ -104,6 +107,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
   private _isDeleted: boolean;
   private _deletedAt: Date | null;
   private _deletedBy: UserId | null;
+
+  // Auslösung Feld (Story 1.5)
+  private _ausgeloestAm: Date | null;
 
   // ============================================================
   // Readonly Getters
@@ -164,6 +170,16 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     return this._deletedBy;
   }
 
+  // Auslösung Getter (Story 1.5)
+
+  /**
+   * Gibt den Zeitpunkt der Auslösung zurück.
+   * Null wenn noch nicht ausgelöst.
+   */
+  get ausgeloestAm(): Date | null {
+    return this._ausgeloestAm ? new Date(this._ausgeloestAm.getTime()) : null;
+  }
+
   // ============================================================
   // Private Constructor (erzwingt Factory Methods)
   // ============================================================
@@ -181,6 +197,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     isDeleted = false,
     deletedAt: Date | null = null,
     deletedBy: UserId | null = null,
+    ausgeloestAm: Date | null = null,
   ) {
     super(id, createdAt, updatedAt);
     this._einsatzId = einsatzId;
@@ -192,6 +209,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     this._isDeleted = isDeleted;
     this._deletedAt = deletedAt;
     this._deletedBy = deletedBy;
+    this._ausgeloestAm = ausgeloestAm;
   }
 
   // ============================================================
@@ -273,6 +291,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       props.isDeleted ?? false,
       props.deletedAt ?? null,
       props.deletedBy ?? null,
+      props.ausgeloestAm ?? null,
     );
   }
 
@@ -414,6 +433,42 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
 
     // Domain Event emittieren für ETB-Integration
     this.addDomainEvent(new ErinnerungGeloeschtEvent(this.id, this._einsatzId, this._titel.value, geloeschtVon, this.id.toString()));
+
+    return Result.ok<void>(undefined);
+  }
+
+  /**
+   * Löst eine Erinnerung bei Fälligkeit aus.
+   *
+   * **Business Rules (Story 1.5):**
+   * - Nur Erinnerungen mit Status GEPLANT können ausgelöst werden
+   * - Bei anderen Status wird ein Fehler zurückgegeben
+   * - Setzt Status auf AUSGELOEST und speichert Auslösezeitpunkt
+   * - Emittiert ErinnerungAusgeloestEvent für ETB-Integration und WebSocket
+   *
+   * @returns Result<void> - Success oder Failure mit Error Code
+   *
+   * @example
+   * ```typescript
+   * const triggerResult = erinnerung.ausloesen();
+   * if (triggerResult.isFailure) {
+   *   // Nur GEPLANT kann ausgelöst werden
+   *   console.log(triggerResult.error); // "ERINNERUNG_NOT_TRIGGERABLE"
+   * }
+   * ```
+   */
+  public ausloesen(): Result<void> {
+    // Business Rule: Nur GEPLANT Status kann ausgelöst werden (AC1)
+    if (!this._status.isGeplant()) {
+      return Result.fail<void>('ERINNERUNG_NOT_TRIGGERABLE');
+    }
+
+    // Status-Wechsel durchführen
+    this._status = ErinnerungStatus.AUSGELOEST();
+    this._ausgeloestAm = new Date();
+
+    // Domain Event emittieren für ETB-Integration und WebSocket
+    this.addDomainEvent(new ErinnerungAusgeloestEvent(this.id, this._einsatzId, this._ausgeloestAm, this._titel.value, this._erstelltVon, this.id.toString()));
 
     return Result.ok<void>(undefined);
   }

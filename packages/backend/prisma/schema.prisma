@@ -155,6 +155,7 @@ model User {
   // Erinnerungen Relations (Story 1.1 Erinnerungen)
   // ========================================
   createdErinnerungen Erinnerung[] @relation("ErinnerungCreator")
+  deletedErinnerungen Erinnerung[] @relation("ErinnerungDeleter") // Story 1.4: Soft-Delete Audit Trail
 
   // Indexes
   @@index([username], map: "idx_user_username")
@@ -1316,9 +1317,14 @@ model Erinnerung {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Soft-Delete (Story 1.4) - Keine physische Löschung (DRK-Compliance)
+  deletedAt DateTime? @map("deleted_at")
+  deletedBy String?   @map("deleted_by") @db.VarChar(100)
+
   // Relations
   einsatz  Einsatz @relation(fields: [einsatzId], references: [id], onDelete: Cascade)
   ersteller User    @relation("ErinnerungCreator", fields: [erstelltVon], references: [id], onDelete: Restrict)
+  loescher  User?   @relation("ErinnerungDeleter", fields: [deletedBy], references: [id], onDelete: Restrict)
 
   // Indexes
   @@index([einsatzId])
@@ -1326,5 +1332,6 @@ model Erinnerung {
   @@index([einsatzId, status]) // Filter nach Status
   @@index([status])
   @@index([erstelltVon])
+  @@index([deletedAt]) // Effiziente Filterung für Soft-Delete (Story 1.4)
   @@map("erinnerungen")
 }

@@ -113,6 +113,9 @@ export class PrismaErinnerungRepository implements IErinnerungRepository {
           beschreibung: data.beschreibung,
           faelligAm: data.faelligAm,
           status: data.status,
+          // Soft-Delete Felder (Story 1.4) - werden bei delete() gesetzt
+          deletedAt: data.deletedAt,
+          deletedBy: data.deletedBy,
           // einsatzId und erstelltVon sind immutable nach Erstellung
         },
       });
@@ -174,7 +177,11 @@ export class PrismaErinnerungRepository implements IErinnerungRepository {
     try {
       const client = (tx as PrismaClient | undefined) ?? this.prisma;
       const data = await client.erinnerung.findMany({
-        where: { einsatzId: einsatzId.toString() },
+        where: {
+          einsatzId: einsatzId.toString(),
+          // Soft-Delete Filter (Story 1.4) - nur nicht-gelöschte Erinnerungen
+          deletedAt: null,
+        },
         orderBy: { faelligAm: 'asc' },
       });
 

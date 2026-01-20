@@ -10,7 +10,7 @@
 import { api } from '@/shared';
 import { getApiErrorMessage } from '@/shared/lib/errors/apiErrorHandler';
 import { logger } from '@/shared/lib/logger';
-import type { CreateErinnerungDto, ErinnerungResponseDto, ResponseError, UpdateErinnerungDto } from '@/shared';
+import type { CreateErinnerungDto, ErinnerungResponseDto, ResponseError, UpdateErinnerungDto, ErinnerungControllerDeleteVAlphaRequest } from '@/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ERINNERUNG_QUERY_KEYS, calculateRetryDelay } from './queries';
@@ -239,6 +239,112 @@ export const useUpdateErinnerung = () => {
       });
       // Invalidate specific detail query if it exists
       await queryClient.invalidateQueries({
+        queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
+      });
+    },
+    retry: 3,
+    retryDelay: calculateRetryDelay,
+  });
+};
+
+export interface DeleteErinnerungVariables {
+  /**
+   * Einsatz-ID
+   */
+  einsatzId: string;
+
+  /**
+   * Erinnerungs-ID
+   */
+  erinnerungId: string;
+}
+
+interface DeleteErinnerungContext {
+  einsatzId: string;
+  erinnerungId: string;
+  previousErinnerungen: ErinnerungResponseDto[] | undefined;
+}
+
+/**
+ * Hook für Erinnerungs-Löschung mit Optimistic Updates
+ *
+ * Löscht eine Erinnerung (Soft-Delete). Nur Erinnerungen im Status GEPLANT
+ * oder AUSGELOEST können gelöscht werden. Bei Erfolg werden automatisch alle
+ * Erinnerungs-Queries invalidiert um Konsistenz sicherzustellen. Bei Fehler
+ * wird der vorherige Zustand wiederhergestellt (Rollback).
+ *
+ * **Story 1.4 AC1:** "Nur GEPLANT oder AUSGELOEST Status löschbar"
+ * **Story 1.4 AC3:** "Soft-Delete (nicht physisch löschen)"
+ *
+ * @returns Mutation für Erinnerungs-Löschung
+ *
+ * @example
+ * ```tsx
+ * const deleteErinnerung = useDeleteErinnerung();
+ *
+ * const handleDelete = () => {
+ *   deleteErinnerung.mutate({
+ *     einsatzId: 'abc-123',
+ *     erinnerungId: 'def-456',
+ *   });
+ * };
+ * ```
+ */
+export const useDeleteErinnerung = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, ResponseError, DeleteErinnerungVariables, DeleteErinnerungContext>({
+    mutationFn: async ({ einsatzId, erinnerungId }) => {
+      await api.erinnerungen().erinnerungControllerDeleteVAlpha({
+        einsatzId,
+        id: erinnerungId,
+      });
+    },
+    onMutate: async ({ einsatzId, erinnerungId }) => {
+      // Cancel ALL related queries to prevent race conditions
+      await Promise.all([
+        queryClient.cancelQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+        }),
+        queryClient.cancelQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
+        }),
+      ]);
+
+      // Snapshot the previous value
+      const previousErinnerungen = queryClient.getQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId));
+
+      // Optimistically remove the erinnerung from the list
+      if (previousErinnerungen) {
+        const filteredErinnerungen = previousErinnerungen.filter((e) => e.id !== erinnerungId);
+        queryClient.setQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId), filteredErinnerungen);
+      }
+
+      // Return context object with previous value for rollback
+      return { einsatzId, erinnerungId, previousErinnerungen };
+    },
+    onError: async (error: ResponseError, _variables, context) => {
+      // Rollback to previous value on error
+      if (context?.previousErinnerungen !== undefined) {
+        queryClient.setQueryData(ERINNERUNG_QUERY_KEYS.list(context.einsatzId), context.previousErinnerungen);
+      }
+
+      const message = await getApiErrorMessage(error, 'Die Erinnerung konnte nicht gelöscht werden.', 'deleteErinnerung');
+      logger.error('Failed to delete Erinnerung', error);
+      toast.error('Fehler', { description: message });
+    },
+    onSuccess: () => {
+      toast.success('Erinnerung gelöscht', {
+        description: 'Die Erinnerung wurde erfolgreich gelöscht.',
+      });
+    },
+    onSettled: async (_data, _error, { einsatzId, erinnerungId }) => {
+      // Ensure consistency - invalidate Erinnerungen list and detail for this Einsatz
+      await queryClient.invalidateQueries({
+        queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+      });
+      // Remove specific detail query from cache
+      queryClient.removeQueries({
         queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
       });
     },

@@ -14,6 +14,7 @@ import {
   RolleBesetztEventHandler,
   RolleFreigegebenEventHandler,
   ErinnerungAktualisiertEventHandler,
+  ErinnerungGeloeschtEventHandler,
 } from './event-handlers';
 import { EtbQueryMapper } from './mappers';
 import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler, GetTextbausteineHandler } from './queries';
@@ -135,6 +136,11 @@ import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler
       provide: EVENT_HANDLER.ERINNERUNG_AKTUALISIERT_ETB,
       useClass: ErinnerungAktualisiertEventHandler,
     },
+    // ErinnerungGeloescht Event Handler (Story 1.4 AC5) - ETB-Eintrag bei Erinnerung-Loeschung
+    {
+      provide: EVENT_HANDLER.ERINNERUNG_GELOESCHT_ETB,
+      useClass: ErinnerungGeloeschtEventHandler,
+    },
 
     // Mappers (Story 3.3)
     EtbQueryMapper,
@@ -164,6 +170,7 @@ import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler
     EVENT_HANDLER.ROLLE_BESETZT_ETB,
     EVENT_HANDLER.ROLLE_FREIGEGEBEN_ETB,
     EVENT_HANDLER.ERINNERUNG_AKTUALISIERT_ETB,
+    EVENT_HANDLER.ERINNERUNG_GELOESCHT_ETB,
 
     // Mappers (Story 3.3)
     EtbQueryMapper,

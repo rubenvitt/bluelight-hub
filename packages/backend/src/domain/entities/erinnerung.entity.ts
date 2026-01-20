@@ -8,6 +8,7 @@ import type { UserId } from '@domain/value-objects/user-id';
 import { ErinnerungErstelltEvent } from '@domain/events/erinnerung-erstellt.event';
 import { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktualisiert.event';
 import type { ErinnerungAenderungen } from '@domain/events/erinnerung-aktualisiert.event';
+import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.event';
 
 /**
  * Props für die Erstellung einer neuen Erinnerung.
@@ -45,6 +46,12 @@ export interface ReconstructErinnerungProps {
   erstelltVon: UserId;
   createdAt: Date;
   updatedAt: Date;
+  /** Soft-Delete Flag (Story 1.4) */
+  isDeleted?: boolean;
+  /** Zeitpunkt der Löschung (Story 1.4) */
+  deletedAt?: Date | null;
+  /** User der gelöscht hat (Story 1.4) */
+  deletedBy?: UserId | null;
 }
 
 /**
@@ -93,6 +100,11 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
   private _status: ErinnerungStatus;
   private readonly _erstelltVon: UserId;
 
+  // Soft-Delete Felder (Story 1.4)
+  private _isDeleted: boolean;
+  private _deletedAt: Date | null;
+  private _deletedBy: UserId | null;
+
   // ============================================================
   // Readonly Getters
   // ============================================================
@@ -127,6 +139,31 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     return this._erstelltVon;
   }
 
+  // Soft-Delete Getters (Story 1.4)
+
+  /**
+   * Gibt zurück ob die Erinnerung gelöscht wurde (Soft-Delete).
+   */
+  get isDeleted(): boolean {
+    return this._isDeleted;
+  }
+
+  /**
+   * Gibt den Zeitpunkt der Löschung zurück.
+   * Null wenn nicht gelöscht.
+   */
+  get deletedAt(): Date | null {
+    return this._deletedAt ? new Date(this._deletedAt.getTime()) : null;
+  }
+
+  /**
+   * Gibt den User zurück der gelöscht hat.
+   * Null wenn nicht gelöscht.
+   */
+  get deletedBy(): UserId | null {
+    return this._deletedBy;
+  }
+
   // ============================================================
   // Private Constructor (erzwingt Factory Methods)
   // ============================================================
@@ -141,6 +178,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     erstelltVon: UserId,
     createdAt?: Date,
     updatedAt?: Date,
+    isDeleted = false,
+    deletedAt: Date | null = null,
+    deletedBy: UserId | null = null,
   ) {
     super(id, createdAt, updatedAt);
     this._einsatzId = einsatzId;
@@ -149,6 +189,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     this._faelligAm = faelligAm;
     this._status = status;
     this._erstelltVon = erstelltVon;
+    this._isDeleted = isDeleted;
+    this._deletedAt = deletedAt;
+    this._deletedBy = deletedBy;
   }
 
   // ============================================================
@@ -217,7 +260,20 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
    * Überspringt Validierung da Daten bereits validiert wurden.
    */
   static reconstruct(props: ReconstructErinnerungProps): Erinnerung {
-    return new Erinnerung(props.id, props.einsatzId, props.titel, props.beschreibung, props.faelligAm, props.status, props.erstelltVon, props.createdAt, props.updatedAt);
+    return new Erinnerung(
+      props.id,
+      props.einsatzId,
+      props.titel,
+      props.beschreibung,
+      props.faelligAm,
+      props.status,
+      props.erstelltVon,
+      props.createdAt,
+      props.updatedAt,
+      props.isDeleted ?? false,
+      props.deletedAt ?? null,
+      props.deletedBy ?? null,
+    );
   }
 
   // ============================================================
@@ -313,6 +369,51 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
 
     // Emit Domain Event mit allen Änderungen
     this.addDomainEvent(new ErinnerungAktualisiertEvent(this.id, this._einsatzId, aenderungen, props.aktualisierVon, this._titel.value, this.id.toString()));
+
+    return Result.ok<void>(undefined);
+  }
+
+  /**
+   * Löscht eine Erinnerung (Soft-Delete).
+   *
+   * **Business Rules (Story 1.4):**
+   * - Nur Erinnerungen mit Status GEPLANT oder AUSGELOEST können gelöscht werden
+   * - Bei anderen Status (ACKNOWLEDGED, ERLEDIGT, etc.) wird ein Fehler zurückgegeben
+   * - Emittiert ErinnerungGeloeschtEvent für ETB-Integration und Audit-Trail
+   *
+   * @param geloeschtVon - User der die Erinnerung löscht (für Audit-Trail)
+   * @returns Result<void> - Success oder Failure mit Error Code
+   *
+   * @example
+   * ```typescript
+   * const deleteResult = erinnerung.delete(userId);
+   * if (deleteResult.isFailure) {
+   *   // Nur GEPLANT oder AUSGELOEST können gelöscht werden
+   *   console.log(deleteResult.error); // "ERINNERUNG_NOT_DELETABLE"
+   * }
+   * ```
+   */
+  public delete(geloeschtVon: UserId): Result<void> {
+    // Business Rule: Nur GEPLANT oder AUSGELOEST Status erlaubt (AC1)
+    const deletableStatuses = [ErinnerungStatus.GEPLANT(), ErinnerungStatus.AUSGELOEST()];
+    const isDeletable = deletableStatuses.some((s) => s.equals(this._status));
+
+    if (!isDeletable) {
+      return Result.fail<void>('ERINNERUNG_NOT_DELETABLE');
+    }
+
+    // Bereits gelöscht? (Idempotenz)
+    if (this._isDeleted) {
+      return Result.fail<void>('ERINNERUNG_ALREADY_DELETED');
+    }
+
+    // Soft-Delete durchführen
+    this._isDeleted = true;
+    this._deletedAt = new Date();
+    this._deletedBy = geloeschtVon;
+
+    // Domain Event emittieren für ETB-Integration
+    this.addDomainEvent(new ErinnerungGeloeschtEvent(this.id, this._einsatzId, this._titel.value, geloeschtVon, this.id.toString()));
 
     return Result.ok<void>(undefined);
   }

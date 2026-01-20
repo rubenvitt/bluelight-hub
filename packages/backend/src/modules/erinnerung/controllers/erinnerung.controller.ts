@@ -1,4 +1,4 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Put, UseGuards, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, Put, UseGuards, ValidationPipe } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiConflictResponse, ApiNotFoundResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
@@ -9,6 +9,8 @@ import { CreateErinnerungCommand } from '@/application/erinnerung/commands/creat
 import { CreateErinnerungHandler } from '@/application/erinnerung/commands/create-erinnerung/create-erinnerung.handler';
 import { UpdateErinnerungCommand } from '@/application/erinnerung/commands/update-erinnerung/update-erinnerung.command';
 import { UpdateErinnerungHandler } from '@/application/erinnerung/commands/update-erinnerung/update-erinnerung.handler';
+import { DeleteErinnerungCommand } from '@/application/erinnerung/commands/delete-erinnerung/delete-erinnerung.command';
+import { DeleteErinnerungHandler } from '@/application/erinnerung/commands/delete-erinnerung/delete-erinnerung.handler';
 import { GetErinnerungenByEinsatzQuery } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.query';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
 import { ERINNERUNG_ERROR_CODES } from '@/application/erinnerung/errors/erinnerung-error.codes';
@@ -36,6 +38,7 @@ export class ErinnerungController {
   constructor(
     private readonly createHandler: CreateErinnerungHandler,
     private readonly updateHandler: UpdateErinnerungHandler,
+    private readonly deleteHandler: DeleteErinnerungHandler,
     private readonly getByEinsatzHandler: GetErinnerungenByEinsatzHandler,
   ) {}
 
@@ -187,5 +190,60 @@ export class ErinnerungController {
     }
 
     return result.value;
+  }
+
+  /**
+   * Loescht eine Erinnerung (Soft-Delete).
+   *
+   * Nur Erinnerungen im Status GEPLANT oder AUSGELOEST können gelöscht werden.
+   * Die Erinnerung wird nicht physisch gelöscht, sondern als gelöscht markiert
+   * (Soft-Delete mit deletedAt und deletedBy Feldern).
+   *
+   * **Story 1.4 ACs:**
+   * - AC1: Nur GEPLANT oder AUSGELOEST Status loeschbar
+   * - AC3: Soft-Delete (nicht physisch loeschen)
+   * - AC4: Domain Event wird emittiert
+   * - AC5: ETB-Eintrag wird automatisch erstellt (via Event Handler)
+   */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Erinnerung loeschen',
+    description: 'Loescht eine Erinnerung (Soft-Delete). Nur Erinnerungen im Status GEPLANT oder AUSGELOEST können gelöscht werden.',
+  })
+  @ApiBadRequestResponse({ description: 'Ungültige ErinnerungId oder UserId' })
+  @ApiNotFoundResponse({ description: 'Erinnerung nicht gefunden' })
+  @ApiConflictResponse({ description: 'Erinnerung kann nicht gelöscht werden (Status erlaubt kein Löschen oder bereits gelöscht)' })
+  async delete(
+    @Param('einsatzId') _einsatzId: string, // Für URL-Struktur, nicht für Validierung genutzt
+    @Param('id') id: string,
+    @CurrentUser() user: ValidatedUser,
+  ): Promise<void> {
+    const commandResult = DeleteErinnerungCommand.create({
+      erinnerungId: id,
+      geloeschtVon: user.userId,
+    });
+
+    if (commandResult.isFailure || !commandResult.value) {
+      throw new BadRequestException(commandResult.error);
+    }
+
+    const result = await this.deleteHandler.execute(commandResult.value);
+
+    if (result.isFailure) {
+      // Error Mapping: NOT_FOUND → 404, NOT_DELETABLE/ALREADY_DELETED → 409, sonst 400
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_FOUND) {
+        throw new NotFoundException('Erinnerung nicht gefunden');
+      }
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_DELETABLE) {
+        throw new ConflictException('Nur geplante oder ausgelöste Erinnerungen können gelöscht werden');
+      }
+      if (result.error === ERINNERUNG_ERROR_CODES.ALREADY_DELETED) {
+        throw new ConflictException('Erinnerung wurde bereits gelöscht');
+      }
+      throw new BadRequestException(result.error);
+    }
+
+    // 204 No Content - kein Body
   }
 }

@@ -14,3 +14,4 @@ export { PersonFahrzeugZuweisungHandler } from './person-fahrzeug-zuweisung.hand
 export { RolleBesetztEventHandler } from './rolle-besetzt.handler';
 export { RolleFreigegebenEventHandler } from './rolle-freigegeben.handler';
 export { ErinnerungAktualisiertEventHandler } from './erinnerung-aktualisiert.handler';
+export { ErinnerungGeloeschtEventHandler } from './erinnerung-geloescht.handler';

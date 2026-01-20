@@ -22,6 +22,7 @@ import { ErinnerungStatus } from '@domain/value-objects/erinnerung-status';
 import { ErinnerungTitel } from '@domain/value-objects/erinnerung-titel';
 import { UserId } from '@domain/value-objects/user-id';
 import { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktualisiert.event';
+import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.event';
 
 describe('Erinnerung Entity', () => {
   let testEinsatzId: EinsatzId;
@@ -364,6 +365,272 @@ describe('Erinnerung Entity', () => {
         // Then: Kein Event
         const events = erinnerung.getDomainEvents();
         expect(events).toHaveLength(0);
+      });
+    });
+  });
+
+  // ============================================================
+  // delete() Tests (Story 1.4)
+  // ============================================================
+
+  describe('delete()', () => {
+    describe('Status Validation (AC1)', () => {
+      it('sollte Delete erlauben wenn Status GEPLANT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.GEPLANT());
+
+        // When
+        const result = erinnerung.delete(testUserId);
+
+        // Then
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.isDeleted).toBe(true);
+      });
+
+      it('sollte Delete erlauben wenn Status AUSGELOEST ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+
+        // When
+        const result = erinnerung.delete(testUserId);
+
+        // Then
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.isDeleted).toBe(true);
+      });
+
+      it('sollte Delete verweigern wenn Status ACKNOWLEDGED ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+
+        // When
+        const result = erinnerung.delete(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_DELETABLE');
+        expect(erinnerung.isDeleted).toBe(false);
+      });
+
+      it('sollte Delete verweigern wenn Status SNOOZED ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.SNOOZED());
+
+        // When
+        const result = erinnerung.delete(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_DELETABLE');
+      });
+
+      it('sollte Delete verweigern wenn Status ESKALIERT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ESKALIERT());
+
+        // When
+        const result = erinnerung.delete(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_DELETABLE');
+      });
+
+      it('sollte Delete verweigern wenn Status ERLEDIGT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ERLEDIGT());
+
+        // When
+        const result = erinnerung.delete(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_DELETABLE');
+      });
+    });
+
+    describe('Soft-Delete Properties', () => {
+      it('sollte isDeleted auf true setzen', () => {
+        // Given
+        const erinnerung = createGeplantErinnerung();
+        expect(erinnerung.isDeleted).toBe(false);
+
+        // When
+        erinnerung.delete(testUserId);
+
+        // Then
+        expect(erinnerung.isDeleted).toBe(true);
+      });
+
+      it('sollte deletedAt setzen', () => {
+        // Given
+        const erinnerung = createGeplantErinnerung();
+        const beforeDelete = new Date();
+
+        // When
+        erinnerung.delete(testUserId);
+
+        // Then
+        const afterDelete = new Date();
+        expect(erinnerung.deletedAt).not.toBeNull();
+        expect(erinnerung.deletedAt!.getTime()).toBeGreaterThanOrEqual(beforeDelete.getTime());
+        expect(erinnerung.deletedAt!.getTime()).toBeLessThanOrEqual(afterDelete.getTime());
+      });
+
+      it('sollte deletedBy setzen', () => {
+        // Given
+        const erinnerung = createGeplantErinnerung();
+        const deletingUser = UserId.create().value!;
+
+        // When
+        erinnerung.delete(deletingUser);
+
+        // Then
+        expect(erinnerung.deletedBy).toBe(deletingUser);
+      });
+
+      it('sollte deletedAt als Kopie zurueckgeben (Immutabilitaet)', () => {
+        // Given
+        const erinnerung = createGeplantErinnerung();
+        erinnerung.delete(testUserId);
+
+        // When
+        const deletedAt1 = erinnerung.deletedAt;
+        const deletedAt2 = erinnerung.deletedAt;
+
+        // Then: Verschiedene Objekte, gleicher Wert
+        expect(deletedAt1).not.toBe(deletedAt2);
+        expect(deletedAt1!.getTime()).toBe(deletedAt2!.getTime());
+      });
+    });
+
+    describe('Idempotenz', () => {
+      it('sollte Fehler bei doppeltem Delete zurueckgeben', () => {
+        // Given
+        const erinnerung = createGeplantErinnerung();
+        erinnerung.delete(testUserId);
+
+        // When
+        const secondDelete = erinnerung.delete(testUserId);
+
+        // Then
+        expect(secondDelete.isFailure).toBe(true);
+        expect(secondDelete.error).toBe('ERINNERUNG_ALREADY_DELETED');
+      });
+    });
+
+    describe('Domain Event Emission', () => {
+      it('sollte ErinnerungGeloeschtEvent emittieren', () => {
+        // Given
+        const erinnerung = createGeplantErinnerung();
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.delete(testUserId);
+
+        // Then
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(1);
+        expect(events[0]).toBeInstanceOf(ErinnerungGeloeschtEvent);
+      });
+
+      it('sollte Event mit korrekten Properties emittieren', () => {
+        // Given
+        const erinnerung = createGeplantErinnerung({ titel: 'Lagebesprechung' });
+        erinnerung.clearDomainEvents();
+        const deletingUser = UserId.create().value!;
+
+        // When
+        erinnerung.delete(deletingUser);
+
+        // Then
+        const event = erinnerung.getDomainEvents()[0] as ErinnerungGeloeschtEvent;
+        expect(event.erinnerungId).toBe(erinnerung.id);
+        expect(event.einsatzId).toBe(erinnerung.einsatzId);
+        expect(event.titel).toBe('Lagebesprechung');
+        expect(event.geloeschtVon).toBe(deletingUser);
+      });
+
+      it('sollte kein Event emittieren bei Validierungsfehler', () => {
+        // Given: ERLEDIGT Status - nicht loeschbar
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ERLEDIGT());
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.delete(testUserId);
+
+        // Then
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(0);
+      });
+
+      it('sollte kein Event emittieren bei bereits geloeschter Erinnerung', () => {
+        // Given
+        const erinnerung = createGeplantErinnerung();
+        erinnerung.delete(testUserId);
+        erinnerung.clearDomainEvents();
+
+        // When: Zweites Delete
+        erinnerung.delete(testUserId);
+
+        // Then
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(0);
+      });
+    });
+
+    describe('reconstruct() mit Soft-Delete', () => {
+      it('sollte geloeschte Erinnerung korrekt rekonstruieren', () => {
+        // Given
+        const id = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Test').value!;
+        const deletedAt = new Date();
+        const deletedBy = UserId.create().value!;
+
+        // When
+        const erinnerung = Erinnerung.reconstruct({
+          id,
+          einsatzId: testEinsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+          status: ErinnerungStatus.GEPLANT(),
+          erstelltVon: testUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isDeleted: true,
+          deletedAt,
+          deletedBy,
+        });
+
+        // Then
+        expect(erinnerung.isDeleted).toBe(true);
+        expect(erinnerung.deletedAt).toEqual(deletedAt);
+        expect(erinnerung.deletedBy).toBe(deletedBy);
+      });
+
+      it('sollte nicht-geloeschte Erinnerung korrekt rekonstruieren (Defaults)', () => {
+        // Given
+        const id = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Test').value!;
+
+        // When: Ohne Soft-Delete Felder
+        const erinnerung = Erinnerung.reconstruct({
+          id,
+          einsatzId: testEinsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+          status: ErinnerungStatus.GEPLANT(),
+          erstelltVon: testUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        // Then: Defaults
+        expect(erinnerung.isDeleted).toBe(false);
+        expect(erinnerung.deletedAt).toBeNull();
+        expect(erinnerung.deletedBy).toBeNull();
       });
     });
   });

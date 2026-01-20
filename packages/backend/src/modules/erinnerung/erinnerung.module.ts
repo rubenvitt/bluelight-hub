@@ -24,13 +24,29 @@ import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
  * - Zeit-Presets (5, 10, 15, 30, 60 Min)
  * - Abrufen aller Erinnerungen eines Einsatzes
  *
+ * **Security (C1, C2, C3):**
+ * - JwtModule für WebSocket-Token-Validation
+ * - WsJwtAuthGuard für Gateway-Authentication
+ * - Input Validation via DTOs
+ *
  * **Architektur:**
  * - Controller: HTTP-Adapter für REST API
+ * - Gateway: WebSocket-Adapter für Real-time Events
  * - Handlers: CQRS Command/Query Handler
  * - Repository: Prisma Implementation injiziert via DI Token
  */
 @Module({
-  imports: [PrismaModule, InfrastructureCommonModule, OutboxModule],
+  imports: [
+    PrismaModule,
+    InfrastructureCommonModule,
+    OutboxModule,
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+      }),
+    }),
+  ],
   controllers: [ErinnerungController],
   providers: [
     // Repository
@@ -44,8 +60,9 @@ import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
     DeleteErinnerungHandler,
     TriggerErinnerungHandler,
     GetErinnerungenByEinsatzHandler,
-    // WebSocket Gateway (Story 1.5 AC4)
+    // WebSocket (Story 1.5 AC4 + Security C1, C2, C3)
     ErinnerungGateway,
+    WsJwtAuthGuard,
   ],
   exports: [
     ERINNERUNG_REPOSITORY,

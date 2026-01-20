@@ -10,13 +10,18 @@
  * **Story 1.4 AC1/AC2:**
  * - Loeschen-Button bei Status GEPLANT oder AUSGELOEST
  * - Loeschen oeffnet Bestaetigungs-Dialog
+ *
+ * **Story 1.5 Task 14.4:**
+ * - Acknowledge-Button vorbereitet fuer Story 1.6
+ * - Nur bei Status AUSGELOEST aktiv
  */
 
 import type { ErinnerungResponseDto } from '@/shared';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
 import { useCallback, useEffect, useState } from 'react';
-import { PiAlarm, PiCheck, PiPencil, PiTrash } from 'react-icons/pi';
+import { PiAlarm, PiCheck, PiCheckCircle, PiPencil, PiTrash } from 'react-icons/pi';
+import { toast } from 'sonner';
 import { openDeleteDialog, openEditDialog } from '../../stores';
 
 /** Countdown-Update-Interval in ms (30 Sekunden) */
@@ -78,6 +83,8 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
   const isExpired = new Date(erinnerung.faelligAm) <= new Date();
   // Story 1.4 AC1: Nur GEPLANT oder AUSGELOEST Status loeschbar
   const isDeletable = erinnerung.status === 'GEPLANT' || erinnerung.status === 'AUSGELOEST';
+  // Story 1.5 Task 14.4: Nur AUSGELOEST Status kann bestätigt werden
+  const isAcknowledgeable = erinnerung.status === 'AUSGELOEST';
 
   const handleEdit = useCallback(() => {
     if (isEditable) {
@@ -91,6 +98,14 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
       openDeleteDialog(erinnerung, einsatzId);
     }
   }, [erinnerung, einsatzId, isDeletable]);
+
+  // Story 1.5 Task 14.4: Acknowledge-Handler (Vorbereitung fuer Story 1.6)
+  const handleAcknowledge = useCallback(() => {
+    if (isAcknowledgeable) {
+      // TODO: Story 1.6 - Acknowledge API Call implementieren
+      toast.info(`Erinnerung "${erinnerung.titel}" wird in Story 1.6 bestätigt`);
+    }
+  }, [erinnerung.titel, isAcknowledgeable]);
 
   return (
     <div
@@ -167,6 +182,23 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
           ) : (
             <Button appearance="ghost" size="sm" disabled title="Diese Erinnerung kann nicht gelöscht werden" className="h-8 w-8 cursor-not-allowed p-0 opacity-50">
               <PiTrash className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Acknowledge-Button (Story 1.5 Task 14.4 - Vorbereitung fuer Story 1.6) */}
+          {isAcknowledgeable ? (
+            <Button
+              appearance="ghost"
+              size="sm"
+              onClick={handleAcknowledge}
+              title="Erinnerung bestätigen"
+              className="h-8 w-8 p-0 text-green-600 hover:bg-green-50 hover:text-green-700 dark:text-green-400 dark:hover:bg-green-900/20 dark:hover:text-green-300"
+            >
+              <PiCheckCircle className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button appearance="ghost" size="sm" disabled title="Nur ausgelöste Erinnerungen können bestätigt werden" className="h-8 w-8 cursor-not-allowed p-0 opacity-50">
+              <PiCheckCircle className="h-4 w-4" />
             </Button>
           )}
         </div>

@@ -8,11 +8,11 @@
  * - Tooltip wenn nicht editierbar
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { PiAlarm, PiCheck, PiPencil } from 'react-icons/pi';
 import type { ErinnerungResponseDto } from '@/shared';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
+import { useCallback, useEffect, useState } from 'react';
+import { PiAlarm, PiCheck, PiPencil } from 'react-icons/pi';
 import { openEditDialog } from '../../stores';
 
 /** Countdown-Update-Interval in ms (30 Sekunden) */
@@ -35,7 +35,7 @@ function formatCountdown(targetDate: Date): string {
   const diff = targetDate.getTime() - now.getTime();
 
   if (diff <= 0) {
-    return 'Faellig!';
+    return 'Fällig!';
   }
 
   const minutes = Math.floor(diff / 60000);

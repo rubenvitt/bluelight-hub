@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { ILogger } from '@domain/ports/i-logger.port';
 import { LOGGER } from '@infrastructure/di-tokens';
 import { WsJwtAuthGuard } from '../guards/ws-jwt-auth.guard';
-import type { JoinEinsatzDto } from '../dto/join-einsatz.dto';
+import { JoinEinsatzDto } from '../dto/join-einsatz.dto';
 
 /**
  * WebSocket Payload fuer erinnerung.triggered Event (Story 1.5 AC4).

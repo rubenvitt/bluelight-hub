@@ -53,7 +53,7 @@ describe('TimerService', () => {
       const onTrigger = vi.fn();
 
       // When (Act)
-      timerService.start(erinnerungen, onTrigger);
+      timerService.start(erinnerungen, 'test-einsatz-1', onTrigger);
 
       // Then (Assert)
       expect(timerService.isRunning()).toBe(true);
@@ -64,10 +64,10 @@ describe('TimerService', () => {
       const erinnerungen: ErinnerungResponseDto[] = [];
       const onTrigger1 = vi.fn();
       const onTrigger2 = vi.fn();
-      timerService.start(erinnerungen, onTrigger1);
+      timerService.start(erinnerungen, 'test-einsatz-1', onTrigger1);
 
       // When (Act)
-      timerService.start(erinnerungen, onTrigger2);
+      timerService.start(erinnerungen, 'test-einsatz-1', onTrigger2);
 
       // Then (Assert)
       expect(timerService.isRunning()).toBe(true);
@@ -87,7 +87,7 @@ describe('TimerService', () => {
       const onTrigger = vi.fn();
 
       // When (Act)
-      timerService.start([erinnerung], onTrigger);
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
 
       // Then (Assert) - Sofortiger Trigger ohne Timer-Wartezeit
       expect(onTrigger).toHaveBeenCalledTimes(1);
@@ -99,7 +99,7 @@ describe('TimerService', () => {
     it('should set isRunning to false when stopped', () => {
       // Given (Arrange)
       const erinnerungen: ErinnerungResponseDto[] = [];
-      timerService.start(erinnerungen, vi.fn());
+      timerService.start(erinnerungen, 'test-einsatz-1', vi.fn());
 
       // When (Act)
       timerService.stop();
@@ -115,7 +115,7 @@ describe('TimerService', () => {
         status: 'GEPLANT',
       });
       const onTrigger = vi.fn();
-      timerService.start([erinnerung], onTrigger);
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
 
       // When (Act)
       timerService.stop();
@@ -163,7 +163,7 @@ describe('TimerService', () => {
       const onTrigger = vi.fn();
 
       // When (Act)
-      timerService.start([erinnerung], onTrigger);
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
 
       // Then (Assert) - Trigger bei faelligAm === now
       expect(onTrigger).toHaveBeenCalledTimes(1);
@@ -179,7 +179,7 @@ describe('TimerService', () => {
       const onTrigger = vi.fn();
 
       // When (Act)
-      timerService.start([erinnerung], onTrigger);
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
 
       // Then (Assert)
       expect(onTrigger).toHaveBeenCalledTimes(1);
@@ -194,7 +194,7 @@ describe('TimerService', () => {
       const onTrigger = vi.fn();
 
       // When (Act)
-      timerService.start([erinnerung], onTrigger);
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
 
       // Then (Assert)
       expect(onTrigger).not.toHaveBeenCalled();
@@ -207,7 +207,7 @@ describe('TimerService', () => {
         status: 'GEPLANT',
       });
       const onTrigger = vi.fn();
-      timerService.start([erinnerung], onTrigger);
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
       expect(onTrigger).not.toHaveBeenCalled(); // Not yet
 
       // When (Act) - Advance time by 500ms (check interval)
@@ -242,7 +242,7 @@ describe('TimerService', () => {
       const onTrigger = vi.fn();
 
       // When (Act)
-      timerService.start([geplant, ausgeloest, acknowledged, erledigt], onTrigger);
+      timerService.start([geplant, ausgeloest, acknowledged, erledigt], 'test-einsatz-1', onTrigger);
 
       // Then (Assert) - Nur GEPLANT wird getriggert
       expect(onTrigger).toHaveBeenCalledTimes(1);
@@ -258,7 +258,7 @@ describe('TimerService', () => {
         status: 'GEPLANT',
       });
       const onTrigger = vi.fn();
-      timerService.start([erinnerung], onTrigger);
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
       expect(onTrigger).toHaveBeenCalledTimes(1);
 
       // When (Act) - Wait for multiple check cycles
@@ -275,7 +275,7 @@ describe('TimerService', () => {
         status: 'GEPLANT',
       });
       const onTrigger = vi.fn();
-      timerService.start([erinnerung], onTrigger);
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
       expect(onTrigger).toHaveBeenCalledTimes(1);
 
       // When (Act)
@@ -299,7 +299,7 @@ describe('TimerService', () => {
       const onTrigger = vi.fn();
 
       // When (Act)
-      timerService.start([erinnerung1, erinnerung2], onTrigger);
+      timerService.start([erinnerung1, erinnerung2], 'test-einsatz-1', onTrigger);
 
       // Then (Assert)
       expect(timerService.getTriggeredCount()).toBe(2);
@@ -314,14 +314,14 @@ describe('TimerService', () => {
         faelligAm: new Date(2026, 0, 19, 13, 0, 0).toISOString(), // Future
       });
       const onTrigger = vi.fn();
-      timerService.start([erinnerung1], onTrigger);
+      timerService.start([erinnerung1], 'test-einsatz-1', onTrigger);
 
       // When (Act) - Add a new erinnerung that's already due
       const erinnerung2 = createTestErinnerung({
         id: 'test-2',
         faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(), // Past
       });
-      timerService.updateErinnerungen([erinnerung1, erinnerung2]);
+      timerService.updateErinnerungen([erinnerung1, erinnerung2], 'test-einsatz-1');
       vi.advanceTimersByTime(500);
 
       // Then (Assert) - New erinnerung triggers
@@ -335,15 +335,38 @@ describe('TimerService', () => {
         faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
       });
       const onTrigger = vi.fn();
-      timerService.start([erinnerung], onTrigger);
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
       expect(timerService.getTriggeredCount()).toBe(1);
 
       // When (Act) - Update with same erinnerung
-      timerService.updateErinnerungen([erinnerung]);
+      timerService.updateErinnerungen([erinnerung], 'test-einsatz-1');
       vi.advanceTimersByTime(500);
 
       // Then (Assert) - Not triggered again
       expect(onTrigger).toHaveBeenCalledTimes(1);
+    });
+
+    it('C5 Fix: should ignore updates from wrong einsatzId context', () => {
+      // Given (Arrange) - Start timer with einsatz-1
+      const erinnerung1 = createTestErinnerung({
+        id: 'test-1',
+        einsatzId: 'einsatz-1',
+        faelligAm: new Date(2026, 0, 19, 13, 0, 0).toISOString(), // Future
+      });
+      const onTrigger = vi.fn();
+      timerService.start([erinnerung1], 'test-einsatz-1', onTrigger);
+
+      // When (Act) - Attempt update with wrong einsatzId
+      const erinnerung2 = createTestErinnerung({
+        id: 'test-2',
+        einsatzId: 'einsatz-2',
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(), // Past (should trigger)
+      });
+      timerService.updateErinnerungen([erinnerung2], 'test-einsatz-2'); // Wrong context!
+      vi.advanceTimersByTime(500);
+
+      // Then (Assert) - Update ignored, original erinnerung1 still watched, erinnerung2 not triggered
+      expect(onTrigger).not.toHaveBeenCalled(); // erinnerung1 not due yet
     });
   });
 
@@ -365,7 +388,7 @@ describe('TimerService', () => {
       const onTrigger = vi.fn();
 
       // When (Act)
-      timerService.start([erinnerung1, erinnerung2, erinnerung3], onTrigger);
+      timerService.start([erinnerung1, erinnerung2, erinnerung3], 'test-einsatz-1', onTrigger);
 
       // Then (Assert)
       expect(onTrigger).toHaveBeenCalledTimes(3);
@@ -389,7 +412,7 @@ describe('TimerService', () => {
         triggeredOrder.push(e.id);
       });
 
-      timerService.start([erinnerung1, erinnerung2], onTrigger);
+      timerService.start([erinnerung1, erinnerung2], 'test-einsatz-1', onTrigger);
       expect(onTrigger).not.toHaveBeenCalled();
 
       // When (Act) - First becomes due after 500ms
@@ -412,7 +435,7 @@ describe('TimerService', () => {
       const onTrigger = vi.fn();
 
       // When (Act)
-      timerService.start([], onTrigger);
+      timerService.start([], 'test-einsatz-1', onTrigger);
       vi.advanceTimersByTime(5000);
 
       // Then (Assert) - No errors, no triggers
@@ -429,7 +452,7 @@ describe('TimerService', () => {
       const onTrigger = vi.fn();
 
       // When (Act)
-      timerService.start([erinnerung], onTrigger);
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
 
       // Then (Assert)
       expect(onTrigger).toHaveBeenCalledTimes(1);
@@ -446,7 +469,7 @@ describe('TimerService', () => {
       const onTrigger = vi.fn();
 
       // When (Act)
-      timerService.start([erinnerung], onTrigger);
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
 
       // Then (Assert)
       expect(onTrigger).toHaveBeenCalledTimes(1);

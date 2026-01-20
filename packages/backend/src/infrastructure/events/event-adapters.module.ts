@@ -11,6 +11,7 @@ import {
   ErinnerungAktualisiertEventAdapter,
   ErinnerungGeloeschtEventAdapter,
   ErinnerungAusgeloestEventAdapter,
+  ErinnerungWebSocketEventAdapter,
 } from './adapters';
 import { EtbApplicationModule } from '@application/etb/etb-application.module';
 import { LagekarteApplicationModule } from '@application/lagekarte/lagekarte-application.module';
@@ -18,6 +19,7 @@ import { LagekarteEventLoggerHandler } from './handlers/lagekarte-event-logger.h
 import { EinsatzEventLoggerHandler } from './handlers/einsatz-event-logger.handler';
 import { LOGGER } from '@infrastructure/di-tokens';
 import { NestLoggerAdapter } from '@infrastructure/common/adapters/nest-logger.adapter';
+import { ErinnerungModule } from '@/modules/erinnerung/erinnerung.module';
 
 /**
  * NestJS Module für Event Adapters (Framework-zu-Application Delegation).
@@ -71,6 +73,8 @@ import { NestLoggerAdapter } from '@infrastructure/common/adapters/nest-logger.a
     // Application Modules für Event Handler DI Tokens (einseitige Abhängigkeit!)
     EtbApplicationModule,
     LagekarteApplicationModule,
+    // Erinnerung Module für WebSocket Gateway (Story 1.5 AC4)
+    ErinnerungModule,
   ],
   providers: [
     // Logger für Event Adapters (Infrastructure Logging)
@@ -90,6 +94,7 @@ import { NestLoggerAdapter } from '@infrastructure/common/adapters/nest-logger.a
     ErinnerungAktualisiertEventAdapter, // Story 1.3 AC5: ErinnerungAktualisiert ETB-Eintrag
     ErinnerungGeloeschtEventAdapter, // Story 1.4 AC5: ErinnerungGeloescht ETB-Eintrag
     ErinnerungAusgeloestEventAdapter, // Story 1.5 AC5: ErinnerungAusgeloest ETB-Eintrag
+    ErinnerungWebSocketEventAdapter, // Story 1.5 AC4: WebSocket Event für Team-Sync
     // Event Logging Handler (Infrastructure-specific)
     LagekarteEventLoggerHandler,
     EinsatzEventLoggerHandler,

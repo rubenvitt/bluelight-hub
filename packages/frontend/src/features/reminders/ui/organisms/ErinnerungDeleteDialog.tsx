@@ -63,20 +63,16 @@ export function ErinnerungDeleteDialog({ isOpen, onClose, erinnerung, einsatzId 
   }
 
   return (
-    <Dialog isOpen={isOpen} onClose={handleClose} size="sm">
+    <Dialog isOpen={isOpen} onClose={handleClose} size="md">
       <div className="flex items-center gap-3">
         <div className="rounded-full bg-red-100 p-2 dark:bg-red-900/30">
           <PiWarning className="h-5 w-5 text-red-600 dark:text-red-400" />
         </div>
-        <Dialog.Title>Erinnerung löschen</Dialog.Title>
+        <Dialog.Title>Erinnerung '{erinnerung.titel}' löschen?</Dialog.Title>
       </div>
 
       <Dialog.Body>
         <div className="space-y-4">
-          <p className="text-gray-700 dark:text-gray-300">
-            Möchtest du die Erinnerung <span className="font-semibold">"{erinnerung.titel}"</span> wirklich löschen?
-          </p>
-
           <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
             <p className="flex items-start gap-2 text-amber-800 text-sm dark:text-amber-300">
               <PiTrash className="mt-0.5 h-4 w-4 flex-shrink-0" />
@@ -116,7 +112,7 @@ export function ErinnerungDeleteDialog({ isOpen, onClose, erinnerung, einsatzId 
         <Button intent="secondary" appearance="ghost" onClick={handleClose} disabled={isPending}>
           Abbrechen
         </Button>
-        <Button intent="danger" onClick={handleDelete} loading={isPending} disabled={isPending}>
+        <Button intent="danger" onClick={handleDelete} loading={isPending}>
           <PiTrash className="mr-1.5 h-4 w-4" />
           Löschen
         </Button>

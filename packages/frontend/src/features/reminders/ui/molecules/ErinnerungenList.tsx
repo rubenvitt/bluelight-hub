@@ -5,12 +5,15 @@
  *
  * **Story 1.3 AC1:** Liste zeigt alle Erinnerungen
  * **Story 1.3 AC3:** Bearbeiten nur bei GEPLANT Status
+ * **Story 1.5:** Automatischer Alarm bei Faelligkeit
  */
 
 import { PiAlarm, PiPlus } from 'react-icons/pi';
+import { toast } from 'sonner';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
 import { useErinnerungenByEinsatz } from '../../api';
+import { useAlarmTrigger } from '../../hooks';
 import { openQuickCreateDialog } from '../../stores';
 import { ErinnerungCard } from './ErinnerungCard';
 
@@ -31,6 +34,24 @@ interface ErinnerungenListProps {
  */
 export function ErinnerungenList({ einsatzId, className, compact = false }: ErinnerungenListProps) {
   const { data: erinnerungen, isLoading, error } = useErinnerungenByEinsatz({ einsatzId });
+
+  // Story 1.5: Alarm Trigger Hook fuer automatische Erinnerungs-Ausloesung
+  useAlarmTrigger({
+    erinnerungen: erinnerungen ?? [],
+    einsatzId,
+    enabled: !isLoading && !error,
+    onTriggerSuccess: (erinnerung) => {
+      toast.success('Erinnerung ausgelöst', {
+        description: erinnerung.titel,
+        duration: 10000, // 10 Sekunden sichtbar
+      });
+    },
+    onTriggerError: (erinnerung, err) => {
+      toast.error('Erinnerung fehlgeschlagen', {
+        description: `${erinnerung.titel}: ${err.message}`,
+      });
+    },
+  });
 
   const handleCreateClick = () => {
     openQuickCreateDialog(einsatzId);

@@ -16,8 +16,16 @@ import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
 /**
  * Handler zum Ausloesen einer Erinnerung bei Faelligkeit.
  *
- * Nutzt TransactionalCommandHandler fuer atomare Persistenz mit Outbox-Events.
- * Fuehrt Status-Wechsel zu AUSGELOEST durch und emittiert ErinnerungAusgeloestEvent.
+ * **WARUM TransactionalCommandHandler:**
+ * Garantiert atomare Konsistenz zwischen Status-Aenderung (GEPLANT → AUSGELOEST)
+ * und Event-Publikation (ErinnerungAusgeloestEvent). Ohne Transaktional Pattern
+ * koennte der Status geaendert werden, aber das Event nicht in Outbox landen
+ * (oder umgekehrt), was zu inkonsistenten Zustaenden fuehrt.
+ *
+ * **WARUM void Result:**
+ * Trigger-Operation ist idempotent und hat keine Business-Rueckgabewerte.
+ * Client benoetigt nur HTTP Status (204 No Content) zur Bestaetigung.
+ * Vermeidet unnoetige Serialisierung und Response-Overhead.
  *
  * **Story 1.5:** Alarm bei Faelligkeit ausloesen
  * - AC1: Status wechselt zu AUSGELOEST
@@ -97,7 +105,16 @@ export class TriggerErinnerungHandler extends TransactionalCommandHandler<Trigge
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // 4. Im Repository persistieren (status + ausgeloestAm werden gesetzt)
+    // 4. Domain Events sammeln (VOR save() fuer Exception Safety)
+    // ════════════════════════════════════════════════════════════════════════
+    // M1 Fix: Events werden VOR save() extrahiert. Falls save() fehlschlaegt,
+    // werden keine Events in Outbox geschrieben (TransactionalCommandHandler Rollback).
+    // Das garantiert: Kein Event ohne persistiertes Aggregate.
+    const events = erinnerung.getDomainEvents();
+    erinnerung.clearDomainEvents();
+
+    // ════════════════════════════════════════════════════════════════════════
+    // 5. Im Repository persistieren (status + ausgeloestAm werden gesetzt)
     // ════════════════════════════════════════════════════════════════════════
     const saveResult = await this.erinnerungRepository.save(erinnerung, tx);
     if (saveResult.isFailure) {
@@ -106,15 +123,9 @@ export class TriggerErinnerungHandler extends TransactionalCommandHandler<Trigge
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // 5. Audit-Trail loggen
+    // 6. Audit-Trail loggen
     // ════════════════════════════════════════════════════════════════════════
     this.logger.log(`Erinnerung ausgeloest (id: ${erinnerung.id.toString()}, titel: "${erinnerung.titel.value}")`, 'TriggerErinnerungHandler');
-
-    // ════════════════════════════════════════════════════════════════════════
-    // 6. Domain Events sammeln
-    // ════════════════════════════════════════════════════════════════════════
-    const events = erinnerung.getDomainEvents();
-    erinnerung.clearDomainEvents();
 
     // ════════════════════════════════════════════════════════════════════════
     // 7. void Result mit Events zurueckgeben

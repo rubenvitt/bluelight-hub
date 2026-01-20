@@ -295,10 +295,11 @@ export const useDeleteErinnerung = () => {
 
   return useMutation<void, ResponseError, DeleteErinnerungVariables, DeleteErinnerungContext>({
     mutationFn: async ({ einsatzId, erinnerungId }) => {
-      await api.erinnerungen().erinnerungControllerDeleteVAlpha({
+      const request: ErinnerungControllerDeleteVAlphaRequest = {
         einsatzId,
         id: erinnerungId,
-      });
+      };
+      await api.erinnerungen().erinnerungControllerDeleteVAlpha(request);
     },
     onMutate: async ({ einsatzId, erinnerungId }) => {
       // Cancel ALL related queries to prevent race conditions
@@ -316,6 +317,11 @@ export const useDeleteErinnerung = () => {
 
       // Optimistically remove the erinnerung from the list
       if (previousErinnerungen) {
+        const existsInCache = previousErinnerungen.some((e) => e.id === erinnerungId);
+        if (!existsInCache) {
+          // Debug-Hilfe: Element nicht im Cache gefunden (ungewöhnlich)
+          logger.warn(`[deleteErinnerung] Erinnerung ${erinnerungId} nicht im Cache gefunden - möglicherweise bereits entfernt`);
+        }
         const filteredErinnerungen = previousErinnerungen.filter((e) => e.id !== erinnerungId);
         queryClient.setQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId), filteredErinnerungen);
       }
@@ -333,18 +339,128 @@ export const useDeleteErinnerung = () => {
       logger.error('Failed to delete Erinnerung', error);
       toast.error('Fehler', { description: message });
     },
-    onSuccess: () => {
-      toast.success('Erinnerung gelöscht', {
-        description: 'Die Erinnerung wurde erfolgreich gelöscht.',
-      });
-    },
-    onSettled: async (_data, _error, { einsatzId, erinnerungId }) => {
+    onSettled: async (_data, error, { einsatzId, erinnerungId }) => {
       // Ensure consistency - invalidate Erinnerungen list and detail for this Einsatz
       await queryClient.invalidateQueries({
         queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
       });
       // Remove specific detail query from cache
       queryClient.removeQueries({
+        queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
+      });
+      // H1: Toast erst nach Cache-Update anzeigen (Race Condition vermeiden)
+      if (!error) {
+        toast.success('Erinnerung gelöscht', {
+          description: 'Die Erinnerung wurde erfolgreich gelöscht.',
+        });
+      }
+    },
+    retry: 3,
+    retryDelay: calculateRetryDelay,
+  });
+};
+
+export interface TriggerErinnerungVariables {
+  /**
+   * Einsatz-ID
+   */
+  einsatzId: string;
+
+  /**
+   * Erinnerungs-ID
+   */
+  erinnerungId: string;
+}
+
+interface TriggerErinnerungContext {
+  einsatzId: string;
+  erinnerungId: string;
+  previousErinnerungen: ErinnerungResponseDto[] | undefined;
+}
+
+/**
+ * Hook fuer Erinnerungs-Ausloesen mit Optimistic Updates
+ *
+ * Loest eine Erinnerung aus (Status GEPLANT → AUSGELOEST).
+ * Wird vom Alarm Trigger Hook aufgerufen wenn eine Erinnerung faellig wird.
+ *
+ * **Story 1.5 AC1:** "Timer-basiertes Ausloesen bei Faelligkeit"
+ * **Story 1.5 AC4:** "Backend emittiert WebSocket Event"
+ *
+ * @returns Mutation fuer Erinnerungs-Trigger
+ *
+ * @example
+ * ```tsx
+ * const triggerErinnerung = useTriggerErinnerung();
+ *
+ * const handleTrigger = (erinnerung: ErinnerungResponseDto) => {
+ *   triggerErinnerung.mutate({
+ *     einsatzId: erinnerung.einsatzId,
+ *     erinnerungId: erinnerung.id,
+ *   });
+ * };
+ * ```
+ */
+export const useTriggerErinnerung = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<ErinnerungResponseDto, ResponseError, TriggerErinnerungVariables, TriggerErinnerungContext>({
+    mutationFn: async ({ einsatzId, erinnerungId }) => {
+      const response = await api.erinnerungen().erinnerungControllerTriggerVAlpha({
+        einsatzId,
+        id: erinnerungId,
+      });
+      return response.data;
+    },
+    onMutate: async ({ einsatzId, erinnerungId }) => {
+      // Cancel ALL related queries to prevent race conditions
+      await Promise.all([
+        queryClient.cancelQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+        }),
+        queryClient.cancelQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
+        }),
+      ]);
+
+      // Snapshot the previous value
+      const previousErinnerungen = queryClient.getQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId));
+
+      // Optimistically update status to AUSGELOEST
+      if (previousErinnerungen) {
+        const updatedErinnerungen = previousErinnerungen.map((e) => {
+          if (e.id === erinnerungId) {
+            return {
+              ...e,
+              status: 'AUSGELOEST' as const,
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return e;
+        });
+
+        queryClient.setQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId), updatedErinnerungen);
+      }
+
+      // Return context object with previous value for rollback
+      return { einsatzId, erinnerungId, previousErinnerungen };
+    },
+    onError: async (error: ResponseError, _variables, context) => {
+      // Rollback to previous value on error
+      if (context?.previousErinnerungen !== undefined) {
+        queryClient.setQueryData(ERINNERUNG_QUERY_KEYS.list(context.einsatzId), context.previousErinnerungen);
+      }
+
+      // Log error but do NOT show toast - alarm trigger hook handles user feedback
+      logger.error('Failed to trigger Erinnerung', error);
+    },
+    onSettled: async (_data, _error, { einsatzId, erinnerungId }) => {
+      // Ensure consistency - invalidate Erinnerungen list and detail for this Einsatz
+      await queryClient.invalidateQueries({
+        queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+      });
+      // Invalidate specific detail query if it exists
+      await queryClient.invalidateQueries({
         queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
       });
     },

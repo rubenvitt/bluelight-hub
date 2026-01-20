@@ -688,6 +688,34 @@ describe('Erinnerung Entity', () => {
         expect(result.isFailure).toBe(true);
         expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
       });
+
+      it('should succeed to trigger soft-deleted erinnerung (Repository should filter)', () => {
+        // Given: Soft-deleted Erinnerung with GEPLANT status
+        // HINWEIS: Domain-Entity erlaubt das technisch (keine isDeleted Prüfung in ausloesen()),
+        // aber das Repository sollte gelöschte Erinnerungen NICHT zurückgeben.
+        // Dieser Test dokumentiert das gewünschte Verhalten: Repository-Filter > Entity-Guard
+        const erinnerung = Erinnerung.reconstruct({
+          id: ErinnerungId.create().value!,
+          einsatzId: EinsatzId.create().value!,
+          titel: ErinnerungTitel.create('Test Erinnerung').value!,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60000),
+          status: ErinnerungStatus.GEPLANT(),
+          erstelltVon: UserId.create().value!,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isDeleted: true, // Soft-deleted
+          deletedAt: new Date(),
+          deletedBy: UserId.create().value!,
+        });
+
+        // When: Triggering (Domain Entity erlaubt es technisch)
+        const result = erinnerung.ausloesen();
+
+        // Then: Success (Entity prüft nicht isDeleted, Repository sollte filtern)
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.status.isAusgeloest()).toBe(true);
+      });
     });
 
     describe('State Changes', () => {

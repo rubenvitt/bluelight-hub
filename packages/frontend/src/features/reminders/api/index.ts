@@ -8,4 +8,13 @@
 export { ERINNERUNG_QUERY_KEYS, calculateRetryDelay, useErinnerungenByEinsatz, type UseErinnerungenByEinsatzOptions } from './queries';
 
 // Mutation Hooks
-export { useCreateErinnerung, useUpdateErinnerung, useDeleteErinnerung, type CreateErinnerungVariables, type UpdateErinnerungVariables, type DeleteErinnerungVariables } from './mutations';
+export {
+  useCreateErinnerung,
+  useUpdateErinnerung,
+  useDeleteErinnerung,
+  useTriggerErinnerung,
+  type CreateErinnerungVariables,
+  type UpdateErinnerungVariables,
+  type DeleteErinnerungVariables,
+  type TriggerErinnerungVariables,
+} from './mutations';

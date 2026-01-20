@@ -19,7 +19,7 @@
 import type { ErinnerungResponseDto } from '@/shared';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PiAlarm, PiCheck, PiCheckCircle, PiPencil, PiTrash } from 'react-icons/pi';
 import { toast } from 'sonner';
 import { openDeleteDialog, openEditDialog } from '../../stores';
@@ -64,19 +64,22 @@ function formatCountdown(targetDate: Date): string {
  * **Story 1.3 AC3:** Nur GEPLANT Status ist editierbar
  */
 export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungCardProps) {
-  const [countdown, setCountdown] = useState(() => formatCountdown(new Date(erinnerung.faelligAm)));
+  // C6 Fix: useMemo für targetDate um unnötige Re-renders zu vermeiden
+  const targetDate = useMemo(() => new Date(erinnerung.faelligAm), [erinnerung.faelligAm]);
 
-  // Countdown alle 30 Sekunden aktualisieren
+  const [countdown, setCountdown] = useState(() => formatCountdown(targetDate));
+
+  // C6 Fix: Countdown alle 30 Sekunden aktualisieren mit korrekter Dependency
   useEffect(() => {
     const updateCountdown = () => {
-      setCountdown(formatCountdown(new Date(erinnerung.faelligAm)));
+      setCountdown(formatCountdown(targetDate));
     };
 
     updateCountdown();
     const interval = setInterval(updateCountdown, COUNTDOWN_UPDATE_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [erinnerung.faelligAm]);
+  }, [targetDate]);
 
   const isEditable = erinnerung.status === 'GEPLANT';
   const isTriggered = erinnerung.status === 'AUSGELOEST';

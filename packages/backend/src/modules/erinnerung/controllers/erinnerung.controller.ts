@@ -1,5 +1,5 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, Put, UseGuards, ValidationPipe } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiConflictResponse, ApiNotFoundResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiConflictResponse, ApiNotFoundResponse, ApiOperation, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import type { ValidatedUser } from '@/modules/auth/strategies/jwt.strategy';
@@ -211,14 +211,12 @@ export class ErinnerungController {
    * - Manuell: User kann Erinnerung vorzeitig auslösen
    */
   @Post(':id/trigger')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Erinnerung ausloesen',
     description: 'Löst eine Erinnerung aus (Status → AUSGELOEST). Nur Erinnerungen im Status GEPLANT können ausgelöst werden.',
   })
-  @ApiWrappedResponse(ErinnerungResponseDto, {
-    description: 'Erinnerung erfolgreich ausgelöst',
-  })
+  @ApiResponse({ status: 204, description: 'Erinnerung erfolgreich ausgelöst' })
   @ApiBadRequestResponse({ description: 'Ungültige ErinnerungId' })
   @ApiNotFoundResponse({ description: 'Erinnerung nicht gefunden' })
   @ApiConflictResponse({ description: 'Erinnerung kann nicht ausgelöst werden (Status ist nicht GEPLANT)' })
@@ -247,7 +245,7 @@ export class ErinnerungController {
       throw new BadRequestException(result.error);
     }
 
-    // 200 OK - Trigger erfolgreich
+    // 204 No Content - Trigger erfolgreich, keine Response noetig
   }
 
   /**

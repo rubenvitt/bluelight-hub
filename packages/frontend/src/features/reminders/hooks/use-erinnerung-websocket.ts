@@ -117,6 +117,13 @@ export function useErinnerungWebSocket({
   const socketRef = useRef<Socket | null>(null);
   const [status, setStatus] = useState<WebSocketStatus>('disconnected');
 
+  // H5 Fix: Ref für aktuelle einsatzId um stale Closures im connect Handler zu vermeiden
+  const currentEinsatzIdRef = useRef(einsatzId);
+  currentEinsatzIdRef.current = einsatzId;
+
+  // C4 Fix: Track previous einsatzId for room cleanup
+  const previousEinsatzIdRef = useRef<string | null>(null);
+
   // Room Name für den Einsatz
   const roomName = `einsatz:${einsatzId}:erinnerungen`;
 
@@ -136,6 +143,25 @@ export function useErinnerungWebSocket({
   const handleTriggered = useCallback(
     (event: ErinnerungWebSocketEvent) => {
       logger.info('WebSocket: Erinnerung triggered', event);
+
+      // C7 Fix: Check if mutation is pending for this erinnerung
+      const mutationCache = queryClient.getMutationCache();
+      const pendingMutation = mutationCache.find({
+        predicate: (mutation) => mutation.state.status === 'pending' && mutation.options.mutationKey?.some((key) => typeof key === 'string' && key.includes(event.erinnerungId)),
+      });
+
+      if (pendingMutation) {
+        logger.debug('WebSocket: Skipping cache invalidation - mutation pending', { erinnerungId: event.erinnerungId });
+        // Skip cache invalidation but still show toast and call callback
+        if (showTeamToasts && event.titel) {
+          toast.warning(`Erinnerung "${event.titel}" wurde ausgelöst`, {
+            description: 'Ein Teammitglied hat diese Erinnerung ausgelöst',
+          });
+        }
+        onTriggered?.(event);
+        return;
+      }
+
       invalidateCache();
 
       if (showTeamToasts && event.titel) {
@@ -146,7 +172,7 @@ export function useErinnerungWebSocket({
 
       onTriggered?.(event);
     },
-    [invalidateCache, showTeamToasts, onTriggered],
+    [invalidateCache, showTeamToasts, onTriggered, queryClient],
   );
 
   /**
@@ -226,11 +252,15 @@ export function useErinnerungWebSocket({
     });
 
     socket.on('connect', () => {
-      logger.info('WebSocket: Connected, joining room', { room: roomName });
+      // H5 Fix: Nutze currentEinsatzIdRef.current statt einsatzId aus Closure
+      const currentEinsatzId = currentEinsatzIdRef.current;
+      const currentRoomName = `einsatz:${currentEinsatzId}:erinnerungen`;
+
+      logger.info('WebSocket: Connected, joining room', { room: currentRoomName });
       setStatus('connected');
 
-      // Room beitreten
-      socket.emit('join', { einsatzId });
+      // Room beitreten mit aktueller einsatzId
+      socket.emit('join', { einsatzId: currentEinsatzId });
     });
 
     socket.on('disconnect', (reason) => {
@@ -276,11 +306,21 @@ export function useErinnerungWebSocket({
     };
   }, [enabled, einsatzId, connect, disconnect]);
 
-  // Room wechseln bei einsatzId-Änderung
+  // C4 Fix: Room wechseln bei einsatzId-Änderung (leave old room first)
   useEffect(() => {
     if (socketRef.current?.connected && einsatzId) {
+      // Leave old room if einsatzId changed
+      if (previousEinsatzIdRef.current && previousEinsatzIdRef.current !== einsatzId) {
+        logger.debug('WebSocket: Leaving old room', { oldEinsatzId: previousEinsatzIdRef.current });
+        socketRef.current.emit('leave', { einsatzId: previousEinsatzIdRef.current });
+      }
+
+      // Join new room
       logger.debug('WebSocket: Switching room to', { room: roomName });
       socketRef.current.emit('join', { einsatzId });
+
+      // Update ref
+      previousEinsatzIdRef.current = einsatzId;
     }
   }, [einsatzId, roomName]);
 

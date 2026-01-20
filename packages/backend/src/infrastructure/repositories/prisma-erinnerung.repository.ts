@@ -1,11 +1,7 @@
-// biome-ignore lint/style/useImportType: IErinnerungRepository is interface for DI
 import { IErinnerungRepository } from '@domain/repositories/i-erinnerung.repository';
 import type { TransactionContext } from '@domain/common/transaction';
-// biome-ignore lint/style/useImportType: Erinnerung entity needed at runtime
 import { Erinnerung } from '@domain/entities/erinnerung.entity';
-// biome-ignore lint/style/useImportType: ErinnerungId value object needed at runtime
 import { ErinnerungId } from '@domain/value-objects/erinnerung-id';
-// biome-ignore lint/style/useImportType: EinsatzId value object needed at runtime
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import type { PrismaClient } from '@/generated/prisma/client';
 import { Injectable } from '@nestjs/common';
@@ -113,7 +109,10 @@ export class PrismaErinnerungRepository implements IErinnerungRepository {
           beschreibung: data.beschreibung,
           faelligAm: data.faelligAm,
           status: data.status,
+          // Auslösung Feld (Story 1.5) - wird bei ausloesen() gesetzt
+          ausgeloestAm: data.ausgeloestAm,
           // Soft-Delete Felder (Story 1.4) - werden bei delete() gesetzt
+          isDeleted: data.isDeleted,
           deletedAt: data.deletedAt,
           deletedBy: data.deletedBy,
           // einsatzId und erstelltVon sind immutable nach Erstellung
@@ -180,7 +179,7 @@ export class PrismaErinnerungRepository implements IErinnerungRepository {
         where: {
           einsatzId: einsatzId.toString(),
           // Soft-Delete Filter (Story 1.4) - nur nicht-gelöschte Erinnerungen
-          deletedAt: null,
+          isDeleted: false,
         },
         orderBy: { faelligAm: 'asc' },
       });

@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+// biome-ignore lint/style/useImportType: JwtModule needed for NestJS Module imports at runtime (AC1)
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaModule } from '@infrastructure/database/prisma.module';
 import { InfrastructureCommonModule } from '@infrastructure/common.module';
 import { OutboxModule } from '@infrastructure/outbox/outbox.module';
@@ -10,6 +13,8 @@ import { DeleteErinnerungHandler } from '@/application/erinnerung/commands/delet
 import { TriggerErinnerungHandler } from '@/application/erinnerung/commands/trigger-erinnerung/trigger-erinnerung.handler';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
 import { ErinnerungController } from './controllers/erinnerung.controller';
+import { ErinnerungGateway } from './gateways/erinnerung.gateway';
+import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
 
 /**
  * Module für Erinnerungen/Wecker innerhalb von Einsätzen.
@@ -39,7 +44,17 @@ import { ErinnerungController } from './controllers/erinnerung.controller';
     DeleteErinnerungHandler,
     TriggerErinnerungHandler,
     GetErinnerungenByEinsatzHandler,
+    // WebSocket Gateway (Story 1.5 AC4)
+    ErinnerungGateway,
   ],
-  exports: [ERINNERUNG_REPOSITORY, CreateErinnerungHandler, UpdateErinnerungHandler, DeleteErinnerungHandler, TriggerErinnerungHandler, GetErinnerungenByEinsatzHandler],
+  exports: [
+    ERINNERUNG_REPOSITORY,
+    CreateErinnerungHandler,
+    UpdateErinnerungHandler,
+    DeleteErinnerungHandler,
+    TriggerErinnerungHandler,
+    GetErinnerungenByEinsatzHandler,
+    ErinnerungGateway, // Export for WebSocket Event Adapter
+  ],
 })
 export class ErinnerungModule {}

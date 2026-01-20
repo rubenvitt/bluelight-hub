@@ -283,6 +283,22 @@ describe('TriggerErinnerungHandler', () => {
       expect(result.error).toBe(ERINNERUNG_ERROR_CODES.NOT_TRIGGERABLE);
     });
 
+    it('should return NOT_FOUND when repository returns deleted erinnerung (soft-deleted)', async () => {
+      // Given (Arrange)
+      // Repository sollte gelöschte Erinnerungen NICHT zurückgeben (findById filtern nach isDeleted=false)
+      mockErinnerungRepository.findById.mockResolvedValue(Result.ok(null));
+
+      const commandResult = createValidCommand();
+      const command = commandResult.value!;
+
+      // When (Act)
+      const result = await handler.execute(command);
+
+      // Then (Assert)
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe(ERINNERUNG_ERROR_CODES.NOT_FOUND);
+    });
+
     it('should return SAVE_FAILED when repository save fails', async () => {
       // Given (Arrange)
       const mockErinnerung = createMockErinnerung(ErinnerungStatus.GEPLANT());

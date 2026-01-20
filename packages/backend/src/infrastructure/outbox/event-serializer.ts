@@ -41,6 +41,7 @@ import type { ServerAccessTokenRevokedEvent } from '@domain/events/server-access
 import type { ServerAccessTokenRotatedEvent } from '@domain/events/server-access-token-rotated.event';
 import type { ServerAccessTokenReactivatedEvent } from '@domain/events/server-access-token-reactivated.event';
 import type { ErinnerungErstelltEvent } from '@domain/events/erinnerung-erstellt.event';
+import type { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktualisiert.event';
 
 /**
  * Serialisiertes Event-Payload für Outbox-Persistierung.
@@ -252,6 +253,8 @@ export class EventSerializer {
       // ===== ERINNERUNG EVENTS =====
       case 'erinnerung.erstellt':
         return this.serializeErinnerungErstellt(event as unknown as ErinnerungErstelltEvent);
+      case 'erinnerung.aktualisiert':
+        return this.serializeErinnerungAktualisiert(event as unknown as ErinnerungAktualisiertEvent);
 
       default:
         throw new Error(`Unknown event type: ${eventName}. EventSerializer needs to be updated.`);
@@ -660,6 +663,20 @@ export class EventSerializer {
       titel: event.titel, // Already primitive string
       faelligAm: event.faelligAm.toISOString(), // Date → ISO string
       erstelltVon: event.erstelltVon.toString(), // UserId → string
+    };
+  }
+
+  private serializeErinnerungAktualisiert(event: ErinnerungAktualisiertEvent): Record<string, unknown> {
+    return {
+      erinnerungId: event.erinnerungId.toString(), // ErinnerungId → string
+      einsatzId: event.einsatzId.toString(), // EinsatzId → string
+      aenderungen: {
+        titel: event.aenderungen.titel, // string | undefined
+        beschreibung: event.aenderungen.beschreibung, // string | null | undefined
+        faelligAm: event.aenderungen.faelligAm?.toISOString(), // Date → ISO string | undefined
+      },
+      aktualisierVon: event.aktualisierVon.toString(), // UserId → string
+      titel: event.titel, // Already primitive string (aktueller Titel)
     };
   }
 }

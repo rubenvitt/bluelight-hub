@@ -8,22 +8,22 @@
  * AC4: Validierung (Titel nicht leer, Zeit in der Zukunft)
  */
 
-import { useCallback, useMemo, useState } from 'react';
-import { useForm } from '@tanstack/react-form';
-import { zodValidator } from '@tanstack/zod-form-adapter';
-import { PiPencil, PiClock } from 'react-icons/pi';
-import { toast } from 'sonner';
+import type { ErinnerungResponseDto, UpdateErinnerungDto } from '@/shared';
 
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { Input } from '@/shared/ui/atoms/input.atom';
-import { Dialog } from '@/shared/ui/molecules/dialog.molecule';
 import { cn } from '@/shared/ui/cn';
-import type { ErinnerungResponseDto, UpdateErinnerungDto } from '@/shared';
+import { Dialog } from '@/shared/ui/molecules/dialog.molecule';
+import { useForm } from '@tanstack/react-form';
+import { zodValidator } from '@tanstack/zod-form-adapter';
+import { useCallback, useMemo, useState } from 'react';
+import { PiClock, PiPencil } from 'react-icons/pi';
+import { toast } from 'sonner';
 
 import { useUpdateErinnerung } from '../../api';
-import { updateErinnerungSchema, TIME_PRESETS, type UpdateErinnerungFormData, type CustomTime } from '../../schemas/erinnerung.schema';
-import { TimeInput } from '../molecules/TimeInput';
+import { type CustomTime, TIME_PRESETS, type UpdateErinnerungFormData, updateErinnerungSchema } from '../../schemas/erinnerung.schema';
 import { calculateCustomFaelligAm, formatTimeForToast } from '../../utils/time-calculation';
+import { TimeInput } from '../molecules/TimeInput';
 
 /**
  * Extrahiert Fehlermeldungen aus TanStack Form Errors.
@@ -257,7 +257,7 @@ export function ErinnerungEditDialog({ isOpen, onClose, erinnerung, einsatzId }:
                               isPending && 'cursor-not-allowed opacity-50',
                             )}
                           >
-                            Unveraendert
+                            Unverändert
                           </button>
 
                           {/* Preset Chips */}

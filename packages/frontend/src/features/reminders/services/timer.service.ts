@@ -71,13 +71,27 @@ export class TimerService {
    * Stoppt automatisch einen vorherigen Timer falls vorhanden.
    * Prueft alle 500ms ob Erinnerungen faellig sind.
    *
+   * **WICHTIG:** Bei gleichem einsatzId werden triggeredIds NICHT geloescht,
+   * um Mehrfach-Ausloesung bei Query-Refetch zu verhindern.
+   *
    * @param erinnerungen - Liste der zu ueberwachenden Erinnerungen
    * @param einsatzId - C5 Fix: Einsatz-ID fuer Context-Tracking
    * @param onTrigger - Callback bei Faelligkeit einer Erinnerung
    */
   start(erinnerungen: ErinnerungResponseDto[], einsatzId: string, onTrigger: OnTriggerCallback): void {
-    // Stoppe vorherigen Timer falls vorhanden
-    this.stop();
+    // Prüfe ob gleicher Einsatz - wenn ja, behalte triggeredIds für Deduplizierung
+    const sameEinsatz = this.currentEinsatzId === einsatzId;
+
+    // Stoppe vorherigen Timer falls vorhanden (aber ohne triggeredIds zu clearen bei gleichem Einsatz)
+    if (this.intervalId !== null) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+
+    // Nur bei Einsatz-Wechsel triggeredIds clearen
+    if (!sameEinsatz) {
+      this.triggeredIds.clear();
+    }
 
     // Speichere aktuelle Konfiguration
     this.currentErinnerungen = erinnerungen;

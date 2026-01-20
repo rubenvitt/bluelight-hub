@@ -131,7 +131,7 @@ describe('TimerService', () => {
         faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
         status: 'GEPLANT',
       });
-      timerService.start([erinnerung], vi.fn());
+      timerService.start([erinnerung], 'test-einsatz-1', vi.fn());
       expect(timerService.getTriggeredCount()).toBe(1);
 
       // When (Act)
@@ -143,13 +143,60 @@ describe('TimerService', () => {
 
     it('should be safe to call multiple times', () => {
       // Given (Arrange)
-      timerService.start([], vi.fn());
+      timerService.start([], 'test-einsatz-1', vi.fn());
 
       // When (Act) & Then (Assert) - No errors
       timerService.stop();
       timerService.stop();
       timerService.stop();
       expect(timerService.isRunning()).toBe(false);
+    });
+  });
+
+  describe('start() deduplication preservation', () => {
+    it('should PRESERVE triggeredIds when restarting with same einsatzId (fixes race condition)', () => {
+      // Given (Arrange) - Erinnerung triggered
+      const erinnerung = createTestErinnerung({
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
+        status: 'GEPLANT',
+      });
+      const onTrigger = vi.fn();
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
+      expect(onTrigger).toHaveBeenCalledTimes(1);
+      expect(timerService.getTriggeredCount()).toBe(1);
+
+      // When (Act) - Restart with same einsatzId (simulates Query refetch)
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
+      vi.advanceTimersByTime(500);
+
+      // Then (Assert) - Still only triggered once (triggeredIds preserved)
+      expect(onTrigger).toHaveBeenCalledTimes(1);
+      expect(timerService.getTriggeredCount()).toBe(1);
+    });
+
+    it('should CLEAR triggeredIds when restarting with different einsatzId', () => {
+      // Given (Arrange) - Erinnerung triggered for einsatz-1
+      const erinnerung1 = createTestErinnerung({
+        id: 'erin-1',
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
+        status: 'GEPLANT',
+      });
+      const onTrigger = vi.fn();
+      timerService.start([erinnerung1], 'test-einsatz-1', onTrigger);
+      expect(onTrigger).toHaveBeenCalledTimes(1);
+      expect(timerService.getTriggeredCount()).toBe(1);
+
+      // When (Act) - Start with different einsatzId
+      const erinnerung2 = createTestErinnerung({
+        id: 'erin-2',
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
+        status: 'GEPLANT',
+      });
+      timerService.start([erinnerung2], 'test-einsatz-2', onTrigger);
+
+      // Then (Assert) - New erinnerung triggered, triggeredIds cleared
+      expect(onTrigger).toHaveBeenCalledTimes(2);
+      expect(timerService.getTriggeredCount()).toBe(1); // Only erin-2 now
     });
   });
 

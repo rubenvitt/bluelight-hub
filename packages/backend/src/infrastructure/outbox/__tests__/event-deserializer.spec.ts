@@ -781,10 +781,11 @@ describe('EventDeserializer', () => {
       expect(deserializer.supportsEventType('')).toBe(false);
     });
 
-    it('should return all 37 supported event types', () => {
+    it('should return all 40 supported event types', () => {
       const supportedTypes = deserializer.getSupportedEventTypes();
 
-      expect(supportedTypes).toHaveLength(37);
+      // 40 Event-Typen: Basis-Events + Erinnerung-Events (Story 1.x)
+      expect(supportedTypes).toHaveLength(40);
       expect(supportedTypes).toContain('einsatz.created');
       expect(supportedTypes).toContain('etb.created');
       expect(supportedTypes).toContain('lagekarte.created');

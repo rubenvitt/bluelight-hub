@@ -10,6 +10,7 @@ import {
   RolleFreigegebenEventAdapter,
   ErinnerungAktualisiertEventAdapter,
   ErinnerungGeloeschtEventAdapter,
+  ErinnerungAusgeloestEventAdapter,
 } from './adapters';
 import { EtbApplicationModule } from '@application/etb/etb-application.module';
 import { LagekarteApplicationModule } from '@application/lagekarte/lagekarte-application.module';
@@ -88,6 +89,7 @@ import { NestLoggerAdapter } from '@infrastructure/common/adapters/nest-logger.a
     RolleFreigegebenEventAdapter, // Story 5-1: RolleFreigegeben ETB-Eintrag
     ErinnerungAktualisiertEventAdapter, // Story 1.3 AC5: ErinnerungAktualisiert ETB-Eintrag
     ErinnerungGeloeschtEventAdapter, // Story 1.4 AC5: ErinnerungGeloescht ETB-Eintrag
+    ErinnerungAusgeloestEventAdapter, // Story 1.5 AC5: ErinnerungAusgeloest ETB-Eintrag
     // Event Logging Handler (Infrastructure-specific)
     LagekarteEventLoggerHandler,
     EinsatzEventLoggerHandler,

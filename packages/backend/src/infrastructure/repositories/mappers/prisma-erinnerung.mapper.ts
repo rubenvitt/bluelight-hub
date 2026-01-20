@@ -73,10 +73,12 @@ export class PrismaErinnerungMapper {
       erstelltVon: userIdResult.value,
       createdAt: prisma.createdAt,
       updatedAt: prisma.updatedAt,
-      // Soft-Delete Felder (Story 1.4)
-      isDeleted: prisma.deletedAt !== null,
+      // Soft-Delete Felder (Story 1.4) - isDeleted direkt aus DB (nicht abgeleitet)
+      isDeleted: prisma.isDeleted,
       deletedAt: prisma.deletedAt,
       deletedBy,
+      // Auslösung Feld (Story 1.5)
+      ausgeloestAm: prisma.ausgeloestAm,
     });
   }
 
@@ -94,8 +96,11 @@ export class PrismaErinnerungMapper {
     status: PrismaErinnerungStatus;
     erstelltVon: string;
     // Soft-Delete Felder (Story 1.4)
+    isDeleted: boolean;
     deletedAt: Date | null;
     deletedBy: string | null;
+    // Auslösung Feld (Story 1.5)
+    ausgeloestAm: Date | null;
   } {
     return {
       id: entity.id.toString(),
@@ -106,8 +111,11 @@ export class PrismaErinnerungMapper {
       status: PrismaErinnerungMapper.mapDomainStatusToPrisma(entity.status),
       erstelltVon: entity.erstelltVon.toString(),
       // Soft-Delete Felder (Story 1.4)
+      isDeleted: entity.isDeleted,
       deletedAt: entity.deletedAt,
       deletedBy: entity.deletedBy?.toString() ?? null,
+      // Auslösung Feld (Story 1.5)
+      ausgeloestAm: entity.ausgeloestAm,
     };
   }
 

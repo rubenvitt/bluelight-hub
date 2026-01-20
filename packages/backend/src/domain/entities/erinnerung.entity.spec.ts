@@ -1,5 +1,7 @@
 import { Erinnerung, type CreateErinnerungProps } from '@domain/entities/erinnerung.entity';
 import { ErinnerungErstelltEvent } from '@domain/events/erinnerung-erstellt.event';
+import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.event';
+import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { ErinnerungId } from '@domain/value-objects/erinnerung-id';
 import { ErinnerungStatus } from '@domain/value-objects/erinnerung-status';
@@ -341,6 +343,499 @@ describe('Erinnerung Entity', () => {
 
       erinnerung.clearDomainEvents();
       expect(erinnerung.getDomainEvents()).toHaveLength(0);
+    });
+  });
+
+  describe('delete() - Soft Delete Method', () => {
+    // Helper für Soft-Delete Tests
+    const createDeleteTestErinnerung = (status: ErinnerungStatus, isDeleted = false): Erinnerung => {
+      return Erinnerung.reconstruct({
+        id: ErinnerungId.create().value!,
+        einsatzId: EinsatzId.create().value!,
+        titel: ErinnerungTitel.create('Test Erinnerung').value!,
+        beschreibung: null,
+        faelligAm: new Date(Date.now() + 60000),
+        status,
+        erstelltVon: UserId.create().value!,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isDeleted,
+        deletedAt: isDeleted ? new Date() : null,
+        deletedBy: isDeleted ? UserId.create().value! : null,
+      });
+    };
+
+    describe('Success Cases - Deletable Status', () => {
+      it('should delete erinnerung with GEPLANT status successfully', () => {
+        // Given: Erinnerung with GEPLANT status
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.GEPLANT());
+        const userId = UserId.create().value!;
+
+        // When: Deleting
+        const result = erinnerung.delete(userId);
+
+        // Then: Success
+        expect(result.isSuccess).toBe(true);
+      });
+
+      it('should delete erinnerung with AUSGELOEST status successfully', () => {
+        // Given: Erinnerung with AUSGELOEST status
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.AUSGELOEST());
+        const userId = UserId.create().value!;
+
+        // When: Deleting
+        const result = erinnerung.delete(userId);
+
+        // Then: Success
+        expect(result.isSuccess).toBe(true);
+      });
+
+      it('should set isDeleted to true after delete', () => {
+        // Given: Erinnerung with GEPLANT status
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.GEPLANT());
+        const userId = UserId.create().value!;
+        expect(erinnerung.isDeleted).toBe(false);
+
+        // When: Deleting
+        erinnerung.delete(userId);
+
+        // Then: isDeleted is true
+        expect(erinnerung.isDeleted).toBe(true);
+      });
+
+      it('should set deletedAt to current timestamp after delete', () => {
+        // Given: Erinnerung with GEPLANT status
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.GEPLANT());
+        const userId = UserId.create().value!;
+        const beforeDelete = new Date();
+
+        // When: Deleting
+        erinnerung.delete(userId);
+        const afterDelete = new Date();
+
+        // Then: deletedAt is set to current time
+        expect(erinnerung.deletedAt).toBeInstanceOf(Date);
+        expect(erinnerung.deletedAt!.getTime()).toBeGreaterThanOrEqual(beforeDelete.getTime());
+        expect(erinnerung.deletedAt!.getTime()).toBeLessThanOrEqual(afterDelete.getTime());
+      });
+
+      it('should set deletedBy to provided userId after delete', () => {
+        // Given: Erinnerung with GEPLANT status
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.GEPLANT());
+        const userId = UserId.create().value!;
+
+        // When: Deleting
+        erinnerung.delete(userId);
+
+        // Then: deletedBy is set to userId
+        expect(erinnerung.deletedBy).toBe(userId);
+      });
+
+      it('should emit ErinnerungGeloeschtEvent after delete', () => {
+        // Given: Erinnerung with GEPLANT status
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.GEPLANT());
+        const userId = UserId.create().value!;
+
+        // When: Deleting
+        erinnerung.delete(userId);
+
+        // Then: Event is emitted
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(1);
+        expect(events[0]).toBeInstanceOf(ErinnerungGeloeschtEvent);
+      });
+    });
+
+    describe('Failure Cases - Non-Deletable Status', () => {
+      it('should fail to delete erinnerung with ACKNOWLEDGED status', () => {
+        // Given: Erinnerung with ACKNOWLEDGED status
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.ACKNOWLEDGED());
+        const userId = UserId.create().value!;
+
+        // When: Deleting
+        const result = erinnerung.delete(userId);
+
+        // Then: Failure
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_DELETABLE');
+      });
+
+      it('should fail to delete erinnerung with SNOOZED status', () => {
+        // Given: Erinnerung with SNOOZED status
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.SNOOZED());
+        const userId = UserId.create().value!;
+
+        // When: Deleting
+        const result = erinnerung.delete(userId);
+
+        // Then: Failure
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_DELETABLE');
+      });
+
+      it('should fail to delete erinnerung with ESKALIERT status', () => {
+        // Given: Erinnerung with ESKALIERT status
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.ESKALIERT());
+        const userId = UserId.create().value!;
+
+        // When: Deleting
+        const result = erinnerung.delete(userId);
+
+        // Then: Failure
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_DELETABLE');
+      });
+
+      it('should fail to delete erinnerung with ERLEDIGT status', () => {
+        // Given: Erinnerung with ERLEDIGT status
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.ERLEDIGT());
+        const userId = UserId.create().value!;
+
+        // When: Deleting
+        const result = erinnerung.delete(userId);
+
+        // Then: Failure
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_DELETABLE');
+      });
+
+      it('should return ERINNERUNG_NOT_DELETABLE error for non-deletable status', () => {
+        // Given: Erinnerung with non-deletable status (ACKNOWLEDGED)
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.ACKNOWLEDGED());
+        const userId = UserId.create().value!;
+
+        // When: Deleting
+        const result = erinnerung.delete(userId);
+
+        // Then: Correct error code
+        expect(result.error).toBe('ERINNERUNG_NOT_DELETABLE');
+      });
+    });
+
+    describe('Idempotenz', () => {
+      it('should fail when erinnerung is already deleted', () => {
+        // Given: Already deleted Erinnerung
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.GEPLANT(), true);
+        const userId = UserId.create().value!;
+
+        // When: Trying to delete again
+        const result = erinnerung.delete(userId);
+
+        // Then: Failure
+        expect(result.isFailure).toBe(true);
+      });
+
+      it('should return ERINNERUNG_ALREADY_DELETED error', () => {
+        // Given: Already deleted Erinnerung
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.GEPLANT(), true);
+        const userId = UserId.create().value!;
+
+        // When: Trying to delete again
+        const result = erinnerung.delete(userId);
+
+        // Then: Correct error code
+        expect(result.error).toBe('ERINNERUNG_ALREADY_DELETED');
+      });
+    });
+
+    describe('Event Data', () => {
+      it('should include correct data in ErinnerungGeloeschtEvent', () => {
+        // Given: Erinnerung with GEPLANT status
+        const erinnerung = createDeleteTestErinnerung(ErinnerungStatus.GEPLANT());
+        const userId = UserId.create().value!;
+
+        // When: Deleting
+        erinnerung.delete(userId);
+
+        // Then: Event has correct data
+        const events = erinnerung.getDomainEvents();
+        const event = events[0] as ErinnerungGeloeschtEvent;
+
+        expect(event.erinnerungId).toBe(erinnerung.id);
+        expect(event.einsatzId).toBe(erinnerung.einsatzId);
+        expect(event.titel).toBe('Test Erinnerung');
+        expect(event.geloeschtVon).toBe(userId);
+      });
+
+      it('should have erinnerungId, einsatzId, titel, geloeschtVon in event', () => {
+        // Given: Erinnerung with specific values
+        const einsatzId = EinsatzId.create().value!;
+        const erinnerungId = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Spezifische Erinnerung').value!;
+        const userId = UserId.create().value!;
+
+        const erinnerung = Erinnerung.reconstruct({
+          id: erinnerungId,
+          einsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60000),
+          status: ErinnerungStatus.GEPLANT(),
+          erstelltVon: UserId.create().value!,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        // When: Deleting
+        erinnerung.delete(userId);
+
+        // Then: All required fields present in event
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(1);
+
+        const event = events[0] as ErinnerungGeloeschtEvent;
+        expect(event).toHaveProperty('erinnerungId');
+        expect(event).toHaveProperty('einsatzId');
+        expect(event).toHaveProperty('titel');
+        expect(event).toHaveProperty('geloeschtVon');
+
+        expect(event.erinnerungId).toBe(erinnerungId);
+        expect(event.einsatzId).toBe(einsatzId);
+        expect(event.titel).toBe('Spezifische Erinnerung');
+        expect(event.geloeschtVon).toBe(userId);
+      });
+    });
+  });
+
+  describe('ausloesen() - Trigger Method (Story 1.5)', () => {
+    // Helper to create Erinnerung with specific status for trigger tests
+    const createTriggerTestErinnerung = (status: ErinnerungStatus): Erinnerung => {
+      const erinnerungId = ErinnerungId.create().value!;
+      const einsatzId = EinsatzId.create().value!;
+      const titel = ErinnerungTitel.create('Test Erinnerung').value!;
+
+      return Erinnerung.reconstruct({
+        id: erinnerungId,
+        einsatzId,
+        titel,
+        beschreibung: null,
+        faelligAm: new Date(Date.now() + 60000),
+        status,
+        erstelltVon: UserId.create().value!,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    };
+
+    describe('Status Validation', () => {
+      it('should trigger erinnerung with GEPLANT status successfully', () => {
+        // Given: Erinnerung with GEPLANT status
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.GEPLANT());
+
+        // When: Triggering
+        const result = erinnerung.ausloesen();
+
+        // Then: Success
+        expect(result.isSuccess).toBe(true);
+      });
+
+      it('should fail to trigger erinnerung with AUSGELOEST status', () => {
+        // Given: Erinnerung with AUSGELOEST status (already triggered)
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.AUSGELOEST());
+
+        // When: Triggering
+        const result = erinnerung.ausloesen();
+
+        // Then: Failure
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
+      });
+
+      it('should fail to trigger erinnerung with ACKNOWLEDGED status', () => {
+        // Given: Erinnerung with ACKNOWLEDGED status
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.ACKNOWLEDGED());
+
+        // When: Triggering
+        const result = erinnerung.ausloesen();
+
+        // Then: Failure
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
+      });
+
+      it('should fail to trigger erinnerung with SNOOZED status', () => {
+        // Given: Erinnerung with SNOOZED status
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.SNOOZED());
+
+        // When: Triggering
+        const result = erinnerung.ausloesen();
+
+        // Then: Failure
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
+      });
+
+      it('should fail to trigger erinnerung with ESKALIERT status', () => {
+        // Given: Erinnerung with ESKALIERT status
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.ESKALIERT());
+
+        // When: Triggering
+        const result = erinnerung.ausloesen();
+
+        // Then: Failure
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
+      });
+
+      it('should fail to trigger erinnerung with ERLEDIGT status', () => {
+        // Given: Erinnerung with ERLEDIGT status
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.ERLEDIGT());
+
+        // When: Triggering
+        const result = erinnerung.ausloesen();
+
+        // Then: Failure
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
+      });
+    });
+
+    describe('State Changes', () => {
+      it('should change status to AUSGELOEST after trigger', () => {
+        // Given: Erinnerung with GEPLANT status
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.GEPLANT());
+
+        // When: Triggering
+        erinnerung.ausloesen();
+
+        // Then: Status is AUSGELOEST
+        expect(erinnerung.status.isAusgeloest()).toBe(true);
+        expect(erinnerung.status.value).toBe('AUSGELOEST');
+      });
+
+      it('should set ausgeloestAm to current timestamp after trigger', () => {
+        // Given: Erinnerung with GEPLANT status
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.GEPLANT());
+        const beforeTrigger = new Date();
+
+        // When: Triggering
+        erinnerung.ausloesen();
+        const afterTrigger = new Date();
+
+        // Then: ausgeloestAm is set to current time
+        expect(erinnerung.ausgeloestAm).toBeInstanceOf(Date);
+        expect(erinnerung.ausgeloestAm!.getTime()).toBeGreaterThanOrEqual(beforeTrigger.getTime());
+        expect(erinnerung.ausgeloestAm!.getTime()).toBeLessThanOrEqual(afterTrigger.getTime());
+      });
+
+      it('should have null ausgeloestAm before trigger', () => {
+        // Given: Erinnerung with GEPLANT status (not triggered yet)
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.GEPLANT());
+
+        // Then: ausgeloestAm is null
+        expect(erinnerung.ausgeloestAm).toBeNull();
+      });
+    });
+
+    describe('Domain Event', () => {
+      it('should emit ErinnerungAusgeloestEvent after trigger', () => {
+        // Given: Erinnerung with GEPLANT status
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.GEPLANT());
+
+        // When: Triggering
+        erinnerung.ausloesen();
+
+        // Then: Event is emitted
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(1);
+        expect(events[0]).toBeInstanceOf(ErinnerungAusgeloestEvent);
+      });
+
+      it('should include correct data in ErinnerungAusgeloestEvent', () => {
+        // Given: Erinnerung with GEPLANT status
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.GEPLANT());
+
+        // When: Triggering
+        erinnerung.ausloesen();
+
+        // Then: Event has correct data
+        const events = erinnerung.getDomainEvents();
+        const event = events[0] as ErinnerungAusgeloestEvent;
+
+        expect(event.erinnerungId).toBe(erinnerung.id);
+        expect(event.einsatzId).toBe(erinnerung.einsatzId);
+        expect(event.titel).toBe('Test Erinnerung');
+        expect(event.ausgeloestAm).toBeInstanceOf(Date);
+      });
+
+      it('should have erinnerungId, einsatzId, ausgeloestAm, titel in event', () => {
+        // Given: Erinnerung with specific values
+        const einsatzId = EinsatzId.create().value!;
+        const erinnerungId = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Spezifische Erinnerung').value!;
+
+        const erinnerung = Erinnerung.reconstruct({
+          id: erinnerungId,
+          einsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60000),
+          status: ErinnerungStatus.GEPLANT(),
+          erstelltVon: UserId.create().value!,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        // When: Triggering
+        erinnerung.ausloesen();
+
+        // Then: All required fields present in event
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(1);
+
+        const event = events[0] as ErinnerungAusgeloestEvent;
+        expect(event).toHaveProperty('erinnerungId');
+        expect(event).toHaveProperty('einsatzId');
+        expect(event).toHaveProperty('ausgeloestAm');
+        expect(event).toHaveProperty('titel');
+
+        expect(event.erinnerungId).toBe(erinnerungId);
+        expect(event.einsatzId).toBe(einsatzId);
+        expect(event.titel).toBe('Spezifische Erinnerung');
+        expect(event.ausgeloestAm).toBeInstanceOf(Date);
+      });
+
+      it('should not emit event when trigger fails', () => {
+        // Given: Erinnerung with AUSGELOEST status (already triggered)
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.AUSGELOEST());
+
+        // When: Trying to trigger
+        erinnerung.ausloesen();
+
+        // Then: No event emitted
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(0);
+      });
+    });
+
+    describe('ausgeloestAm Immutability', () => {
+      it('should return copy of ausgeloestAm date', () => {
+        // Given: Triggered Erinnerung
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.GEPLANT());
+        erinnerung.ausloesen();
+
+        // When: Getting ausgeloestAm twice
+        const date1 = erinnerung.ausgeloestAm;
+        const date2 = erinnerung.ausgeloestAm;
+
+        // Then: Different Date objects (copy)
+        expect(date1).not.toBe(date2);
+        expect(date1!.getTime()).toBe(date2!.getTime());
+      });
+
+      it('should not be mutable from outside', () => {
+        // Given: Triggered Erinnerung
+        const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.GEPLANT());
+        erinnerung.ausloesen();
+        const originalTime = erinnerung.ausgeloestAm!.getTime();
+
+        // When: Trying to mutate the returned date
+        const dateRef = erinnerung.ausgeloestAm;
+        dateRef!.setTime(0);
+
+        // Then: Internal state unchanged
+        expect(erinnerung.ausgeloestAm!.getTime()).toBe(originalTime);
+      });
     });
   });
 });

@@ -1311,6 +1311,7 @@ model Erinnerung {
   beschreibung String?          @db.VarChar(500)
   faelligAm    DateTime         @map("faellig_am")
   status       ErinnerungStatus @default(GEPLANT)
+  ausgeloestAm DateTime?        @map("ausgeloest_am") // Story 1.5: Zeitpunkt der Auslösung
   erstelltVon  String           @map("erstellt_von") @db.VarChar(100)
 
   // Audit Trail
@@ -1318,6 +1319,7 @@ model Erinnerung {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Soft-Delete (Story 1.4) - Keine physische Löschung (DRK-Compliance)
+  isDeleted Boolean   @default(false) @map("is_deleted")
   deletedAt DateTime? @map("deleted_at")
   deletedBy String?   @map("deleted_by") @db.VarChar(100)
 
@@ -1332,6 +1334,7 @@ model Erinnerung {
   @@index([einsatzId, status]) // Filter nach Status
   @@index([status])
   @@index([erstelltVon])
-  @@index([deletedAt]) // Effiziente Filterung für Soft-Delete (Story 1.4)
+  @@index([isDeleted]) // Effiziente Filterung für Soft-Delete Boolean (Story 1.4)
+  @@index([deletedAt]) // Effiziente Filterung für Soft-Delete Timestamp (Story 1.4)
   @@map("erinnerungen")
 }

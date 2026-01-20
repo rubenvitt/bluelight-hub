@@ -15,3 +15,4 @@ export { RolleBesetztEventHandler } from './rolle-besetzt.handler';
 export { RolleFreigegebenEventHandler } from './rolle-freigegeben.handler';
 export { ErinnerungAktualisiertEventHandler } from './erinnerung-aktualisiert.handler';
 export { ErinnerungGeloeschtEventHandler } from './erinnerung-geloescht.handler';
+export { ErinnerungAusgeloestEventHandler } from './erinnerung-ausgeloest.handler';

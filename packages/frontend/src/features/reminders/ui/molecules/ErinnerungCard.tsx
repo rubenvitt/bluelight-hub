@@ -128,7 +128,7 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
                       : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
                 )}
               >
-                {isTriggered ? 'Ausgeloest' : countdown}
+                {isTriggered ? 'Ausgelöst' : countdown}
               </span>
               <span className="text-gray-400 text-xs">
                 {new Date(erinnerung.faelligAm).toLocaleTimeString('de-DE', {
@@ -148,7 +148,7 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
               <PiPencil className="h-4 w-4" />
             </Button>
           ) : (
-            <Button appearance="ghost" size="sm" disabled title="Nur geplante Erinnerungen koennen bearbeitet werden" className="h-8 w-8 cursor-not-allowed p-0 opacity-50">
+            <Button appearance="ghost" size="sm" disabled title="Nur geplante Erinnerungen können bearbeitet werden" className="h-8 w-8 cursor-not-allowed p-0 opacity-50">
               <PiPencil className="h-4 w-4" />
             </Button>
           )}
@@ -159,13 +159,13 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
               appearance="ghost"
               size="sm"
               onClick={handleDelete}
-              title="Erinnerung loeschen"
+              title="Erinnerung löschen"
               className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
             >
               <PiTrash className="h-4 w-4" />
             </Button>
           ) : (
-            <Button appearance="ghost" size="sm" disabled title="Diese Erinnerung kann nicht geloescht werden" className="h-8 w-8 cursor-not-allowed p-0 opacity-50">
+            <Button appearance="ghost" size="sm" disabled title="Diese Erinnerung kann nicht gelöscht werden" className="h-8 w-8 cursor-not-allowed p-0 opacity-50">
               <PiTrash className="h-4 w-4" />
             </Button>
           )}

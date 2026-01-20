@@ -1,9 +1,9 @@
 /**
  * Erinnerung Delete Dialog
  *
- * **Story 1.4:** "Erinnerung loeschen"
- * AC2: Bestaetigungs-Dialog fragt: "Wirklich loeschen?"
- * AC1: Nur GEPLANT oder AUSGELOEST Status loeschbar (wird im Button geprueft)
+ * **Story 1.4:** "Erinnerung löschen"
+ * AC2: Bestätigungs-Dialog fragt: "Wirklich löschen?"
+ * AC1: Nur GEPLANT oder AUSGELOEST Status löschbar (wird im Button geprüft)
  */
 
 import type { ErinnerungResponseDto } from '@/shared';
@@ -18,19 +18,19 @@ import { useDeleteErinnerung } from '../../api';
 interface ErinnerungDeleteDialogProps {
   /** Ob der Dialog offen ist */
   isOpen: boolean;
-  /** Schliessen-Handler */
+  /** Schließen-Handler */
   onClose: () => void;
-  /** Die zu loeschende Erinnerung */
+  /** Die zu löschende Erinnerung */
   erinnerung: ErinnerungResponseDto | null;
   /** Einsatz ID */
   einsatzId: string;
 }
 
 /**
- * Bestaetigungs-Dialog zum Loeschen einer Erinnerung.
+ * Bestätigungs-Dialog zum Löschen einer Erinnerung.
  *
- * **Story 1.4 AC2:** "Bestaetigungs-Dialog fragt: 'Wirklich loeschen?'"
- * **Story 1.4 AC4:** Nach erfolgreichem Loeschen wird die Liste aktualisiert (via Hook).
+ * **Story 1.4 AC2:** "Bestätigungs-Dialog fragt: 'Wirklich löschen?'"
+ * **Story 1.4 AC4:** Nach erfolgreichem Löschen wird die Liste aktualisiert (via Hook).
  */
 export function ErinnerungDeleteDialog({ isOpen, onClose, erinnerung, einsatzId }: ErinnerungDeleteDialogProps) {
   const { mutate: deleteErinnerung, isPending } = useDeleteErinnerung();
@@ -68,19 +68,19 @@ export function ErinnerungDeleteDialog({ isOpen, onClose, erinnerung, einsatzId 
         <div className="rounded-full bg-red-100 p-2 dark:bg-red-900/30">
           <PiWarning className="h-5 w-5 text-red-600 dark:text-red-400" />
         </div>
-        <Dialog.Title>Erinnerung loeschen</Dialog.Title>
+        <Dialog.Title>Erinnerung löschen</Dialog.Title>
       </div>
 
       <Dialog.Body>
         <div className="space-y-4">
           <p className="text-gray-700 dark:text-gray-300">
-            Moechtest du die Erinnerung <span className="font-semibold">"{erinnerung.titel}"</span> wirklich loeschen?
+            Möchtest du die Erinnerung <span className="font-semibold">"{erinnerung.titel}"</span> wirklich löschen?
           </p>
 
           <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
             <p className="flex items-start gap-2 text-amber-800 text-sm dark:text-amber-300">
               <PiTrash className="mt-0.5 h-4 w-4 flex-shrink-0" />
-              <span>Diese Aktion kann nicht rueckgaengig gemacht werden. Die Erinnerung wird im Einsatztagebuch dokumentiert.</span>
+              <span>Diese Aktion kann nicht rückgängig gemacht werden. Die Erinnerung wird im Einsatztagebuch dokumentiert.</span>
             </p>
           </div>
 
@@ -92,7 +92,7 @@ export function ErinnerungDeleteDialog({ isOpen, onClose, erinnerung, einsatzId 
                 <dd className="font-medium text-gray-900 dark:text-white">{erinnerung.titel}</dd>
               </div>
               <div className="flex">
-                <dt className="w-24 flex-shrink-0 text-gray-500 dark:text-gray-400">Faellig um:</dt>
+                <dt className="w-24 flex-shrink-0 text-gray-500 dark:text-gray-400">Fällig um:</dt>
                 <dd className="text-gray-700 dark:text-gray-300">
                   {new Date(erinnerung.faelligAm).toLocaleString('de-DE', {
                     day: '2-digit',
@@ -105,7 +105,7 @@ export function ErinnerungDeleteDialog({ isOpen, onClose, erinnerung, einsatzId 
               </div>
               <div className="flex">
                 <dt className="w-24 flex-shrink-0 text-gray-500 dark:text-gray-400">Status:</dt>
-                <dd className="text-gray-700 dark:text-gray-300">{erinnerung.status === 'GEPLANT' ? 'Geplant' : erinnerung.status === 'AUSGELOEST' ? 'Ausgeloest' : erinnerung.status}</dd>
+                <dd className="text-gray-700 dark:text-gray-300">{erinnerung.status === 'GEPLANT' ? 'Geplant' : erinnerung.status === 'AUSGELOEST' ? 'Ausgelöst' : erinnerung.status}</dd>
               </div>
             </dl>
           </div>
@@ -118,7 +118,7 @@ export function ErinnerungDeleteDialog({ isOpen, onClose, erinnerung, einsatzId 
         </Button>
         <Button intent="danger" onClick={handleDelete} loading={isPending} disabled={isPending}>
           <PiTrash className="mr-1.5 h-4 w-4" />
-          Loeschen
+          Löschen
         </Button>
       </Dialog.Footer>
     </Dialog>

@@ -6,14 +6,18 @@
  * **Story 1.3 AC1/AC3:**
  * - Bearbeiten-Button nur bei Status GEPLANT sichtbar
  * - Tooltip wenn nicht editierbar
+ *
+ * **Story 1.4 AC1/AC2:**
+ * - Loeschen-Button bei Status GEPLANT oder AUSGELOEST
+ * - Loeschen oeffnet Bestaetigungs-Dialog
  */
 
 import type { ErinnerungResponseDto } from '@/shared';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
 import { useCallback, useEffect, useState } from 'react';
-import { PiAlarm, PiCheck, PiPencil } from 'react-icons/pi';
-import { openEditDialog } from '../../stores';
+import { PiAlarm, PiCheck, PiPencil, PiTrash } from 'react-icons/pi';
+import { openDeleteDialog, openEditDialog } from '../../stores';
 
 /** Countdown-Update-Interval in ms (30 Sekunden) */
 const COUNTDOWN_UPDATE_INTERVAL_MS = 30_000;
@@ -72,12 +76,21 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
   const isEditable = erinnerung.status === 'GEPLANT';
   const isTriggered = erinnerung.status === 'AUSGELOEST';
   const isExpired = new Date(erinnerung.faelligAm) <= new Date();
+  // Story 1.4 AC1: Nur GEPLANT oder AUSGELOEST Status loeschbar
+  const isDeletable = erinnerung.status === 'GEPLANT' || erinnerung.status === 'AUSGELOEST';
 
   const handleEdit = useCallback(() => {
     if (isEditable) {
       openEditDialog(erinnerung, einsatzId);
     }
   }, [erinnerung, einsatzId, isEditable]);
+
+  // Story 1.4 AC2: Loeschen oeffnet Bestaetigungs-Dialog
+  const handleDelete = useCallback(() => {
+    if (isDeletable) {
+      openDeleteDialog(erinnerung, einsatzId);
+    }
+  }, [erinnerung, einsatzId, isDeletable]);
 
   return (
     <div
@@ -128,7 +141,8 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
         </div>
 
         {/* Aktionen */}
-        <div className="flex-shrink-0">
+        <div className="flex flex-shrink-0 gap-1">
+          {/* Bearbeiten-Button (Story 1.3) */}
           {isEditable ? (
             <Button appearance="ghost" size="sm" onClick={handleEdit} title="Erinnerung bearbeiten" className="h-8 w-8 p-0">
               <PiPencil className="h-4 w-4" />
@@ -136,6 +150,23 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
           ) : (
             <Button appearance="ghost" size="sm" disabled title="Nur geplante Erinnerungen koennen bearbeitet werden" className="h-8 w-8 cursor-not-allowed p-0 opacity-50">
               <PiPencil className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Loeschen-Button (Story 1.4 AC1/AC2) */}
+          {isDeletable ? (
+            <Button
+              appearance="ghost"
+              size="sm"
+              onClick={handleDelete}
+              title="Erinnerung loeschen"
+              className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
+            >
+              <PiTrash className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button appearance="ghost" size="sm" disabled title="Diese Erinnerung kann nicht geloescht werden" className="h-8 w-8 cursor-not-allowed p-0 opacity-50">
+              <PiTrash className="h-4 w-4" />
             </Button>
           )}
         </div>

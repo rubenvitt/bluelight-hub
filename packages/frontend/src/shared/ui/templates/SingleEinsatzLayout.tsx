@@ -9,10 +9,13 @@ import { EinsatzBeitrittDialog } from '@/features/einsatz/ui/organisms';
 import {
   QuickCreateErinnerungDialog,
   ErinnerungEditDialog,
+  ErinnerungDeleteDialog,
   closeQuickCreateDialog,
   closeEditDialog,
+  closeDeleteDialog,
   useQuickCreateDialogState,
   useEditDialogState,
+  useDeleteDialogState,
   useQuickCreateErinnerungHotkeys,
 } from '@/features/reminders';
 import { CommandPalette } from '@/shared/ui/organisms/command-palette';
@@ -49,9 +52,11 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
   const [isQuickCreateOpen, quickCreateEinsatzId] = useQuickCreateDialogState();
   // Edit Erinnerung Dialog State (Story 1.3 AC1)
   const [isEditDialogOpen, erinnerungToEdit, editDialogEinsatzId] = useEditDialogState();
+  // Delete Erinnerung Dialog State (Story 1.4 AC2)
+  const [isDeleteDialogOpen, erinnerungToDelete, deleteDialogEinsatzId] = useDeleteDialogState();
   useQuickCreateErinnerungHotkeys({
     einsatzId,
-    enabled: !commandPaletteOpen && !showEndConfirmation && !showBeitrittDialog && !isQuickCreateOpen && !isEditDialogOpen,
+    enabled: !commandPaletteOpen && !showEndConfirmation && !showBeitrittDialog && !isQuickCreateOpen && !isEditDialogOpen && !isDeleteDialogOpen,
   });
 
   // Prüfe ob User bereits dem Einsatz beigetreten ist (Funkrufname gesetzt)
@@ -562,6 +567,9 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
 
       {/* Edit Erinnerung Dialog (Story 1.3 AC1) */}
       <ErinnerungEditDialog isOpen={isEditDialogOpen} erinnerung={erinnerungToEdit} einsatzId={editDialogEinsatzId ?? einsatzId} onClose={closeEditDialog} />
+
+      {/* Delete Erinnerung Dialog (Story 1.4 AC2) */}
+      <ErinnerungDeleteDialog isOpen={isDeleteDialogOpen} erinnerung={erinnerungToDelete} einsatzId={deleteDialogEinsatzId ?? einsatzId} onClose={closeDeleteDialog} />
     </>
   );
 }

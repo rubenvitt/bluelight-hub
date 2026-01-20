@@ -30,6 +30,11 @@ export interface ErinnerungControllerCreateVAlphaRequest {
   createErinnerungDto: CreateErinnerungDto;
 }
 
+export interface ErinnerungControllerDeleteVAlphaRequest {
+  einsatzId: string;
+  id: string;
+}
+
 export interface ErinnerungControllerGetByEinsatzVAlphaRequest {
   einsatzId: string;
 }
@@ -90,6 +95,49 @@ export class ErinnerungenApi extends runtime.BaseAPI {
   ): Promise<ErinnerungControllerCreateVAlpha201Response> {
     const response = await this.erinnerungControllerCreateVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
+  }
+
+  /**
+   * Loescht eine Erinnerung (Soft-Delete). Nur Erinnerungen im Status GEPLANT oder AUSGELOEST können gelöscht werden.
+   * Erinnerung loeschen
+   */
+  async erinnerungControllerDeleteVAlphaRaw(
+    requestParameters: ErinnerungControllerDeleteVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<void>> {
+    if (requestParameters['einsatzId'] == null) {
+      throw new runtime.RequiredError('einsatzId', 'Required parameter "einsatzId" was null or undefined when calling erinnerungControllerDeleteVAlpha().');
+    }
+
+    if (requestParameters['id'] == null) {
+      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling erinnerungControllerDeleteVAlpha().');
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/einsatz/{einsatzId}/erinnerungen/{id}`
+          .replace(`{${'einsatzId'}}`, encodeURIComponent(String(requestParameters['einsatzId'])))
+          .replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
+        method: 'DELETE',
+        headers: headerParameters,
+        query: queryParameters,
+      },
+      initOverrides,
+    );
+
+    return new runtime.VoidApiResponse(response);
+  }
+
+  /**
+   * Loescht eine Erinnerung (Soft-Delete). Nur Erinnerungen im Status GEPLANT oder AUSGELOEST können gelöscht werden.
+   * Erinnerung loeschen
+   */
+  async erinnerungControllerDeleteVAlpha(requestParameters: ErinnerungControllerDeleteVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+    await this.erinnerungControllerDeleteVAlphaRaw(requestParameters, initOverrides);
   }
 
   /**

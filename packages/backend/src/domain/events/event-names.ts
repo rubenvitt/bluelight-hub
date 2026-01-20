@@ -154,6 +154,8 @@ export const EVENT_NAMES = {
     ESKALIERT: 'erinnerung.eskaliert',
     /** Event: Erinnerung wurde erledigt */
     ERLEDIGT: 'erinnerung.erledigt',
+    /** Event: Erinnerung wurde gelöscht (Soft-Delete) (Story 1.4) */
+    GELOESCHT: 'erinnerung.geloescht',
   },
 } as const;
 

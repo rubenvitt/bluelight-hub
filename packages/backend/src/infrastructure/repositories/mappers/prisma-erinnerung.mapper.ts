@@ -52,7 +52,17 @@ export class PrismaErinnerungMapper {
       throw new Error(`Invalid UserId from DB: ${prisma.erstelltVon}`);
     }
 
-    // 6. Entity via reconstruct() rekonstruieren (keine Events, keine Validierung)
+    // 6. Soft-Delete: deletedBy rekonstruieren (optional) (Story 1.4)
+    let deletedBy: UserId | null = null;
+    if (prisma.deletedBy) {
+      const deletedByResult = UserId.create(prisma.deletedBy);
+      if (deletedByResult.isFailure || !deletedByResult.value) {
+        throw new Error(`Invalid deletedBy UserId from DB: ${prisma.deletedBy}`);
+      }
+      deletedBy = deletedByResult.value;
+    }
+
+    // 7. Entity via reconstruct() rekonstruieren (keine Events, keine Validierung)
     return Erinnerung.reconstruct({
       id: idResult.value,
       einsatzId: einsatzIdResult.value,
@@ -63,6 +73,10 @@ export class PrismaErinnerungMapper {
       erstelltVon: userIdResult.value,
       createdAt: prisma.createdAt,
       updatedAt: prisma.updatedAt,
+      // Soft-Delete Felder (Story 1.4)
+      isDeleted: prisma.deletedAt !== null,
+      deletedAt: prisma.deletedAt,
+      deletedBy,
     });
   }
 
@@ -79,6 +93,9 @@ export class PrismaErinnerungMapper {
     faelligAm: Date;
     status: PrismaErinnerungStatus;
     erstelltVon: string;
+    // Soft-Delete Felder (Story 1.4)
+    deletedAt: Date | null;
+    deletedBy: string | null;
   } {
     return {
       id: entity.id.toString(),
@@ -88,6 +105,9 @@ export class PrismaErinnerungMapper {
       faelligAm: entity.faelligAm,
       status: PrismaErinnerungMapper.mapDomainStatusToPrisma(entity.status),
       erstelltVon: entity.erstelltVon.toString(),
+      // Soft-Delete Felder (Story 1.4)
+      deletedAt: entity.deletedAt,
+      deletedBy: entity.deletedBy?.toString() ?? null,
     };
   }
 

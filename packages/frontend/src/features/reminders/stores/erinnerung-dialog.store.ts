@@ -14,6 +14,7 @@ import { Store, useStore } from '@tanstack/react-store';
  *
  * **Story 1.1:** Quick-Create Dialog State
  * **Story 1.3:** Edit Dialog State
+ * **Story 1.4:** Delete Dialog State
  */
 export interface ErinnerungDialogState {
   /** Ob der Quick-Create Dialog geoeffnet ist */
@@ -24,6 +25,10 @@ export interface ErinnerungDialogState {
   isEditOpen: boolean;
   /** Die zu bearbeitende Erinnerung (Story 1.3 AC1) */
   erinnerungToEdit: ErinnerungResponseDto | null;
+  /** Ob der Delete Dialog geoeffnet ist (Story 1.4 AC2) */
+  isDeleteOpen: boolean;
+  /** Die zu loeschende Erinnerung (Story 1.4 AC2) */
+  erinnerungToDelete: ErinnerungResponseDto | null;
 }
 
 /**
@@ -34,6 +39,8 @@ const initialState: ErinnerungDialogState = {
   einsatzId: null,
   isEditOpen: false,
   erinnerungToEdit: null,
+  isDeleteOpen: false,
+  erinnerungToDelete: null,
 };
 
 /**
@@ -101,6 +108,35 @@ export const closeEditDialog = () => {
 };
 
 /**
+ * Oeffnet den Delete Dialog fuer eine Erinnerung.
+ *
+ * **Story 1.4 AC2:** "Bestaetigungs-Dialog fragt: 'Wirklich loeschen?'"
+ *
+ * @param erinnerung - Die zu loeschende Erinnerung
+ * @param einsatzId - ID des Einsatzes
+ */
+export const openDeleteDialog = (erinnerung: ErinnerungResponseDto, einsatzId: string) => {
+  erinnerungDialogStore.setState((state) => ({
+    ...state,
+    isDeleteOpen: true,
+    erinnerungToDelete: erinnerung,
+    einsatzId,
+  }));
+};
+
+/**
+ * Schliesst den Delete Dialog.
+ */
+export const closeDeleteDialog = () => {
+  erinnerungDialogStore.setState((state) => ({
+    ...state,
+    isDeleteOpen: false,
+    erinnerungToDelete: null,
+    // einsatzId bleibt erhalten fuer potentielle Wiederverwendung
+  }));
+};
+
+/**
  * Setzt den Store zurueck.
  */
 export const resetErinnerungDialogStore = () => {
@@ -161,4 +197,32 @@ export const useEditDialogState = (): [boolean, ErinnerungResponseDto | null, st
   const erinnerungToEdit = useStore(erinnerungDialogStore, (state) => state.erinnerungToEdit);
   const einsatzId = useStore(erinnerungDialogStore, (state) => state.einsatzId);
   return [isOpen, erinnerungToEdit, einsatzId];
+};
+
+/**
+ * Hook fuer den Delete Dialog State.
+ *
+ * **Story 1.4 AC2:** "Bestaetigungs-Dialog fragt: 'Wirklich loeschen?'"
+ *
+ * @returns Tuple aus [isOpen, erinnerungToDelete, einsatzId]
+ *
+ * @example
+ * ```tsx
+ * const [isOpen, erinnerung, einsatzId] = useDeleteDialogState();
+ *
+ * return (
+ *   <ErinnerungDeleteDialog
+ *     isOpen={isOpen}
+ *     erinnerung={erinnerung}
+ *     einsatzId={einsatzId ?? ''}
+ *     onClose={closeDeleteDialog}
+ *   />
+ * );
+ * ```
+ */
+export const useDeleteDialogState = (): [boolean, ErinnerungResponseDto | null, string | null] => {
+  const isOpen = useStore(erinnerungDialogStore, (state) => state.isDeleteOpen);
+  const erinnerungToDelete = useStore(erinnerungDialogStore, (state) => state.erinnerungToDelete);
+  const einsatzId = useStore(erinnerungDialogStore, (state) => state.einsatzId);
+  return [isOpen, erinnerungToDelete, einsatzId];
 };

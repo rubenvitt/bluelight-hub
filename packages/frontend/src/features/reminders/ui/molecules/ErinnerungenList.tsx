@@ -8,6 +8,7 @@
  * **Story 1.5:** Automatischer Alarm bei Faelligkeit
  * **Story 1.7 AC5:** Sortierung nach Urgency Level
  * **Story 1.8 AC1:** Offline-Banner und Sync-Status
+ * **Story 2.4 AC2:** FloatingPill Portal fuer urgent Alarme
  */
 
 import { useMemo } from 'react';
@@ -20,6 +21,7 @@ import { useErinnerungenByEinsatz } from '../../api';
 import { useAlarmTrigger, useOfflineStatus, useReconnectSync, useTrayBadge, useTrayClickNavigation } from '../../hooks';
 import { openQuickCreateDialog } from '../../stores';
 import { getUrgencyLevel } from '../../utils/countdown-utils';
+import { FloatingPillPortal } from '../organisms/FloatingPillPortal';
 import { ErinnerungCard } from './ErinnerungCard';
 import { OfflineBanner } from './OfflineBanner';
 
@@ -153,6 +155,9 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
 
   return (
     <div className={className}>
+      {/* Story 2.4 AC2: FloatingPill Portal fuer urgent Alarme */}
+      <FloatingPillPortal einsatzId={einsatzId} />
+
       {/* Story 1.8 AC1: Offline-Banner */}
       <OfflineBanner isOffline={isOffline} pendingCount={pendingActionsCount} isSyncing={isSyncing} offlineSince={offlineSince} className="mb-2 rounded-lg" />
 

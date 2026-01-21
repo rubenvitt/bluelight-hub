@@ -34,6 +34,8 @@ vi.mock('@/features/reminders/services/sync.service', () => ({
 vi.mock('@/features/reminders/stores', () => ({
   openEditDialog: vi.fn(),
   openDeleteDialog: vi.fn(),
+  // Story 2.3: Mock Intensification Hook
+  useIntensityLevel: vi.fn().mockReturnValue('none'),
 }));
 
 // Mock Countdown Hook

@@ -214,6 +214,13 @@ export class ErinnerungStatus extends ValueObject<ErinnerungStatusProps> {
   }
 
   /**
+   * Prüft ob der Status eskaliert ist (Story 2.5).
+   */
+  public isEskaliert(): boolean {
+    return this.value === 'ESKALIERT';
+  }
+
+  /**
    * Prüft ob die Erinnerung noch aktiv ist (nicht erledigt).
    */
   public isActive(): boolean {

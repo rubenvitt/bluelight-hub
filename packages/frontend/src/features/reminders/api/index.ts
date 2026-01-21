@@ -15,11 +15,13 @@ export {
   useTriggerErinnerung,
   useAcknowledgeErinnerung,
   useSnoozeErinnerung,
+  useMarkErledigtErinnerung,
   type CreateErinnerungVariables,
   type UpdateErinnerungVariables,
   type DeleteErinnerungVariables,
   type TriggerErinnerungVariables,
   type AcknowledgeErinnerungVariables,
   type SnoozeErinnerungVariables,
+  type MarkErledigtErinnerungVariables,
   type SnoozeMinutes,
 } from './mutations';

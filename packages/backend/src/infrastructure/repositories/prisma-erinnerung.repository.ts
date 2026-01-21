@@ -123,6 +123,10 @@ export class PrismaErinnerungRepository implements IErinnerungRepository {
           snoozedBy: data.snoozedBy,
           snoozedUntil: data.snoozedUntil,
           snoozeCount: data.snoozeCount,
+          // Erledigt Felder (Story 2.5) - werden bei markErledigt() gesetzt
+          erledigtAm: data.erledigtAm,
+          erledigtBy: data.erledigtBy,
+          erledigungsNotiz: data.erledigungsNotiz,
           // einsatzId und erstelltVon sind immutable nach Erstellung
         },
       });

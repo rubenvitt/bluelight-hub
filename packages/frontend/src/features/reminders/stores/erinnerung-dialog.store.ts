@@ -15,6 +15,7 @@ import { Store, useStore } from '@tanstack/react-store';
  * **Story 1.1:** Quick-Create Dialog State
  * **Story 1.3:** Edit Dialog State
  * **Story 1.4:** Delete Dialog State
+ * **Story 2.5:** MarkErledigt Dialog State
  */
 export interface ErinnerungDialogState {
   /** Ob der Quick-Create Dialog geoeffnet ist */
@@ -29,6 +30,10 @@ export interface ErinnerungDialogState {
   isDeleteOpen: boolean;
   /** Die zu loeschende Erinnerung (Story 1.4 AC2) */
   erinnerungToDelete: ErinnerungResponseDto | null;
+  /** Ob der MarkErledigt Dialog geoeffnet ist (Story 2.5) */
+  isMarkErledigtOpen: boolean;
+  /** Die zu erledigende Erinnerung (Story 2.5) */
+  erinnerungToMarkErledigt: ErinnerungResponseDto | null;
 }
 
 /**
@@ -41,6 +46,8 @@ const initialState: ErinnerungDialogState = {
   erinnerungToEdit: null,
   isDeleteOpen: false,
   erinnerungToDelete: null,
+  isMarkErledigtOpen: false,
+  erinnerungToMarkErledigt: null,
 };
 
 /**
@@ -137,6 +144,35 @@ export const closeDeleteDialog = () => {
 };
 
 /**
+ * Oeffnet den MarkErledigt Dialog fuer eine Erinnerung.
+ *
+ * **Story 2.5:** "Erinnerung als erledigt markieren"
+ *
+ * @param erinnerung - Die zu erledigende Erinnerung
+ * @param einsatzId - ID des Einsatzes
+ */
+export const openMarkErledigtDialog = (erinnerung: ErinnerungResponseDto, einsatzId: string) => {
+  erinnerungDialogStore.setState((state) => ({
+    ...state,
+    isMarkErledigtOpen: true,
+    erinnerungToMarkErledigt: erinnerung,
+    einsatzId,
+  }));
+};
+
+/**
+ * Schliesst den MarkErledigt Dialog.
+ */
+export const closeMarkErledigtDialog = () => {
+  erinnerungDialogStore.setState((state) => ({
+    ...state,
+    isMarkErledigtOpen: false,
+    erinnerungToMarkErledigt: null,
+    // einsatzId bleibt erhalten fuer potentielle Wiederverwendung
+  }));
+};
+
+/**
  * Setzt den Store zurueck.
  */
 export const resetErinnerungDialogStore = () => {
@@ -225,4 +261,32 @@ export const useDeleteDialogState = (): [boolean, ErinnerungResponseDto | null, 
   const erinnerungToDelete = useStore(erinnerungDialogStore, (state) => state.erinnerungToDelete);
   const einsatzId = useStore(erinnerungDialogStore, (state) => state.einsatzId);
   return [isOpen, erinnerungToDelete, einsatzId];
+};
+
+/**
+ * Hook fuer den MarkErledigt Dialog State.
+ *
+ * **Story 2.5:** "Erinnerung als erledigt markieren"
+ *
+ * @returns Tuple aus [isOpen, erinnerungToMarkErledigt, einsatzId]
+ *
+ * @example
+ * ```tsx
+ * const [isOpen, erinnerung, einsatzId] = useMarkErledigtDialogState();
+ *
+ * return (
+ *   <ErinnerungMarkErledigtDialog
+ *     isOpen={isOpen}
+ *     erinnerung={erinnerung}
+ *     einsatzId={einsatzId ?? ''}
+ *     onClose={closeMarkErledigtDialog}
+ *   />
+ * );
+ * ```
+ */
+export const useMarkErledigtDialogState = (): [boolean, ErinnerungResponseDto | null, string | null] => {
+  const isOpen = useStore(erinnerungDialogStore, (state) => state.isMarkErledigtOpen);
+  const erinnerungToMarkErledigt = useStore(erinnerungDialogStore, (state) => state.erinnerungToMarkErledigt);
+  const einsatzId = useStore(erinnerungDialogStore, (state) => state.einsatzId);
+  return [isOpen, erinnerungToMarkErledigt, einsatzId];
 };

@@ -186,6 +186,9 @@ export const EVENT_HANDLER = {
 
   /** ErinnerungRetriggered ETB-Eintrag Handler Token (Story 2.2 AC2) */
   ERINNERUNG_RETRIGGERED_ETB: Symbol('IEventHandler<ErinnerungRetriggeredEvent>:EtbEintrag'),
+
+  /** ErinnerungErledigt ETB-Eintrag Handler Token (Story 2.5 AC4) */
+  ERINNERUNG_ERLEDIGT_ETB: Symbol('IEventHandler<ErinnerungErledigtEvent>:EtbEintrag'),
 } as const;
 
 /**

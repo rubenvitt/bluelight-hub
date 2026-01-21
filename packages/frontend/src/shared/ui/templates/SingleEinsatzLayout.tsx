@@ -10,12 +10,15 @@ import {
   QuickCreateErinnerungDialog,
   ErinnerungEditDialog,
   ErinnerungDeleteDialog,
+  ErinnerungMarkErledigtDialog,
   closeQuickCreateDialog,
   closeEditDialog,
   closeDeleteDialog,
+  closeMarkErledigtDialog,
   useQuickCreateDialogState,
   useEditDialogState,
   useDeleteDialogState,
+  useMarkErledigtDialogState,
   useQuickCreateErinnerungHotkeys,
 } from '@/features/reminders';
 import { CommandPalette } from '@/shared/ui/organisms/command-palette';
@@ -54,9 +57,11 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
   const [isEditDialogOpen, erinnerungToEdit, editDialogEinsatzId] = useEditDialogState();
   // Delete Erinnerung Dialog State (Story 1.4 AC2)
   const [isDeleteDialogOpen, erinnerungToDelete, deleteDialogEinsatzId] = useDeleteDialogState();
+  // MarkErledigt Erinnerung Dialog State (Story 2.5)
+  const [isMarkErledigtDialogOpen, erinnerungToMarkErledigt, markErledigtDialogEinsatzId] = useMarkErledigtDialogState();
   useQuickCreateErinnerungHotkeys({
     einsatzId,
-    enabled: !commandPaletteOpen && !showEndConfirmation && !showBeitrittDialog && !isQuickCreateOpen && !isEditDialogOpen && !isDeleteDialogOpen,
+    enabled: !commandPaletteOpen && !showEndConfirmation && !showBeitrittDialog && !isQuickCreateOpen && !isEditDialogOpen && !isDeleteDialogOpen && !isMarkErledigtDialogOpen,
   });
 
   // Prüfe ob User bereits dem Einsatz beigetreten ist (Funkrufname gesetzt)
@@ -570,6 +575,9 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
 
       {/* Delete Erinnerung Dialog (Story 1.4 AC2) */}
       <ErinnerungDeleteDialog isOpen={isDeleteDialogOpen} erinnerung={erinnerungToDelete} einsatzId={deleteDialogEinsatzId ?? einsatzId} onClose={closeDeleteDialog} />
+
+      {/* MarkErledigt Erinnerung Dialog (Story 2.5) */}
+      <ErinnerungMarkErledigtDialog isOpen={isMarkErledigtDialogOpen} erinnerung={erinnerungToMarkErledigt} einsatzId={markErledigtDialogEinsatzId ?? einsatzId} onClose={closeMarkErledigtDialog} />
     </>
   );
 }

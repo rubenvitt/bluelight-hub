@@ -15,6 +15,7 @@ import {
   ErinnerungWebSocketEventAdapter,
   ErinnerungSnoozedEventAdapter,
   ErinnerungRetriggeredEventAdapter,
+  ErinnerungErledigtEventAdapter,
 } from './adapters';
 import { EtbApplicationModule } from '@application/etb/etb-application.module';
 import { LagekarteApplicationModule } from '@application/lagekarte/lagekarte-application.module';
@@ -100,6 +101,7 @@ import { ErinnerungModule } from '@/modules/erinnerung/erinnerung.module';
     ErinnerungAcknowledgedEventAdapter, // Story 1.6 AC5: ErinnerungAcknowledged ETB-Eintrag
     ErinnerungSnoozedEventAdapter, // Story 2.1: ErinnerungSnoozed ETB-Eintrag
     ErinnerungRetriggeredEventAdapter, // Story 2.2 AC2: ErinnerungRetriggered ETB-Eintrag
+    ErinnerungErledigtEventAdapter, // Story 2.5 AC4: ErinnerungErledigt ETB-Eintrag
     ErinnerungWebSocketEventAdapter, // Story 1.5 AC4 + 2.1 AC2: WebSocket Event für Team-Sync
     // Event Logging Handler (Infrastructure-specific)
     LagekarteEventLoggerHandler,

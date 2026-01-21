@@ -20,12 +20,16 @@ import type {
   ErinnerungControllerAcknowledgeVAlphaRequest,
   SnoozeErinnerungDto,
   ErinnerungControllerSnoozeVAlphaRequest,
+  MarkErledvigtErinnerungDto,
+  ErinnerungControllerMarkErledigtVAlphaRequest,
 } from '@/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ERINNERUNG_QUERY_KEYS, calculateRetryDelay } from './queries';
 import { offlineDetectionService } from '../services/offline-detection.service';
 import { syncService } from '../services/sync.service';
+import { soundService, timerService, intensificationService } from '../services';
+import { hideFloatingPill } from '../stores';
 
 /**
  * Prueft ob ein Error ein Netzwerkfehler ist (Connection Lost, Timeout, etc.)
@@ -989,6 +993,195 @@ export const useSnoozeErinnerung = () => {
       }
     },
     // Kein Retry für Snooze - 409 ist erwartetes Verhalten bei falschem Status
+    retry: false,
+  });
+};
+
+export interface MarkErledigtErinnerungVariables {
+  /**
+   * Einsatz-ID
+   */
+  einsatzId: string;
+
+  /**
+   * Erinnerungs-ID
+   */
+  erinnerungId: string;
+
+  /**
+   * Optionale Notiz zur Erledigung (max 500 Zeichen)
+   */
+  erledigungsNotiz?: string;
+}
+
+interface MarkErledigtErinnerungContext {
+  einsatzId: string;
+  erinnerungId: string;
+  previousErinnerungen: ErinnerungResponseDto[] | undefined;
+}
+
+/**
+ * Hook fuer Erinnerungs-Erledigung mit Optimistic Updates
+ *
+ * Markiert eine Erinnerung als erledigt (Status ACKNOWLEDGED/ESKALIERT → ERLEDIGT).
+ * Wird aufgerufen wenn ein User auf den "Erledigt" Button klickt und optional eine Notiz hinzufuegt.
+ *
+ * **Story 2.5 AC1:** "Nur ACKNOWLEDGED oder ESKALIERT Status kann erledigt werden"
+ * **Story 2.5 AC2:** "Status wechselt zu ERLEDIGT"
+ * **Story 2.5 AC3:** "Backend speichert erledigtAm, erledigtBy und erledigungsNotiz"
+ * **Story 2.5 AC4:** "ETB-Eintrag wird automatisch erstellt"
+ *
+ * @returns Mutation fuer Erinnerungs-Erledigung
+ *
+ * @example
+ * ```tsx
+ * const markErledigtErinnerung = useMarkErledigtErinnerung();
+ *
+ * const handleMarkErledigt = (erinnerung: ErinnerungResponseDto, notiz?: string) => {
+ *   markErledigtErinnerung.mutate({
+ *     einsatzId: erinnerung.einsatzId,
+ *     erinnerungId: erinnerung.id,
+ *     erledigungsNotiz: notiz,
+ *   });
+ * };
+ * ```
+ */
+export const useMarkErledigtErinnerung = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<ErinnerungResponseDto, ResponseError, MarkErledigtErinnerungVariables, MarkErledigtErinnerungContext>({
+    mutationKey: ['erinnerung', 'markErledigt'],
+    mutationFn: async ({ einsatzId, erinnerungId, erledigungsNotiz }) => {
+      /**
+       * Helper fuer Offline-Erledigung (DRY - wird bei initial offline UND network error verwendet)
+       */
+      const handleOfflineMarkErledigt = (): ErinnerungResponseDto => {
+        // Hole Erinnerung aus Cache
+        const erinnerungen = queryClient.getQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId));
+        const erinnerung = erinnerungen?.find((e) => e.id === erinnerungId);
+
+        if (!erinnerung) {
+          throw new Error(`Erinnerung ${erinnerungId} nicht im Cache gefunden`);
+        }
+
+        const now = new Date().toISOString();
+
+        // Erstelle optimistische Response mit Status ERLEDIGT
+        const erledigteErinnerung: ErinnerungResponseDto = {
+          ...erinnerung,
+          status: 'ERLEDIGT',
+          erledigtAm: now,
+          erledigtBy: 'offline', // Placeholder - wird bei Sync ersetzt
+          erledigungsNotiz: erledigungsNotiz ?? null,
+          updatedAt: now,
+        };
+
+        // TODO: Queue für Sync bei Reconnect (wenn Offline-Support für markErledigt benötigt wird)
+        // syncService.queueMarkErledigtAction(erinnerungId, einsatzId, erledigungsNotiz);
+
+        logger.debug('[useMarkErledigtErinnerung] Marked offline erinnerung as erledigt', { erinnerungId, einsatzId });
+        return erledigteErinnerung;
+      };
+
+      // Story 2.5: Offline-Modus - lokale Erledigung ohne API-Call
+      if (offlineDetectionService.isOffline()) {
+        return handleOfflineMarkErledigt();
+      }
+
+      // Online-Modus: API-Call mit Network Error Handling
+      try {
+        const request: ErinnerungControllerMarkErledigtVAlphaRequest = {
+          einsatzId,
+          id: erinnerungId,
+          markErledvigtErinnerungDto: { erledigungsNotiz },
+        };
+        const response = await api.erinnerungen().erinnerungControllerMarkErledigtVAlpha(request);
+        return response.data;
+      } catch (error) {
+        // Bei Netzwerkfehler: Fallback zu Offline-Logik
+        if (isNetworkError(error)) {
+          logger.warn('[useMarkErledigtErinnerung] Network error during API call - falling back to offline mode', { error, erinnerungId });
+          offlineDetectionService.markOffline();
+          return handleOfflineMarkErledigt();
+        }
+        throw error;
+      }
+    },
+    onMutate: async ({ einsatzId, erinnerungId, erledigungsNotiz }) => {
+      // Story 2.5: Cleanup Timer/Audio/Intensification/FloatingPill sofort bei Erledigung
+      // Wichtig fuer ESKALIERT Status, wo Audio noch laufen koennte
+      soundService.stopAllSounds();
+      timerService.resetTriggered(erinnerungId);
+      intensificationService.stopTimer(erinnerungId);
+      hideFloatingPill(erinnerungId);
+
+      // Cancel ALL related queries to prevent race conditions
+      await Promise.all([
+        queryClient.cancelQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+        }),
+        queryClient.cancelQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
+        }),
+      ]);
+
+      // Snapshot the previous value
+      const previousErinnerungen = queryClient.getQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId));
+
+      // Optimistically update status to ERLEDIGT
+      if (previousErinnerungen) {
+        const now = new Date().toISOString();
+
+        const updatedErinnerungen = previousErinnerungen.map((e) => {
+          if (e.id === erinnerungId) {
+            return {
+              ...e,
+              status: 'ERLEDIGT' as const,
+              erledigtAm: now,
+              erledigtBy: 'pending', // Placeholder bis Server-Response
+              erledigungsNotiz: erledigungsNotiz ?? null,
+              updatedAt: now,
+            };
+          }
+          return e;
+        });
+
+        queryClient.setQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId), updatedErinnerungen);
+      }
+
+      // Return context object with previous value for rollback
+      return { einsatzId, erinnerungId, previousErinnerungen };
+    },
+    onError: async (error: ResponseError, _variables, context) => {
+      // Bei 409 Conflict kein Rollback - Erinnerung hat falschen Status oder ist bereits erledigt
+      const status = error.response?.status;
+      if (status === 409) {
+        logger.debug('Erinnerung cannot be marked as erledigt (409 Conflict) - wrong status');
+        toast.warning('Erledigen nicht möglich', {
+          description: 'Die Erinnerung kann nicht als erledigt markiert werden.',
+        });
+        return;
+      }
+
+      // Rollback to previous value on other errors
+      if (context?.previousErinnerungen !== undefined) {
+        queryClient.setQueryData(ERINNERUNG_QUERY_KEYS.list(context.einsatzId), context.previousErinnerungen);
+      }
+
+      const message = await getApiErrorMessage(error, 'Die Erinnerung konnte nicht als erledigt markiert werden.', 'markErledigtErinnerung');
+      logger.error('Failed to mark Erinnerung as erledigt', error);
+      toast.error('Fehler', { description: message });
+    },
+    onSettled: async (_data, error, { einsatzId, erinnerungId }) => {
+      // Ensure consistency - invalidate Erinnerungen list and detail for this Einsatz
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId) }), queryClient.invalidateQueries({ queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId) })]);
+
+      // Success-Toast nach erfolgreichem Erledigen (nur wenn kein Fehler)
+      if (!error) {
+        toast.success('Erinnerung erledigt');
+      }
+    },
+    // Kein Retry für MarkErledigt - 409 ist erwartetes Verhalten bei falschem Status
     retry: false,
   });
 };

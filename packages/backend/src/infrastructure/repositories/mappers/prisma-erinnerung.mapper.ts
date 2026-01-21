@@ -82,7 +82,17 @@ export class PrismaErinnerungMapper {
       snoozedBy = snoozedByResult.value;
     }
 
-    // 9. Entity via reconstruct() rekonstruieren (keine Events, keine Validierung)
+    // 9. Erledigt: erledigtBy rekonstruieren (optional) (Story 2.5)
+    let erledigtBy: UserId | null = null;
+    if (prisma.erledigtBy) {
+      const erledigtByResult = UserId.create(prisma.erledigtBy);
+      if (erledigtByResult.isFailure || !erledigtByResult.value) {
+        throw new Error(`Invalid erledigtBy UserId from DB: ${prisma.erledigtBy}`);
+      }
+      erledigtBy = erledigtByResult.value;
+    }
+
+    // 10. Entity via reconstruct() rekonstruieren (keine Events, keine Validierung)
     return Erinnerung.reconstruct({
       id: idResult.value,
       einsatzId: einsatzIdResult.value,
@@ -107,6 +117,10 @@ export class PrismaErinnerungMapper {
       snoozedBy,
       snoozedUntil: prisma.snoozedUntil,
       snoozeCount: prisma.snoozeCount,
+      // Erledigt Felder (Story 2.5)
+      erledigtAm: prisma.erledigtAm,
+      erledigtBy,
+      erledigungsNotiz: prisma.erledigungsNotiz,
     });
   }
 
@@ -137,6 +151,10 @@ export class PrismaErinnerungMapper {
     snoozedBy: string | null;
     snoozedUntil: Date | null;
     snoozeCount: number;
+    // Erledigt Felder (Story 2.5)
+    erledigtAm: Date | null;
+    erledigtBy: string | null;
+    erledigungsNotiz: string | null;
   } {
     return {
       id: entity.id.toString(),
@@ -160,6 +178,10 @@ export class PrismaErinnerungMapper {
       snoozedBy: entity.snoozedBy?.toString() ?? null,
       snoozedUntil: entity.snoozedUntil,
       snoozeCount: entity.snoozeCount,
+      // Erledigt Felder (Story 2.5)
+      erledigtAm: entity.erledigtAm,
+      erledigtBy: entity.erledigtBy?.toString() ?? null,
+      erledigungsNotiz: entity.erledigungsNotiz,
     };
   }
 

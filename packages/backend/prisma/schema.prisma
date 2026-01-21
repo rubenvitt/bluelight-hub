@@ -158,6 +158,7 @@ model User {
   deletedErinnerungen      Erinnerung[] @relation("ErinnerungDeleter") // Story 1.4: Soft-Delete Audit Trail
   acknowledgedErinnerungen Erinnerung[] @relation("ErinnerungAcknowledger") // Story 1.6: Acknowledge Audit Trail
   snoozedErinnerungen      Erinnerung[] @relation("ErinnerungSnoozer") // Story 2.1: Snooze Audit Trail
+  erledigteErinnerungen    Erinnerung[] @relation("ErinnerungErledigter") // Story 2.5: Erledigt Audit Trail
 
   // Indexes
   @@index([username], map: "idx_user_username")
@@ -1320,6 +1321,9 @@ model Erinnerung {
   snoozedBy      String?          @map("snoozed_by") @db.VarChar(100) // Story 2.1: User der snoozed hat
   snoozedUntil   DateTime?        @map("snoozed_until") // Story 2.1: Neue Fälligkeit nach Snooze
   snoozeCount    Int              @default(0) @map("snooze_count") // Story 2.1: Anzahl der Snoozes
+  erledigtAm      DateTime?        @map("erledigt_am") // Story 2.5: Zeitpunkt der Erledigung
+  erledigtBy      String?          @map("erledigt_by") @db.VarChar(100) // Story 2.5: User der erledigt hat
+  erledigungsNotiz String?          @map("erledigungs_notiz") @db.VarChar(500) // Story 2.5: Optionale Notiz
   erstelltVon    String           @map("erstellt_von") @db.VarChar(100)
 
   // Audit Trail
@@ -1337,6 +1341,7 @@ model Erinnerung {
   loescher    User?   @relation("ErinnerungDeleter", fields: [deletedBy], references: [id], onDelete: Restrict)
   acknowledger User?   @relation("ErinnerungAcknowledger", fields: [acknowledgedBy], references: [id], onDelete: Restrict) // Story 1.6
   snoozer      User?   @relation("ErinnerungSnoozer", fields: [snoozedBy], references: [id], onDelete: Restrict) // Story 2.1
+  erledigter   User?   @relation("ErinnerungErledigter", fields: [erledigtBy], references: [id], onDelete: Restrict) // Story 2.5
 
   // Indexes
   @@index([einsatzId])

@@ -42,6 +42,7 @@ const createMockErinnerung = (overrides?: Partial<ErinnerungResponseDto>): Erinn
   erledigtAm: null,
   erledigtBy: null,
   erledigungsNotiz: null,
+  requiresNote: false, // Story 2.6: Default false
   ...overrides,
 });
 
@@ -282,6 +283,73 @@ describe('ErinnerungDialogStore - MarkErledigt (Story 2.5)', () => {
       expect(state.isDeleteOpen).toBe(true);
       // MarkErledigt ist auch offen
       expect(state.isMarkErledigtOpen).toBe(true);
+    });
+  });
+});
+
+/**
+ * Story 2.6: Pflicht-Notiz bei Erledigung
+ */
+describe('ErinnerungDialogStore - Pflicht-Notiz (Story 2.6)', () => {
+  beforeEach(() => {
+    resetErinnerungDialogStore();
+  });
+
+  describe('openMarkErledigtDialog() with requiresNote', () => {
+    it('should store erinnerung with requiresNote=true', () => {
+      // Given (Arrange)
+      const mockErinnerung = createMockErinnerung({ requiresNote: true });
+      const einsatzId = 'test-einsatz-123';
+
+      // When (Act)
+      openMarkErledigtDialog(mockErinnerung, einsatzId);
+
+      // Then (Assert)
+      const state = erinnerungDialogStore.state;
+      expect(state.erinnerungToMarkErledigt?.requiresNote).toBe(true);
+    });
+
+    it('should store erinnerung with requiresNote=false', () => {
+      // Given (Arrange)
+      const mockErinnerung = createMockErinnerung({ requiresNote: false });
+      const einsatzId = 'test-einsatz-123';
+
+      // When (Act)
+      openMarkErledigtDialog(mockErinnerung, einsatzId);
+
+      // Then (Assert)
+      const state = erinnerungDialogStore.state;
+      expect(state.erinnerungToMarkErledigt?.requiresNote).toBe(false);
+    });
+
+    it('should preserve requiresNote when opening ESKALIERT status with Pflicht-Notiz', () => {
+      // Given (Arrange): Eskalierte Erinnerung mit Pflicht-Notiz
+      const mockErinnerung = createMockErinnerung({
+        status: 'ESKALIERT',
+        requiresNote: true,
+        titel: 'Wichtige Dokumentation erforderlich',
+      });
+      const einsatzId = 'test-einsatz-123';
+
+      // When (Act)
+      openMarkErledigtDialog(mockErinnerung, einsatzId);
+
+      // Then (Assert)
+      const state = erinnerungDialogStore.state;
+      expect(state.isMarkErledigtOpen).toBe(true);
+      expect(state.erinnerungToMarkErledigt?.status).toBe('ESKALIERT');
+      expect(state.erinnerungToMarkErledigt?.requiresNote).toBe(true);
+      expect(state.erinnerungToMarkErledigt?.titel).toBe('Wichtige Dokumentation erforderlich');
+    });
+  });
+
+  describe('requiresNote default value', () => {
+    it('should have default requiresNote=false in mock', () => {
+      // Given (Arrange)
+      const mockErinnerung = createMockErinnerung(); // Ohne explizites requiresNote
+
+      // Then (Assert)
+      expect(mockErinnerung.requiresNote).toBe(false);
     });
   });
 });

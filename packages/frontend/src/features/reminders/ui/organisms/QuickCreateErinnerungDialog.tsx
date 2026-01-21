@@ -19,7 +19,7 @@
 import { useCallback, useState } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { zodValidator } from '@tanstack/zod-form-adapter';
-import { PiAlarm, PiClock } from 'react-icons/pi';
+import { PiAlarm, PiClock, PiNotepad } from 'react-icons/pi';
 import { toast } from 'sonner';
 
 import { Button } from '@/shared/ui/atoms/button.atom';
@@ -73,6 +73,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
       minuten: 30, // Default: 30 Minuten
       customTime: getDefaultCustomTime(), // Story 1.2 AC2: aktuelle Zeit + 30 Min
       beschreibung: undefined,
+      requiresNote: false, // Story 2.6: Pflicht-Notiz default aus
     },
     validatorAdapter: zodValidator(),
     validators: {
@@ -105,6 +106,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
             titel: value.titel.trim(),
             faelligAm: faelligAm.toISOString(),
             beschreibung: value.beschreibung?.trim() || undefined,
+            requiresNote: value.requiresNote, // Story 2.6: Pflicht-Notiz Flag
           },
         },
         {
@@ -307,6 +309,36 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                   )}
                 />
                 {field.state.meta.errors.length > 0 && <p className="mt-1 text-red-600 text-sm dark:text-red-400">{formatErrors(field.state.meta.errors)}</p>}
+              </div>
+            )}
+          </form.Field>
+
+          {/* Story 2.6: Pflicht-Notiz Checkbox */}
+          <form.Field name="requiresNote">
+            {(field) => (
+              <div className="flex items-start gap-3">
+                <div className="flex h-6 items-center">
+                  <input
+                    id="requiresNote"
+                    type="checkbox"
+                    checked={field.state.value ?? false}
+                    onChange={(e) => field.handleChange(e.target.checked)}
+                    disabled={isPending}
+                    className={cn(
+                      'h-5 w-5 rounded border-2 text-amber-500',
+                      'focus:ring-2 focus:ring-amber-500 focus:ring-offset-2',
+                      'disabled:cursor-not-allowed disabled:opacity-50',
+                      'dark:bg-gray-800 dark:border-gray-600 dark:focus:ring-offset-gray-900',
+                    )}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label htmlFor="requiresNote" className="flex items-center gap-2 font-medium text-gray-700 text-sm dark:text-gray-300 cursor-pointer">
+                    <PiNotepad className="h-4 w-4 text-amber-500" />
+                    Pflicht-Notiz bei Erledigung
+                  </label>
+                  <p className="mt-0.5 text-gray-500 text-xs dark:text-gray-400">Wenn aktiviert, muss bei Erledigung eine Dokumentations-Notiz eingegeben werden.</p>
+                </div>
               </div>
             )}
           </form.Field>

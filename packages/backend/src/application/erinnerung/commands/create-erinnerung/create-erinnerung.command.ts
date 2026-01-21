@@ -10,6 +10,8 @@ export interface CreateErinnerungCommandProps {
   beschreibung?: string;
   faelligAm: Date;
   erstelltVon: string;
+  /** Story 2.6: Pflicht-Notiz bei Erledigung erforderlich (default: false) */
+  requiresNote?: boolean;
 }
 
 /**
@@ -57,6 +59,7 @@ export class CreateErinnerungCommand {
     public readonly beschreibung: string | undefined,
     public readonly faelligAm: Date,
     public readonly erstelltVon: string,
+    public readonly requiresNote: boolean,
   ) {}
 
   /**
@@ -122,6 +125,6 @@ export class CreateErinnerungCommand {
     // ════════════════════════════════════════════════════════════════════════
     // Command erstellen
     // ════════════════════════════════════════════════════════════════════════
-    return Result.ok(new CreateErinnerungCommand(trimmedEinsatzId, trimmedTitel, props.beschreibung?.trim() || undefined, props.faelligAm, trimmedErstelltVon));
+    return Result.ok(new CreateErinnerungCommand(trimmedEinsatzId, trimmedTitel, props.beschreibung?.trim() || undefined, props.faelligAm, trimmedErstelltVon, props.requiresNote ?? false));
   }
 }

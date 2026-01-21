@@ -144,6 +144,7 @@ export class SnoozeErinnerungHandler extends TransactionalCommandHandler<SnoozeE
       createdAt: erinnerung.createdAt.toISOString(),
       updatedAt: erinnerung.updatedAt.toISOString(),
       snoozeCount: erinnerung.snoozeCount,
+      requiresNote: erinnerung.requiresNote,
     };
 
     return {

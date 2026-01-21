@@ -119,4 +119,10 @@ export class ErinnerungResponseDto {
     maxLength: 500,
   })
   erledigungsNotiz?: string | null;
+
+  @ApiProperty({
+    description: 'Pflicht-Notiz bei Erledigung erforderlich (Story 2.6)',
+    example: false,
+  })
+  requiresNote!: boolean;
 }

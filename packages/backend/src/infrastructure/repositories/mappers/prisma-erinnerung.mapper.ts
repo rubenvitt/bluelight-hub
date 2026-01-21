@@ -121,6 +121,8 @@ export class PrismaErinnerungMapper {
       erledigtAm: prisma.erledigtAm,
       erledigtBy,
       erledigungsNotiz: prisma.erledigungsNotiz,
+      // Pflicht-Notiz Flag (Story 2.6)
+      requiresNote: prisma.requiresNote,
     });
   }
 
@@ -155,6 +157,8 @@ export class PrismaErinnerungMapper {
     erledigtAm: Date | null;
     erledigtBy: string | null;
     erledigungsNotiz: string | null;
+    // Pflicht-Notiz Flag (Story 2.6)
+    requiresNote: boolean;
   } {
     return {
       id: entity.id.toString(),
@@ -182,6 +186,8 @@ export class PrismaErinnerungMapper {
       erledigtAm: entity.erledigtAm,
       erledigtBy: entity.erledigtBy?.toString() ?? null,
       erledigungsNotiz: entity.erledigungsNotiz,
+      // Pflicht-Notiz Flag (Story 2.6)
+      requiresNote: entity.requiresNote,
     };
   }
 

@@ -5,14 +5,18 @@
  * AC1: Nur ACKNOWLEDGED oder ESKALIERT Status kann erledigt werden
  * AC2: Optionale Notiz kann hinzugefügt werden (max 500 Zeichen)
  * AC4: ETB-Eintrag wird automatisch erstellt
+ *
+ * **Story 2.6:** "Erledigt-Markierung mit Pflicht-Notiz"
+ * AC1: Wenn requiresNote=true, ist die Notiz Pflichtfeld
+ * AC5: Ohne gültige Notiz kann nicht erledigt werden
  */
 
 import type { ErinnerungResponseDto } from '@/shared';
 
 import { useForm } from '@tanstack/react-form';
 import { zodValidator } from '@tanstack/zod-form-adapter';
-import { useCallback } from 'react';
-import { PiCheckCircle, PiNotepad } from 'react-icons/pi';
+import { useCallback, useMemo } from 'react';
+import { PiCheckCircle, PiNotepad, PiWarning } from 'react-icons/pi';
 import { z } from 'zod';
 
 import { Button } from '@/shared/ui/atoms/button.atom';
@@ -35,12 +39,21 @@ interface ErinnerungMarkErledigtDialogProps {
 /** Maximale Länge der Notiz (Backend-Constraint) */
 const MAX_NOTIZ_LENGTH = 500;
 
-/** Zod-Schema für Erledigungs-Formular (AC2: max 500 Zeichen) */
-const erledigungsFormSchema = z.object({
-  erledigungsNotiz: z.string().max(MAX_NOTIZ_LENGTH).optional(),
-});
+/**
+ * Factory für Erledigungs-Formular-Schema
+ *
+ * **Story 2.6 AC1:** Wenn requiresNote=true, wird die Notiz zum Pflichtfeld
+ *
+ * @param requiresNote - Ob eine Notiz erforderlich ist
+ */
+const createErledigungsFormSchema = (requiresNote: boolean) =>
+  z.object({
+    erledigungsNotiz: requiresNote
+      ? z.string().min(1, 'Pflicht-Notiz ist erforderlich').max(MAX_NOTIZ_LENGTH, `Notiz darf maximal ${MAX_NOTIZ_LENGTH} Zeichen haben`)
+      : z.string().max(MAX_NOTIZ_LENGTH).optional(),
+  });
 
-type ErledigungsFormData = z.infer<typeof erledigungsFormSchema>;
+type ErledigungsFormData = { erledigungsNotiz?: string };
 
 /**
  * Dialog zum Markieren einer Erinnerung als erledigt.
@@ -50,6 +63,10 @@ type ErledigungsFormData = z.infer<typeof erledigungsFormSchema>;
  */
 export function ErinnerungMarkErledigtDialog({ isOpen, onClose, erinnerung, einsatzId }: ErinnerungMarkErledigtDialogProps) {
   const { mutate: markErledigt, isPending } = useMarkErledigtErinnerung();
+
+  // Story 2.6: Dynamisches Schema basierend auf requiresNote
+  const requiresNote = erinnerung?.requiresNote ?? false;
+  const erledigungsFormSchema = useMemo(() => createErledigungsFormSchema(requiresNote), [requiresNote]);
 
   const form = useForm<ErledigungsFormData>({
     defaultValues: {
@@ -127,33 +144,59 @@ export function ErinnerungMarkErledigtDialog({ isOpen, onClose, erinnerung, eins
             </dl>
           </div>
 
-          {/* Optionale Notiz */}
+          {/* Story 2.6: Pflicht-Notiz Warnung bei requiresNote=true */}
+          {requiresNote && (
+            <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
+              <p className="flex items-start gap-2 text-amber-800 text-sm dark:text-amber-300">
+                <PiWarning className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>Diese Erinnerung erfordert eine Pflicht-Notiz zur Dokumentation.</span>
+              </p>
+            </div>
+          )}
+
+          {/* Notiz-Feld (optional oder Pflicht je nach requiresNote) */}
           <form.Field name="erledigungsNotiz">
             {(field) => {
               const remainingChars = MAX_NOTIZ_LENGTH - (field.state.value?.length || 0);
+              const hasError = field.state.meta.errors.length > 0;
 
               return (
                 <div className="space-y-2">
                   <label htmlFor="erledigungsNotiz" className="flex items-center gap-2 font-medium text-gray-700 text-sm dark:text-gray-300">
                     <PiNotepad className="h-4 w-4" />
-                    Optionale Notiz zur Erledigung
+                    {requiresNote ? (
+                      <>
+                        Pflicht-Notiz zur Erledigung <span className="text-red-500">*</span>
+                      </>
+                    ) : (
+                      'Optionale Notiz zur Erledigung'
+                    )}
                   </label>
                   <textarea
                     id="erledigungsNotiz"
                     aria-describedby="erledigungsNotiz-hint"
+                    aria-required={requiresNote}
+                    aria-invalid={hasError}
                     value={field.state.value || ''}
                     onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="z.B. Aufgabe wurde erfolgreich durchgeführt..."
+                    placeholder={requiresNote ? 'Bitte dokumentieren Sie die Erledigung...' : 'z.B. Aufgabe wurde erfolgreich durchgeführt...'}
                     maxLength={MAX_NOTIZ_LENGTH}
                     rows={3}
                     disabled={isPending}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-green-400"
+                    className={cn(
+                      'w-full rounded-lg border bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 disabled:opacity-50 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500',
+                      hasError
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20 dark:border-red-400 dark:focus:border-red-400'
+                        : 'border-gray-300 focus:border-green-500 focus:ring-green-500/20 dark:border-gray-600 dark:focus:border-green-400',
+                    )}
                   />
+                  {/* Validation Error Message */}
+                  {hasError && <p className="text-red-600 text-xs dark:text-red-400">{field.state.meta.errors[0]}</p>}
                   <p
                     id="erledigungsNotiz-hint"
                     className={cn(
                       'text-right text-xs',
-                      remainingChars < 0 ? 'text-red-600 dark:text-red-400 font-semibold' : remainingChars < 50 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400',
+                      remainingChars < 0 ? 'font-semibold text-red-600 dark:text-red-400' : remainingChars < 50 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400',
                     )}
                   >
                     {remainingChars < 0 ? 'Zeichenlimit überschritten' : `${remainingChars} Zeichen verbleibend`}

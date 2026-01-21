@@ -53,7 +53,7 @@ describe('Erinnerung Entity', () => {
   }
 
   // Helper: Create Erinnerung with specific status
-  function createErinnerungWithStatus(status: ErinnerungStatus): Erinnerung {
+  function createErinnerungWithStatus(status: ErinnerungStatus, overrides?: { requiresNote?: boolean }): Erinnerung {
     const id = ErinnerungId.create().value!;
     const titel = ErinnerungTitel.create('Test').value!;
     return Erinnerung.reconstruct({
@@ -66,6 +66,7 @@ describe('Erinnerung Entity', () => {
       erstelltVon: testUserId,
       createdAt: new Date(),
       updatedAt: new Date(),
+      requiresNote: overrides?.requiresNote ?? false,
     });
   }
 
@@ -1289,6 +1290,109 @@ describe('Erinnerung Entity', () => {
       });
     });
 
+    describe('Pflicht-Notiz Validation (Story 2.6)', () => {
+      describe('AC1: Pflicht-Notiz bei requiresNote=true', () => {
+        it('sollte markErledigt verweigern wenn requiresNote=true und keine Notiz angegeben', () => {
+          // Given: Erinnerung mit Pflicht-Notiz
+          const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED(), { requiresNote: true });
+
+          // When: Erledigung ohne Notiz
+          const result = erinnerung.markErledigt(testUserId);
+
+          // Then: Fehler wegen fehlender Pflicht-Notiz
+          expect(result.isFailure).toBe(true);
+          expect(result.error).toBe('ERINNERUNG_ERLEDIGUNGS_NOTIZ_REQUIRED');
+          // Status sollte unveraendert sein
+          expect(erinnerung.status.isAcknowledged()).toBe(true);
+        });
+
+        it('sollte markErledigt verweigern wenn requiresNote=true und nur Whitespace-Notiz angegeben', () => {
+          // Given: Erinnerung mit Pflicht-Notiz
+          const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED(), { requiresNote: true });
+
+          // When: Erledigung mit leerer Notiz (nur Whitespace)
+          const result = erinnerung.markErledigt(testUserId, '   ');
+
+          // Then: Fehler wegen fehlender Pflicht-Notiz
+          expect(result.isFailure).toBe(true);
+          expect(result.error).toBe('ERINNERUNG_ERLEDIGUNGS_NOTIZ_REQUIRED');
+          expect(erinnerung.status.isAcknowledged()).toBe(true);
+        });
+
+        it('sollte markErledigt erlauben wenn requiresNote=true und gueltige Notiz angegeben', () => {
+          // Given: Erinnerung mit Pflicht-Notiz
+          const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED(), { requiresNote: true });
+          const notiz = 'Aufgabe erfolgreich dokumentiert';
+
+          // When: Erledigung mit gueltiger Notiz
+          const result = erinnerung.markErledigt(testUserId, notiz);
+
+          // Then: Erfolg
+          expect(result.isSuccess).toBe(true);
+          expect(erinnerung.status.isErledigt()).toBe(true);
+          expect(erinnerung.erledigungsNotiz).toBe(notiz);
+        });
+
+        it('sollte requiresNote=false bei Erledigung ohne Notiz akzeptieren', () => {
+          // Given: Erinnerung ohne Pflicht-Notiz
+          const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED(), { requiresNote: false });
+
+          // When: Erledigung ohne Notiz
+          const result = erinnerung.markErledigt(testUserId);
+
+          // Then: Erfolg (Notiz ist optional)
+          expect(result.isSuccess).toBe(true);
+          expect(erinnerung.status.isErledigt()).toBe(true);
+          expect(erinnerung.erledigungsNotiz).toBeNull();
+        });
+
+        it('sollte bei ESKALIERT Status mit requiresNote=true auch Notiz fordern', () => {
+          // Given: Eskalierte Erinnerung mit Pflicht-Notiz
+          const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ESKALIERT(), { requiresNote: true });
+
+          // When: Erledigung ohne Notiz
+          const result = erinnerung.markErledigt(testUserId);
+
+          // Then: Fehler wegen fehlender Pflicht-Notiz
+          expect(result.isFailure).toBe(true);
+          expect(result.error).toBe('ERINNERUNG_ERLEDIGUNGS_NOTIZ_REQUIRED');
+        });
+      });
+
+      describe('AC5: Kein Event bei fehlender Pflicht-Notiz', () => {
+        it('sollte kein ErinnerungErledigtEvent emittieren wenn Pflicht-Notiz fehlt', () => {
+          // Given: Erinnerung mit Pflicht-Notiz
+          const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED(), { requiresNote: true });
+          erinnerung.clearDomainEvents();
+
+          // When: Erledigung ohne Notiz
+          erinnerung.markErledigt(testUserId);
+
+          // Then: Kein Event emittiert
+          const events = erinnerung.getDomainEvents();
+          expect(events).toHaveLength(0);
+        });
+      });
+
+      describe('requiresNote Getter', () => {
+        it('sollte requiresNote=true zurueckgeben wenn gesetzt', () => {
+          // Given
+          const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED(), { requiresNote: true });
+
+          // Then
+          expect(erinnerung.requiresNote).toBe(true);
+        });
+
+        it('sollte requiresNote=false zurueckgeben wenn nicht gesetzt', () => {
+          // Given
+          const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+
+          // Then
+          expect(erinnerung.requiresNote).toBe(false);
+        });
+      });
+    });
+
     describe('Domain Event Emission (AC4)', () => {
       it('sollte ErinnerungErledigtEvent emittieren', () => {
         // Given
@@ -1494,6 +1598,110 @@ describe('Erinnerung Entity', () => {
         expect(erinnerung.erledigtBy).toBeNull();
         expect(erinnerung.erledigungsNotiz).toBeNull();
       });
+
+      it('sollte requiresNote korrekt rekonstruieren (Story 2.6)', () => {
+        // Given
+        const id = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Pflicht-Notiz Test').value!;
+
+        // When: Mit requiresNote=true
+        const erinnerung = Erinnerung.reconstruct({
+          id,
+          einsatzId: testEinsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+          status: ErinnerungStatus.GEPLANT(),
+          erstelltVon: testUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          requiresNote: true,
+        });
+
+        // Then
+        expect(erinnerung.requiresNote).toBe(true);
+      });
+
+      it('sollte requiresNote Default false verwenden (Story 2.6)', () => {
+        // Given
+        const id = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Test').value!;
+
+        // When: Ohne requiresNote (Default)
+        const erinnerung = Erinnerung.reconstruct({
+          id,
+          einsatzId: testEinsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+          status: ErinnerungStatus.GEPLANT(),
+          erstelltVon: testUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        // Then: Default false
+        expect(erinnerung.requiresNote).toBe(false);
+      });
+    });
+  });
+
+  describe('create() mit requiresNote (Story 2.6)', () => {
+    it('sollte Erinnerung mit requiresNote=true erstellen', () => {
+      // Given
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000);
+
+      // When
+      const result = Erinnerung.create({
+        einsatzId: testEinsatzId,
+        titel: 'Pflicht-Notiz Erinnerung',
+        beschreibung: null,
+        faelligAm: futureDate,
+        erstelltVon: testUserId,
+        requiresNote: true,
+      });
+
+      // Then
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.requiresNote).toBe(true);
+    });
+
+    it('sollte Erinnerung mit requiresNote=false erstellen', () => {
+      // Given
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000);
+
+      // When
+      const result = Erinnerung.create({
+        einsatzId: testEinsatzId,
+        titel: 'Normale Erinnerung',
+        beschreibung: null,
+        faelligAm: futureDate,
+        erstelltVon: testUserId,
+        requiresNote: false,
+      });
+
+      // Then
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.requiresNote).toBe(false);
+    });
+
+    it('sollte Erinnerung mit Default requiresNote=false erstellen wenn nicht angegeben', () => {
+      // Given
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000);
+
+      // When
+      const result = Erinnerung.create({
+        einsatzId: testEinsatzId,
+        titel: 'Erinnerung ohne requiresNote',
+        beschreibung: null,
+        faelligAm: futureDate,
+        erstelltVon: testUserId,
+        // requiresNote nicht angegeben - default false
+      });
+
+      // Then
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.requiresNote).toBe(false);
     });
   });
 });

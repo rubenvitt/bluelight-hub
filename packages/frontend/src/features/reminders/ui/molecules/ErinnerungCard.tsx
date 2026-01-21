@@ -52,7 +52,7 @@ import type { ErinnerungResponseDto } from '@/shared';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
 import { useCallback, useMemo, useState } from 'react';
-import { PiCheckCircle, PiCheckSquareOffset, PiCloudSlash, PiPencil, PiTrash } from 'react-icons/pi';
+import { PiCheckCircle, PiCheckSquareOffset, PiCloudSlash, PiNotepad, PiPencil, PiTrash } from 'react-icons/pi';
 import { useAcknowledgeErinnerung, useSnoozeErinnerung, type SnoozeMinutes } from '../../api';
 import { soundService, timerService, intensificationService } from '../../services';
 import { useCountdown } from '../../hooks/use-countdown';
@@ -273,6 +273,19 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
                 title={`${retriggerNumber}. Auslösung - wurde ${retriggerNumber - 1}x gesnoozed`}
               >
                 {retriggerNumber}. Auslösung
+              </span>
+            )}
+            {/* Story 2.6: Pflicht-Notiz Badge wenn requiresNote=true */}
+            {erinnerung.requiresNote && (
+              // biome-ignore lint/a11y/useSemanticElements: span mit role="status" ist hier korrekt fuer inline Status-Badge
+              <span
+                role="status"
+                aria-label="Pflicht-Notiz erforderlich"
+                className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700 text-xs dark:bg-amber-900/40 dark:text-amber-300"
+                title="Bei Erledigung ist eine Notiz erforderlich"
+              >
+                <PiNotepad className="h-3 w-3" aria-hidden="true" />
+                Notiz
               </span>
             )}
           </div>

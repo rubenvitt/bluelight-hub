@@ -170,15 +170,15 @@ function getAnimationClasses(status: ErinnerungStatus, intensityLevel: Intensity
     return { badge: '', icon: '' };
   }
 
-  // Story 2.3: Intensivierte Animationen
+  // Story 2.3/2.4: Intensivierte Animationen mit visueller Differenzierung
   if (intensityLevel === 'urgent') {
-    // Stufe 2 (Story 2.4): Schnellstes Pulsieren
-    return { badge: 'animate-pulse-fast', icon: 'animate-bounce' };
+    // Stufe 2 (Story 2.4): Schnellstes Pulsieren + intensiver Glow
+    return { badge: 'animate-pulse-urgent animate-border-glow-urgent', icon: 'animate-bounce' };
   }
 
   if (intensityLevel === 'warning') {
-    // Stufe 1 (Story 2.3): Schnelleres Pulsieren
-    return { badge: 'animate-pulse-fast', icon: 'animate-bounce' };
+    // Stufe 1 (Story 2.3): Schnelleres Pulsieren + moderater Glow
+    return { badge: 'animate-pulse-fast animate-border-glow', icon: 'animate-bounce' };
   }
 
   // Standard: Normales Pulsieren
@@ -212,8 +212,13 @@ export function AlarmStateBadge({ status, minutesUntilDue, size = 'md', classNam
   const urgencyLevel = status === 'GEPLANT' ? getUrgencyLevel(minutesUntilDue) : 'normal';
   const urgencySuffix = status === 'GEPLANT' ? URGENCY_LABELS[urgencyLevel] : '';
 
-  // Story 2.3: Intensivierungs-Suffix für Screen Reader
-  const intensitySuffix = status === 'AUSGELOEST' && intensityLevel !== 'none' ? ' (Intensiviert)' : '';
+  // H4 Fix: Differenzierter Intensivierungs-Suffix für Screen Reader (Story 2.3/2.4)
+  const INTENSITY_LABELS: Record<IntensityLevel, string> = {
+    none: '',
+    warning: ' (Intensiviert - 30s)',
+    urgent: ' (Dringend - 60s)',
+  };
+  const intensitySuffix = status === 'AUSGELOEST' ? INTENSITY_LABELS[intensityLevel] : '';
   const displayLabel = `${label}${urgencySuffix}${intensitySuffix}`;
 
   return (

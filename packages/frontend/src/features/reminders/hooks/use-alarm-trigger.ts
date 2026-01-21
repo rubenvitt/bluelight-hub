@@ -7,6 +7,7 @@
  * 3. API POST /erinnerungen/:id/trigger aufrufen
  * 4. TanStack Query Cache invalidieren
  * 5. Intensification Timer starten (Story 2.3)
+ * 6. FloatingPill aktivieren bei urgent (Story 2.4)
  *
  * **Story 1.5 AC1, AC2, AC3, AC4, AC6:**
  * - AC1: Timer-basiertes Ausloesen (Status GEPLANT → AUSGELOEST)
@@ -26,6 +27,13 @@
  * - AC3: Re-Notification mit "Überfällig - Bitte reagieren!"
  * - AC4: Intensivierung stoppt bei Reaktion
  * - AC5: Nur fuer AUSGELOEST Status
+ *
+ * **Story 2.4 AC1, AC2, AC3, AC4, AC5:**
+ * - AC1: Sound-Eskalation nach 60 Sekunden (warning → urgent)
+ * - AC2: FloatingPill wird aktiviert (schwebt ueber anderen UI-Elementen)
+ * - AC3: Rote pulsierende Farbe (animate-pulse-urgent)
+ * - AC4: FloatingPill stoppt bei Acknowledge/Snooze
+ * - AC5: FloatingPill verschwindet bei Status-Wechsel
  */
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -35,6 +43,7 @@ import { toast } from 'sonner';
 import { useTriggerErinnerung } from '../api';
 import { timerService, soundService, sendErinnerungNotification, sendIntensifiedNotification, requestNotificationPermission, intensificationService } from '../services';
 import type { IntensityLevel } from '../stores/intensification.store';
+import { showFloatingPill, hideFloatingPill } from '../stores/floating-pill.store';
 
 /**
  * Optionen fuer den Alarm Trigger Hook
@@ -123,10 +132,21 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
   const erinnerungenRef = useRef(erinnerungen);
   erinnerungenRef.current = erinnerungen;
 
-  // Ref für mutateAsync um Effect-Loop zu vermeiden
-  // (triggerMutation ändert sich bei State-Änderungen wie isPending)
+  // CQ-4: Ref fuer mutateAsync um Effect-Loop zu vermeiden
+  //
+  // Pattern-Erklaerung:
+  // - triggerMutation.mutateAsync aendert sich bei State-Aenderungen (isPending, isError, etc.)
+  // - Wenn wir mutateAsync direkt in useCallback Dependencies verwenden wuerden,
+  //   wuerde executeTriggerSequence bei jedem State-Wechsel neu erstellt werden
+  // - Das wuerde wiederum den Timer-Effect re-triggern (infinite loop)
+  //
+  // Loesung:
+  // - Ref mit initialem Wert erstellen
+  // - Bei JEDEM Render den Ref aktualisieren (Zeile darunter)
+  // - Im Callback ueber mutateAsyncRef.current zugreifen
+  // - So ist der Callback stabil, aber nutzt immer die aktuelle mutateAsync Funktion
   const mutateAsyncRef = useRef(triggerMutation.mutateAsync);
-  mutateAsyncRef.current = triggerMutation.mutateAsync;
+  mutateAsyncRef.current = triggerMutation.mutateAsync; // Immer aktuell halten!
 
   /**
    * Callback fuer Intensivierungs-Events (Story 2.3)
@@ -164,6 +184,16 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
         } catch (err) {
           logger.warn(`[AlarmTrigger] Intensified notification failed (non-critical): ${err}`);
         }
+      }
+
+      // Story 2.4 AC2: FloatingPill bei urgent Level aktivieren
+      if (level === 'urgent') {
+        logger.info(`[AlarmTrigger] Story 2.4: Activating FloatingPill for: ${erinnerung.titel}`);
+        showFloatingPill(erinnerung.id, {
+          titel: erinnerung.titel,
+          // Nutze ausgeloestAm wenn vorhanden, sonst faelligAm als Fallback
+          ausgeloestAm: erinnerung.ausgeloestAm ?? erinnerung.faelligAm,
+        });
       }
 
       // Callback an Consumer
@@ -233,7 +263,15 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
         logger.info(`[AlarmTrigger] Trigger sequence completed: ${erinnerung.titel}`);
 
         // 4. Story 2.3: Intensification Timer starten
-        // Timer startet ab jetzt, nicht ab ausgeloestAm im DTO
+        //
+        // CQ-3 Dokumentation: Wir nutzen Date.now() statt ausgeloestAm aus dem API-Response.
+        // Gruende:
+        // 1. Das API-Response DTO enthaelt zwar ausgeloestAm, aber es ist zu diesem Zeitpunkt
+        //    noch nicht im lokalen erinnerung-Objekt aktualisiert (erst nach Cache-Invalidation).
+        // 2. Die API-Latenz wuerde die Intensivierung sonst um die Roundtrip-Zeit verzögern.
+        // 3. Fuer die UX ist es besser, wenn die 30s Intensivierung ab dem Zeitpunkt startet,
+        //    an dem der User den Sound/Notification erhalten hat, nicht ab Backend-Zeitstempel.
+        // 4. Bei Netzwerk-Latenzen (z.B. 2s) wuerde der User sonst nur 28s bis zur Eskalation haben.
         intensificationService.startTimer(erinnerung.id, Date.now(), handleIntensification);
 
         callbacksRef.current.onTriggerSuccess?.(erinnerung);
@@ -277,6 +315,23 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
     }
   }, [erinnerungen, einsatzId, enabled]);
 
+  // Story 2.3 AC5 + Story 2.4 AC5: Timer und FloatingPill stoppen wenn Status nicht mehr AUSGELOEST
+  // Wenn eine Erinnerung per WebSocket den Status aendert (z.B. AUSGELOEST → ERLEDIGT),
+  // muessen Intensification Timer und FloatingPill gestoppt werden.
+  useEffect(() => {
+    for (const erinnerung of erinnerungen) {
+      // Pruefe ob die Erinnerung NICHT mehr AUSGELOEST ist,
+      // aber noch einen aktiven Intensification Timer hat
+      if (erinnerung.status !== 'AUSGELOEST' && intensificationService.hasActiveTimer(erinnerung.id)) {
+        logger.info(`[AlarmTrigger] AC5: Status nicht mehr AUSGELOEST, stoppe Timer fuer: ${erinnerung.id}`);
+        intensificationService.stopTimer(erinnerung.id);
+
+        // Story 2.4 AC5: FloatingPill ebenfalls entfernen
+        hideFloatingPill(erinnerung.id);
+      }
+    }
+  }, [erinnerungen]);
+
   // Notification Permission beim Mount anfordern
   useEffect(() => {
     if (enabled) {
@@ -315,20 +370,26 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
      *
      * Erlaubt erneutes Triggern einer Erinnerung.
      * Story 2.3 AC4: Stoppt auch den Intensification Timer.
+     * Story 2.4 AC4: Stoppt auch die FloatingPill.
      */
     resetTriggered: (erinnerungId: string) => {
       timerService.resetTriggered(erinnerungId);
       // Story 2.3 AC4: Intensification Timer stoppen bei Snooze
       intensificationService.stopTimer(erinnerungId);
+      // Story 2.4 AC4: FloatingPill entfernen
+      hideFloatingPill(erinnerungId);
     },
 
     /**
      * Stoppt den Intensification Timer fuer eine Erinnerung (Story 2.3 AC4)
      *
      * Wird aufgerufen bei Acknowledge oder Snooze.
+     * Story 2.4 AC4: Stoppt auch die FloatingPill.
      */
     stopIntensification: (erinnerungId: string) => {
       intensificationService.stopTimer(erinnerungId);
+      // Story 2.4 AC4: FloatingPill entfernen
+      hideFloatingPill(erinnerungId);
     },
   };
 }

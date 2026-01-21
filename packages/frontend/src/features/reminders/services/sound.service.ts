@@ -223,7 +223,7 @@ export class SoundService {
   public async escalateToLevel(level: SoundLevel): Promise<{ success: boolean; error?: string }> {
     // Debounce: Verhindere zu schnelle aufeinanderfolgende Eskalationen
     const now = Date.now();
-    if (this.lastEscalationTime && now - this.lastEscalationTime < 100) {
+    if (this.lastEscalationTime && now - this.lastEscalationTime < SoundService.ESCALATION_DEBOUNCE_MS) {
       logger.debug(`[SoundService] Eskalation gedrosselt (${now - this.lastEscalationTime}ms seit letzter)`);
       return { success: true }; // Silently skip, nicht als Fehler behandeln
     }
@@ -237,6 +237,9 @@ export class SoundService {
 
   /** Timestamp der letzten Eskalation (fuer Debouncing) */
   private lastEscalationTime: number | null = null;
+
+  /** Debounce-Zeit fuer Eskalationen in Millisekunden (konfigurierbar) */
+  private static readonly ESCALATION_DEBOUNCE_MS = 200;
 
   /**
    * Stoppt alle aktuell spielenden Sounds.
@@ -253,9 +256,21 @@ export class SoundService {
   }
 
   /**
+   * Setzt den Eskalations-Debounce-Zustand zurueck.
+   *
+   * Verhindert Memory Leak durch lastEscalationTime nach langen Sessions.
+   * Wird automatisch von cleanup() aufgerufen.
+   */
+  public clearEscalationDebounce(): void {
+    this.lastEscalationTime = null;
+    logger.debug('[SoundService] Eskalation-Debounce zurueckgesetzt');
+  }
+
+  /**
    * Räumt Audio-Ressourcen auf.
    *
-   * Schließt AudioContext und stoppt alle Sounds.
+   * Schließt AudioContext, stoppt alle Sounds, gibt Audio-Elemente frei
+   * und setzt Debounce-State zurueck.
    * Sollte beim App-Shutdown aufgerufen werden um Resource Leaks zu vermeiden.
    *
    * @returns Promise das resolvet wenn Cleanup abgeschlossen ist
@@ -263,12 +278,21 @@ export class SoundService {
   public async cleanup(): Promise<void> {
     this.stopAllSounds();
 
+    // Audio-Elemente vollstaendig freigeben (Memory Leak Prevention)
+    for (const audio of this.webAudioState.audioElements.values()) {
+      audio.src = ''; // Browser-Ressourcen freigeben
+    }
+    this.webAudioState.audioElements.clear();
+
     if (this.webAudioState.audioContext) {
       await this.webAudioState.audioContext.close().catch(() => {
         // Ignorieren - AudioContext Cleanup ist nicht kritisch
       });
       this.webAudioState.audioContext = null;
     }
+
+    // Debounce-State zuruecksetzen (Memory Leak Prevention)
+    this.clearEscalationDebounce();
 
     this.webAudioState.initialized = false;
     logger.info('[SoundService] Audio-Ressourcen freigegeben');

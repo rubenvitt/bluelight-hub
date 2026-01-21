@@ -8,6 +8,11 @@
  * - Polling-Interval: 500ms
  * - Trigger-Logik: faelligAm <= Date.now() UND status === 'GEPLANT'
  * - Deduplizierung ueber triggered Set (verhindert Mehrfach-Ausloesung)
+ *
+ * **Story 2.2 AC1, AC3:**
+ * - Erweiterte Trigger-Logik: status === 'GEPLANT' ODER status === 'SNOOZED'
+ * - SNOOZED Erinnerungen nutzen faelligAm (= snoozedUntil nach Snooze)
+ * - Bei Faelligkeit wird Backend-Trigger aufgerufen -> Status zurueck zu AUSGELOEST
  */
 
 import type { ErinnerungResponseDto, ErinnerungResponseDtoStatusEnum } from '@bluelight-hub/shared/client';
@@ -17,6 +22,9 @@ const CHECK_INTERVAL_MS = 500;
 
 /** Status-Wert fuer geplante Erinnerungen */
 const GEPLANT_STATUS: ErinnerungResponseDtoStatusEnum = 'GEPLANT';
+
+/** Status-Wert fuer gesnoozed Erinnerungen (Story 2.2) */
+const SNOOZED_STATUS: ErinnerungResponseDtoStatusEnum = 'SNOOZED';
 
 /**
  * Callback-Typ fuer Erinnerungs-Trigger
@@ -196,7 +204,11 @@ export class TimerService {
    * Prueft alle Erinnerungen auf Faelligkeit und triggert Callbacks
    *
    * Interne Methode die vom Interval aufgerufen wird.
-   * Filtert auf GEPLANT Status und prueft ob faelligAm <= jetzt.
+   * Filtert auf GEPLANT oder SNOOZED Status und prueft ob faelligAm <= jetzt.
+   *
+   * **Story 2.2:** SNOOZED Erinnerungen werden ebenfalls ueberwacht.
+   * Nach Snooze wird faelligAm auf snoozedUntil gesetzt, daher funktioniert
+   * die gleiche Faelligkeitspruefung fuer beide Status.
    */
   private checkErinnerungen(): void {
     if (!this.onTriggerCallback) {
@@ -206,8 +218,9 @@ export class TimerService {
     const now = Date.now();
 
     for (const erinnerung of this.currentErinnerungen) {
-      // Nur GEPLANT Status beruecksichtigen
-      if (erinnerung.status !== GEPLANT_STATUS) {
+      // GEPLANT und SNOOZED Status beruecksichtigen (Story 2.2)
+      const isTriggerable = erinnerung.status === GEPLANT_STATUS || erinnerung.status === SNOOZED_STATUS;
+      if (!isTriggerable) {
         continue;
       }
 
@@ -217,6 +230,7 @@ export class TimerService {
       }
 
       // Faelligkeitspruefung: faelligAm <= now
+      // Fuer SNOOZED: faelligAm === snoozedUntil (Backend setzt dies beim Snooze)
       const faelligAmTimestamp = new Date(erinnerung.faelligAm).getTime();
       if (faelligAmTimestamp <= now) {
         // Als getriggert markieren (Deduplizierung)

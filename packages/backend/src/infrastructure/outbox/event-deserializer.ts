@@ -58,6 +58,9 @@ import { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktualisi
 import type { ErinnerungAenderungen } from '@domain/events/erinnerung-aktualisiert.event';
 import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.event';
 import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
+import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
+import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
+import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 
 // Fahrzeugtyp Events
 import { FahrzeugtypCreatedEvent } from '@domain/kraefte/events/fahrzeugtyp-created.event';
@@ -202,6 +205,9 @@ export class EventDeserializer {
       ['erinnerung.aktualisiert', this.deserializeErinnerungAktualisiert.bind(this)],
       ['erinnerung.geloescht', this.deserializeErinnerungGeloescht.bind(this)],
       ['erinnerung.ausgeloest', this.deserializeErinnerungAusgeloest.bind(this)],
+      ['erinnerung.acknowledged', this.deserializeErinnerungAcknowledged.bind(this)],
+      ['erinnerung.snoozed', this.deserializeErinnerungSnoozed.bind(this)],
+      ['erinnerung.retriggered', this.deserializeErinnerungRetriggered.bind(this)],
     ]);
   }
 
@@ -1025,6 +1031,105 @@ export class EventDeserializer {
     const ausgeloestAm = new Date(payload.ausgeloestAm as string);
 
     const event = new ErinnerungAusgeloestEvent(erinnerungIdResult.value!, einsatzIdResult.value!, ausgeloestAm, payload.titel as string, erstelltVonResult.value!, aggregateId);
+
+    return Result.ok<DomainEvent>(event);
+  }
+
+  /**
+   * Deserialisiert ErinnerungAcknowledgedEvent (Story 1.6).
+   */
+  private deserializeErinnerungAcknowledged(payload: Record<string, unknown>, aggregateId?: string): Result<DomainEvent> {
+    const erinnerungIdResult = ErinnerungId.create(payload.erinnerungId as string);
+    if (erinnerungIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid erinnerungId: ${erinnerungIdResult.error}`);
+    }
+
+    const einsatzIdResult = EinsatzId.create(payload.einsatzId as string);
+    if (einsatzIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid einsatzId: ${einsatzIdResult.error}`);
+    }
+
+    const acknowledgedByResult = UserId.create(payload.acknowledgedBy as string);
+    if (acknowledgedByResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid acknowledgedBy: ${acknowledgedByResult.error}`);
+    }
+
+    const acknowledgedAm = new Date(payload.acknowledgedAm as string);
+
+    const event = new ErinnerungAcknowledgedEvent(erinnerungIdResult.value!, einsatzIdResult.value!, acknowledgedAm, acknowledgedByResult.value!, payload.titel as string, aggregateId);
+
+    return Result.ok<DomainEvent>(event);
+  }
+
+  /**
+   * Deserialisiert ErinnerungSnoozedEvent (Story 2.1).
+   */
+  private deserializeErinnerungSnoozed(payload: Record<string, unknown>, aggregateId?: string): Result<DomainEvent> {
+    const erinnerungIdResult = ErinnerungId.create(payload.erinnerungId as string);
+    if (erinnerungIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid erinnerungId: ${erinnerungIdResult.error}`);
+    }
+
+    const einsatzIdResult = EinsatzId.create(payload.einsatzId as string);
+    if (einsatzIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid einsatzId: ${einsatzIdResult.error}`);
+    }
+
+    const snoozedByResult = UserId.create(payload.snoozedBy as string);
+    if (snoozedByResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid snoozedBy: ${snoozedByResult.error}`);
+    }
+
+    const snoozedAt = new Date(payload.snoozedAt as string);
+    const snoozedUntil = new Date(payload.snoozedUntil as string);
+
+    const event = new ErinnerungSnoozedEvent(
+      erinnerungIdResult.value!,
+      einsatzIdResult.value!,
+      snoozedAt,
+      snoozedUntil,
+      snoozedByResult.value!,
+      payload.snoozeMinutes as number,
+      payload.snoozeCount as number,
+      payload.titel as string,
+      aggregateId,
+    );
+
+    return Result.ok<DomainEvent>(event);
+  }
+
+  /**
+   * Deserialisiert ErinnerungRetriggeredEvent (Story 2.2).
+   */
+  private deserializeErinnerungRetriggered(payload: Record<string, unknown>, aggregateId?: string): Result<DomainEvent> {
+    const erinnerungIdResult = ErinnerungId.create(payload.erinnerungId as string);
+    if (erinnerungIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid erinnerungId: ${erinnerungIdResult.error}`);
+    }
+
+    const einsatzIdResult = EinsatzId.create(payload.einsatzId as string);
+    if (einsatzIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid einsatzId: ${einsatzIdResult.error}`);
+    }
+
+    const erstelltVonResult = UserId.create(payload.erstelltVon as string);
+    if (erstelltVonResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid erstelltVon: ${erstelltVonResult.error}`);
+    }
+
+    const retriggeredAm = new Date(payload.retriggeredAm as string);
+    const previousSnoozedAt = payload.previousSnoozedAt ? new Date(payload.previousSnoozedAt as string) : null;
+
+    const event = new ErinnerungRetriggeredEvent(
+      erinnerungIdResult.value!,
+      einsatzIdResult.value!,
+      retriggeredAm,
+      payload.titel as string,
+      erstelltVonResult.value!,
+      payload.snoozeCount as number,
+      previousSnoozedAt,
+      aggregateId,
+    );
 
     return Result.ok<DomainEvent>(event);
   }

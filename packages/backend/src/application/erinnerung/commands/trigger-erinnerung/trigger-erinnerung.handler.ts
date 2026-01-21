@@ -18,24 +18,29 @@ import type { ErinnerungResponseDto } from '../../dto/erinnerung-response.dto';
  * Handler zum Ausloesen einer Erinnerung bei Faelligkeit.
  *
  * **WARUM TransactionalCommandHandler:**
- * Garantiert atomare Konsistenz zwischen Status-Aenderung (GEPLANT → AUSGELOEST)
- * und Event-Publikation (ErinnerungAusgeloestEvent). Ohne Transaktional Pattern
- * koennte der Status geaendert werden, aber das Event nicht in Outbox landen
- * (oder umgekehrt), was zu inkonsistenten Zustaenden fuehrt.
+ * Garantiert atomare Konsistenz zwischen Status-Aenderung (GEPLANT/SNOOZED → AUSGELOEST)
+ * und Event-Publikation. Ohne Transaktional Pattern koennte der Status geaendert werden,
+ * aber das Event nicht in Outbox landen (oder umgekehrt), was zu inkonsistenten Zustaenden fuehrt.
  *
  * **Story 1.5:** Alarm bei Faelligkeit ausloesen
- * - AC1: Status wechselt zu AUSGELOEST
+ * - AC1: Status wechselt zu AUSGELOEST (bei GEPLANT)
  * - AC4: WebSocket Event wird emittiert (via Outbox)
  * - AC5: ETB-Eintrag wird automatisch erstellt (via Event Handler)
  *
+ * **Story 2.2:** Nach Snooze erneut ausloesen
+ * - AC1: Status wechselt von SNOOZED zurueck zu AUSGELOEST
+ * - AC2: Emittiert ErinnerungRetriggeredEvent mit snoozeCount fuer ETB
+ * - AC4: WebSocket Event wird emittiert (via Outbox)
+ *
  * **Transactional Outbox Pattern:**
- * - Erinnerung und ErinnerungAusgeloestEvent werden atomar in einer Transaktion gespeichert
+ * - Erinnerung und Event werden atomar in einer Transaktion gespeichert
  * - Event wird erst nach erfolgreichem Commit aus Outbox verarbeitet
  * - Garantiert Konsistenz zwischen Aggregate-State und Event-Store
  *
  * @see TriggerErinnerungCommand - Input Validierung
- * @see Erinnerung.ausloesen() - Domain Trigger Methode
- * @see ErinnerungAusgeloestEvent - Emittiertes Domain Event
+ * @see Erinnerung.ausloesen() - Domain Trigger Methode (akzeptiert GEPLANT und SNOOZED)
+ * @see ErinnerungAusgeloestEvent - Emittiert bei erstem Trigger
+ * @see ErinnerungRetriggeredEvent - Emittiert bei Re-Trigger nach Snooze
  */
 @Injectable()
 export class TriggerErinnerungHandler extends TransactionalCommandHandler<TriggerErinnerungCommand, ErinnerungResponseDto> {
@@ -119,9 +124,16 @@ export class TriggerErinnerungHandler extends TransactionalCommandHandler<Trigge
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // 6. Audit-Trail loggen
+    // 6. Audit-Trail loggen (Story 2.2: unterscheide Trigger vs Re-Trigger)
     // ════════════════════════════════════════════════════════════════════════
-    this.logger.log(`Erinnerung ausgeloest (id: ${erinnerung.id.toString()}, titel: "${erinnerung.titel.value}")`, 'TriggerErinnerungHandler');
+    const isRetrigger = erinnerung.snoozeCount > 0;
+    if (isRetrigger) {
+      // Story 2.2: Re-Trigger nach Snooze
+      this.logger.log(`Erinnerung erneut ausgeloest (id: ${erinnerung.id.toString()}, titel: "${erinnerung.titel.value}", snoozeCount: ${erinnerung.snoozeCount})`, 'TriggerErinnerungHandler');
+    } else {
+      // Story 1.5: Erster Trigger
+      this.logger.log(`Erinnerung ausgeloest (id: ${erinnerung.id.toString()}, titel: "${erinnerung.titel.value}")`, 'TriggerErinnerungHandler');
+    }
 
     // ════════════════════════════════════════════════════════════════════════
     // 7. Response DTO erstellen und zurueckgeben
@@ -136,6 +148,7 @@ export class TriggerErinnerungHandler extends TransactionalCommandHandler<Trigge
       erstelltVon: erinnerung.erstelltVon.toString(),
       createdAt: erinnerung.createdAt.toISOString(),
       updatedAt: erinnerung.updatedAt.toISOString(),
+      snoozeCount: erinnerung.snoozeCount,
     };
 
     return {

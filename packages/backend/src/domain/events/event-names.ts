@@ -150,6 +150,8 @@ export const EVENT_NAMES = {
     ACKNOWLEDGED: 'erinnerung.acknowledged',
     /** Event: Erinnerung wurde verschoben (snoozed) */
     SNOOZED: 'erinnerung.snoozed',
+    /** Event: Erinnerung wurde nach Snooze erneut ausgelöst (Story 2.2) */
+    RETRIGGERED: 'erinnerung.retriggered',
     /** Event: Erinnerung wurde eskaliert */
     ESKALIERT: 'erinnerung.eskaliert',
     /** Event: Erinnerung wurde erledigt */

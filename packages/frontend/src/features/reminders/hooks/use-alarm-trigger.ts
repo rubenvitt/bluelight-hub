@@ -13,6 +13,11 @@
  * - AC3: OS Notification (auch bei minimierter App)
  * - AC4: Backend emittiert WebSocket Event
  * - AC6: Latenz <1s (500ms Timer Interval)
+ *
+ * **Story 2.2 AC1, AC3:**
+ * - AC1: Nach Snooze-Ablauf automatisches Re-Triggern (Status SNOOZED → AUSGELOEST)
+ * - AC3: Sound/Notification werden erneut abgespielt
+ * - TimerService ueberwacht auch SNOOZED Status (faelligAm = snoozedUntil)
  */
 
 import { useCallback, useEffect, useRef } from 'react';

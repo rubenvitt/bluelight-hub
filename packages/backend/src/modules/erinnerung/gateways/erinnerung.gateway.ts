@@ -74,6 +74,18 @@ export interface ErinnerungSnoozedPayload {
 }
 
 /**
+ * WebSocket Payload fuer erinnerung.retriggered Event (Story 2.2 AC4).
+ */
+export interface ErinnerungRetriggeredPayload {
+  erinnerungId: string;
+  einsatzId: string;
+  titel: string;
+  snoozeCount: number;
+  isRetrigger: true;
+  timestamp: string;
+}
+
+/**
  * WebSocket Gateway fuer Erinnerungen.
  *
  * **Story 1.5 AC4: WebSocket Event fuer Team-Sync**
@@ -254,6 +266,19 @@ export class ErinnerungGateway implements OnGatewayConnection, OnGatewayDisconne
     const roomName = this.getRoomName(payload.einsatzId);
     this.server.to(roomName).emit('erinnerung.snoozed', payload);
     this.logger.log(`Emitted erinnerung.snoozed to room ${roomName}: erinnerungId=${payload.erinnerungId}, snoozeMinutes=${payload.snoozeMinutes}`, 'ErinnerungGateway');
+  }
+
+  /**
+   * Emittiert `erinnerung.retriggered` Event an alle Clients im Einsatz-Room.
+   *
+   * **Story 2.2 AC4:** WebSocket Event fuer Team-Sync bei erneuter Ausloesung nach Snooze
+   *
+   * @param payload - Event-Payload mit erinnerungId, einsatzId, titel, snoozeCount, isRetrigger, timestamp
+   */
+  emitErinnerungRetriggered(payload: ErinnerungRetriggeredPayload): void {
+    const roomName = this.getRoomName(payload.einsatzId);
+    this.server.to(roomName).emit('erinnerung.retriggered', payload);
+    this.logger.log(`Emitted erinnerung.retriggered to room ${roomName}: erinnerungId=${payload.erinnerungId}, snoozeCount=${payload.snoozeCount}`, 'ErinnerungGateway');
   }
 
   /**

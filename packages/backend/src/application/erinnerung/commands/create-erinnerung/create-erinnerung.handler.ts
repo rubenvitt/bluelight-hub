@@ -129,6 +129,7 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
       erstelltVon: erinnerung.erstelltVon.toString(),
       createdAt: erinnerung.createdAt.toISOString(),
       updatedAt: erinnerung.updatedAt.toISOString(),
+      snoozeCount: erinnerung.snoozeCount,
     };
 
     return {

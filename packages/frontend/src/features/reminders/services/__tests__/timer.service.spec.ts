@@ -7,6 +7,10 @@
  * - Polling-Interval: 500ms (<1s Latenz Garantie)
  * - Trigger-Logik: faelligAm <= Date.now() UND status === 'GEPLANT'
  * - Deduplizierung: Keine Mehrfach-Ausloesung
+ *
+ * **Story 2.2 AC1:**
+ * - Erweiterte Trigger-Logik: status === 'GEPLANT' ODER status === 'SNOOZED'
+ * - SNOOZED Erinnerungen nutzen faelligAm (= snoozedUntil nach Snooze)
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -357,6 +361,121 @@ describe('TimerService', () => {
       // Then (Assert) - Nur GEPLANT wird getriggert
       expect(onTrigger).toHaveBeenCalledTimes(1);
       expect(onTrigger).toHaveBeenCalledWith(geplant);
+    });
+  });
+
+  describe('SNOOZED Status Trigger (Story 2.2 AC1)', () => {
+    it('should trigger erinnerungen with status SNOOZED after snooze expires', () => {
+      // Given (Arrange) - SNOOZED Erinnerung ist faellig
+      const snoozed = createTestErinnerung({
+        id: 'snoozed-1',
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(), // Past
+        status: 'SNOOZED',
+      });
+      const onTrigger = vi.fn();
+
+      // When (Act)
+      timerService.start([snoozed], 'test-einsatz-1', onTrigger);
+
+      // Then (Assert)
+      expect(onTrigger).toHaveBeenCalledTimes(1);
+      expect(onTrigger).toHaveBeenCalledWith(snoozed);
+    });
+
+    it('should NOT trigger SNOOZED erinnerungen before faelligAm', () => {
+      // Given (Arrange) - SNOOZED noch nicht faellig
+      const snoozed = createTestErinnerung({
+        id: 'snoozed-1',
+        faelligAm: new Date(2026, 0, 19, 13, 0, 0).toISOString(), // Future (1 hour later)
+        status: 'SNOOZED',
+      });
+      const onTrigger = vi.fn();
+
+      // When (Act)
+      timerService.start([snoozed], 'test-einsatz-1', onTrigger);
+
+      // Then (Assert)
+      expect(onTrigger).not.toHaveBeenCalled();
+    });
+
+    it('should treat SNOOZED same as GEPLANT for trigger logic', () => {
+      // Given (Arrange) - Mix von GEPLANT und SNOOZED, beide faellig
+      const geplant = createTestErinnerung({
+        id: 'geplant-1',
+        status: 'GEPLANT',
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(), // Past
+      });
+      const snoozed = createTestErinnerung({
+        id: 'snoozed-1',
+        status: 'SNOOZED',
+        faelligAm: new Date(2026, 0, 19, 11, 58, 0).toISOString(), // Past
+      });
+      const onTrigger = vi.fn();
+
+      // When (Act)
+      timerService.start([geplant, snoozed], 'test-einsatz-1', onTrigger);
+
+      // Then (Assert) - Beide werden getriggert
+      expect(onTrigger).toHaveBeenCalledTimes(2);
+      expect(onTrigger).toHaveBeenCalledWith(geplant);
+      expect(onTrigger).toHaveBeenCalledWith(snoozed);
+    });
+
+    it('should trigger SNOOZED after 500ms when snooze expires (NFR1: <1s latency)', () => {
+      // Given (Arrange) - SNOOZED wird in 250ms faellig
+      const snoozed = createTestErinnerung({
+        id: 'snoozed-1',
+        faelligAm: new Date(2026, 0, 19, 12, 0, 0, 250).toISOString(), // +250ms
+        status: 'SNOOZED',
+      });
+      const onTrigger = vi.fn();
+      timerService.start([snoozed], 'test-einsatz-1', onTrigger);
+      expect(onTrigger).not.toHaveBeenCalled(); // Not yet
+
+      // When (Act) - Advance time by 500ms (check interval)
+      vi.advanceTimersByTime(500);
+
+      // Then (Assert) - Triggered within 500ms of snooze expiration
+      expect(onTrigger).toHaveBeenCalledTimes(1);
+      expect(onTrigger).toHaveBeenCalledWith(snoozed);
+    });
+
+    it('should NOT trigger other terminal statuses (only GEPLANT and SNOOZED)', () => {
+      // Given (Arrange) - Alle Status mit faelligem Zeitpunkt
+      const geplant = createTestErinnerung({
+        id: 'geplant-1',
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
+        status: 'GEPLANT',
+      });
+      const snoozed = createTestErinnerung({
+        id: 'snoozed-1',
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
+        status: 'SNOOZED',
+      });
+      const ausgeloest = createTestErinnerung({
+        id: 'ausgeloest-1',
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
+        status: 'AUSGELOEST',
+      });
+      const acknowledged = createTestErinnerung({
+        id: 'ack-1',
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
+        status: 'ACKNOWLEDGED',
+      });
+      const erledigt = createTestErinnerung({
+        id: 'erledigt-1',
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
+        status: 'ERLEDIGT',
+      });
+      const onTrigger = vi.fn();
+
+      // When (Act)
+      timerService.start([geplant, snoozed, ausgeloest, acknowledged, erledigt], 'test-einsatz-1', onTrigger);
+
+      // Then (Assert) - Nur GEPLANT und SNOOZED werden getriggert
+      expect(onTrigger).toHaveBeenCalledTimes(2);
+      expect(onTrigger).toHaveBeenCalledWith(geplant);
+      expect(onTrigger).toHaveBeenCalledWith(snoozed);
     });
   });
 

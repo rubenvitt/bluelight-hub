@@ -24,6 +24,8 @@ import { UserId } from '@domain/value-objects/user-id';
 import { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktualisiert.event';
 import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.event';
 import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
+import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
+import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 
 describe('Erinnerung Entity', () => {
   let testEinsatzId: EinsatzId;
@@ -878,6 +880,215 @@ describe('Erinnerung Entity', () => {
         // Then: Defaults
         expect(erinnerung.acknowledgedAm).toBeNull();
         expect(erinnerung.acknowledgedBy).toBeNull();
+      });
+    });
+  });
+
+  // ============================================================
+  // ausloesen() Tests (Story 1.5 + Story 2.2)
+  // ============================================================
+
+  describe('ausloesen()', () => {
+    // Helper: Create SNOOZED Erinnerung with snoozeCount
+    function createSnoozedErinnerung(snoozeCount: number): Erinnerung {
+      const id = ErinnerungId.create().value!;
+      const titel = ErinnerungTitel.create('Test Erinnerung').value!;
+      return Erinnerung.reconstruct({
+        id,
+        einsatzId: testEinsatzId,
+        titel,
+        beschreibung: null,
+        faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+        status: ErinnerungStatus.SNOOZED(),
+        erstelltVon: testUserId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        snoozedAt: new Date(),
+        snoozedBy: testUserId,
+        snoozedUntil: new Date(Date.now() + 5 * 60 * 1000),
+        snoozeCount,
+      });
+    }
+
+    describe('Status Validation (Story 1.5 AC1 + Story 2.2 AC1)', () => {
+      it('sollte Trigger erlauben wenn Status GEPLANT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.GEPLANT());
+
+        // When
+        const result = erinnerung.ausloesen();
+
+        // Then
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.status.isAusgeloest()).toBe(true);
+      });
+
+      it('sollte Trigger erlauben wenn Status SNOOZED ist (Story 2.2 AC1)', () => {
+        // Given
+        const erinnerung = createSnoozedErinnerung(1);
+
+        // When
+        const result = erinnerung.ausloesen();
+
+        // Then
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.status.isAusgeloest()).toBe(true);
+      });
+
+      it('sollte Trigger verweigern wenn Status AUSGELOEST ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+
+        // When
+        const result = erinnerung.ausloesen();
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
+      });
+
+      it('sollte Trigger verweigern wenn Status ACKNOWLEDGED ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+
+        // When
+        const result = erinnerung.ausloesen();
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
+      });
+
+      it('sollte Trigger verweigern wenn Status ESKALIERT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ESKALIERT());
+
+        // When
+        const result = erinnerung.ausloesen();
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
+      });
+
+      it('sollte Trigger verweigern wenn Status ERLEDIGT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ERLEDIGT());
+
+        // When
+        const result = erinnerung.ausloesen();
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
+      });
+    });
+
+    describe('ausgeloestAm Property', () => {
+      it('sollte ausgeloestAm setzen', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.GEPLANT());
+        const beforeTrigger = new Date();
+
+        // When
+        erinnerung.ausloesen();
+
+        // Then
+        const afterTrigger = new Date();
+        expect(erinnerung.ausgeloestAm).not.toBeNull();
+        expect(erinnerung.ausgeloestAm!.getTime()).toBeGreaterThanOrEqual(beforeTrigger.getTime());
+        expect(erinnerung.ausgeloestAm!.getTime()).toBeLessThanOrEqual(afterTrigger.getTime());
+      });
+    });
+
+    describe('Domain Event Emission (Story 1.5 + Story 2.2)', () => {
+      it('sollte ErinnerungAusgeloestEvent emittieren bei erstem Trigger (GEPLANT)', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.GEPLANT());
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.ausloesen();
+
+        // Then
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(1);
+        expect(events[0]).toBeInstanceOf(ErinnerungAusgeloestEvent);
+      });
+
+      it('sollte ErinnerungRetriggeredEvent emittieren bei Re-Trigger (SNOOZED) (Story 2.2)', () => {
+        // Given
+        const erinnerung = createSnoozedErinnerung(1);
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.ausloesen();
+
+        // Then
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(1);
+        expect(events[0]).toBeInstanceOf(ErinnerungRetriggeredEvent);
+      });
+
+      it('sollte ErinnerungRetriggeredEvent mit korrekten Properties emittieren (Story 2.2 AC2)', () => {
+        // Given
+        const snoozeCount = 2;
+        const erinnerung = createSnoozedErinnerung(snoozeCount);
+        const previousSnoozedAt = erinnerung.snoozedAt;
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.ausloesen();
+
+        // Then
+        const event = erinnerung.getDomainEvents()[0] as ErinnerungRetriggeredEvent;
+        expect(event.erinnerungId).toBe(erinnerung.id);
+        expect(event.einsatzId).toBe(erinnerung.einsatzId);
+        expect(event.titel).toBe('Test Erinnerung');
+        expect(event.snoozeCount).toBe(snoozeCount);
+        expect(event.previousSnoozedAt).toEqual(previousSnoozedAt);
+        expect(event.retriggeredAm).toBeDefined();
+      });
+
+      it('sollte ErinnerungAusgeloestEvent mit korrekten Properties emittieren (Story 1.5)', () => {
+        // Given
+        const id = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Lagebesprechung').value!;
+        const erinnerung = Erinnerung.reconstruct({
+          id,
+          einsatzId: testEinsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+          status: ErinnerungStatus.GEPLANT(),
+          erstelltVon: testUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.ausloesen();
+
+        // Then
+        const event = erinnerung.getDomainEvents()[0] as ErinnerungAusgeloestEvent;
+        expect(event.erinnerungId).toBe(erinnerung.id);
+        expect(event.einsatzId).toBe(erinnerung.einsatzId);
+        expect(event.titel).toBe('Lagebesprechung');
+        expect(event.ausgeloestAm).toBeDefined();
+      });
+
+      it('sollte kein Event emittieren bei Validierungsfehler', () => {
+        // Given: ACKNOWLEDGED Status - nicht triggerbar
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.ausloesen();
+
+        // Then
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(0);
       });
     });
   });

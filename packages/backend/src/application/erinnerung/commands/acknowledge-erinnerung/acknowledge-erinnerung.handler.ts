@@ -146,6 +146,7 @@ export class AcknowledgeErinnerungHandler extends TransactionalCommandHandler<Ac
       erstelltVon: erinnerung.erstelltVon.toString(),
       createdAt: erinnerung.createdAt.toISOString(),
       updatedAt: erinnerung.updatedAt.toISOString(),
+      snoozeCount: erinnerung.snoozeCount,
     };
 
     return {

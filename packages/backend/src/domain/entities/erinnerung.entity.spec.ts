@@ -653,16 +653,16 @@ describe('Erinnerung Entity', () => {
         expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
       });
 
-      it('should fail to trigger erinnerung with SNOOZED status', () => {
-        // Given: Erinnerung with SNOOZED status
+      it('should allow trigger for erinnerung with SNOOZED status (Story 2.2 Re-Trigger)', () => {
+        // Given: Erinnerung with SNOOZED status (nach snooze Zeit abgelaufen)
         const erinnerung = createTriggerTestErinnerung(ErinnerungStatus.SNOOZED());
 
-        // When: Triggering
+        // When: Triggering (Re-Trigger nach Snooze)
         const result = erinnerung.ausloesen();
 
-        // Then: Failure
-        expect(result.isFailure).toBe(true);
-        expect(result.error).toBe('ERINNERUNG_NOT_TRIGGERABLE');
+        // Then: Success - Story 2.2 erlaubt Re-Trigger von SNOOZED
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.status.isAusgeloest()).toBe(true);
       });
 
       it('should fail to trigger erinnerung with ESKALIERT status', () => {

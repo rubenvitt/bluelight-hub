@@ -48,8 +48,12 @@ import { PersonVonFahrzeugEntferntEvent } from '@domain/kraefte/events/person-vo
 import { RolleBesetzt } from '@domain/kraefte/events/rolle-besetzt.event';
 import { RolleFreigegeben } from '@domain/kraefte/events/rolle-freigegeben.event';
 
+// Erinnerung Events
+import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
+
 // Value Objects (für Test IDs)
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { ErinnerungId } from '@domain/value-objects/erinnerung-id';
 import { EtbId } from '@domain/value-objects/etb-id';
 import { EintragId } from '@domain/value-objects/eintrag-id';
 import { LagekarteId } from '@domain/value-objects/lagekarte-id';
@@ -66,6 +70,7 @@ describe('EventDeserializer', () => {
   let userId2Value: string;
   let etbIdValue: string;
   let eintragIdValue: string;
+  let erinnerungIdValue: string;
   let lagekarteIdValue: string;
   let poiIdValue: string;
 
@@ -76,6 +81,7 @@ describe('EventDeserializer', () => {
     userId2Value = UserId.create().value!.value;
     etbIdValue = EtbId.create().value!.value;
     eintragIdValue = EintragId.create().value!.value;
+    erinnerungIdValue = ErinnerungId.create().value!.value;
     lagekarteIdValue = LagekarteId.create().value!.value;
     poiIdValue = PoiId.create().value!.value;
   });
@@ -665,6 +671,230 @@ describe('EventDeserializer', () => {
     });
   });
 
+  // ===== ERINNERUNG RETRIGGERED EVENTS (Story 2.2) =====
+
+  describe('ErinnerungRetriggeredEvent deserialization (Story 2.2)', () => {
+    it('should deserialize ErinnerungRetriggeredEvent correctly with snooze history', () => {
+      // Given (Arrange)
+      const retriggeredAm = '2026-01-21T10:30:00.000Z';
+      const previousSnoozedAt = '2026-01-21T10:00:00.000Z';
+      const serialized = createSerializedEvent(
+        'erinnerung.retriggered',
+        {
+          erinnerungId: erinnerungIdValue,
+          einsatzId: einsatzIdValue,
+          retriggeredAm,
+          titel: 'Lagebesprechung',
+          erstelltVon: userIdValue,
+          snoozeCount: 2,
+          previousSnoozedAt,
+        },
+        'agg-123',
+      );
+
+      // When (Act)
+      const result = deserializer.deserialize(serialized);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+      const event = result.value as ErinnerungRetriggeredEvent;
+      expect(event).toBeInstanceOf(ErinnerungRetriggeredEvent);
+      expect(event.erinnerungId.value).toBe(erinnerungIdValue);
+      expect(event.einsatzId.value).toBe(einsatzIdValue);
+      expect(event.retriggeredAm.toISOString()).toBe(retriggeredAm);
+      expect(event.titel).toBe('Lagebesprechung');
+      expect(event.erstelltVon.value).toBe(userIdValue);
+      expect(event.snoozeCount).toBe(2);
+      expect(event.previousSnoozedAt).toEqual(new Date(previousSnoozedAt));
+    });
+
+    it('should handle null previousSnoozedAt correctly (first retrigger after snooze)', () => {
+      // Given (Arrange)
+      const retriggeredAm = '2026-01-21T10:30:00.000Z';
+      const serialized = createSerializedEvent(
+        'erinnerung.retriggered',
+        {
+          erinnerungId: erinnerungIdValue,
+          einsatzId: einsatzIdValue,
+          retriggeredAm,
+          titel: 'Erster Retrigger',
+          erstelltVon: userIdValue,
+          snoozeCount: 1,
+          previousSnoozedAt: null,
+        },
+        'agg-123',
+      );
+
+      // When (Act)
+      const result = deserializer.deserialize(serialized);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+      const event = result.value as ErinnerungRetriggeredEvent;
+      expect(event).toBeInstanceOf(ErinnerungRetriggeredEvent);
+      expect(event.snoozeCount).toBe(1);
+      expect(event.previousSnoozedAt).toBeNull();
+    });
+
+    it('should fail with invalid erinnerungId', () => {
+      // Given (Arrange)
+      const serialized = createSerializedEvent(
+        'erinnerung.retriggered',
+        {
+          erinnerungId: 'invalid-id-format!',
+          einsatzId: einsatzIdValue,
+          retriggeredAm: '2026-01-21T10:30:00.000Z',
+          titel: 'Test',
+          erstelltVon: userIdValue,
+          snoozeCount: 1,
+          previousSnoozedAt: null,
+        },
+        'agg-123',
+      );
+
+      // When (Act)
+      const result = deserializer.deserialize(serialized);
+
+      // Then (Assert)
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toContain('Invalid erinnerungId');
+    });
+
+    it('should fail with invalid einsatzId', () => {
+      // Given (Arrange)
+      const serialized = createSerializedEvent(
+        'erinnerung.retriggered',
+        {
+          erinnerungId: erinnerungIdValue,
+          einsatzId: 'invalid-einsatz-id!',
+          retriggeredAm: '2026-01-21T10:30:00.000Z',
+          titel: 'Test',
+          erstelltVon: userIdValue,
+          snoozeCount: 1,
+          previousSnoozedAt: null,
+        },
+        'agg-123',
+      );
+
+      // When (Act)
+      const result = deserializer.deserialize(serialized);
+
+      // Then (Assert)
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toContain('Invalid einsatzId');
+    });
+
+    it('should fail with invalid erstelltVon userId', () => {
+      // Given (Arrange)
+      const serialized = createSerializedEvent(
+        'erinnerung.retriggered',
+        {
+          erinnerungId: erinnerungIdValue,
+          einsatzId: einsatzIdValue,
+          retriggeredAm: '2026-01-21T10:30:00.000Z',
+          titel: 'Test',
+          erstelltVon: 'invalid-user-id!',
+          snoozeCount: 1,
+          previousSnoozedAt: null,
+        },
+        'agg-123',
+      );
+
+      // When (Act)
+      const result = deserializer.deserialize(serialized);
+
+      // Then (Assert)
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toContain('Invalid erstelltVon');
+    });
+
+    it('should roundtrip ErinnerungRetriggeredEvent: serialize -> deserialize -> equals original', () => {
+      // Given - Originale Event-Instanz
+      const erinnerungId = ErinnerungId.create().value!;
+      const einsatzId = EinsatzId.create().value!;
+      const erstelltVon = UserId.create().value!;
+      const retriggeredAm = new Date('2026-01-21T10:30:00.000Z');
+      const previousSnoozedAt = new Date('2026-01-21T10:00:00.000Z');
+
+      const originalEvent = new ErinnerungRetriggeredEvent(erinnerungId, einsatzId, retriggeredAm, 'Wichtige Besprechung', erstelltVon, 3, previousSnoozedAt, erinnerungId.value);
+
+      // Serialized payload (wie es in der DB gespeichert wäre)
+      const serialized = createSerializedEvent(
+        'erinnerung.retriggered',
+        {
+          erinnerungId: originalEvent.erinnerungId.value,
+          einsatzId: originalEvent.einsatzId.value,
+          retriggeredAm: originalEvent.retriggeredAm.toISOString(),
+          titel: originalEvent.titel,
+          erstelltVon: originalEvent.erstelltVon.value,
+          snoozeCount: originalEvent.snoozeCount,
+          previousSnoozedAt: originalEvent.previousSnoozedAt?.toISOString() ?? null,
+        },
+        originalEvent.aggregateId,
+      );
+
+      // When - Deserialisieren
+      const result = deserializer.deserialize(serialized);
+
+      // Then - Alle Felder stimmen überein
+      expect(result.isSuccess).toBe(true);
+      const deserializedEvent = result.value as ErinnerungRetriggeredEvent;
+
+      expect(deserializedEvent.erinnerungId.value).toBe(originalEvent.erinnerungId.value);
+      expect(deserializedEvent.einsatzId.value).toBe(originalEvent.einsatzId.value);
+      expect(deserializedEvent.retriggeredAm.toISOString()).toBe(originalEvent.retriggeredAm.toISOString());
+      expect(deserializedEvent.titel).toBe(originalEvent.titel);
+      expect(deserializedEvent.erstelltVon.value).toBe(originalEvent.erstelltVon.value);
+      expect(deserializedEvent.snoozeCount).toBe(originalEvent.snoozeCount);
+      expect(deserializedEvent.previousSnoozedAt?.toISOString()).toBe(originalEvent.previousSnoozedAt?.toISOString());
+      expect(deserializedEvent.aggregateId).toBe(originalEvent.aggregateId);
+    });
+
+    it('should roundtrip ErinnerungRetriggeredEvent with null previousSnoozedAt', () => {
+      // Given - Event ohne previousSnoozedAt (erster Retrigger)
+      const erinnerungId = ErinnerungId.create().value!;
+      const einsatzId = EinsatzId.create().value!;
+      const erstelltVon = UserId.create().value!;
+      const retriggeredAm = new Date('2026-01-21T10:30:00.000Z');
+
+      const originalEvent = new ErinnerungRetriggeredEvent(
+        erinnerungId,
+        einsatzId,
+        retriggeredAm,
+        'Erste Auslösung nach Snooze',
+        erstelltVon,
+        1,
+        null, // Kein vorheriges Snooze
+        erinnerungId.value,
+      );
+
+      // Serialized payload (wie es in der DB gespeichert wäre)
+      const serialized = createSerializedEvent(
+        'erinnerung.retriggered',
+        {
+          erinnerungId: originalEvent.erinnerungId.value,
+          einsatzId: originalEvent.einsatzId.value,
+          retriggeredAm: originalEvent.retriggeredAm.toISOString(),
+          titel: originalEvent.titel,
+          erstelltVon: originalEvent.erstelltVon.value,
+          snoozeCount: originalEvent.snoozeCount,
+          previousSnoozedAt: null,
+        },
+        originalEvent.aggregateId,
+      );
+
+      // When - Deserialisieren
+      const result = deserializer.deserialize(serialized);
+
+      // Then - Alle Felder stimmen überein, previousSnoozedAt ist null
+      expect(result.isSuccess).toBe(true);
+      const deserializedEvent = result.value as ErinnerungRetriggeredEvent;
+
+      expect(deserializedEvent.snoozeCount).toBe(1);
+      expect(deserializedEvent.previousSnoozedAt).toBeNull();
+    });
+  });
+
   // ===== ERROR HANDLING =====
 
   describe('Error Handling', () => {
@@ -781,11 +1011,11 @@ describe('EventDeserializer', () => {
       expect(deserializer.supportsEventType('')).toBe(false);
     });
 
-    it('should return all 41 supported event types', () => {
+    it('should return all 44 supported event types', () => {
       const supportedTypes = deserializer.getSupportedEventTypes();
 
-      // 41 Event-Typen: Basis-Events + Erinnerung-Events (Story 1.x incl. Acknowledged)
-      expect(supportedTypes).toHaveLength(41);
+      // 44 Event-Typen: Basis-Events + Erinnerung-Events (Story 1.x, 2.x incl. acknowledged, snoozed, retriggered)
+      expect(supportedTypes).toHaveLength(44);
       expect(supportedTypes).toContain('einsatz.created');
       expect(supportedTypes).toContain('etb.created');
       expect(supportedTypes).toContain('lagekarte.created');

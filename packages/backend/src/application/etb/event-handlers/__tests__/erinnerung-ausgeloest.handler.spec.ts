@@ -109,7 +109,7 @@ describe('ErinnerungAusgeloestEventHandler', () => {
   });
 
   describe('AC1: Handler sollte ETB-Eintrag für Erinnerung-Ausloesung erstellen', () => {
-    it('should create ETB entry with correct text format "Erinnerung \'{titel}\' ausgeloest"', async () => {
+    it('should create ETB entry with correct text format "Erinnerung \'{titel}\' ausgelöst"', async () => {
       // Given (Arrange)
       const event = createTestEvent({
         titel: 'Lagebesprechung',
@@ -123,7 +123,7 @@ describe('ErinnerungAusgeloestEventHandler', () => {
       // Then (Assert)
       expect(mockAddEintragHandler.execute).toHaveBeenCalledTimes(1);
       const receivedCommand = mockAddEintragHandler.execute.mock.calls[0][0];
-      expect(receivedCommand.text).toBe("Erinnerung 'Lagebesprechung' ausgeloest");
+      expect(receivedCommand.text).toBe("Erinnerung 'Lagebesprechung' ausgelöst");
     });
 
     it('should set kategorie to SYSTEM for erinnerung ausloesung', async () => {
@@ -541,7 +541,7 @@ describe('ErinnerungAusgeloestEventHandler', () => {
   });
 
   describe('ETB Entry Text Format Validation', () => {
-    it('should validate exact format "Erinnerung \'{titel}\' ausgeloest"', async () => {
+    it('should validate exact format "Erinnerung \'{titel}\' ausgelöst"', async () => {
       // Given (Arrange)
       const event = createTestEvent({
         titel: 'Funkueberpruefung',
@@ -554,11 +554,11 @@ describe('ErinnerungAusgeloestEventHandler', () => {
 
       // Then (Assert)
       const receivedCommand = mockAddEintragHandler.execute.mock.calls[0][0];
-      const expectedText = "Erinnerung 'Funkueberpruefung' ausgeloest";
+      const expectedText = "Erinnerung 'Funkueberpruefung' ausgelöst";
       expect(receivedCommand.text).toBe(expectedText);
 
       // Validate format structure
-      expect(receivedCommand.text).toMatch(/^Erinnerung '.+' ausgeloest$/);
+      expect(receivedCommand.text).toMatch(/^Erinnerung '.+' ausgelöst$/);
     });
   });
 

@@ -19,6 +19,7 @@ import {
   ErinnerungAcknowledgedEventHandler,
   ErinnerungSnoozedEventHandler,
   ErinnerungRetriggeredEventHandler,
+  ErinnerungErledigtEventHandler,
 } from './event-handlers';
 import { EtbQueryMapper } from './mappers';
 import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler, GetTextbausteineHandler } from './queries';
@@ -165,6 +166,11 @@ import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler
       provide: EVENT_HANDLER.ERINNERUNG_RETRIGGERED_ETB,
       useClass: ErinnerungRetriggeredEventHandler,
     },
+    // ErinnerungErledigt Event Handler (Story 2.5 AC4) - ETB-Eintrag bei Erinnerung-Erledigung
+    {
+      provide: EVENT_HANDLER.ERINNERUNG_ERLEDIGT_ETB,
+      useClass: ErinnerungErledigtEventHandler,
+    },
 
     // Mappers (Story 3.3)
     EtbQueryMapper,
@@ -199,6 +205,7 @@ import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler
     EVENT_HANDLER.ERINNERUNG_ACKNOWLEDGED_ETB,
     EVENT_HANDLER.ERINNERUNG_SNOOZED_ETB,
     EVENT_HANDLER.ERINNERUNG_RETRIGGERED_ETB,
+    EVENT_HANDLER.ERINNERUNG_ERLEDIGT_ETB,
 
     // Mappers (Story 3.3)
     EtbQueryMapper,

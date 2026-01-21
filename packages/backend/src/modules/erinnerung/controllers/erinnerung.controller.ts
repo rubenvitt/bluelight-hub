@@ -17,7 +17,10 @@ import { AcknowledgeErinnerungCommand } from '@/application/erinnerung/commands/
 import { AcknowledgeErinnerungHandler } from '@/application/erinnerung/commands/acknowledge-erinnerung/acknowledge-erinnerung.handler';
 import { SnoozeErinnerungCommand } from '@/application/erinnerung/commands/snooze-erinnerung/snooze-erinnerung.command';
 import { SnoozeErinnerungHandler } from '@/application/erinnerung/commands/snooze-erinnerung/snooze-erinnerung.handler';
+import { MarkErledigtErinnerungCommand } from '@/application/erinnerung/commands/mark-erledigt-erinnerung/mark-erledigt-erinnerung.command';
+import { MarkErledigtErinnerungHandler } from '@/application/erinnerung/commands/mark-erledigt-erinnerung/mark-erledigt-erinnerung.handler';
 import { SnoozeErinnerungDto } from '@/application/erinnerung/dto/snooze-erinnerung.dto';
+import { MarkErledigtErinnerungDto } from '@/application/erinnerung/dto/mark-erledigt-erinnerung.dto';
 import { GetErinnerungenByEinsatzQuery } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.query';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
 import { ERINNERUNG_ERROR_CODES } from '@/application/erinnerung/errors/erinnerung-error.codes';
@@ -49,6 +52,7 @@ export class ErinnerungController {
     private readonly triggerHandler: TriggerErinnerungHandler,
     private readonly acknowledgeHandler: AcknowledgeErinnerungHandler,
     private readonly snoozeHandler: SnoozeErinnerungHandler,
+    private readonly markErledigtHandler: MarkErledigtErinnerungHandler,
     private readonly getByEinsatzHandler: GetErinnerungenByEinsatzHandler,
   ) {}
 
@@ -380,6 +384,71 @@ export class ErinnerungController {
 
     if (!result.value) {
       throw new BadRequestException('Erinnerung konnte nicht gesnoozed werden');
+    }
+
+    return result.value;
+  }
+
+  /**
+   * Markiert eine Erinnerung als erledigt.
+   *
+   * Setzt den Status auf ERLEDIGT mit optionaler Erledigungs-Notiz.
+   * Nur Erinnerungen im Status ACKNOWLEDGED oder ESKALIERT können erledigt werden.
+   *
+   * **Story 2.5 ACs:**
+   * - AC1: Nur Erinnerungen mit Status ACKNOWLEDGED oder ESKALIERT können erledigt werden
+   * - AC2: Optionale Notiz (max 500 Zeichen)
+   * - AC3: Status wechselt zu ERLEDIGT
+   * - AC4: Domain Event wird publiziert für ETB-Integration
+   * - AC5: Erinnerung verschwindet aus aktiver Liste (gefiltert)
+   */
+  @Post(':id/mark-erledigt')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Erinnerung als erledigt markieren',
+    description: 'Markiert eine Erinnerung als erledigt (Status → ERLEDIGT). Nur Erinnerungen im Status ACKNOWLEDGED oder ESKALIERT können erledigt werden.',
+  })
+  @ApiWrappedResponse(ErinnerungResponseDto, {
+    description: 'Erinnerung erfolgreich als erledigt markiert',
+  })
+  @ApiBadRequestResponse({ description: 'Ungültige ErinnerungId, UserId oder Notiz zu lang' })
+  @ApiNotFoundResponse({ description: 'Erinnerung nicht gefunden' })
+  @ApiConflictResponse({ description: 'Erinnerung kann nicht erledigt werden (Status ist nicht ACKNOWLEDGED oder ESKALIERT)' })
+  async markErledigt(
+    @Param('einsatzId') _einsatzId: string, // Für URL-Struktur, nicht für Validierung genutzt
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    dto: MarkErledigtErinnerungDto,
+    @CurrentUser() user: ValidatedUser,
+  ): Promise<ErinnerungResponseDto> {
+    const commandResult = MarkErledigtErinnerungCommand.create({
+      erinnerungId: id,
+      erledigtBy: user.userId,
+      erledigungsNotiz: dto.erledigungsNotiz,
+    });
+
+    if (commandResult.isFailure || !commandResult.value) {
+      throw new BadRequestException(commandResult.error);
+    }
+
+    const result = await this.markErledigtHandler.execute(commandResult.value);
+
+    if (result.isFailure) {
+      // Error Mapping: NOT_FOUND → 404, NOT_COMPLETEABLE → 409, sonst 400
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_FOUND) {
+        throw new NotFoundException('Erinnerung nicht gefunden');
+      }
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_COMPLETEABLE) {
+        throw new ConflictException('Nur bestätigte oder eskalierte Erinnerungen können erledigt werden');
+      }
+      if (result.error === ERINNERUNG_ERROR_CODES.NOTIZ_TOO_LONG) {
+        throw new BadRequestException('Erledigungs-Notiz darf maximal 500 Zeichen haben');
+      }
+      throw new BadRequestException(result.error);
+    }
+
+    if (!result.value) {
+      throw new BadRequestException('Erinnerung konnte nicht erledigt werden');
     }
 
     return result.value;

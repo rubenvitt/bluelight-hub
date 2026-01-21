@@ -52,12 +52,12 @@ import type { ErinnerungResponseDto } from '@/shared';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
 import { useCallback, useMemo, useState } from 'react';
-import { PiCheckCircle, PiCloudSlash, PiPencil, PiTrash } from 'react-icons/pi';
+import { PiCheckCircle, PiCheckSquareOffset, PiCloudSlash, PiPencil, PiTrash } from 'react-icons/pi';
 import { useAcknowledgeErinnerung, useSnoozeErinnerung, type SnoozeMinutes } from '../../api';
 import { soundService, timerService, intensificationService } from '../../services';
 import { useCountdown } from '../../hooks/use-countdown';
 import { syncService } from '../../services/sync.service';
-import { openDeleteDialog, openEditDialog, useIntensityLevel } from '../../stores';
+import { openDeleteDialog, openEditDialog, openMarkErledigtDialog, useIntensityLevel } from '../../stores';
 import { AlarmStateBadge } from '../atoms/AlarmStateBadge';
 import { CountdownDisplay } from '../atoms/CountdownDisplay';
 import { SnoozeButtonGroup } from './SnoozeButtonGroup';
@@ -106,6 +106,8 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
   const isAcknowledgeable = erinnerung.status === 'AUSGELOEST';
   // Story 2.1 AC1: Nur AUSGELOEST Status kann gesnoozed werden
   const isSnoozeable = erinnerung.status === 'AUSGELOEST';
+  // Story 2.5 AC1: Nur ACKNOWLEDGED oder ESKALIERT Status kann erledigt werden
+  const isMarkErledigtable = erinnerung.status === 'ACKNOWLEDGED' || erinnerung.status === 'ESKALIERT';
   // Story 1.8 AC1: Offline erstellte Erinnerung (temp_ ID)
   const isOfflineCreated = syncService.isTempId(erinnerung.id);
   // Story 2.2 AC2: Re-Trigger Badge anzeigen wenn snoozeCount > 0 und AUSGELOEST
@@ -124,6 +126,13 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
       openDeleteDialog(erinnerung, einsatzId);
     }
   }, [erinnerung, einsatzId, isDeletable]);
+
+  // Story 2.5: Als Erledigt markieren oeffnet Dialog
+  const handleMarkErledigt = useCallback(() => {
+    if (isMarkErledigtable) {
+      openMarkErledigtDialog(erinnerung, einsatzId);
+    }
+  }, [erinnerung, einsatzId, isMarkErledigtable]);
 
   // Story 1.6 AC1: Acknowledge-Handler mit API Call
   // Story 2.3 AC4: Intensification Timer wird bei Acknowledge gestoppt
@@ -326,6 +335,20 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
             )}
           >
             <PiCheckCircle className={cn('h-5 w-5', acknowledgeErinnerung.isPending && 'animate-pulse')} />
+          </Button>
+        )}
+
+        {/* Story 2.5: Als Erledigt markieren Button - nur bei ACKNOWLEDGED oder ESKALIERT Status */}
+        {isMarkErledigtable && (
+          <Button
+            appearance="ghost"
+            size="sm"
+            onClick={handleMarkErledigt}
+            aria-label="Erinnerung als erledigt markieren"
+            title="Als erledigt markieren"
+            className="h-12 w-12 p-0 text-green-600 hover:bg-green-50 hover:text-green-700 dark:text-green-400 dark:hover:bg-green-900/20 dark:hover:text-green-300"
+          >
+            <PiCheckSquareOffset className="h-5 w-5" />
           </Button>
         )}
 

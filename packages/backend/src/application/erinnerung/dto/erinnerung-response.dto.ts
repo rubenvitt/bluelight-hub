@@ -94,4 +94,29 @@ export class ErinnerungResponseDto {
     minimum: 0,
   })
   snoozeCount!: number;
+
+  @ApiProperty({
+    description: 'Zeitpunkt der Erledigung (ISO-8601) (Story 2.5)',
+    example: '2026-01-19T16:00:00.000Z',
+    nullable: true,
+    required: false,
+  })
+  erledigtAm?: string | null;
+
+  @ApiProperty({
+    description: 'User-ID der Person die erledigt hat (Story 2.5)',
+    example: 'clw3h8x9y0003yzabcdefghij',
+    nullable: true,
+    required: false,
+  })
+  erledigtBy?: string | null;
+
+  @ApiProperty({
+    description: 'Optionale Notiz zur Erledigung (max 500 Zeichen) (Story 2.5)',
+    example: 'Aufgabe erfolgreich abgeschlossen',
+    nullable: true,
+    required: false,
+    maxLength: 500,
+  })
+  erledigungsNotiz?: string | null;
 }

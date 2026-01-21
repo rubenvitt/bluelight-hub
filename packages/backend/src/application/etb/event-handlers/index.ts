@@ -19,3 +19,4 @@ export { ErinnerungAusgeloestEventHandler } from './erinnerung-ausgeloest.handle
 export { ErinnerungAcknowledgedEventHandler } from './erinnerung-acknowledged.handler';
 export { ErinnerungSnoozedEventHandler } from './erinnerung-snoozed.handler';
 export { ErinnerungRetriggeredEventHandler } from './erinnerung-retriggered.handler';
+export { ErinnerungErledigtEventHandler } from './erinnerung-erledigt.handler';

@@ -13,6 +13,7 @@ import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.
 import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
 import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
 import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
+import { ErinnerungErledigtEvent } from '@domain/events/erinnerung-erledigt.event';
 
 /**
  * Props für die Erstellung einer neuen Erinnerung.
@@ -70,6 +71,12 @@ export interface ReconstructErinnerungProps {
   snoozedUntil?: Date | null;
   /** Anzahl der Snoozes (Story 2.1) */
   snoozeCount?: number;
+  /** Zeitpunkt der Erledigung (Story 2.5) */
+  erledigtAm?: Date | null;
+  /** User der erledigt hat (Story 2.5) */
+  erledigtBy?: UserId | null;
+  /** Optionale Notiz bei Erledigung (Story 2.5) */
+  erledigungsNotiz?: string | null;
 }
 
 /**
@@ -135,6 +142,11 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
   private _snoozedBy: UserId | null;
   private _snoozedUntil: Date | null;
   private _snoozeCount: number;
+
+  // Erledigt Felder (Story 2.5)
+  private _erledigtAm: Date | null;
+  private _erledigtBy: UserId | null;
+  private _erledigungsNotiz: string | null;
 
   // ============================================================
   // Readonly Getters
@@ -256,6 +268,32 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     return this._snoozeCount;
   }
 
+  // Erledigt Getters (Story 2.5)
+
+  /**
+   * Gibt den Zeitpunkt der Erledigung zurück.
+   * Null wenn noch nicht erledigt.
+   */
+  get erledigtAm(): Date | null {
+    return this._erledigtAm ? new Date(this._erledigtAm.getTime()) : null;
+  }
+
+  /**
+   * Gibt den User zurück der erledigt hat.
+   * Null wenn noch nicht erledigt.
+   */
+  get erledigtBy(): UserId | null {
+    return this._erledigtBy;
+  }
+
+  /**
+   * Gibt die optionale Erledigungs-Notiz zurück.
+   * Null wenn keine Notiz oder nicht erledigt.
+   */
+  get erledigungsNotiz(): string | null {
+    return this._erledigungsNotiz;
+  }
+
   // ============================================================
   // Private Constructor (erzwingt Factory Methods)
   // ============================================================
@@ -280,6 +318,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     snoozedBy: UserId | null = null,
     snoozedUntil: Date | null = null,
     snoozeCount = 0,
+    erledigtAm: Date | null = null,
+    erledigtBy: UserId | null = null,
+    erledigungsNotiz: string | null = null,
   ) {
     super(id, createdAt, updatedAt);
     this._einsatzId = einsatzId;
@@ -298,6 +339,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     this._snoozedBy = snoozedBy;
     this._snoozedUntil = snoozedUntil;
     this._snoozeCount = snoozeCount;
+    this._erledigtAm = erledigtAm;
+    this._erledigtBy = erledigtBy;
+    this._erledigungsNotiz = erledigungsNotiz;
   }
 
   // ============================================================
@@ -386,6 +430,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       props.snoozedBy ?? null,
       props.snoozedUntil ?? null,
       props.snoozeCount ?? 0,
+      props.erledigtAm ?? null,
+      props.erledigtBy ?? null,
+      props.erledigungsNotiz ?? null,
     );
   }
 
@@ -675,6 +722,59 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
 
     // Domain Event emittieren für ETB-Integration und WebSocket
     this.addDomainEvent(new ErinnerungSnoozedEvent(this.id, this._einsatzId, snoozedAt, snoozedUntil, snoozedBy, snoozeMinutes, this._snoozeCount, this._titel.value, this.id.toString()));
+
+    return Result.ok<void>(undefined);
+  }
+
+  /**
+   * Markiert eine acknowledged oder eskalierte Erinnerung als erledigt.
+   *
+   * **Business Rules (Story 2.5):**
+   * - Nur Erinnerungen mit Status ACKNOWLEDGED oder ESKALIERT können erledigt werden
+   * - Bei anderen Status wird ein Fehler zurückgegeben
+   * - Setzt Status auf ERLEDIGT und speichert Erledigungszeitpunkt + User
+   * - Optional: Erledigungs-Notiz (max 500 Zeichen)
+   * - Emittiert ErinnerungErledigtEvent für ETB-Integration
+   *
+   * @param erledigtBy - User der die Erinnerung erledigt (für Audit-Trail)
+   * @param erledigungsNotiz - Optionale Notiz zur Erledigung (max 500 Zeichen)
+   * @returns Result<void> - Success oder Failure mit Error Code
+   *
+   * @example
+   * ```typescript
+   * const erledigtResult = erinnerung.markErledigt(userId, 'Aufgabe abgeschlossen');
+   * if (erledigtResult.isFailure) {
+   *   // Nur ACKNOWLEDGED oder ESKALIERT kann erledigt werden
+   *   console.log(erledigtResult.error); // "ERINNERUNG_NOT_COMPLETEABLE"
+   * }
+   * ```
+   */
+  public markErledigt(erledigtBy: UserId, erledigungsNotiz?: string): Result<void> {
+    // Business Rule: Nur ACKNOWLEDGED oder ESKALIERT Status kann erledigt werden (AC3)
+    const isAcknowledged = this._status.isAcknowledged();
+    const isEskaliert = this._status.isEskaliert();
+
+    if (!isAcknowledged && !isEskaliert) {
+      return Result.fail<void>('ERINNERUNG_NOT_COMPLETEABLE');
+    }
+
+    // Validiere Notiz (optional, max 500 Zeichen)
+    let trimmedNotiz: string | null = null;
+    if (erledigungsNotiz != null && erledigungsNotiz.trim().length > 0) {
+      trimmedNotiz = erledigungsNotiz.trim();
+      if (trimmedNotiz.length > Erinnerung.MAX_BESCHREIBUNG_LENGTH) {
+        return Result.fail<void>('ERINNERUNG_NOTIZ_TOO_LONG');
+      }
+    }
+
+    // Status-Wechsel durchführen
+    this._status = ErinnerungStatus.ERLEDIGT();
+    this._erledigtAm = new Date();
+    this._erledigtBy = erledigtBy;
+    this._erledigungsNotiz = trimmedNotiz;
+
+    // Domain Event emittieren für ETB-Integration
+    this.addDomainEvent(new ErinnerungErledigtEvent(this.id, this._einsatzId, this._erledigtAm, this._erledigtBy, this._titel.value, trimmedNotiz, this.id.toString()));
 
     return Result.ok<void>(undefined);
   }

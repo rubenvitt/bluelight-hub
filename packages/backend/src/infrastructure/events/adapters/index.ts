@@ -27,3 +27,4 @@ export * from './erinnerung-acknowledged-event.adapter';
 export * from './erinnerung-websocket-event.adapter';
 export * from './erinnerung-snoozed-event.adapter';
 export * from './erinnerung-retriggered-event.adapter';
+export * from './erinnerung-erledigt-event.adapter';

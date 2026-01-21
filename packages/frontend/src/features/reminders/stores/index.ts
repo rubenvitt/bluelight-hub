@@ -7,6 +7,7 @@
  * **Story 1.3:** Edit Dialog
  * **Story 1.4:** Delete Dialog
  * **Story 1.5 Task 13:** Timer Store
+ * **Story 2.5:** MarkErledigt Dialog
  */
 
 export {
@@ -23,6 +24,10 @@ export {
   openDeleteDialog,
   closeDeleteDialog,
   useDeleteDialogState,
+  // MarkErledigt Dialog (Story 2.5)
+  openMarkErledigtDialog,
+  closeMarkErledigtDialog,
+  useMarkErledigtDialogState,
   // Shared
   resetErinnerungDialogStore,
   type ErinnerungDialogState,

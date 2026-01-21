@@ -26,6 +26,7 @@ import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.ev
 import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
 import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
 import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
+import { ErinnerungErledigtEvent } from '@domain/events/erinnerung-erledigt.event';
 
 describe('Erinnerung Entity', () => {
   let testEinsatzId: EinsatzId;
@@ -1089,6 +1090,409 @@ describe('Erinnerung Entity', () => {
         // Then
         const events = erinnerung.getDomainEvents();
         expect(events).toHaveLength(0);
+      });
+    });
+  });
+
+  // ============================================================
+  // markErledigt() Tests (Story 2.5)
+  // ============================================================
+
+  describe('markErledigt()', () => {
+    describe('Status Validation (AC1)', () => {
+      it('sollte MarkErledigt erlauben wenn Status ACKNOWLEDGED ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+
+        // When
+        const result = erinnerung.markErledigt(testUserId);
+
+        // Then
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.status.isErledigt()).toBe(true);
+      });
+
+      it('sollte MarkErledigt erlauben wenn Status ESKALIERT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ESKALIERT());
+
+        // When
+        const result = erinnerung.markErledigt(testUserId);
+
+        // Then
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.status.isErledigt()).toBe(true);
+      });
+
+      it('sollte MarkErledigt verweigern wenn Status GEPLANT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.GEPLANT());
+
+        // When
+        const result = erinnerung.markErledigt(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_COMPLETEABLE');
+      });
+
+      it('sollte MarkErledigt verweigern wenn Status AUSGELOEST ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+
+        // When
+        const result = erinnerung.markErledigt(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_COMPLETEABLE');
+      });
+
+      it('sollte MarkErledigt verweigern wenn Status SNOOZED ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.SNOOZED());
+
+        // When
+        const result = erinnerung.markErledigt(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_COMPLETEABLE');
+      });
+
+      it('sollte MarkErledigt verweigern wenn Status bereits ERLEDIGT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ERLEDIGT());
+
+        // When
+        const result = erinnerung.markErledigt(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_COMPLETEABLE');
+      });
+    });
+
+    describe('Erledigt Properties', () => {
+      it('sollte Status auf ERLEDIGT setzen', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+
+        // When
+        erinnerung.markErledigt(testUserId);
+
+        // Then
+        expect(erinnerung.status.value).toBe('ERLEDIGT');
+      });
+
+      it('sollte erledigtAm setzen', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+        const beforeErledigt = new Date();
+
+        // When
+        erinnerung.markErledigt(testUserId);
+
+        // Then
+        const afterErledigt = new Date();
+        expect(erinnerung.erledigtAm).not.toBeNull();
+        expect(erinnerung.erledigtAm!.getTime()).toBeGreaterThanOrEqual(beforeErledigt.getTime());
+        expect(erinnerung.erledigtAm!.getTime()).toBeLessThanOrEqual(afterErledigt.getTime());
+      });
+
+      it('sollte erledigtBy setzen', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+        const completingUser = UserId.create().value!;
+
+        // When
+        erinnerung.markErledigt(completingUser);
+
+        // Then
+        expect(erinnerung.erledigtBy).toBe(completingUser);
+      });
+
+      it('sollte erledigungsNotiz setzen wenn angegeben', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+        const notiz = 'Aufgabe erfolgreich abgeschlossen';
+
+        // When
+        erinnerung.markErledigt(testUserId, notiz);
+
+        // Then
+        expect(erinnerung.erledigungsNotiz).toBe(notiz);
+      });
+
+      it('sollte erledigungsNotiz trimmen', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+        const notiz = '  Getrimmte Notiz  ';
+
+        // When
+        erinnerung.markErledigt(testUserId, notiz);
+
+        // Then
+        expect(erinnerung.erledigungsNotiz).toBe('Getrimmte Notiz');
+      });
+
+      it('sollte leere erledigungsNotiz als null behandeln', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+
+        // When
+        erinnerung.markErledigt(testUserId, '   '); // Whitespace only
+
+        // Then
+        expect(erinnerung.erledigungsNotiz).toBeNull();
+      });
+
+      it('sollte erledigungsNotiz null lassen wenn nicht angegeben', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+
+        // When
+        erinnerung.markErledigt(testUserId);
+
+        // Then
+        expect(erinnerung.erledigungsNotiz).toBeNull();
+      });
+    });
+
+    describe('Notiz Validation (AC2)', () => {
+      it('sollte zu lange erledigungsNotiz ablehnen (>500 Zeichen)', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+        const tooLongNotiz = 'N'.repeat(501);
+
+        // When
+        const result = erinnerung.markErledigt(testUserId, tooLongNotiz);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOTIZ_TOO_LONG');
+        // Status sollte unveraendert sein
+        expect(erinnerung.status.isAcknowledged()).toBe(true);
+      });
+
+      it('sollte erledigungsNotiz mit exakt 500 Zeichen akzeptieren', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+        const maxNotiz = 'M'.repeat(500);
+
+        // When
+        const result = erinnerung.markErledigt(testUserId, maxNotiz);
+
+        // Then
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.erledigungsNotiz).toBe(maxNotiz);
+      });
+    });
+
+    describe('Domain Event Emission (AC4)', () => {
+      it('sollte ErinnerungErledigtEvent emittieren', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.markErledigt(testUserId);
+
+        // Then
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(1);
+        expect(events[0]).toBeInstanceOf(ErinnerungErledigtEvent);
+      });
+
+      it('sollte Event mit korrekten Properties emittieren', () => {
+        // Given
+        const id = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Lagebesprechung').value!;
+        const erinnerung = Erinnerung.reconstruct({
+          id,
+          einsatzId: testEinsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+          status: ErinnerungStatus.ACKNOWLEDGED(),
+          erstelltVon: testUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        erinnerung.clearDomainEvents();
+        const completingUser = UserId.create().value!;
+        const notiz = 'Alles erledigt';
+
+        // When
+        erinnerung.markErledigt(completingUser, notiz);
+
+        // Then
+        const event = erinnerung.getDomainEvents()[0] as ErinnerungErledigtEvent;
+        expect(event.erinnerungId).toBe(erinnerung.id);
+        expect(event.einsatzId).toBe(erinnerung.einsatzId);
+        expect(event.erledigtBy).toBe(completingUser);
+        expect(event.titel).toBe('Lagebesprechung');
+        expect(event.erledigungsNotiz).toBe('Alles erledigt');
+        expect(event.erledigtAm).toBeDefined();
+      });
+
+      it('sollte Event ohne Notiz emittieren wenn keine angegeben', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.markErledigt(testUserId);
+
+        // Then
+        const event = erinnerung.getDomainEvents()[0] as ErinnerungErledigtEvent;
+        expect(event.erledigungsNotiz).toBeNull();
+      });
+
+      it('sollte kein Event emittieren bei Validierungsfehler (falscher Status)', () => {
+        // Given: GEPLANT Status - nicht erledigbar
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.GEPLANT());
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.markErledigt(testUserId);
+
+        // Then
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(0);
+      });
+
+      it('sollte kein Event emittieren bei Validierungsfehler (zu lange Notiz)', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+        erinnerung.clearDomainEvents();
+        const tooLongNotiz = 'N'.repeat(501);
+
+        // When
+        erinnerung.markErledigt(testUserId, tooLongNotiz);
+
+        // Then
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(0);
+      });
+    });
+
+    describe('istAktiv() nach Erledigung', () => {
+      it('sollte Erinnerung als nicht-aktiv markieren nach Erledigung', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+        expect(erinnerung.istAktiv()).toBe(true);
+
+        // When
+        erinnerung.markErledigt(testUserId);
+
+        // Then
+        expect(erinnerung.istAktiv()).toBe(false);
+      });
+
+      it('sollte GEPLANT Erinnerung als aktiv markieren', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.GEPLANT());
+
+        // Then
+        expect(erinnerung.istAktiv()).toBe(true);
+      });
+
+      it('sollte AUSGELOEST Erinnerung als aktiv markieren', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+
+        // Then
+        expect(erinnerung.istAktiv()).toBe(true);
+      });
+
+      it('sollte ACKNOWLEDGED Erinnerung als aktiv markieren', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+
+        // Then
+        expect(erinnerung.istAktiv()).toBe(true);
+      });
+
+      it('sollte SNOOZED Erinnerung als aktiv markieren', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.SNOOZED());
+
+        // Then
+        expect(erinnerung.istAktiv()).toBe(true);
+      });
+
+      it('sollte ESKALIERT Erinnerung als aktiv markieren', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ESKALIERT());
+
+        // Then
+        expect(erinnerung.istAktiv()).toBe(true);
+      });
+
+      it('sollte ERLEDIGT Erinnerung als nicht-aktiv markieren', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ERLEDIGT());
+
+        // Then
+        expect(erinnerung.istAktiv()).toBe(false);
+      });
+    });
+
+    describe('reconstruct() mit Erledigt', () => {
+      it('sollte erledigte Erinnerung korrekt rekonstruieren', () => {
+        // Given
+        const id = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Test').value!;
+        const erledigtAm = new Date();
+        const erledigtBy = UserId.create().value!;
+        const erledigungsNotiz = 'Notiz zur Erledigung';
+
+        // When
+        const erinnerung = Erinnerung.reconstruct({
+          id,
+          einsatzId: testEinsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+          status: ErinnerungStatus.ERLEDIGT(),
+          erstelltVon: testUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          erledigtAm,
+          erledigtBy,
+          erledigungsNotiz,
+        });
+
+        // Then
+        expect(erinnerung.status.isErledigt()).toBe(true);
+        expect(erinnerung.erledigtAm).toEqual(erledigtAm);
+        expect(erinnerung.erledigtBy).toBe(erledigtBy);
+        expect(erinnerung.erledigungsNotiz).toBe(erledigungsNotiz);
+      });
+
+      it('sollte nicht-erledigte Erinnerung korrekt rekonstruieren (Defaults)', () => {
+        // Given
+        const id = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Test').value!;
+
+        // When: Ohne Erledigt Felder
+        const erinnerung = Erinnerung.reconstruct({
+          id,
+          einsatzId: testEinsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+          status: ErinnerungStatus.GEPLANT(),
+          erstelltVon: testUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        // Then: Defaults
+        expect(erinnerung.erledigtAm).toBeNull();
+        expect(erinnerung.erledigtBy).toBeNull();
+        expect(erinnerung.erledigungsNotiz).toBeNull();
       });
     });
   });

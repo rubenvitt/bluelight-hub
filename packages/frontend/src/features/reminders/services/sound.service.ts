@@ -205,6 +205,40 @@ export class SoundService {
   }
 
   /**
+   * Eskaliert den Sound zu einem hoeheren Level (Story 2.3 AC1)
+   *
+   * Diese Methode ersetzt den aktuellen Sound durch den neuen Level.
+   * Im Gegensatz zu stopAllSounds() + playAlarm() ist dies eine atomare Operation
+   * die Debouncing eingebaut hat um Sound-Ueberlappung zu vermeiden.
+   *
+   * @param level - Neues Sound-Level ('warning' oder 'urgent')
+   * @returns Promise mit Erfolgs-Status und optionalem Fehler
+   *
+   * @example
+   * ```typescript
+   * // Bei Intensivierung nach 30s
+   * await soundService.escalateToLevel('warning');
+   * ```
+   */
+  public async escalateToLevel(level: SoundLevel): Promise<{ success: boolean; error?: string }> {
+    // Debounce: Verhindere zu schnelle aufeinanderfolgende Eskalationen
+    const now = Date.now();
+    if (this.lastEscalationTime && now - this.lastEscalationTime < 100) {
+      logger.debug(`[SoundService] Eskalation gedrosselt (${now - this.lastEscalationTime}ms seit letzter)`);
+      return { success: true }; // Silently skip, nicht als Fehler behandeln
+    }
+    this.lastEscalationTime = now;
+
+    logger.info(`[SoundService] Eskaliere Sound zu: ${level}`);
+
+    // Spiele neuen Sound (ersetzt automatisch den vorherigen durch Audio-Element Reuse)
+    return this.playAlarm(level);
+  }
+
+  /** Timestamp der letzten Eskalation (fuer Debouncing) */
+  private lastEscalationTime: number | null = null;
+
+  /**
    * Stoppt alle aktuell spielenden Sounds.
    *
    * Nützlich für UI-Interaktionen (z.B. "Stummschalten"-Button)

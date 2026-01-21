@@ -13,6 +13,7 @@ export {
   requestNotificationPermission,
   sendNotification,
   sendErinnerungNotification,
+  sendIntensifiedNotification,
   isNotificationSupported,
   type NotificationPermissionStatus,
   type SendNotificationOptions,
@@ -40,3 +41,9 @@ export {
   trayService,
   type TrayResult,
 } from './tray.service';
+
+export {
+  IntensificationService,
+  intensificationService,
+  type IntensificationCallback,
+} from './intensification.service';

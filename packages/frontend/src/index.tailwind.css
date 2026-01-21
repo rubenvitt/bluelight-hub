@@ -146,6 +146,27 @@ body {
   }
 }
 
+/* Story 2.3: Intensified Alarm Animations */
+@keyframes pulse-fast {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes border-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(239, 68, 68, 1), 0 0 25px rgba(239, 68, 68, 0.5);
+  }
+}
+
 .animate-card-entry {
   animation: card-entry 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -171,13 +192,24 @@ body {
   animation-fill-mode: both;
 }
 
+/* Story 2.3: Intensified Alarm Animation Classes */
+.animate-pulse-fast {
+  animation: pulse-fast 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-border-glow {
+  animation: border-glow 0.75s ease-in-out infinite;
+}
+
 /* Respect prefers-reduced-motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   .animate-card-entry,
   .animate-stripe-move,
   .animate-pulse-shadow,
   .animate-shake,
-  .animate-wave {
+  .animate-wave,
+  .animate-pulse-fast,
+  .animate-border-glow {
     animation: none;
     transition: none;
   }
@@ -195,5 +227,12 @@ body {
     opacity: 0.7;
     transform: none;
     filter: none;
+  }
+
+  /* Story 2.3: Static fallback for intensified alarms */
+  .animate-pulse-fast,
+  .animate-border-glow {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
   }
 }

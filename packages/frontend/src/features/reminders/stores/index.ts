@@ -78,3 +78,27 @@ export {
   type SyncQueueAction,
   type OfflineStoreState,
 } from './offline.store';
+
+export {
+  // Intensification Store (Story 2.3 Task 6)
+  intensificationStore,
+  // Intensification Actions
+  setIntensityLevel,
+  startIntensificationTracking,
+  clearIntensity,
+  clearAllIntensifications,
+  resetIntensificationStore,
+  // Intensification Selectors
+  getIntensityLevel,
+  isIntensified,
+  // Intensification Hooks
+  useIntensityLevel,
+  useIsIntensified,
+  useIntensificationEntry,
+  useIntensifiedCount,
+  useIntensificationStoreState,
+  // Types
+  type IntensityLevel,
+  type IntensificationEntry,
+  type IntensificationStoreState,
+} from './intensification.store';

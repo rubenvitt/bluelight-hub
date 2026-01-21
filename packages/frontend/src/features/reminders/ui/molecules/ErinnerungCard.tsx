@@ -34,6 +34,11 @@
  * - Bei snoozeCount > 0 und Status AUSGELOEST: Badge "X. Auslösung"
  * - Zeigt dem User optisch, dass es ein Re-Trigger nach Snooze ist
  *
+ * **Story 2.3 (Alarm-Intensivierung):**
+ * - Bei intensityLevel !== 'none': Schnelleres Pulsieren (AlarmStateBadge)
+ * - Bei intensityLevel !== 'none': Intensivere Border-Animation (border-glow)
+ * - Intensification Timer wird bei Acknowledge/Snooze gestoppt
+ *
  * **UX-Verbesserungen (Keyboard Support):**
  * - Bei AUSGELOEST Status: Gesamte Card mit Enter bestaetigbar
  * - Escape-Taste: 5 Min Snooze (Standard)
@@ -49,10 +54,10 @@ import { cn } from '@/shared/ui/cn';
 import { useCallback, useMemo, useState } from 'react';
 import { PiCheckCircle, PiCloudSlash, PiPencil, PiTrash } from 'react-icons/pi';
 import { useAcknowledgeErinnerung, useSnoozeErinnerung, type SnoozeMinutes } from '../../api';
-import { soundService, timerService } from '../../services';
+import { soundService, timerService, intensificationService } from '../../services';
 import { useCountdown } from '../../hooks/use-countdown';
 import { syncService } from '../../services/sync.service';
-import { openDeleteDialog, openEditDialog } from '../../stores';
+import { openDeleteDialog, openEditDialog, useIntensityLevel } from '../../stores';
 import { AlarmStateBadge } from '../atoms/AlarmStateBadge';
 import { CountdownDisplay } from '../atoms/CountdownDisplay';
 import { SnoozeButtonGroup } from './SnoozeButtonGroup';
@@ -81,6 +86,9 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
   const minutesUntilDue = useMemo(() => {
     return Math.max(0, Math.floor(remaining / 60000));
   }, [remaining]);
+
+  // Story 2.3: Intensivierungs-Level aus Store
+  const intensityLevel = useIntensityLevel(erinnerung.id);
 
   // Story 1.6: Acknowledge Mutation Hook
   const acknowledgeErinnerung = useAcknowledgeErinnerung();
@@ -118,8 +126,12 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
   }, [erinnerung, einsatzId, isDeletable]);
 
   // Story 1.6 AC1: Acknowledge-Handler mit API Call
+  // Story 2.3 AC4: Intensification Timer wird bei Acknowledge gestoppt
   const handleAcknowledge = useCallback(() => {
     if (isAcknowledgeable && !acknowledgeErinnerung.isPending) {
+      // Story 2.3 AC4: Intensification Timer stoppen
+      intensificationService.stopTimer(erinnerung.id);
+
       acknowledgeErinnerung.mutate({
         einsatzId,
         erinnerungId: erinnerung.id,
@@ -129,6 +141,7 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
 
   /**
    * Story 2.1 AC1/AC2: Snooze-Handler mit Audio-Stop und Timer-Reset
+   * Story 2.3 AC4: Intensification Timer wird bei Snooze gestoppt
    *
    * Stoppt Audio, resettet Timer-Trigger-State, dann snoozed die Erinnerung fuer die gewaehlte Dauer.
    * Status wechselt zu SNOOZED, neue faelligAm wird berechnet.
@@ -142,6 +155,9 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
 
         // F3 Fix: Timer-Trigger-State zuruecksetzen um erneutes Triggern nach Snooze zu ermoeglichen
         timerService.resetTriggered(erinnerung.id);
+
+        // Story 2.3 AC4: Intensification Timer stoppen
+        intensificationService.stopTimer(erinnerung.id);
 
         snoozeErinnerung.mutate({
           einsatzId,
@@ -174,9 +190,14 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
   const [isFocused, setIsFocused] = useState(false);
 
   // Story 1.7 AC5: Card-Border-Farben basierend auf Status und Urgency Level
+  // Story 2.3 AC2: Intensivierte Border-Animation bei Nicht-Reaktion
   const getBorderClasses = () => {
     // AUSGELOEST: Roter Border mit Animation
     if (isTriggered) {
+      // Story 2.3 AC2: Bei Intensivierung animate-border-glow hinzufuegen
+      if (intensityLevel !== 'none') {
+        return 'border-red-500 dark:border-red-400 ring-2 ring-red-300 dark:ring-red-800 animate-border-glow';
+      }
       return 'border-red-500 dark:border-red-400 ring-2 ring-red-200 dark:ring-red-900/50';
     }
     // ACKNOWLEDGED/ERLEDIGT: Gedämpfte Farben
@@ -214,7 +235,8 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
       {/* Status-Badge und Inhalt */}
       <div className="flex items-start gap-3">
         {/* Story 1.7 AC1/AC6: AlarmStateBadge statt inline Icon */}
-        <AlarmStateBadge status={erinnerung.status} minutesUntilDue={minutesUntilDue} size="md" />
+        {/* Story 2.3 AC2: intensityLevel fuer schnelleres Pulsieren */}
+        <AlarmStateBadge status={erinnerung.status} minutesUntilDue={minutesUntilDue} size="md" intensityLevel={intensityLevel} />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

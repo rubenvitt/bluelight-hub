@@ -1,4 +1,5 @@
 mod sound;
+mod tray;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -11,11 +12,20 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // System-Tray erstellen (Story 1.9)
+            #[cfg(desktop)]
+            {
+                tray::create_tray(app.handle())
+                    .map_err(|e| format!("System-Tray konnte nicht erstellt werden: {}", e))?;
+            }
+
             Ok(())
         })
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_single_instance::init(|_app, args, cwd| {
             log::info!(
                 "Single instance triggered with args: {:?} from cwd: {:?}",
@@ -33,10 +43,12 @@ pub fn run() {
                 }
             }
         }))
-        // Sound Commands für Erinnerungs-Sounds registrieren
+        // Commands registrieren: Sound (Story 1.5) + Tray (Story 1.9)
         .invoke_handler(tauri::generate_handler![
             sound::play_sound,
-            sound::test_audio
+            sound::test_audio,
+            tray::update_tray_badge,
+            tray::clear_tray_badge
         ]);
 
     // Barcode scanner is only available on mobile (iOS/Android)

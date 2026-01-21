@@ -57,6 +57,7 @@ import { ErinnerungErstelltEvent } from '@domain/events/erinnerung-erstellt.even
 import { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktualisiert.event';
 import type { ErinnerungAenderungen } from '@domain/events/erinnerung-aktualisiert.event';
 import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.event';
+import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
 
 // Fahrzeugtyp Events
 import { FahrzeugtypCreatedEvent } from '@domain/kraefte/events/fahrzeugtyp-created.event';
@@ -200,6 +201,7 @@ export class EventDeserializer {
       ['erinnerung.erstellt', this.deserializeErinnerungErstellt.bind(this)],
       ['erinnerung.aktualisiert', this.deserializeErinnerungAktualisiert.bind(this)],
       ['erinnerung.geloescht', this.deserializeErinnerungGeloescht.bind(this)],
+      ['erinnerung.ausgeloest', this.deserializeErinnerungAusgeloest.bind(this)],
     ]);
   }
 
@@ -1000,6 +1002,29 @@ export class EventDeserializer {
     }
 
     const event = new ErinnerungGeloeschtEvent(erinnerungIdResult.value!, einsatzIdResult.value!, payload.titel as string, geloeschtVonResult.value!, aggregateId);
+
+    return Result.ok<DomainEvent>(event);
+  }
+
+  private deserializeErinnerungAusgeloest(payload: Record<string, unknown>, aggregateId?: string): Result<DomainEvent> {
+    const erinnerungIdResult = ErinnerungId.create(payload.erinnerungId as string);
+    if (erinnerungIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid erinnerungId: ${erinnerungIdResult.error}`);
+    }
+
+    const einsatzIdResult = EinsatzId.create(payload.einsatzId as string);
+    if (einsatzIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid einsatzId: ${einsatzIdResult.error}`);
+    }
+
+    const erstelltVonResult = UserId.create(payload.erstelltVon as string);
+    if (erstelltVonResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid erstelltVon: ${erstelltVonResult.error}`);
+    }
+
+    const ausgeloestAm = new Date(payload.ausgeloestAm as string);
+
+    const event = new ErinnerungAusgeloestEvent(erinnerungIdResult.value!, einsatzIdResult.value!, ausgeloestAm, payload.titel as string, erstelltVonResult.value!, aggregateId);
 
     return Result.ok<DomainEvent>(event);
   }

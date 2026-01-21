@@ -63,25 +63,46 @@ export interface NotificationResult {
 class NotificationService {
   private permissionStatus: NotificationPermissionStatus = 'unknown';
 
+  /** Cache ob Tauri Plugin funktionsfähig ist (null = nicht geprüft) */
+  private tauriPluginAvailable: boolean | null = null;
+
   /**
    * Prüft ob Benachrichtigungen grundsätzlich unterstützt werden
    *
    * @returns true wenn Tauri Notification Plugin oder Web Notifications verfügbar
    */
   async isSupported(): Promise<boolean> {
-    if (isTauri()) {
-      // Tauri: Prüfe ob Plugin verfügbar ist
-      try {
-        await import('@tauri-apps/plugin-notification');
-        return true;
-      } catch {
-        logger.warn('Tauri Notification Plugin nicht verfügbar');
-        return false;
-      }
+    if (isTauri() && (await this.isTauriPluginAvailable())) {
+      return true;
     }
 
     // Web: Prüfe Notification API
     return 'Notification' in window;
+  }
+
+  /**
+   * Prüft ob das Tauri Notification Plugin wirklich funktioniert
+   *
+   * Der Import alleine reicht nicht - das Plugin muss auch im Rust Backend
+   * registriert sein. Diese Methode testet die tatsächliche Funktionalität.
+   */
+  private async isTauriPluginAvailable(): Promise<boolean> {
+    // Cached Ergebnis nutzen
+    if (this.tauriPluginAvailable !== null) {
+      return this.tauriPluginAvailable;
+    }
+
+    try {
+      const { isPermissionGranted } = await import('@tauri-apps/plugin-notification');
+      // Tatsächlichen Plugin-Aufruf testen
+      await isPermissionGranted();
+      this.tauriPluginAvailable = true;
+      return true;
+    } catch {
+      logger.warn('Tauri Notification Plugin nicht verfügbar, nutze Web Notifications als Fallback');
+      this.tauriPluginAvailable = false;
+      return false;
+    }
   }
 
   /**
@@ -97,7 +118,8 @@ class NotificationService {
       return this.permissionStatus;
     }
 
-    if (isTauri()) {
+    // Nutze Tauri nur wenn Plugin wirklich verfügbar
+    if (isTauri() && this.tauriPluginAvailable) {
       return this.checkTauriPermission();
     }
 
@@ -119,7 +141,8 @@ class NotificationService {
       return this.permissionStatus;
     }
 
-    if (isTauri()) {
+    // Nutze Tauri nur wenn Plugin wirklich verfügbar
+    if (isTauri() && this.tauriPluginAvailable) {
       return this.requestTauriPermission();
     }
 
@@ -163,7 +186,8 @@ class NotificationService {
       };
     }
 
-    if (isTauri()) {
+    // Nutze Tauri nur wenn Plugin wirklich verfügbar
+    if (isTauri() && this.tauriPluginAvailable) {
       return this.sendTauriNotification(title, body);
     }
 

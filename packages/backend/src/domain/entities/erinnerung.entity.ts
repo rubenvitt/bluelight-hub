@@ -24,6 +24,8 @@ export interface CreateErinnerungProps {
   beschreibung?: string;
   faelligAm: Date;
   erstelltVon: UserId;
+  /** Story 2.6: Pflicht-Notiz bei Erledigung erforderlich (default: false) */
+  requiresNote?: boolean;
 }
 
 /**
@@ -77,6 +79,8 @@ export interface ReconstructErinnerungProps {
   erledigtBy?: UserId | null;
   /** Optionale Notiz bei Erledigung (Story 2.5) */
   erledigungsNotiz?: string | null;
+  /** Pflicht-Notiz bei Erledigung erforderlich (Story 2.6) */
+  requiresNote?: boolean;
 }
 
 /**
@@ -147,6 +151,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
   private _erledigtAm: Date | null;
   private _erledigtBy: UserId | null;
   private _erledigungsNotiz: string | null;
+
+  // Pflicht-Notiz Flag (Story 2.6)
+  private readonly _requiresNote: boolean;
 
   // ============================================================
   // Readonly Getters
@@ -294,6 +301,15 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     return this._erledigungsNotiz;
   }
 
+  // Pflicht-Notiz Getter (Story 2.6)
+
+  /**
+   * Gibt zurück ob bei Erledigung eine Pflicht-Notiz erforderlich ist.
+   */
+  get requiresNote(): boolean {
+    return this._requiresNote;
+  }
+
   // ============================================================
   // Private Constructor (erzwingt Factory Methods)
   // ============================================================
@@ -321,6 +337,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     erledigtAm: Date | null = null,
     erledigtBy: UserId | null = null,
     erledigungsNotiz: string | null = null,
+    requiresNote = false,
   ) {
     super(id, createdAt, updatedAt);
     this._einsatzId = einsatzId;
@@ -342,6 +359,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     this._erledigtAm = erledigtAm;
     this._erledigtBy = erledigtBy;
     this._erledigungsNotiz = erledigungsNotiz;
+    this._requiresNote = requiresNote;
   }
 
   // ============================================================
@@ -397,6 +415,22 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       props.faelligAm,
       ErinnerungStatus.GEPLANT(), // Initialer Status
       props.erstelltVon,
+      undefined, // createdAt
+      undefined, // updatedAt
+      false, // isDeleted
+      null, // deletedAt
+      null, // deletedBy
+      null, // ausgeloestAm
+      null, // acknowledgedAm
+      null, // acknowledgedBy
+      null, // snoozedAt
+      null, // snoozedBy
+      null, // snoozedUntil
+      0, // snoozeCount
+      null, // erledigtAm
+      null, // erledigtBy
+      null, // erledigungsNotiz
+      props.requiresNote ?? false, // Story 2.6: requiresNote (default: false)
     );
 
     // Emit Domain Event
@@ -433,6 +467,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       props.erledigtAm ?? null,
       props.erledigtBy ?? null,
       props.erledigungsNotiz ?? null,
+      props.requiresNote ?? false,
     );
   }
 
@@ -756,6 +791,13 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
 
     if (!isAcknowledged && !isEskaliert) {
       return Result.fail<void>('ERINNERUNG_NOT_COMPLETEABLE');
+    }
+
+    // Story 2.6 (AC1, AC5): Pflicht-Notiz Validation bei aktiviertem Flag
+    if (this._requiresNote) {
+      if (!erledigungsNotiz || erledigungsNotiz.trim().length === 0) {
+        return Result.fail<void>('ERINNERUNG_ERLEDIGUNGS_NOTIZ_REQUIRED');
+      }
     }
 
     // Validiere Notiz (optional, max 500 Zeichen)

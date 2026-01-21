@@ -58,7 +58,7 @@ export interface ErinnerungControllerGetByEinsatzVAlphaRequest {
 export interface ErinnerungControllerMarkErledigtVAlphaRequest {
   einsatzId: string;
   id: string;
-  markErledvigtErinnerungDto: MarkErledigtErinnerungDto;
+  markErledigtErinnerungDto: MarkErledigtErinnerungDto;
 }
 
 export interface ErinnerungControllerSnoozeVAlphaRequest {
@@ -277,8 +277,8 @@ export class ErinnerungenApi extends runtime.BaseAPI {
       throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling erinnerungControllerMarkErledigtVAlpha().');
     }
 
-    if (requestParameters['markErledvigtErinnerungDto'] == null) {
-      throw new runtime.RequiredError('markErledvigtErinnerungDto', 'Required parameter "markErledvigtErinnerungDto" was null or undefined when calling erinnerungControllerMarkErledigtVAlpha().');
+    if (requestParameters['markErledigtErinnerungDto'] == null) {
+      throw new runtime.RequiredError('markErledigtErinnerungDto', 'Required parameter "markErledigtErinnerungDto" was null or undefined when calling erinnerungControllerMarkErledigtVAlpha().');
     }
 
     const queryParameters: any = {};
@@ -295,7 +295,7 @@ export class ErinnerungenApi extends runtime.BaseAPI {
         method: 'POST',
         headers: headerParameters,
         query: queryParameters,
-        body: MarkErledigtErinnerungDtoToJSON(requestParameters['markErledvigtErinnerungDto']),
+        body: MarkErledigtErinnerungDtoToJSON(requestParameters['markErledigtErinnerungDto']),
       },
       initOverrides,
     );

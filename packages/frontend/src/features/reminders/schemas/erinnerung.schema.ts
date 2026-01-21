@@ -25,6 +25,10 @@ export type CustomTime = z.infer<typeof customTimeSchema>;
  * - Preset: minuten erforderlich
  * - Custom: customTime erforderlich (hours, minutes)
  *
+ * **Story 2.6:** Pflicht-Notiz Option
+ * - requiresNote (optional, default: false)
+ * - Wenn true, muss bei Erledigung eine Notiz eingegeben werden
+ *
  * @example
  * ```typescript
  * const form = useForm({
@@ -41,6 +45,8 @@ export const createErinnerungSchema = z
     minuten: z.number().int('Minuten muss eine ganze Zahl sein').min(1, 'Minuten muss mindestens 1 sein').max(1440, 'Minuten darf maximal 1440 (24h) sein').optional(),
     customTime: customTimeSchema.optional(),
     beschreibung: z.string().max(500, 'Beschreibung darf maximal 500 Zeichen lang sein').optional(),
+    /** Story 2.6: Pflicht-Notiz bei Erledigung erforderlich */
+    requiresNote: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.timeMode === 'preset' && data.minuten === undefined) {

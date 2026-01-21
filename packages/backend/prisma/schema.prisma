@@ -1324,6 +1324,7 @@ model Erinnerung {
   erledigtAm      DateTime?        @map("erledigt_am") // Story 2.5: Zeitpunkt der Erledigung
   erledigtBy      String?          @map("erledigt_by") @db.VarChar(100) // Story 2.5: User der erledigt hat
   erledigungsNotiz String?          @map("erledigungs_notiz") @db.VarChar(500) // Story 2.5: Optionale Notiz
+  requiresNote     Boolean          @default(false) @map("requires_note") // Story 2.6: Pflicht-Notiz bei Erledigung
   erstelltVon    String           @map("erstellt_von") @db.VarChar(100)
 
   // Audit Trail

@@ -125,6 +125,7 @@ export class ErinnerungController {
       beschreibung: dto.beschreibung,
       faelligAm: new Date(dto.faelligAm),
       erstelltVon: user.userId,
+      requiresNote: dto.requiresNote,
     });
 
     if (commandResult.isFailure || !commandResult.value) {
@@ -443,6 +444,10 @@ export class ErinnerungController {
       }
       if (result.error === ERINNERUNG_ERROR_CODES.NOTIZ_TOO_LONG) {
         throw new BadRequestException('Erledigungs-Notiz darf maximal 500 Zeichen haben');
+      }
+      // Story 2.6: Pflicht-Notiz fehlt bei requiresNote=true
+      if (result.error === ERINNERUNG_ERROR_CODES.ERLEDIGUNGS_NOTIZ_REQUIRED) {
+        throw new BadRequestException('Pflicht-Notiz ist erforderlich');
       }
       throw new BadRequestException(result.error);
     }

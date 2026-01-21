@@ -153,6 +153,7 @@ export class MarkErledigtErinnerungHandler extends TransactionalCommandHandler<M
       erledigtAm: erinnerung.erledigtAm?.toISOString() ?? null,
       erledigtBy: erinnerung.erledigtBy?.toString() ?? null,
       erledigungsNotiz: erinnerung.erledigungsNotiz ?? null,
+      requiresNote: erinnerung.requiresNote,
     };
 
     return {

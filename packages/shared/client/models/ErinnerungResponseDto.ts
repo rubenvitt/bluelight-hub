@@ -97,6 +97,12 @@ export interface ErinnerungResponseDto {
    * @memberof ErinnerungResponseDto
    */
   erledigungsNotiz?: object | null;
+  /**
+   * Pflicht-Notiz bei Erledigung erforderlich (Story 2.6)
+   * @type {boolean}
+   * @memberof ErinnerungResponseDto
+   */
+  requiresNote: boolean;
 }
 
 /**
@@ -126,6 +132,7 @@ export function instanceOfErinnerungResponseDto(value: object): value is Erinner
   if (!('createdAt' in value) || value['createdAt'] === undefined) return false;
   if (!('updatedAt' in value) || value['updatedAt'] === undefined) return false;
   if (!('snoozeCount' in value) || value['snoozeCount'] === undefined) return false;
+  if (!('requiresNote' in value) || value['requiresNote'] === undefined) return false;
   return true;
 }
 
@@ -151,6 +158,7 @@ export function ErinnerungResponseDtoFromJSONTyped(json: any, ignoreDiscriminato
     erledigtAm: json['erledigtAm'] == null ? undefined : json['erledigtAm'],
     erledigtBy: json['erledigtBy'] == null ? undefined : json['erledigtBy'],
     erledigungsNotiz: json['erledigungsNotiz'] == null ? undefined : json['erledigungsNotiz'],
+    requiresNote: json['requiresNote'],
   };
 }
 
@@ -177,5 +185,6 @@ export function ErinnerungResponseDtoToJSONTyped(value?: ErinnerungResponseDto |
     erledigtAm: value['erledigtAm'],
     erledigtBy: value['erledigtBy'],
     erledigungsNotiz: value['erledigungsNotiz'],
+    requiresNote: value['requiresNote'],
   };
 }

@@ -149,6 +149,7 @@ export class TriggerErinnerungHandler extends TransactionalCommandHandler<Trigge
       createdAt: erinnerung.createdAt.toISOString(),
       updatedAt: erinnerung.updatedAt.toISOString(),
       snoozeCount: erinnerung.snoozeCount,
+      requiresNote: erinnerung.requiresNote,
     };
 
     return {

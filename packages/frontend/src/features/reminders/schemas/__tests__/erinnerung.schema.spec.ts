@@ -377,3 +377,89 @@ describe('TIME_PRESETS', () => {
     }
   });
 });
+
+/**
+ * Story 2.6: Pflicht-Notiz bei Erledigung
+ */
+describe('createErinnerungSchema - requiresNote (Story 2.6)', () => {
+  describe('requiresNote Validation', () => {
+    it('should accept requiresNote=true', () => {
+      // Given (Arrange)
+      const input = {
+        titel: 'Wichtige Dokumentation',
+        timeMode: 'preset' as const,
+        minuten: 30,
+        requiresNote: true,
+      };
+
+      // When (Act)
+      const result = createErinnerungSchema.safeParse(input);
+
+      // Then (Assert)
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.requiresNote).toBe(true);
+      }
+    });
+
+    it('should accept requiresNote=false', () => {
+      // Given (Arrange)
+      const input = {
+        titel: 'Normale Erinnerung',
+        timeMode: 'preset' as const,
+        minuten: 15,
+        requiresNote: false,
+      };
+
+      // When (Act)
+      const result = createErinnerungSchema.safeParse(input);
+
+      // Then (Assert)
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.requiresNote).toBe(false);
+      }
+    });
+
+    it('should accept missing requiresNote (optional)', () => {
+      // Given (Arrange)
+      const input = {
+        titel: 'Einfache Erinnerung',
+        timeMode: 'preset' as const,
+        minuten: 5,
+        // requiresNote nicht angegeben
+      };
+
+      // When (Act)
+      const result = createErinnerungSchema.safeParse(input);
+
+      // Then (Assert)
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.requiresNote).toBeUndefined();
+      }
+    });
+
+    it('should work with custom timeMode and requiresNote=true', () => {
+      // Given (Arrange)
+      const input = {
+        titel: 'Dokumentierte Aufgabe',
+        timeMode: 'custom' as const,
+        customTime: { hours: 16, minutes: 30 },
+        requiresNote: true,
+        beschreibung: 'Bei Erledigung dokumentieren',
+      };
+
+      // When (Act)
+      const result = createErinnerungSchema.safeParse(input);
+
+      // Then (Assert)
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.requiresNote).toBe(true);
+        expect(result.data.timeMode).toBe('custom');
+        expect(result.data.customTime).toEqual({ hours: 16, minutes: 30 });
+      }
+    });
+  });
+});

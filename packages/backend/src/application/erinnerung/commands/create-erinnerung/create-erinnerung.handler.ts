@@ -85,6 +85,7 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
       beschreibung: command.beschreibung,
       faelligAm: command.faelligAm,
       erstelltVon: userIdResult.value,
+      requiresNote: command.requiresNote,
     });
 
     if (erinnerungResult.isFailure || !erinnerungResult.value) {
@@ -130,6 +131,7 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
       createdAt: erinnerung.createdAt.toISOString(),
       updatedAt: erinnerung.updatedAt.toISOString(),
       snoozeCount: erinnerung.snoozeCount,
+      requiresNote: erinnerung.requiresNote,
     };
 
     return {

@@ -37,6 +37,12 @@ export interface CreateErinnerungDto {
    * @memberof CreateErinnerungDto
    */
   beschreibung?: string;
+  /**
+   * Pflicht-Notiz bei Erledigung erforderlich (Story 2.6)
+   * @type {boolean}
+   * @memberof CreateErinnerungDto
+   */
+  requiresNote?: boolean;
 }
 
 /**
@@ -60,6 +66,7 @@ export function CreateErinnerungDtoFromJSONTyped(json: any, ignoreDiscriminator:
     titel: json['titel'],
     faelligAm: json['faelligAm'],
     beschreibung: json['beschreibung'] == null ? undefined : json['beschreibung'],
+    requiresNote: json['requiresNote'] == null ? undefined : json['requiresNote'],
   };
 }
 
@@ -76,5 +83,6 @@ export function CreateErinnerungDtoToJSONTyped(value?: CreateErinnerungDto | nul
     titel: value['titel'],
     faelligAm: value['faelligAm'],
     beschreibung: value['beschreibung'],
+    requiresNote: value['requiresNote'],
   };
 }

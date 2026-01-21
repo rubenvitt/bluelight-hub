@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
  * Request DTO zum Erstellen einer neuen Erinnerung (Quick-Create).
@@ -75,4 +75,21 @@ export class CreateErinnerungDto {
   @IsString({ message: 'Beschreibung muss ein String sein' })
   @MaxLength(500, { message: 'Beschreibung darf maximal 500 Zeichen lang sein' })
   beschreibung?: string;
+
+  /**
+   * Story 2.6: Pflicht-Notiz bei Erledigung erforderlich.
+   * Wenn true, muss bei Erledigung eine Notiz eingegeben werden.
+   *
+   * @default false
+   * @example false
+   */
+  @ApiProperty({
+    description: 'Pflicht-Notiz bei Erledigung erforderlich (Story 2.6)',
+    example: false,
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean({ message: 'requiresNote muss ein Boolean sein' })
+  requiresNote?: boolean;
 }

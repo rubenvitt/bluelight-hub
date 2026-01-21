@@ -13,7 +13,7 @@
  */
 
 import * as runtime from '../runtime';
-import type { CreateErinnerungDto, ErinnerungControllerCreateVAlpha201Response, ErinnerungControllerGetByEinsatzVAlpha200Response, UpdateErinnerungDto } from '../models/index';
+import type { CreateErinnerungDto, ErinnerungControllerCreateVAlpha201Response, ErinnerungControllerGetByEinsatzVAlpha200Response, SnoozeErinnerungDto, UpdateErinnerungDto } from '../models/index';
 import {
   CreateErinnerungDtoFromJSON,
   CreateErinnerungDtoToJSON,
@@ -21,9 +21,16 @@ import {
   ErinnerungControllerCreateVAlpha201ResponseToJSON,
   ErinnerungControllerGetByEinsatzVAlpha200ResponseFromJSON,
   ErinnerungControllerGetByEinsatzVAlpha200ResponseToJSON,
+  SnoozeErinnerungDtoFromJSON,
+  SnoozeErinnerungDtoToJSON,
   UpdateErinnerungDtoFromJSON,
   UpdateErinnerungDtoToJSON,
 } from '../models/index';
+
+export interface ErinnerungControllerAcknowledgeVAlphaRequest {
+  einsatzId: string;
+  id: string;
+}
 
 export interface ErinnerungControllerCreateVAlphaRequest {
   einsatzId: string;
@@ -37,6 +44,12 @@ export interface ErinnerungControllerDeleteVAlphaRequest {
 
 export interface ErinnerungControllerGetByEinsatzVAlphaRequest {
   einsatzId: string;
+}
+
+export interface ErinnerungControllerSnoozeVAlphaRequest {
+  einsatzId: string;
+  id: string;
+  snoozeErinnerungDto: SnoozeErinnerungDto;
 }
 
 export interface ErinnerungControllerTriggerVAlphaRequest {
@@ -54,6 +67,53 @@ export interface ErinnerungControllerUpdateVAlphaRequest {
  *
  */
 export class ErinnerungenApi extends runtime.BaseAPI {
+  /**
+   * Bestätigt eine ausgelöste Erinnerung (Status → ACKNOWLEDGED). Nur Erinnerungen im Status AUSGELOEST können bestätigt werden.
+   * Erinnerung bestaetigen
+   */
+  async erinnerungControllerAcknowledgeVAlphaRaw(
+    requestParameters: ErinnerungControllerAcknowledgeVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ErinnerungControllerCreateVAlpha201Response>> {
+    if (requestParameters['einsatzId'] == null) {
+      throw new runtime.RequiredError('einsatzId', 'Required parameter "einsatzId" was null or undefined when calling erinnerungControllerAcknowledgeVAlpha().');
+    }
+
+    if (requestParameters['id'] == null) {
+      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling erinnerungControllerAcknowledgeVAlpha().');
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/einsatz/{einsatzId}/erinnerungen/{id}/acknowledge`
+          .replace(`{${'einsatzId'}}`, encodeURIComponent(String(requestParameters['einsatzId'])))
+          .replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
+        method: 'POST',
+        headers: headerParameters,
+        query: queryParameters,
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response, (jsonValue) => ErinnerungControllerCreateVAlpha201ResponseFromJSON(jsonValue));
+  }
+
+  /**
+   * Bestätigt eine ausgelöste Erinnerung (Status → ACKNOWLEDGED). Nur Erinnerungen im Status AUSGELOEST können bestätigt werden.
+   * Erinnerung bestaetigen
+   */
+  async erinnerungControllerAcknowledgeVAlpha(
+    requestParameters: ErinnerungControllerAcknowledgeVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ErinnerungControllerCreateVAlpha201Response> {
+    const response = await this.erinnerungControllerAcknowledgeVAlphaRaw(requestParameters, initOverrides);
+    return await response.value();
+  }
+
   /**
    * Erstellt eine neue Erinnerung mit Titel und Fälligkeitszeitpunkt. Status wird auf GEPLANT gesetzt.
    * Neue Erinnerung erstellen
@@ -183,6 +243,60 @@ export class ErinnerungenApi extends runtime.BaseAPI {
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
   ): Promise<ErinnerungControllerGetByEinsatzVAlpha200Response> {
     const response = await this.erinnerungControllerGetByEinsatzVAlphaRaw(requestParameters, initOverrides);
+    return await response.value();
+  }
+
+  /**
+   * Snoozed eine ausgelöste Erinnerung (Status → SNOOZED). Nur Erinnerungen im Status AUSGELOEST können gesnoozed werden.
+   * Erinnerung snoozen
+   */
+  async erinnerungControllerSnoozeVAlphaRaw(
+    requestParameters: ErinnerungControllerSnoozeVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ErinnerungControllerCreateVAlpha201Response>> {
+    if (requestParameters['einsatzId'] == null) {
+      throw new runtime.RequiredError('einsatzId', 'Required parameter "einsatzId" was null or undefined when calling erinnerungControllerSnoozeVAlpha().');
+    }
+
+    if (requestParameters['id'] == null) {
+      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling erinnerungControllerSnoozeVAlpha().');
+    }
+
+    if (requestParameters['snoozeErinnerungDto'] == null) {
+      throw new runtime.RequiredError('snoozeErinnerungDto', 'Required parameter "snoozeErinnerungDto" was null or undefined when calling erinnerungControllerSnoozeVAlpha().');
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    headerParameters['Content-Type'] = 'application/json';
+
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/einsatz/{einsatzId}/erinnerungen/{id}/snooze`
+          .replace(`{${'einsatzId'}}`, encodeURIComponent(String(requestParameters['einsatzId'])))
+          .replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
+        method: 'POST',
+        headers: headerParameters,
+        query: queryParameters,
+        body: SnoozeErinnerungDtoToJSON(requestParameters['snoozeErinnerungDto']),
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response, (jsonValue) => ErinnerungControllerCreateVAlpha201ResponseFromJSON(jsonValue));
+  }
+
+  /**
+   * Snoozed eine ausgelöste Erinnerung (Status → SNOOZED). Nur Erinnerungen im Status AUSGELOEST können gesnoozed werden.
+   * Erinnerung snoozen
+   */
+  async erinnerungControllerSnoozeVAlpha(
+    requestParameters: ErinnerungControllerSnoozeVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ErinnerungControllerCreateVAlpha201Response> {
+    const response = await this.erinnerungControllerSnoozeVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
 

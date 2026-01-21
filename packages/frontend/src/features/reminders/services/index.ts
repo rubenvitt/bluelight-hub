@@ -24,3 +24,19 @@ export {
   timerService,
   type OnTriggerCallback,
 } from './timer.service';
+
+export {
+  notificationSetupService,
+  initializeNotificationSetup,
+  setNotificationNavigateCallback,
+  ERINNERUNG_CHANNEL_ID,
+  ERINNERUNG_ACTION_TYPE_ID,
+  ERINNERUNG_ACTION_OPEN_ID,
+  type NavigateToErinnerungCallback,
+} from './notification-setup.service';
+
+export {
+  TrayService,
+  trayService,
+  type TrayResult,
+} from './tray.service';

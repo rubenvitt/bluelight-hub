@@ -197,7 +197,7 @@ export class SoundService {
 
       this.webAudioState.initialized = true;
       logger.debug('[SoundService] Web Audio initialisiert');
-    } catch (error) {
+    } catch (_error) {
       // Browser unterstützt AudioContext nicht - kein kritischer Fehler
       logger.warn('[SoundService] AudioContext nicht verfügbar, nutze nur HTML5 Audio');
       this.webAudioState.initialized = true;

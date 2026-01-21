@@ -200,6 +200,13 @@ export class ErinnerungStatus extends ValueObject<ErinnerungStatusProps> {
   }
 
   /**
+   * Prüft ob der Status acknowledged (bestätigt) ist.
+   */
+  public isAcknowledged(): boolean {
+    return this.value === 'ACKNOWLEDGED';
+  }
+
+  /**
    * Prüft ob die Erinnerung noch aktiv ist (nicht erledigt).
    */
   public isActive(): boolean {

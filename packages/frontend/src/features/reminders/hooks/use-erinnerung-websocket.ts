@@ -10,6 +10,9 @@
  * - Room: `einsatz:{einsatzId}:erinnerungen`
  * - Events: `erinnerung.triggered`, `erinnerung.created`, `erinnerung.updated`, `erinnerung.deleted`
  * - Toast-Notification bei Team-Member Events
+ *
+ * **Story 1.6 AC2:**
+ * - Event: `erinnerung.acknowledged` fuer Team-Sync bei Bestaetigung
  */
 
 import { logger } from '@/shared/lib/logger';
@@ -38,6 +41,8 @@ export interface ErinnerungWebSocketEvent {
   titel?: string;
   timestamp: string;
   userId?: string;
+  /** Story 1.6: User der die Erinnerung bestätigt hat */
+  acknowledgedBy?: string;
 }
 
 /**
@@ -63,6 +68,8 @@ export interface UseErinnerungWebSocketOptions {
   onUpdated?: (event: ErinnerungWebSocketEvent) => void;
   /** Callback bei Delete-Event */
   onDeleted?: (event: ErinnerungWebSocketEvent) => void;
+  /** Callback bei Acknowledge-Event (Story 1.6) */
+  onAcknowledged?: (event: ErinnerungWebSocketEvent) => void;
 }
 
 /**
@@ -112,6 +119,7 @@ export function useErinnerungWebSocket({
   onCreated,
   onUpdated,
   onDeleted,
+  onAcknowledged,
 }: UseErinnerungWebSocketOptions): UseErinnerungWebSocketReturn {
   const queryClient = useQueryClient();
   const socketRef = useRef<Socket | null>(null);
@@ -227,6 +235,47 @@ export function useErinnerungWebSocket({
   );
 
   /**
+   * Handler für 'erinnerung.acknowledged' Event (Story 1.6 AC2)
+   *
+   * C7 Fix: Prüft ob eine lokale Mutation pending ist, um Race Conditions
+   * zwischen eigenem Acknowledge und WebSocket-Event zu vermeiden.
+   */
+  const handleAcknowledged = useCallback(
+    (event: ErinnerungWebSocketEvent) => {
+      logger.info('WebSocket: Erinnerung acknowledged', event);
+
+      // C7 Fix: Check if mutation is pending for this erinnerung
+      const mutationCache = queryClient.getMutationCache();
+      const pendingMutation = mutationCache.find({
+        predicate: (mutation) => mutation.state.status === 'pending' && mutation.options.mutationKey?.some((key) => typeof key === 'string' && key.includes(event.erinnerungId)),
+      });
+
+      if (pendingMutation) {
+        logger.debug('WebSocket: Skipping cache invalidation - acknowledge mutation pending', { erinnerungId: event.erinnerungId });
+        // Skip cache invalidation but still show toast and call callback for team sync
+        if (showTeamToasts) {
+          toast.success('Erinnerung bestätigt', {
+            description: 'Ein Teammitglied hat eine Erinnerung bestätigt',
+          });
+        }
+        onAcknowledged?.(event);
+        return;
+      }
+
+      invalidateCache();
+
+      if (showTeamToasts) {
+        toast.success('Erinnerung bestätigt', {
+          description: 'Ein Teammitglied hat eine Erinnerung bestätigt',
+        });
+      }
+
+      onAcknowledged?.(event);
+    },
+    [invalidateCache, showTeamToasts, onAcknowledged, queryClient],
+  );
+
+  /**
    * Verbindung herstellen
    */
   const connect = useCallback(() => {
@@ -278,9 +327,10 @@ export function useErinnerungWebSocket({
     socket.on('erinnerung.created', handleCreated);
     socket.on('erinnerung.updated', handleUpdated);
     socket.on('erinnerung.deleted', handleDeleted);
+    socket.on('erinnerung.acknowledged', handleAcknowledged);
 
     socketRef.current = socket;
-  }, [enabled, einsatzId, roomName, handleTriggered, handleCreated, handleUpdated, handleDeleted]);
+  }, [enabled, einsatzId, roomName, handleTriggered, handleCreated, handleUpdated, handleDeleted, handleAcknowledged]);
 
   /**
    * Verbindung trennen

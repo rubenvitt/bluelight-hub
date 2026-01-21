@@ -140,7 +140,9 @@ export const markTimerAsTriggered = (erinnerungId: string): void => {
 /**
  * Synchronisiert Timer mit einer Liste von Erinnerungen
  *
- * Fuegt neue Timer hinzu und entfernt nicht mehr existierende.
+ * Fuegt neue Timer hinzu und entfernt nicht mehr existierende oder bestaetigte.
+ *
+ * **Story 1.6 AC4:** Timer wird bei ACKNOWLEDGED Status entfernt (Tray Badge Update)
  *
  * @param erinnerungen - Aktuelle Liste der Erinnerungen
  * @param einsatzId - ID des Einsatzes
@@ -148,11 +150,15 @@ export const markTimerAsTriggered = (erinnerungId: string): void => {
 export const syncTimersWithErinnerungen = (erinnerungen: ErinnerungResponseDto[], einsatzId: string): void => {
   timerStore.setState((state) => {
     const newTimers = new Map<string, TimerState>();
-    const existingIds = new Set(erinnerungen.map((e) => e.id));
+    // Map von ID zu Erinnerung fuer schnellen Status-Lookup
+    const erinnerungMap = new Map(erinnerungen.map((e) => [e.id, e]));
 
-    // Behalte existierende Timer die noch gueltig sind
+    // Behalte existierende Timer nur wenn Erinnerung noch aktiv ist (GEPLANT oder AUSGELOEST)
+    // Story 1.6: ACKNOWLEDGED Timer werden entfernt
     for (const [id, timer] of state.activeTimers) {
-      if (existingIds.has(id)) {
+      const erinnerung = erinnerungMap.get(id);
+      // Behalte Timer nur wenn Erinnerung existiert UND nicht ACKNOWLEDGED/GELOESCHT ist
+      if (erinnerung && (erinnerung.status === 'GEPLANT' || erinnerung.status === 'AUSGELOEST')) {
         newTimers.set(id, timer);
       }
     }
@@ -252,4 +258,23 @@ export const useTimerState = (erinnerungId: string): TimerState | null => {
  */
 export const useTimerStoreState = (): TimerStoreState => {
   return useStore(timerStore, (state) => state);
+};
+
+/**
+ * Hook fuer die IDs der ausgeloesten Timer
+ *
+ * Story 1.9 AC3: Fuer Tray-Click Navigation zur ersten ausgeloesten Erinnerung.
+ *
+ * @returns Array der Erinnerungs-IDs die ausgeloest wurden
+ */
+export const useTriggeredTimerIds = (): string[] => {
+  return useStore(timerStore, (state) => {
+    const ids: string[] = [];
+    for (const timer of state.activeTimers.values()) {
+      if (timer.triggered) {
+        ids.push(timer.erinnerungId);
+      }
+    }
+    return ids;
+  });
 };

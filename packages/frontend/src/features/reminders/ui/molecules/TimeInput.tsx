@@ -10,7 +10,7 @@
  * - Keyboard Navigation: Tab zwischen Feldern
  */
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { cn } from '@/shared/ui/cn';
 import type { CustomTime } from '../../schemas/erinnerung.schema';
 
@@ -41,6 +41,10 @@ interface TimeInputProps {
 export function TimeInput({ value, onChange, disabled = false, error = false, className }: TimeInputProps) {
   const minutesRef = useRef<HTMLInputElement>(null);
 
+  // Lokaler State für Eingabe während Focus - erlaubt leere Felder
+  const [hoursInput, setHoursInput] = useState<string | null>(null);
+  const [minutesInput, setMinutesInput] = useState<string | null>(null);
+
   const baseInputStyles = cn(
     'w-14 rounded-lg border-2 bg-white px-2 py-2.5 text-center font-medium text-gray-900 transition-colors duration-200',
     'focus:outline-none focus:ring-4 focus:ring-opacity-20',
@@ -55,21 +59,21 @@ export function TimeInput({ value, onChange, disabled = false, error = false, cl
     (inputValue: string) => {
       // Nur Zahlen erlauben
       const numericValue = inputValue.replace(/\D/g, '');
-      if (numericValue === '') {
-        onChange({ ...value, hours: 0 });
-        return;
-      }
 
-      let hours = Number.parseInt(numericValue, 10);
-      // Clamp zu gültigem Bereich
-      hours = Math.min(23, Math.max(0, hours));
+      // Lokalen Input-State aktualisieren (erlaubt leere Eingabe)
+      setHoursInput(numericValue);
 
-      onChange({ ...value, hours });
+      // Nur an Parent weitergeben wenn nicht leer
+      if (numericValue !== '') {
+        let hours = Number.parseInt(numericValue, 10);
+        hours = Math.min(23, Math.max(0, hours));
+        onChange({ ...value, hours });
 
-      // Auto-Tab zu Minuten nach 2 Ziffern
-      if (numericValue.length >= 2) {
-        minutesRef.current?.focus();
-        minutesRef.current?.select();
+        // Auto-Tab zu Minuten nach 2 Ziffern
+        if (numericValue.length >= 2) {
+          minutesRef.current?.focus();
+          minutesRef.current?.select();
+        }
       }
     },
     [value, onChange],
@@ -79,19 +83,48 @@ export function TimeInput({ value, onChange, disabled = false, error = false, cl
     (inputValue: string) => {
       // Nur Zahlen erlauben
       const numericValue = inputValue.replace(/\D/g, '');
-      if (numericValue === '') {
-        onChange({ ...value, minutes: 0 });
-        return;
+
+      // Lokalen Input-State aktualisieren (erlaubt leere Eingabe)
+      setMinutesInput(numericValue);
+
+      // Nur an Parent weitergeben wenn nicht leer
+      if (numericValue !== '') {
+        let minutes = Number.parseInt(numericValue, 10);
+        minutes = Math.min(59, Math.max(0, minutes));
+        onChange({ ...value, minutes });
       }
-
-      let minutes = Number.parseInt(numericValue, 10);
-      // Clamp zu gültigem Bereich
-      minutes = Math.min(59, Math.max(0, minutes));
-
-      onChange({ ...value, minutes });
     },
     [value, onChange],
   );
+
+  const handleHoursFocus = useCallback(() => {
+    // Bei Focus: Unformatiert anzeigen (ohne führende Null bei einstellig)
+    setHoursInput(value.hours.toString());
+  }, [value.hours]);
+
+  const handleMinutesFocus = useCallback(() => {
+    setMinutesInput(value.minutes.toString());
+  }, [value.minutes]);
+
+  const handleHoursBlur = useCallback(() => {
+    // Bei Blur: Wenn leer, auf 0 setzen
+    if (hoursInput === '' || hoursInput === null) {
+      onChange({ ...value, hours: 0 });
+    }
+    // Lokalen State zurücksetzen → formatierte Anzeige
+    setHoursInput(null);
+  }, [hoursInput, value, onChange]);
+
+  const handleMinutesBlur = useCallback(() => {
+    if (minutesInput === '' || minutesInput === null) {
+      onChange({ ...value, minutes: 0 });
+    }
+    setMinutesInput(null);
+  }, [minutesInput, value, onChange]);
+
+  // Display-Wert: Lokaler Input während Focus, sonst formatiert
+  const displayHours = hoursInput !== null ? hoursInput : value.hours.toString().padStart(2, '0');
+  const displayMinutes = minutesInput !== null ? minutesInput : value.minutes.toString().padStart(2, '0');
 
   return (
     <div className={cn('flex items-center gap-1', className)}>
@@ -103,11 +136,13 @@ export function TimeInput({ value, onChange, disabled = false, error = false, cl
         aria-label="Stunden"
         placeholder="HH"
         className={baseInputStyles}
-        value={value.hours.toString().padStart(2, '0')}
+        value={displayHours}
         onChange={(e) => handleHoursChange(e.target.value)}
+        onFocus={handleHoursFocus}
+        onBlur={handleHoursBlur}
         disabled={disabled}
       />
-      <span className="text-lg font-medium text-gray-500 dark:text-gray-400">:</span>
+      <span className="font-medium text-gray-500 text-lg dark:text-gray-400">:</span>
       <input
         ref={minutesRef}
         type="text"
@@ -117,8 +152,10 @@ export function TimeInput({ value, onChange, disabled = false, error = false, cl
         aria-label="Minuten"
         placeholder="MM"
         className={baseInputStyles}
-        value={value.minutes.toString().padStart(2, '0')}
+        value={displayMinutes}
         onChange={(e) => handleMinutesChange(e.target.value)}
+        onFocus={handleMinutesFocus}
+        onBlur={handleMinutesBlur}
         disabled={disabled}
       />
     </div>

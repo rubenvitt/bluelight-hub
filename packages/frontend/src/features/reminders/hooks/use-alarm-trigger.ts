@@ -97,6 +97,11 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
   const einsatzIdRef = useRef(einsatzId);
   einsatzIdRef.current = einsatzId;
 
+  // Ref für mutateAsync um Effect-Loop zu vermeiden
+  // (triggerMutation ändert sich bei State-Änderungen wie isPending)
+  const mutateAsyncRef = useRef(triggerMutation.mutateAsync);
+  mutateAsyncRef.current = triggerMutation.mutateAsync;
+
   /**
    * Fuehrt die komplette Trigger-Sequenz aus
    *
@@ -104,6 +109,9 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
    * API-Fehler werden an onTriggerError propagiert
    *
    * H6 Fix: Wenn Sound UND Notification fehlschlagen, zeige Toast als Fallback
+   *
+   * **Wichtig:** Diese Funktion hat KEINE Dependencies um Effect-Loops zu vermeiden.
+   * Alle veränderlichen Werte werden über Refs gelesen.
    */
   const executeTriggerSequence = useCallback(
     async (erinnerung: ErinnerungResponseDto) => {
@@ -126,9 +134,9 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
         logger.warn(`[AlarmTrigger] Sound failed (non-critical): ${err}`);
       }
 
-      // 2. Notification zeigen
+      // 2. Notification zeigen (mit Deep Link Daten für Navigation)
       try {
-        await sendErinnerungNotification(erinnerung.titel);
+        await sendErinnerungNotification(erinnerung.titel, erinnerung.id, currentEinsatzId);
         notificationSuccess = true;
       } catch (err) {
         logger.warn(`[AlarmTrigger] Notification failed (non-critical): ${err}`);
@@ -143,8 +151,9 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
       }
 
       // 3. API Call (kritisch - mit Error Handling)
+      // Nutze Ref um Effect-Loop zu vermeiden (mutateAsync ist stabil über Ref)
       try {
-        await triggerMutation.mutateAsync({
+        await mutateAsyncRef.current({
           einsatzId: currentEinsatzId,
           erinnerungId: erinnerung.id,
         });
@@ -157,7 +166,7 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
         callbacksRef.current.onTriggerError?.(erinnerung, err);
       }
     },
-    [triggerMutation],
+    [], // Keine Dependencies - alle Werte über Refs
   );
 
   // Timer starten/stoppen basierend auf enabled und erinnerungen

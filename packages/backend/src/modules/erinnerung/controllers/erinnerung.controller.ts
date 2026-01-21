@@ -1,5 +1,5 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, Put, UseGuards, ValidationPipe } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiConflictResponse, ApiNotFoundResponse, ApiOperation, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiConflictResponse, ApiNotFoundResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import type { ValidatedUser } from '@/modules/auth/strategies/jwt.strategy';
@@ -13,6 +13,11 @@ import { DeleteErinnerungCommand } from '@/application/erinnerung/commands/delet
 import { DeleteErinnerungHandler } from '@/application/erinnerung/commands/delete-erinnerung/delete-erinnerung.handler';
 import { TriggerErinnerungCommand } from '@/application/erinnerung/commands/trigger-erinnerung/trigger-erinnerung.command';
 import { TriggerErinnerungHandler } from '@/application/erinnerung/commands/trigger-erinnerung/trigger-erinnerung.handler';
+import { AcknowledgeErinnerungCommand } from '@/application/erinnerung/commands/acknowledge-erinnerung/acknowledge-erinnerung.command';
+import { AcknowledgeErinnerungHandler } from '@/application/erinnerung/commands/acknowledge-erinnerung/acknowledge-erinnerung.handler';
+import { SnoozeErinnerungCommand } from '@/application/erinnerung/commands/snooze-erinnerung/snooze-erinnerung.command';
+import { SnoozeErinnerungHandler } from '@/application/erinnerung/commands/snooze-erinnerung/snooze-erinnerung.handler';
+import { SnoozeErinnerungDto } from '@/application/erinnerung/dto/snooze-erinnerung.dto';
 import { GetErinnerungenByEinsatzQuery } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.query';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
 import { ERINNERUNG_ERROR_CODES } from '@/application/erinnerung/errors/erinnerung-error.codes';
@@ -42,6 +47,8 @@ export class ErinnerungController {
     private readonly updateHandler: UpdateErinnerungHandler,
     private readonly deleteHandler: DeleteErinnerungHandler,
     private readonly triggerHandler: TriggerErinnerungHandler,
+    private readonly acknowledgeHandler: AcknowledgeErinnerungHandler,
+    private readonly snoozeHandler: SnoozeErinnerungHandler,
     private readonly getByEinsatzHandler: GetErinnerungenByEinsatzHandler,
   ) {}
 
@@ -51,16 +58,20 @@ export class ErinnerungController {
    * Gibt die Liste aller Erinnerungen sortiert nach Fälligkeit zurück.
    * Wird für die Erinnerungsliste im Einsatz-Kontext verwendet.
    *
+   * **Pagination Policy:**
+   * Keine Pagination - Erinnerungen pro Einsatz sind typischerweise < 50 Einträge.
+   * Bei Bedarf für größere Listen: Pagination via @ApiWrappedResponse({ pagination: true }) hinzufügen.
+   *
    * **Story 1.1 AC2:** "die Erinnerung erscheint in meiner Liste"
    */
   @Get()
   @ApiOperation({
     summary: 'Alle Erinnerungen eines Einsatzes abrufen',
-    description: 'Gibt alle Erinnerungen des Einsatzes sortiert nach Fälligkeit (aufsteigend) zurück.',
+    description: 'Gibt alle Erinnerungen des Einsatzes sortiert nach Fälligkeit (aufsteigend) zurück. Keine Pagination (max ~50 pro Einsatz).',
   })
   @ApiWrappedResponse(ErinnerungResponseDto, {
     isArray: true,
-    description: 'Liste aller Erinnerungen',
+    description: 'Liste aller Erinnerungen (keine Pagination - max ~50 pro Einsatz)',
   })
   @ApiBadRequestResponse({ description: 'Ungültige EinsatzId' })
   async getByEinsatz(@Param('einsatzId') einsatzId: string): Promise<ErinnerungResponseDto[]> {
@@ -211,19 +222,20 @@ export class ErinnerungController {
    * - Manuell: User kann Erinnerung vorzeitig auslösen
    */
   @Post(':id/trigger')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Erinnerung ausloesen',
     description: 'Löst eine Erinnerung aus (Status → AUSGELOEST). Nur Erinnerungen im Status GEPLANT können ausgelöst werden.',
   })
-  @ApiResponse({ status: 204, description: 'Erinnerung erfolgreich ausgelöst' })
+  @ApiWrappedResponse(ErinnerungResponseDto, {
+    description: 'Erinnerung erfolgreich ausgelöst',
+  })
   @ApiBadRequestResponse({ description: 'Ungültige ErinnerungId' })
   @ApiNotFoundResponse({ description: 'Erinnerung nicht gefunden' })
   @ApiConflictResponse({ description: 'Erinnerung kann nicht ausgelöst werden (Status ist nicht GEPLANT)' })
   async trigger(
     @Param('einsatzId') _einsatzId: string, // Für URL-Struktur, nicht für Validierung genutzt
     @Param('id') id: string,
-  ): Promise<void> {
+  ): Promise<ErinnerungResponseDto> {
     const commandResult = TriggerErinnerungCommand.create({
       erinnerungId: id,
     });
@@ -245,7 +257,132 @@ export class ErinnerungController {
       throw new BadRequestException(result.error);
     }
 
-    // 204 No Content - Trigger erfolgreich, keine Response noetig
+    if (!result.value) {
+      throw new BadRequestException('Erinnerung konnte nicht ausgelöst werden');
+    }
+
+    return result.value;
+  }
+
+  /**
+   * Bestaetigt eine ausgeloeste Erinnerung (1-Tap Acknowledge).
+   *
+   * Setzt den Status auf ACKNOWLEDGED und stoppt den Audio-Alarm.
+   * Nur Erinnerungen im Status AUSGELOEST können bestätigt werden.
+   *
+   * **Story 1.6 ACs:**
+   * - AC1: Nur AUSGELOEST Status kann acknowledged werden
+   * - AC2: Status wechselt zu ACKNOWLEDGED
+   * - AC3: Audio-Alarm wird gestoppt (via WebSocket Event)
+   * - AC4: WebSocket Event 'erinnerung.acknowledged' wird emittiert
+   * - AC5: ETB-Eintrag wird automatisch erstellt (via Event Handler)
+   */
+  @Post(':id/acknowledge')
+  @ApiOperation({
+    summary: 'Erinnerung bestaetigen',
+    description: 'Bestätigt eine ausgelöste Erinnerung (Status → ACKNOWLEDGED). Nur Erinnerungen im Status AUSGELOEST können bestätigt werden.',
+  })
+  @ApiWrappedResponse(ErinnerungResponseDto, {
+    description: 'Erinnerung erfolgreich bestätigt',
+  })
+  @ApiBadRequestResponse({ description: 'Ungültige ErinnerungId oder UserId' })
+  @ApiNotFoundResponse({ description: 'Erinnerung nicht gefunden' })
+  @ApiConflictResponse({ description: 'Erinnerung kann nicht bestätigt werden (Status ist nicht AUSGELOEST)' })
+  async acknowledge(
+    @Param('einsatzId') _einsatzId: string, // Für URL-Struktur, nicht für Validierung genutzt
+    @Param('id') id: string,
+    @CurrentUser() user: ValidatedUser,
+  ): Promise<ErinnerungResponseDto> {
+    const commandResult = AcknowledgeErinnerungCommand.create({
+      erinnerungId: id,
+      acknowledgedBy: user.userId,
+    });
+
+    if (commandResult.isFailure || !commandResult.value) {
+      throw new BadRequestException(commandResult.error);
+    }
+
+    const result = await this.acknowledgeHandler.execute(commandResult.value);
+
+    if (result.isFailure) {
+      // Error Mapping: NOT_FOUND → 404, NOT_ACKNOWLEDGEABLE → 409, sonst 400
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_FOUND) {
+        throw new NotFoundException('Erinnerung nicht gefunden');
+      }
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_ACKNOWLEDGEABLE) {
+        throw new ConflictException('Nur ausgelöste Erinnerungen können bestätigt werden');
+      }
+      throw new BadRequestException(result.error);
+    }
+
+    if (!result.value) {
+      throw new BadRequestException('Erinnerung konnte nicht bestätigt werden');
+    }
+
+    return result.value;
+  }
+
+  /**
+   * Snoozed eine ausgeloeste Erinnerung mit Preset-Zeit.
+   *
+   * Verschiebt eine ausgeloeste Erinnerung um die angegebene Zeit (1, 5, 10 Minuten).
+   * Nur Erinnerungen im Status AUSGELOEST können gesnoozed werden.
+   *
+   * **Story 2.1 ACs:**
+   * - AC1: Preset-Zeiten 1, 5, 10 Minuten (Escape = 5 Min im Frontend)
+   * - AC2: Status wechselt zu SNOOZED, neue Fälligkeit wird berechnet
+   * - AC3: Audio-Alarm wird im Frontend gestoppt (via WebSocket Event)
+   * - ETB-Eintrag wird automatisch erstellt (via Event Handler)
+   */
+  @Post(':id/snooze')
+  @ApiOperation({
+    summary: 'Erinnerung snoozen',
+    description: 'Snoozed eine ausgelöste Erinnerung (Status → SNOOZED). Nur Erinnerungen im Status AUSGELOEST können gesnoozed werden.',
+  })
+  @ApiWrappedResponse(ErinnerungResponseDto, {
+    description: 'Erinnerung erfolgreich gesnoozed',
+  })
+  @ApiBadRequestResponse({ description: 'Ungültige ErinnerungId, UserId oder snoozeMinutes' })
+  @ApiNotFoundResponse({ description: 'Erinnerung nicht gefunden' })
+  @ApiConflictResponse({ description: 'Erinnerung kann nicht gesnoozed werden (Status ist nicht AUSGELOEST)' })
+  async snooze(
+    @Param('einsatzId') _einsatzId: string, // Für URL-Struktur, nicht für Validierung genutzt
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    dto: SnoozeErinnerungDto,
+    @CurrentUser() user: ValidatedUser,
+  ): Promise<ErinnerungResponseDto> {
+    const commandResult = SnoozeErinnerungCommand.create({
+      erinnerungId: id,
+      snoozedBy: user.userId,
+      snoozeMinutes: dto.snoozeMinutes,
+    });
+
+    if (commandResult.isFailure || !commandResult.value) {
+      throw new BadRequestException(commandResult.error);
+    }
+
+    const result = await this.snoozeHandler.execute(commandResult.value);
+
+    if (result.isFailure) {
+      // Error Mapping: NOT_FOUND → 404, NOT_SNOOZEABLE → 409, sonst 400
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_FOUND) {
+        throw new NotFoundException('Erinnerung nicht gefunden');
+      }
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_SNOOZEABLE) {
+        throw new ConflictException('Nur ausgelöste Erinnerungen können gesnoozed werden');
+      }
+      if (result.error === ERINNERUNG_ERROR_CODES.SNOOZE_MINUTES_INVALID) {
+        throw new BadRequestException('snoozeMinutes muss 1, 5 oder 10 sein');
+      }
+      throw new BadRequestException(result.error);
+    }
+
+    if (!result.value) {
+      throw new BadRequestException('Erinnerung konnte nicht gesnoozed werden');
+    }
+
+    return result.value;
   }
 
   /**

@@ -51,6 +51,29 @@ export interface ErinnerungDeletedPayload {
 }
 
 /**
+ * WebSocket Payload fuer erinnerung.acknowledged Event (Story 1.6 AC2).
+ */
+export interface ErinnerungAcknowledgedPayload {
+  erinnerungId: string;
+  einsatzId: string;
+  acknowledgedBy: string;
+  timestamp: string;
+}
+
+/**
+ * WebSocket Payload fuer erinnerung.snoozed Event (Story 2.1 AC2).
+ */
+export interface ErinnerungSnoozedPayload {
+  erinnerungId: string;
+  einsatzId: string;
+  snoozedBy: string;
+  snoozedUntil: string;
+  snoozeMinutes: number;
+  snoozeCount: number;
+  timestamp: string;
+}
+
+/**
  * WebSocket Gateway fuer Erinnerungen.
  *
  * **Story 1.5 AC4: WebSocket Event fuer Team-Sync**
@@ -205,6 +228,32 @@ export class ErinnerungGateway implements OnGatewayConnection, OnGatewayDisconne
     const roomName = this.getRoomName(payload.einsatzId);
     this.server.to(roomName).emit('erinnerung.deleted', payload);
     this.logger.log(`Emitted erinnerung.deleted to room ${roomName}: erinnerungId=${payload.erinnerungId}`, 'ErinnerungGateway');
+  }
+
+  /**
+   * Emittiert `erinnerung.acknowledged` Event an alle Clients im Einsatz-Room.
+   *
+   * **Story 1.6 AC2:** WebSocket Event fuer Team-Sync bei Bestaetigung
+   *
+   * @param payload - Event-Payload mit erinnerungId, einsatzId, acknowledgedBy, timestamp
+   */
+  emitErinnerungAcknowledged(payload: ErinnerungAcknowledgedPayload): void {
+    const roomName = this.getRoomName(payload.einsatzId);
+    this.server.to(roomName).emit('erinnerung.acknowledged', payload);
+    this.logger.log(`Emitted erinnerung.acknowledged to room ${roomName}: erinnerungId=${payload.erinnerungId}`, 'ErinnerungGateway');
+  }
+
+  /**
+   * Emittiert `erinnerung.snoozed` Event an alle Clients im Einsatz-Room.
+   *
+   * **Story 2.1 AC2:** WebSocket Event fuer Team-Sync bei Snooze
+   *
+   * @param payload - Event-Payload mit erinnerungId, einsatzId, snoozedBy, snoozedUntil, snoozeMinutes, snoozeCount, timestamp
+   */
+  emitErinnerungSnoozed(payload: ErinnerungSnoozedPayload): void {
+    const roomName = this.getRoomName(payload.einsatzId);
+    this.server.to(roomName).emit('erinnerung.snoozed', payload);
+    this.logger.log(`Emitted erinnerung.snoozed to room ${roomName}: erinnerungId=${payload.erinnerungId}, snoozeMinutes=${payload.snoozeMinutes}`, 'ErinnerungGateway');
   }
 
   /**

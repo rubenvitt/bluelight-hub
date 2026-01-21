@@ -5,6 +5,7 @@ import { ILogger } from '@domain/ports/i-logger.port';
 import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
 import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
 import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
+import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 import { LOGGER } from '@infrastructure/di-tokens';
 // biome-ignore lint/style/useImportType: ErinnerungGateway needed for DI at runtime
 import { ErinnerungGateway } from '@/modules/erinnerung/gateways/erinnerung.gateway';
@@ -183,6 +184,61 @@ export class ErinnerungWebSocketEventAdapter {
       // Fire-and-Forget: Fehler loggen, aber nicht propagieren
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to emit WebSocket event for ErinnerungSnoozed: erinnerungId=${event.erinnerungId}, error=${errorMessage}`, 'ErinnerungWebSocketEventAdapter');
+    }
+  }
+
+  /**
+   * Empfaengt ErinnerungRetriggeredEvent und emittiert WebSocket Event.
+   *
+   * **Story 2.2 AC4:** WebSocket Event fuer Team-Sync bei erneuter Ausloesung nach Snooze
+   *
+   * **Event Flow:**
+   * 1. OutboxEventPublisher emittiert 'erinnerung.retriggered' Event
+   * 2. NestJS EventEmitter ruft diese Methode auf (via @OnEvent)
+   * 3. Diese Methode emittiert WebSocket Event via ErinnerungGateway
+   *
+   * @param event - Das empfangene Domain Event
+   */
+  @OnEvent(ErinnerungRetriggeredEvent.eventName())
+  async onErinnerungRetriggered(event: ErinnerungRetriggeredEvent): Promise<void> {
+    this.logger.log(
+      `Processing ErinnerungRetriggered for WebSocket: erinnerungId=${event.erinnerungId}, einsatzId=${event.einsatzId}, snoozeCount=${event.snoozeCount}`,
+      'ErinnerungWebSocketEventAdapter',
+    );
+
+    // Graceful Degradation: Wenn Gateway nicht verfuegbar, nur loggen
+    if (!this.gateway) {
+      this.logger.error(
+        'ErinnerungGateway not available - WebSocket event will not be emitted. Check module configuration and ensure ErinnerungGateway is properly registered.',
+        'ErinnerungWebSocketEventAdapter',
+      );
+      return;
+    }
+
+    // H1 Workaround: Race Condition Prevention - Delay to ensure DB commit is completed
+    // Problem: OutboxEventPublisher emittiert Events innerhalb der Transaction, aber der
+    // WebSocket-Client koennte die DB vor dem Commit abfragen und veraltete Daten sehen.
+    // Loesung: 50ms Delay ist ein pragmatischer Workaround. Eine sauberere Loesung waere
+    // ein separater "post-commit" Event Bus, aber das erfordert groessere Architektur-Aenderung.
+    // Die 50ms funktionieren in der Praxis zuverlaessig fuer typische DB-Commit-Zeiten.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    try {
+      // WebSocket Event emittieren
+      this.gateway.emitErinnerungRetriggered({
+        erinnerungId: event.erinnerungId.toString(),
+        einsatzId: event.einsatzId.toString(),
+        titel: event.titel,
+        snoozeCount: event.snoozeCount,
+        isRetrigger: true,
+        timestamp: event.retriggeredAm.toISOString(),
+      });
+
+      this.logger.log(`WebSocket event emitted for ErinnerungRetriggered: erinnerungId=${event.erinnerungId}, snoozeCount=${event.snoozeCount}`, 'ErinnerungWebSocketEventAdapter');
+    } catch (error) {
+      // Fire-and-Forget: Fehler loggen, aber nicht propagieren
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to emit WebSocket event for ErinnerungRetriggered: erinnerungId=${event.erinnerungId}, error=${errorMessage}`, 'ErinnerungWebSocketEventAdapter');
     }
   }
 }

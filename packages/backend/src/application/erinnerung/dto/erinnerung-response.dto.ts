@@ -87,4 +87,11 @@ export class ErinnerungResponseDto {
     example: '2026-01-19T15:00:00.000Z',
   })
   updatedAt!: string;
+
+  @ApiProperty({
+    description: 'Anzahl der bisherigen Snooze-Vorgaenge (Story 2.2 AC2)',
+    example: 0,
+    minimum: 0,
+  })
+  snoozeCount!: number;
 }

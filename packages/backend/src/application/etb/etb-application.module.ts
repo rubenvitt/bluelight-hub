@@ -18,6 +18,7 @@ import {
   ErinnerungAusgeloestEventHandler,
   ErinnerungAcknowledgedEventHandler,
   ErinnerungSnoozedEventHandler,
+  ErinnerungRetriggeredEventHandler,
 } from './event-handlers';
 import { EtbQueryMapper } from './mappers';
 import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler, GetTextbausteineHandler } from './queries';
@@ -159,6 +160,11 @@ import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler
       provide: EVENT_HANDLER.ERINNERUNG_SNOOZED_ETB,
       useClass: ErinnerungSnoozedEventHandler,
     },
+    // ErinnerungRetriggered Event Handler (Story 2.2 AC2) - ETB-Eintrag bei erneuter Ausloesung nach Snooze
+    {
+      provide: EVENT_HANDLER.ERINNERUNG_RETRIGGERED_ETB,
+      useClass: ErinnerungRetriggeredEventHandler,
+    },
 
     // Mappers (Story 3.3)
     EtbQueryMapper,
@@ -192,6 +198,7 @@ import { GetEintraegeQueryHandler, GetEtbHistoryQueryHandler, GetEtbQueryHandler
     EVENT_HANDLER.ERINNERUNG_AUSGELOEST_ETB,
     EVENT_HANDLER.ERINNERUNG_ACKNOWLEDGED_ETB,
     EVENT_HANDLER.ERINNERUNG_SNOOZED_ETB,
+    EVENT_HANDLER.ERINNERUNG_RETRIGGERED_ETB,
 
     // Mappers (Story 3.3)
     EtbQueryMapper,

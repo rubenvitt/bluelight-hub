@@ -207,6 +207,13 @@ export class ErinnerungStatus extends ValueObject<ErinnerungStatusProps> {
   }
 
   /**
+   * Prüft ob der Status snoozed (verschoben) ist (Story 2.2).
+   */
+  public isSnoozed(): boolean {
+    return this.value === 'SNOOZED';
+  }
+
+  /**
    * Prüft ob die Erinnerung noch aktiv ist (nicht erledigt).
    */
   public isActive(): boolean {

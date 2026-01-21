@@ -45,6 +45,8 @@ import type { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktu
 import type { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.event';
 import type { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
 import type { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
+import type { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
+import type { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 
 /**
  * Serialisiertes Event-Payload für Outbox-Persistierung.
@@ -264,6 +266,10 @@ export class EventSerializer {
         return this.serializeErinnerungAusgeloest(event as unknown as ErinnerungAusgeloestEvent);
       case 'erinnerung.acknowledged':
         return this.serializeErinnerungAcknowledged(event as unknown as ErinnerungAcknowledgedEvent);
+      case 'erinnerung.snoozed':
+        return this.serializeErinnerungSnoozed(event as unknown as ErinnerungSnoozedEvent);
+      case 'erinnerung.retriggered':
+        return this.serializeErinnerungRetriggered(event as unknown as ErinnerungRetriggeredEvent);
 
       default:
         throw new Error(`Unknown event type: ${eventName}. EventSerializer needs to be updated.`);
@@ -715,6 +721,37 @@ export class EventSerializer {
       acknowledgedAm: event.acknowledgedAm.toISOString(), // Date → ISO string
       acknowledgedBy: event.acknowledgedBy.toString(), // UserId → string
       titel: event.titel, // Already primitive string
+    };
+  }
+
+  /**
+   * Serialisiert ErinnerungSnoozedEvent (Story 2.1).
+   */
+  private serializeErinnerungSnoozed(event: ErinnerungSnoozedEvent): Record<string, unknown> {
+    return {
+      erinnerungId: event.erinnerungId.toString(), // ErinnerungId → string
+      einsatzId: event.einsatzId.toString(), // EinsatzId → string
+      snoozedAt: event.snoozedAt.toISOString(), // Date → ISO string
+      snoozedUntil: event.snoozedUntil.toISOString(), // Date → ISO string
+      snoozedBy: event.snoozedBy.toString(), // UserId → string
+      snoozeMinutes: event.snoozeMinutes, // Already primitive number
+      snoozeCount: event.snoozeCount, // Already primitive number
+      titel: event.titel, // Already primitive string
+    };
+  }
+
+  /**
+   * Serialisiert ErinnerungRetriggeredEvent (Story 2.2).
+   */
+  private serializeErinnerungRetriggered(event: ErinnerungRetriggeredEvent): Record<string, unknown> {
+    return {
+      erinnerungId: event.erinnerungId.toString(), // ErinnerungId → string
+      einsatzId: event.einsatzId.toString(), // EinsatzId → string
+      retriggeredAm: event.retriggeredAm.toISOString(), // Date → ISO string
+      titel: event.titel, // Already primitive string
+      erstelltVon: event.erstelltVon.toString(), // UserId → string
+      snoozeCount: event.snoozeCount, // Already primitive number
+      previousSnoozedAt: event.previousSnoozedAt?.toISOString() ?? null, // Date | null → ISO string | null
     };
   }
 }

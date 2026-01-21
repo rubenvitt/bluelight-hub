@@ -12,6 +12,7 @@ import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.ev
 import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
 import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
 import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
+import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 
 /**
  * Props für die Erstellung einer neuen Erinnerung.
@@ -531,37 +532,55 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
   }
 
   /**
-   * Löst eine Erinnerung bei Fälligkeit aus.
+   * Löst eine geplante oder gesnoozede Erinnerung bei Fälligkeit aus.
    *
-   * **Business Rules (Story 1.5):**
-   * - Nur Erinnerungen mit Status GEPLANT können ausgelöst werden
+   * **Business Rules (Story 1.5 + Story 2.2):**
+   * - Nur Erinnerungen mit Status GEPLANT oder SNOOZED können ausgelöst werden
    * - Bei anderen Status wird ein Fehler zurückgegeben
-   * - Setzt Status auf AUSGELOEST und speichert Auslösezeitpunkt
-   * - Emittiert ErinnerungAusgeloestEvent für ETB-Integration und WebSocket
+   * - Setzt Status auf AUSGELOEST und speichert/aktualisiert Auslösezeitpunkt
+   * - Bei GEPLANT → Emittiert ErinnerungAusgeloestEvent (erster Trigger)
+   * - Bei SNOOZED → Emittiert ErinnerungRetriggeredEvent (Re-Trigger nach Snooze)
+   * - snoozeCount bleibt unverändert (wurde bereits bei Snooze erhöht)
    *
    * @returns Result<void> - Success oder Failure mit Error Code
    *
    * @example
    * ```typescript
+   * // Erster Trigger (GEPLANT → AUSGELOEST)
    * const triggerResult = erinnerung.ausloesen();
    * if (triggerResult.isFailure) {
-   *   // Nur GEPLANT kann ausgelöst werden
    *   console.log(triggerResult.error); // "ERINNERUNG_NOT_TRIGGERABLE"
    * }
+   *
+   * // Re-Trigger nach Snooze (SNOOZED → AUSGELOEST)
+   * // Emittiert ErinnerungRetriggeredEvent mit snoozeCount
    * ```
    */
   public ausloesen(): Result<void> {
-    // Business Rule: Nur GEPLANT Status kann ausgelöst werden (AC1)
-    if (!this._status.isGeplant()) {
+    // Business Rule: Nur GEPLANT oder SNOOZED Status kann ausgelöst werden (AC1 + Story 2.2)
+    const isGeplant = this._status.isGeplant();
+    const isSnoozed = this._status.isSnoozed();
+
+    if (!isGeplant && !isSnoozed) {
       return Result.fail<void>('ERINNERUNG_NOT_TRIGGERABLE');
     }
+
+    // Story 2.2: Detect Re-Trigger für unterschiedliches Event
+    const isRetrigger = isSnoozed;
+    const previousSnoozedAt = this._snoozedAt;
 
     // Status-Wechsel durchführen
     this._status = ErinnerungStatus.AUSGELOEST();
     this._ausgeloestAm = new Date();
 
-    // Domain Event emittieren für ETB-Integration und WebSocket
-    this.addDomainEvent(new ErinnerungAusgeloestEvent(this.id, this._einsatzId, this._ausgeloestAm, this._titel.value, this._erstelltVon, this.id.toString()));
+    // Domain Event emittieren - unterschiedliches Event für Re-Trigger
+    if (isRetrigger) {
+      // Story 2.2: Re-Trigger nach Snooze - enthält Snooze-Historie für ETB
+      this.addDomainEvent(new ErinnerungRetriggeredEvent(this.id, this._einsatzId, this._ausgeloestAm, this._titel.value, this._erstelltVon, this._snoozeCount, previousSnoozedAt, this.id.toString()));
+    } else {
+      // Story 1.5: Erster Trigger
+      this.addDomainEvent(new ErinnerungAusgeloestEvent(this.id, this._einsatzId, this._ausgeloestAm, this._titel.value, this._erstelltVon, this.id.toString()));
+    }
 
     return Result.ok<void>(undefined);
   }

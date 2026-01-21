@@ -251,10 +251,11 @@ describe('TriggerErinnerungHandler', () => {
       expect(result.error).toBe(ERINNERUNG_ERROR_CODES.NOT_TRIGGERABLE);
     });
 
-    it('should return NOT_TRIGGERABLE when erinnerung has SNOOZED status', async () => {
-      // Given (Arrange)
+    it('should allow trigger when erinnerung has SNOOZED status (Story 2.2 Re-Trigger)', async () => {
+      // Given (Arrange) - SNOOZED Erinnerung kann nach Snooze-Ablauf re-triggered werden
       const mockErinnerung = createMockErinnerung(ErinnerungStatus.SNOOZED());
       mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung));
+      mockErinnerungRepository.save.mockResolvedValue(Result.ok(undefined));
 
       const commandResult = createValidCommand(mockErinnerung.id.toString());
       const command = commandResult.value!;
@@ -262,9 +263,9 @@ describe('TriggerErinnerungHandler', () => {
       // When (Act)
       const result = await handler.execute(command);
 
-      // Then (Assert)
-      expect(result.isFailure).toBe(true);
-      expect(result.error).toBe(ERINNERUNG_ERROR_CODES.NOT_TRIGGERABLE);
+      // Then (Assert) - Story 2.2 erlaubt Re-Trigger von SNOOZED
+      expect(result.isSuccess).toBe(true);
+      expect(mockErinnerungRepository.save).toHaveBeenCalled();
     });
 
     it('should return NOT_TRIGGERABLE when erinnerung has ERLEDIGT status', async () => {

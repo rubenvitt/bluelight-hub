@@ -30,6 +30,10 @@
  * - Audio wird bei Snooze gestoppt
  * - Optimistic Update fuer Status → SNOOZED
  *
+ * **Story 2.2 AC2 (Re-Trigger Badge):**
+ * - Bei snoozeCount > 0 und Status AUSGELOEST: Badge "X. Auslösung"
+ * - Zeigt dem User optisch, dass es ein Re-Trigger nach Snooze ist
+ *
  * **UX-Verbesserungen (Keyboard Support):**
  * - Bei AUSGELOEST Status: Gesamte Card mit Enter bestaetigbar
  * - Escape-Taste: 5 Min Snooze (Standard)
@@ -96,6 +100,9 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
   const isSnoozeable = erinnerung.status === 'AUSGELOEST';
   // Story 1.8 AC1: Offline erstellte Erinnerung (temp_ ID)
   const isOfflineCreated = syncService.isTempId(erinnerung.id);
+  // Story 2.2 AC2: Re-Trigger Badge anzeigen wenn snoozeCount > 0 und AUSGELOEST
+  const isRetrigger = isTriggered && (erinnerung.snoozeCount ?? 0) > 0;
+  const retriggerNumber = (erinnerung.snoozeCount ?? 0) + 1; // 1. Auslösung = 0 Snoozes + 1
 
   const handleEdit = useCallback(() => {
     if (isEditable) {
@@ -223,6 +230,18 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
               >
                 <PiCloudSlash className="h-3 w-3" aria-hidden="true" />
                 Offline
+              </span>
+            )}
+            {/* Story 2.2 AC2: Re-Trigger Badge bei Snooze-Wiederholung */}
+            {isRetrigger && (
+              // biome-ignore lint/a11y/useSemanticElements: span mit role="status" ist hier korrekt fuer inline Status-Badge
+              <span
+                role="status"
+                aria-label={`${retriggerNumber}. Auslösung nach Snooze`}
+                className="inline-flex items-center gap-1 rounded-full bg-red-100 px-1.5 py-0.5 font-medium text-red-700 text-xs dark:bg-red-900/40 dark:text-red-300"
+                title={`${retriggerNumber}. Auslösung - wurde ${retriggerNumber - 1}x gesnoozed`}
+              >
+                {retriggerNumber}. Auslösung
               </span>
             )}
           </div>

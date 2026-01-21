@@ -218,6 +218,36 @@ class NotificationService {
     });
   }
 
+  /**
+   * Sendet eine intensivierte Re-Notification (Story 2.3 AC3)
+   *
+   * Wird aufgerufen wenn 30 Sekunden ohne Reaktion vergangen sind.
+   * Zeigt eine dringlichere Benachrichtigung mit "Überfällig - Bitte reagieren!" Body.
+   *
+   * @param erinnerungTitle - Titel der Erinnerung
+   * @param erinnerungId - ID der Erinnerung für Deep Link
+   * @param einsatzId - ID des Einsatzes für Deep Link
+   * @returns Promise mit Erfolgs-Status
+   *
+   * @example
+   * ```typescript
+   * // Bei Intensivierung nach 30s
+   * await notificationService.sendIntensifiedNotification(
+   *   'Funkgerät prüfen',
+   *   'erinnerung-123',
+   *   'einsatz-456'
+   * );
+   * ```
+   */
+  async sendIntensifiedNotification(erinnerungTitle: string, erinnerungId?: string, einsatzId?: string): Promise<NotificationResult> {
+    return this.send({
+      title: `⚠️ Erinnerung: ${erinnerungTitle}`,
+      body: 'Überfällig - Bitte reagieren!',
+      erinnerungId,
+      einsatzId,
+    });
+  }
+
   // ===================
   // Tauri Implementation
   // ===================
@@ -408,4 +438,5 @@ export const checkNotificationPermission = () => notificationService.checkPermis
 export const requestNotificationPermission = () => notificationService.requestPermission();
 export const sendNotification = (options: SendNotificationOptions) => notificationService.send(options);
 export const sendErinnerungNotification = (title: string, erinnerungId?: string, einsatzId?: string) => notificationService.sendErinnerungNotification(title, erinnerungId, einsatzId);
+export const sendIntensifiedNotification = (title: string, erinnerungId?: string, einsatzId?: string) => notificationService.sendIntensifiedNotification(title, erinnerungId, einsatzId);
 export const isNotificationSupported = () => notificationService.isSupported();

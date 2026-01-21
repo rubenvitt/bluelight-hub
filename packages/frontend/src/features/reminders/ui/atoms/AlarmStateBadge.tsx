@@ -12,6 +12,11 @@ type ErinnerungStatus = 'GEPLANT' | 'AUSGELOEST' | 'ACKNOWLEDGED' | 'SNOOZED' | 
 type UrgencyLevel = 'normal' | 'warning' | 'urgent';
 
 /**
+ * Intensivierungs-Level für AUSGELOEST Status (Story 2.3)
+ */
+type IntensityLevel = 'none' | 'warning' | 'urgent';
+
+/**
  * Props für AlarmStateBadge Komponente
  */
 interface AlarmStateBadgeProps {
@@ -23,6 +28,14 @@ interface AlarmStateBadgeProps {
   size?: 'sm' | 'md' | 'lg';
   /** Zusätzliche CSS-Klassen */
   className?: string;
+  /**
+   * Intensivierungs-Level bei AUSGELOEST Status (Story 2.3)
+   *
+   * - 'none': Standard-Animation (normales Pulsieren)
+   * - 'warning': Schnelleres Pulsieren nach 30s ohne Reaktion
+   * - 'urgent': Intensivstes Pulsieren nach 60s (Story 2.4)
+   */
+  intensityLevel?: IntensityLevel;
 }
 
 /**
@@ -145,6 +158,34 @@ function getColors(status: ErinnerungStatus, minutesUntilDue?: number): { bg: st
 }
 
 /**
+ * Holt die Animations-Klasse basierend auf Status und Intensivierungs-Level (Story 2.3)
+ *
+ * @param status - Aktueller Erinnerungs-Status
+ * @param intensityLevel - Aktuelles Intensivierungs-Level
+ * @returns Animations-Klassen für Badge und Icon
+ */
+function getAnimationClasses(status: ErinnerungStatus, intensityLevel: IntensityLevel): { badge: string; icon: string } {
+  // Nur AUSGELOEST bekommt Animationen
+  if (status !== 'AUSGELOEST') {
+    return { badge: '', icon: '' };
+  }
+
+  // Story 2.3: Intensivierte Animationen
+  if (intensityLevel === 'urgent') {
+    // Stufe 2 (Story 2.4): Schnellstes Pulsieren
+    return { badge: 'animate-pulse-fast', icon: 'animate-bounce' };
+  }
+
+  if (intensityLevel === 'warning') {
+    // Stufe 1 (Story 2.3): Schnelleres Pulsieren
+    return { badge: 'animate-pulse-fast', icon: 'animate-bounce' };
+  }
+
+  // Standard: Normales Pulsieren
+  return { badge: 'animate-pulse', icon: 'animate-bounce' };
+}
+
+/**
  * AlarmStateBadge - Visuelles Status-Badge für Erinnerungen
  *
  * Zeigt den aktuellen Status einer Erinnerung mit:
@@ -153,22 +194,27 @@ function getColors(status: ErinnerungStatus, minutesUntilDue?: number): { bg: st
  * - Deutschem Status-Text
  * - Progressive Farbwechsel bei GEPLANT (basierend auf verbleibender Zeit)
  * - Pulse-Animation bei AUSGELOEST
+ * - Intensivierte Animation bei Nicht-Reaktion (Story 2.3)
  *
  * @example
  * <AlarmStateBadge status="GEPLANT" minutesUntilDue={3} />
  * <AlarmStateBadge status="AUSGELOEST" />
+ * <AlarmStateBadge status="AUSGELOEST" intensityLevel="warning" />
  */
-export function AlarmStateBadge({ status, minutesUntilDue, size = 'md', className }: AlarmStateBadgeProps) {
+export function AlarmStateBadge({ status, minutesUntilDue, size = 'md', className, intensityLevel = 'none' }: AlarmStateBadgeProps) {
   const Icon = STATUS_ICONS[status];
   const label = STATUS_LABELS[status];
   const colors = getColors(status, minutesUntilDue);
   const sizeClasses = SIZE_CLASSES[size];
-  const isPulsing = status === 'AUSGELOEST';
+  const animationClasses = getAnimationClasses(status, intensityLevel);
 
   // Issue #10 WCAG Fix: Text-Indikation der Urgency (nicht nur Farbe)
   const urgencyLevel = status === 'GEPLANT' ? getUrgencyLevel(minutesUntilDue) : 'normal';
   const urgencySuffix = status === 'GEPLANT' ? URGENCY_LABELS[urgencyLevel] : '';
-  const displayLabel = `${label}${urgencySuffix}`;
+
+  // Story 2.3: Intensivierungs-Suffix für Screen Reader
+  const intensitySuffix = status === 'AUSGELOEST' && intensityLevel !== 'none' ? ' (Intensiviert)' : '';
+  const displayLabel = `${label}${urgencySuffix}${intensitySuffix}`;
 
   return (
     <output
@@ -182,14 +228,16 @@ export function AlarmStateBadge({ status, minutesUntilDue, size = 'md', classNam
         colors.bg,
         colors.text,
         colors.dark,
-        // Animation für AUSGELOEST
-        isPulsing && 'animate-pulse',
+        // Animation (Story 2.3: intensitätsabhängig)
+        animationClasses.badge,
         // Custom classes
         className,
       )}
     >
-      <Icon className={cn(sizeClasses.icon, isPulsing && 'animate-bounce')} aria-hidden="true" />
-      {displayLabel}
+      <Icon className={cn(sizeClasses.icon, animationClasses.icon)} aria-hidden="true" />
+      {/* Story 2.3: Visuellen Suffix nur bei Intensivierung anzeigen */}
+      {label}
+      {urgencySuffix}
     </output>
   );
 }

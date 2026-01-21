@@ -6,6 +6,7 @@
  * 2. OS Notification zeigen
  * 3. API POST /erinnerungen/:id/trigger aufrufen
  * 4. TanStack Query Cache invalidieren
+ * 5. Intensification Timer starten (Story 2.3)
  *
  * **Story 1.5 AC1, AC2, AC3, AC4, AC6:**
  * - AC1: Timer-basiertes Ausloesen (Status GEPLANT → AUSGELOEST)
@@ -18,6 +19,13 @@
  * - AC1: Nach Snooze-Ablauf automatisches Re-Triggern (Status SNOOZED → AUSGELOEST)
  * - AC3: Sound/Notification werden erneut abgespielt
  * - TimerService ueberwacht auch SNOOZED Status (faelligAm = snoozedUntil)
+ *
+ * **Story 2.3 AC1, AC2, AC3, AC4, AC5:**
+ * - AC1: Sound-Eskalation nach 30 Sekunden (info → warning)
+ * - AC2: Visuelle Intensivierung (via Store)
+ * - AC3: Re-Notification mit "Überfällig - Bitte reagieren!"
+ * - AC4: Intensivierung stoppt bei Reaktion
+ * - AC5: Nur fuer AUSGELOEST Status
  */
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -25,7 +33,8 @@ import type { ErinnerungResponseDto } from '@bluelight-hub/shared/client';
 import { logger } from '@/shared/lib/logger';
 import { toast } from 'sonner';
 import { useTriggerErinnerung } from '../api';
-import { timerService, soundService, sendErinnerungNotification, requestNotificationPermission } from '../services';
+import { timerService, soundService, sendErinnerungNotification, sendIntensifiedNotification, requestNotificationPermission, intensificationService } from '../services';
+import type { IntensityLevel } from '../stores/intensification.store';
 
 /**
  * Optionen fuer den Alarm Trigger Hook
@@ -67,6 +76,14 @@ export interface UseAlarmTriggerOptions {
    * Wird aufgerufen wenn eine Trigger-Aktion fehlschlaegt.
    */
   onTriggerError?: (erinnerung: ErinnerungResponseDto, error: Error) => void;
+
+  /**
+   * Callback bei Alarm-Intensivierung (Story 2.3)
+   *
+   * Wird aufgerufen wenn das Intensivierungs-Level sich aendert (nach 30s/60s).
+   * Nuetzlich fuer zusaetzliche UI-Updates oder Analytics.
+   */
+  onIntensify?: (erinnerung: ErinnerungResponseDto, level: IntensityLevel) => void;
 }
 
 /**
@@ -90,22 +107,70 @@ export interface UseAlarmTriggerOptions {
  * });
  * ```
  */
-export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTriggerSuccess, onTriggerError }: UseAlarmTriggerOptions) {
+export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTriggerSuccess, onTriggerError, onIntensify }: UseAlarmTriggerOptions) {
   // API Mutation fuer Backend-Trigger
   const triggerMutation = useTriggerErinnerung();
 
   // Ref um aktuelle Callbacks im Timer-Callback zu haben
-  const callbacksRef = useRef({ onTriggerSuccess, onTriggerError });
-  callbacksRef.current = { onTriggerSuccess, onTriggerError };
+  const callbacksRef = useRef({ onTriggerSuccess, onTriggerError, onIntensify });
+  callbacksRef.current = { onTriggerSuccess, onTriggerError, onIntensify };
 
   // Ref um aktuelle einsatzId im Timer-Callback zu haben
   const einsatzIdRef = useRef(einsatzId);
   einsatzIdRef.current = einsatzId;
 
+  // Ref fuer Erinnerungen um sie im Intensification-Callback zu haben
+  const erinnerungenRef = useRef(erinnerungen);
+  erinnerungenRef.current = erinnerungen;
+
   // Ref für mutateAsync um Effect-Loop zu vermeiden
   // (triggerMutation ändert sich bei State-Änderungen wie isPending)
   const mutateAsyncRef = useRef(triggerMutation.mutateAsync);
   mutateAsyncRef.current = triggerMutation.mutateAsync;
+
+  /**
+   * Callback fuer Intensivierungs-Events (Story 2.3)
+   *
+   * Wird vom IntensificationService aufgerufen wenn ein Level-Wechsel stattfindet.
+   * Fuehrt Sound-Eskalation und Re-Notification aus.
+   *
+   * **Wichtig:** Diese Funktion hat KEINE Dependencies um Effect-Loops zu vermeiden.
+   */
+  const handleIntensification = useCallback(
+    async (erinnerungId: string, level: IntensityLevel) => {
+      const currentEinsatzId = einsatzIdRef.current;
+      const erinnerung = erinnerungenRef.current.find((e) => e.id === erinnerungId);
+
+      if (!erinnerung) {
+        logger.warn(`[AlarmTrigger] Intensification fuer unbekannte Erinnerung: ${erinnerungId}`);
+        return;
+      }
+
+      logger.info(`[AlarmTrigger] Intensification: ${erinnerung.titel} -> ${level}`);
+
+      // Story 2.3 AC1: Sound-Eskalation
+      if (level === 'warning' || level === 'urgent') {
+        try {
+          await soundService.escalateToLevel(level);
+        } catch (err) {
+          logger.warn(`[AlarmTrigger] Sound escalation failed (non-critical): ${err}`);
+        }
+      }
+
+      // Story 2.3 AC3: Re-Notification
+      if (level === 'warning' || level === 'urgent') {
+        try {
+          await sendIntensifiedNotification(erinnerung.titel, erinnerung.id, currentEinsatzId);
+        } catch (err) {
+          logger.warn(`[AlarmTrigger] Intensified notification failed (non-critical): ${err}`);
+        }
+      }
+
+      // Callback an Consumer
+      callbacksRef.current.onIntensify?.(erinnerung, level);
+    },
+    [], // Keine Dependencies - alle Werte ueber Refs
+  );
 
   /**
    * Fuehrt die komplette Trigger-Sequenz aus
@@ -114,6 +179,8 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
    * API-Fehler werden an onTriggerError propagiert
    *
    * H6 Fix: Wenn Sound UND Notification fehlschlagen, zeige Toast als Fallback
+   *
+   * **Story 2.3:** Startet Intensification Timer nach erfolgreichem Trigger
    *
    * **Wichtig:** Diese Funktion hat KEINE Dependencies um Effect-Loops zu vermeiden.
    * Alle veränderlichen Werte werden über Refs gelesen.
@@ -164,6 +231,11 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
         });
 
         logger.info(`[AlarmTrigger] Trigger sequence completed: ${erinnerung.titel}`);
+
+        // 4. Story 2.3: Intensification Timer starten
+        // Timer startet ab jetzt, nicht ab ausgeloestAm im DTO
+        intensificationService.startTimer(erinnerung.id, Date.now(), handleIntensification);
+
         callbacksRef.current.onTriggerSuccess?.(erinnerung);
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
@@ -171,13 +243,15 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
         callbacksRef.current.onTriggerError?.(erinnerung, err);
       }
     },
-    [], // Keine Dependencies - alle Werte über Refs
+    [handleIntensification], // handleIntensification ist stabil (leeres Dependency Array)
   );
 
   // Timer starten/stoppen basierend auf enabled und erinnerungen
   useEffect(() => {
     if (!enabled || !erinnerungen.length) {
       timerService.stop();
+      // Story 2.3: Alle Intensification Timer stoppen
+      intensificationService.stopAllTimers();
       return;
     }
 
@@ -190,6 +264,8 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
     // Cleanup bei Unmount oder Dependency-Change
     return () => {
       timerService.stop();
+      // Story 2.3: Alle Intensification Timer stoppen
+      intensificationService.stopAllTimers();
     };
   }, [enabled, erinnerungen, einsatzId, executeTriggerSequence]);
 
@@ -238,9 +314,21 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
      * Reset einer getriggerten Erinnerung (fuer Snooze)
      *
      * Erlaubt erneutes Triggern einer Erinnerung.
+     * Story 2.3 AC4: Stoppt auch den Intensification Timer.
      */
     resetTriggered: (erinnerungId: string) => {
       timerService.resetTriggered(erinnerungId);
+      // Story 2.3 AC4: Intensification Timer stoppen bei Snooze
+      intensificationService.stopTimer(erinnerungId);
+    },
+
+    /**
+     * Stoppt den Intensification Timer fuer eine Erinnerung (Story 2.3 AC4)
+     *
+     * Wird aufgerufen bei Acknowledge oder Snooze.
+     */
+    stopIntensification: (erinnerungId: string) => {
+      intensificationService.stopTimer(erinnerungId);
     },
   };
 }

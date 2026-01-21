@@ -204,6 +204,7 @@ export * from './SetupInviteCodeDto';
 export * from './SetupResponseDto';
 export * from './SetupTokenDto';
 export * from './SetupUserDto';
+export * from './SnoozeErinnerungDto';
 export * from './StammFahrzeugDto';
 export * from './StammPersonDto';
 export * from './StammPersonQualifikationDto';

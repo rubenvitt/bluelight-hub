@@ -6,16 +6,69 @@
  * **Story 1.3 AC1:** Liste zeigt alle Erinnerungen
  * **Story 1.3 AC3:** Bearbeiten nur bei GEPLANT Status
  * **Story 1.5:** Automatischer Alarm bei Faelligkeit
+ * **Story 1.7 AC5:** Sortierung nach Urgency Level
+ * **Story 1.8 AC1:** Offline-Banner und Sync-Status
  */
 
-import { PiAlarm, PiPlus } from 'react-icons/pi';
-import { toast } from 'sonner';
+import { useMemo } from 'react';
+import type { ErinnerungResponseDto } from '@/shared';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
+import { PiAlarm, PiPlus } from 'react-icons/pi';
+import { toast } from 'sonner';
 import { useErinnerungenByEinsatz } from '../../api';
-import { useAlarmTrigger } from '../../hooks';
+import { useAlarmTrigger, useOfflineStatus, useReconnectSync, useTrayBadge, useTrayClickNavigation } from '../../hooks';
 import { openQuickCreateDialog } from '../../stores';
+import { getUrgencyLevel } from '../../utils/countdown-utils';
 import { ErinnerungCard } from './ErinnerungCard';
+import { OfflineBanner } from './OfflineBanner';
+
+/**
+ * Story 1.7 AC5: Berechnet Sortierungs-Priorität basierend auf Status und Urgency
+ *
+ * Priorität (niedrigere Zahl = höhere Priorität):
+ * - AUSGELOEST: 0 (höchste Priorität - sofortige Aufmerksamkeit)
+ * - GEPLANT critical: 1
+ * - GEPLANT urgent: 2
+ * - GEPLANT warning: 3
+ * - GEPLANT normal: 4
+ * - ACKNOWLEDGED: 5
+ * - SNOOZED: 6
+ * - ERLEDIGT: 7 (niedrigste Priorität)
+ */
+function getSortPriority(erinnerung: ErinnerungResponseDto): number {
+  const status = erinnerung.status;
+
+  // AUSGELOEST immer oben
+  if (status === 'AUSGELOEST') return 0;
+
+  // GEPLANT mit Urgency-basierter Sortierung
+  if (status === 'GEPLANT') {
+    const now = new Date();
+    const faelligAm = new Date(erinnerung.faelligAm);
+    const remainingMs = faelligAm.getTime() - now.getTime();
+    const urgency = getUrgencyLevel(remainingMs);
+
+    switch (urgency) {
+      case 'critical':
+        return 1;
+      case 'urgent':
+        return 2;
+      case 'warning':
+        return 3;
+      default:
+        return 4;
+    }
+  }
+
+  // Andere Status nach Priorität
+  if (status === 'ACKNOWLEDGED') return 5;
+  if (status === 'SNOOZED') return 6;
+  if (status === 'ERLEDIGT') return 7;
+
+  // Fallback für unbekannte Status
+  return 8;
+}
 
 interface ErinnerungenListProps {
   /** Einsatz-ID fuer die Erinnerungen */
@@ -34,6 +87,14 @@ interface ErinnerungenListProps {
  */
 export function ErinnerungenList({ einsatzId, className, compact = false }: ErinnerungenListProps) {
   const { data: erinnerungen, isLoading, error } = useErinnerungenByEinsatz({ einsatzId });
+
+  // Story 1.8: Offline-Status und Sync-Handling
+  const { isOffline, pendingActionsCount, offlineSince } = useOfflineStatus();
+  const { isSyncing } = useReconnectSync(einsatzId);
+
+  // Story 1.9: Tray-Badge synchronisieren und Tray-Click Navigation
+  useTrayBadge();
+  useTrayClickNavigation(einsatzId);
 
   // Story 1.5: Alarm Trigger Hook fuer automatische Erinnerungs-Ausloesung
   useAlarmTrigger({
@@ -57,14 +118,21 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
     openQuickCreateDialog(einsatzId);
   };
 
-  // Sortiere Erinnerungen: GEPLANT zuerst (nach Faelligkeit), dann AUSGELOEST
-  const sortedErinnerungen = [...(erinnerungen ?? [])].sort((a, b) => {
-    // GEPLANT kommt vor AUSGELOEST
-    if (a.status === 'GEPLANT' && b.status !== 'GEPLANT') return -1;
-    if (a.status !== 'GEPLANT' && b.status === 'GEPLANT') return 1;
-    // Innerhalb gleicher Status nach Faelligkeit sortieren
-    return new Date(a.faelligAm).getTime() - new Date(b.faelligAm).getTime();
-  });
+  // Story 1.7 AC5: Sortiere nach Urgency Level und dann nach Fälligkeit
+  const sortedErinnerungen = useMemo(() => {
+    return [...(erinnerungen ?? [])].sort((a, b) => {
+      // Primär: Nach Priorität (AUSGELOEST > GEPLANT urgent > ... > ERLEDIGT)
+      const priorityA = getSortPriority(a);
+      const priorityB = getSortPriority(b);
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      // Sekundär: Innerhalb gleicher Priorität nach Fälligkeit aufsteigend
+      return new Date(a.faelligAm).getTime() - new Date(b.faelligAm).getTime();
+    });
+  }, [erinnerungen]);
 
   if (isLoading) {
     return (
@@ -85,6 +153,9 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
 
   return (
     <div className={className}>
+      {/* Story 1.8 AC1: Offline-Banner */}
+      <OfflineBanner isOffline={isOffline} pendingCount={pendingActionsCount} isSyncing={isSyncing} offlineSince={offlineSince} className="mb-2 rounded-lg" />
+
       {/* Header (nur wenn nicht kompakt) */}
       {!compact && (
         <div className="mb-4 flex items-center justify-between">
@@ -104,7 +175,7 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
 
       {/* Liste oder Empty State */}
       {sortedErinnerungen.length === 0 ? (
-        <div className={cn('rounded-lg border border-dashed border-gray-300 p-6 text-center dark:border-gray-600', compact && 'p-4')}>
+        <div className={cn('rounded-lg border border-gray-300 border-dashed p-6 text-center dark:border-gray-600', compact && 'p-4')}>
           <PiAlarm className="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" />
           <p className="mt-2 text-gray-500 text-sm dark:text-gray-400">Keine Erinnerungen vorhanden</p>
           <Button size="sm" appearance="ghost" className="mt-3" onClick={handleCreateClick}>

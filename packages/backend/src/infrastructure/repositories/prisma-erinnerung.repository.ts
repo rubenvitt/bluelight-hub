@@ -115,6 +115,14 @@ export class PrismaErinnerungRepository implements IErinnerungRepository {
           isDeleted: data.isDeleted,
           deletedAt: data.deletedAt,
           deletedBy: data.deletedBy,
+          // Acknowledge Felder (Story 1.6) - werden bei acknowledge() gesetzt
+          acknowledgedAm: data.acknowledgedAm,
+          acknowledgedBy: data.acknowledgedBy,
+          // Snooze Felder (Story 2.1) - werden bei snooze() gesetzt
+          snoozedAt: data.snoozedAt,
+          snoozedBy: data.snoozedBy,
+          snoozedUntil: data.snoozedUntil,
+          snoozeCount: data.snoozeCount,
           // einsatzId und erstelltVon sind immutable nach Erstellung
         },
       });

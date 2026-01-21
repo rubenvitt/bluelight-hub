@@ -23,6 +23,7 @@ import { ErinnerungTitel } from '@domain/value-objects/erinnerung-titel';
 import { UserId } from '@domain/value-objects/user-id';
 import { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktualisiert.event';
 import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.event';
+import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
 
 describe('Erinnerung Entity', () => {
   let testEinsatzId: EinsatzId;
@@ -631,6 +632,252 @@ describe('Erinnerung Entity', () => {
         expect(erinnerung.isDeleted).toBe(false);
         expect(erinnerung.deletedAt).toBeNull();
         expect(erinnerung.deletedBy).toBeNull();
+      });
+    });
+  });
+
+  // ============================================================
+  // acknowledge() Tests (Story 1.6)
+  // ============================================================
+
+  describe('acknowledge()', () => {
+    describe('Status Validation (AC1)', () => {
+      it('sollte Acknowledge erlauben wenn Status AUSGELOEST ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+
+        // When
+        const result = erinnerung.acknowledge(testUserId);
+
+        // Then
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.status.isAcknowledged()).toBe(true);
+      });
+
+      it('sollte Acknowledge verweigern wenn Status GEPLANT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.GEPLANT());
+
+        // When
+        const result = erinnerung.acknowledge(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_ACKNOWLEDGEABLE');
+      });
+
+      it('sollte Acknowledge verweigern wenn Status ACKNOWLEDGED ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+
+        // When
+        const result = erinnerung.acknowledge(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_ACKNOWLEDGEABLE');
+      });
+
+      it('sollte Acknowledge verweigern wenn Status SNOOZED ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.SNOOZED());
+
+        // When
+        const result = erinnerung.acknowledge(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_ACKNOWLEDGEABLE');
+      });
+
+      it('sollte Acknowledge verweigern wenn Status ESKALIERT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ESKALIERT());
+
+        // When
+        const result = erinnerung.acknowledge(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_ACKNOWLEDGEABLE');
+      });
+
+      it('sollte Acknowledge verweigern wenn Status ERLEDIGT ist', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ERLEDIGT());
+
+        // When
+        const result = erinnerung.acknowledge(testUserId);
+
+        // Then
+        expect(result.isFailure).toBe(true);
+        expect(result.error).toBe('ERINNERUNG_NOT_ACKNOWLEDGEABLE');
+      });
+    });
+
+    describe('Acknowledge Properties', () => {
+      it('sollte Status auf ACKNOWLEDGED setzen', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+
+        // When
+        erinnerung.acknowledge(testUserId);
+
+        // Then
+        expect(erinnerung.status.value).toBe('ACKNOWLEDGED');
+      });
+
+      it('sollte acknowledgedAm setzen', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+        const beforeAcknowledge = new Date();
+
+        // When
+        erinnerung.acknowledge(testUserId);
+
+        // Then
+        const afterAcknowledge = new Date();
+        expect(erinnerung.acknowledgedAm).not.toBeNull();
+        expect(erinnerung.acknowledgedAm!.getTime()).toBeGreaterThanOrEqual(beforeAcknowledge.getTime());
+        expect(erinnerung.acknowledgedAm!.getTime()).toBeLessThanOrEqual(afterAcknowledge.getTime());
+      });
+
+      it('sollte acknowledgedBy setzen', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+        const acknowledgingUser = UserId.create().value!;
+
+        // When
+        erinnerung.acknowledge(acknowledgingUser);
+
+        // Then
+        expect(erinnerung.acknowledgedBy).toBe(acknowledgingUser);
+      });
+
+      it('sollte acknowledgedAm als Kopie zurueckgeben (Immutabilitaet)', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+        erinnerung.acknowledge(testUserId);
+
+        // When
+        const acknowledgedAm1 = erinnerung.acknowledgedAm;
+        const acknowledgedAm2 = erinnerung.acknowledgedAm;
+
+        // Then: Verschiedene Objekte, gleicher Wert
+        expect(acknowledgedAm1).not.toBe(acknowledgedAm2);
+        expect(acknowledgedAm1!.getTime()).toBe(acknowledgedAm2!.getTime());
+      });
+    });
+
+    describe('Domain Event Emission', () => {
+      it('sollte ErinnerungAcknowledgedEvent emittieren', () => {
+        // Given
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.acknowledge(testUserId);
+
+        // Then
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(1);
+        expect(events[0]).toBeInstanceOf(ErinnerungAcknowledgedEvent);
+      });
+
+      it('sollte Event mit korrekten Properties emittieren', () => {
+        // Given
+        const id = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Lagebesprechung').value!;
+        const erinnerung = Erinnerung.reconstruct({
+          id,
+          einsatzId: testEinsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+          status: ErinnerungStatus.AUSGELOEST(),
+          erstelltVon: testUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        erinnerung.clearDomainEvents();
+        const acknowledgingUser = UserId.create().value!;
+
+        // When
+        erinnerung.acknowledge(acknowledgingUser);
+
+        // Then
+        const event = erinnerung.getDomainEvents()[0] as ErinnerungAcknowledgedEvent;
+        expect(event.erinnerungId).toBe(erinnerung.id);
+        expect(event.einsatzId).toBe(erinnerung.einsatzId);
+        expect(event.acknowledgedBy).toBe(acknowledgingUser);
+        expect(event.titel).toBe('Lagebesprechung');
+        expect(event.acknowledgedAm).toBeDefined();
+      });
+
+      it('sollte kein Event emittieren bei Validierungsfehler', () => {
+        // Given: GEPLANT Status - nicht acknowledgeable
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.GEPLANT());
+        erinnerung.clearDomainEvents();
+
+        // When
+        erinnerung.acknowledge(testUserId);
+
+        // Then
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(0);
+      });
+    });
+
+    describe('reconstruct() mit Acknowledge', () => {
+      it('sollte acknowledged Erinnerung korrekt rekonstruieren', () => {
+        // Given
+        const id = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Test').value!;
+        const acknowledgedAm = new Date();
+        const acknowledgedBy = UserId.create().value!;
+
+        // When
+        const erinnerung = Erinnerung.reconstruct({
+          id,
+          einsatzId: testEinsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+          status: ErinnerungStatus.ACKNOWLEDGED(),
+          erstelltVon: testUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          acknowledgedAm,
+          acknowledgedBy,
+        });
+
+        // Then
+        expect(erinnerung.status.isAcknowledged()).toBe(true);
+        expect(erinnerung.acknowledgedAm).toEqual(acknowledgedAm);
+        expect(erinnerung.acknowledgedBy).toBe(acknowledgedBy);
+      });
+
+      it('sollte nicht-acknowledged Erinnerung korrekt rekonstruieren (Defaults)', () => {
+        // Given
+        const id = ErinnerungId.create().value!;
+        const titel = ErinnerungTitel.create('Test').value!;
+
+        // When: Ohne Acknowledge Felder
+        const erinnerung = Erinnerung.reconstruct({
+          id,
+          einsatzId: testEinsatzId,
+          titel,
+          beschreibung: null,
+          faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+          status: ErinnerungStatus.GEPLANT(),
+          erstelltVon: testUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        // Then: Defaults
+        expect(erinnerung.acknowledgedAm).toBeNull();
+        expect(erinnerung.acknowledgedBy).toBeNull();
       });
     });
   });

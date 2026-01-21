@@ -234,6 +234,7 @@ models/SetupInviteCodeDto.ts
 models/SetupResponseDto.ts
 models/SetupTokenDto.ts
 models/SetupUserDto.ts
+models/SnoozeErinnerungDto.ts
 models/StammFahrzeugDto.ts
 models/StammPersonDto.ts
 models/StammPersonQualifikationDto.ts

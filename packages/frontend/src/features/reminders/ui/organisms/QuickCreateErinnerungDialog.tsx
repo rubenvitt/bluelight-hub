@@ -183,7 +183,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                 {(minutenField) => (
                   <form.Field name="customTime">
                     {(customTimeField) => (
-                      <fieldset className="border-none p-0 m-0">
+                      <fieldset className="m-0 border-none p-0">
                         <legend className="mb-2 font-medium text-gray-700 text-sm dark:text-gray-300">
                           Erinnern in <span className="text-red-500">*</span>
                         </legend>
@@ -203,7 +203,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                               }}
                               disabled={isPending}
                               className={cn(
-                                'rounded-full px-4 py-2 min-h-[48px] font-medium text-sm transition-all duration-200',
+                                'min-h-[48px] rounded-full px-4 py-2 font-medium text-sm transition-all duration-200',
                                 'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800',
                                 timeModeField.state.value === 'preset' && minutenField.state.value === preset.value
                                   ? 'bg-amber-500 text-white shadow-md hover:bg-amber-600'
@@ -229,7 +229,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                             }}
                             disabled={isPending}
                             className={cn(
-                              'rounded-full px-4 py-2 min-h-[48px] font-medium text-sm transition-all duration-200',
+                              'min-h-[48px] rounded-full px-4 py-2 font-medium text-sm transition-all duration-200',
                               'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800',
                               'flex items-center gap-1.5',
                               timeModeField.state.value === 'custom'

@@ -112,6 +112,10 @@ export class TimerService {
    *
    * Loescht den Interval und setzt den internen Zustand zurueck.
    * Kann sicher mehrfach aufgerufen werden.
+   *
+   * **WICHTIG:** triggeredIds werden NICHT geleert um React StrictMode
+   * double-mount zu unterstuetzen. Bei Einsatz-Wechsel werden sie
+   * automatisch in start() geleert.
    */
   stop(): void {
     if (this.intervalId !== null) {
@@ -119,10 +123,22 @@ export class TimerService {
       this.intervalId = null;
     }
 
-    // Reset internal state
+    // Reset internal state (aber triggeredIds behalten fuer Deduplizierung!)
     this.currentErinnerungen = [];
     this.onTriggerCallback = null;
+    // triggeredIds werden NICHT geleert - das uebernimmt start() bei Einsatz-Wechsel
+  }
+
+  /**
+   * Setzt den kompletten Timer-State zurueck inkl. triggeredIds
+   *
+   * Nutze diese Methode nur wenn ein vollstaendiger Reset erwuenscht ist,
+   * z.B. beim Verlassen der Einsatz-Seite.
+   */
+  reset(): void {
+    this.stop();
     this.triggeredIds.clear();
+    this.currentEinsatzId = null;
   }
 
   /**

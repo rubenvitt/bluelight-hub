@@ -23,4 +23,6 @@ export * from './rolle-freigegeben-event.adapter';
 export * from './erinnerung-aktualisiert-event.adapter';
 export * from './erinnerung-geloescht-event.adapter';
 export * from './erinnerung-ausgeloest-event.adapter';
+export * from './erinnerung-acknowledged-event.adapter';
 export * from './erinnerung-websocket-event.adapter';
+export * from './erinnerung-snoozed-event.adapter';

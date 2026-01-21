@@ -12,6 +12,7 @@ import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { ERINNERUNG_REPOSITORY, LOGGER, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
 import type { TriggerErinnerungCommand } from './trigger-erinnerung.command';
 import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
+import type { ErinnerungResponseDto } from '../../dto/erinnerung-response.dto';
 
 /**
  * Handler zum Ausloesen einer Erinnerung bei Faelligkeit.
@@ -21,11 +22,6 @@ import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
  * und Event-Publikation (ErinnerungAusgeloestEvent). Ohne Transaktional Pattern
  * koennte der Status geaendert werden, aber das Event nicht in Outbox landen
  * (oder umgekehrt), was zu inkonsistenten Zustaenden fuehrt.
- *
- * **WARUM void Result:**
- * Trigger-Operation ist idempotent und hat keine Business-Rueckgabewerte.
- * Client benoetigt nur HTTP Status (204 No Content) zur Bestaetigung.
- * Vermeidet unnoetige Serialisierung und Response-Overhead.
  *
  * **Story 1.5:** Alarm bei Faelligkeit ausloesen
  * - AC1: Status wechselt zu AUSGELOEST
@@ -42,7 +38,7 @@ import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
  * @see ErinnerungAusgeloestEvent - Emittiertes Domain Event
  */
 @Injectable()
-export class TriggerErinnerungHandler extends TransactionalCommandHandler<TriggerErinnerungCommand, void> {
+export class TriggerErinnerungHandler extends TransactionalCommandHandler<TriggerErinnerungCommand, ErinnerungResponseDto> {
   constructor(
     prisma: PrismaService,
     @Inject(OUTBOX_REPOSITORY) outboxRepository: IOutboxRepository,
@@ -60,21 +56,21 @@ export class TriggerErinnerungHandler extends TransactionalCommandHandler<Trigge
    * 1. Value Objects erstellen (ErinnerungId)
    * 2. Erinnerung Aggregate laden
    * 3. Entity.ausloesen() aufrufen (Business Rules enforced)
-   * 4. Im Repository persistieren (status + ausgeloestAm)
-   * 5. Domain Events sammeln
-   * 6. void Result zurueckgeben
+   * 4. Domain Events sammeln
+   * 5. Im Repository persistieren (status + ausgeloestAm)
+   * 6. Response DTO erstellen und zurueckgeben
    *
    * @param command - Validierter TriggerErinnerungCommand
    * @param tx - Transaction Context fuer atomare Operationen
-   * @returns Result mit void oder Error
+   * @returns Result mit ErinnerungResponseDto oder Error
    */
-  protected async executeInTransaction(command: TriggerErinnerungCommand, tx: TransactionContext): Promise<Result<void> | { result: void; events: DomainEvent[] }> {
+  protected async executeInTransaction(command: TriggerErinnerungCommand, tx: TransactionContext): Promise<Result<ErinnerungResponseDto> | { result: ErinnerungResponseDto; events: DomainEvent[] }> {
     // ════════════════════════════════════════════════════════════════════════
     // 1. Value Objects erstellen
     // ════════════════════════════════════════════════════════════════════════
     const erinnerungIdResult = ErinnerungId.create(command.erinnerungId);
     if (erinnerungIdResult.isFailure || !erinnerungIdResult.value) {
-      return Result.fail<void>(erinnerungIdResult.error ?? ERINNERUNG_ERROR_CODES.ID_INVALID);
+      return Result.fail<ErinnerungResponseDto>(erinnerungIdResult.error ?? ERINNERUNG_ERROR_CODES.ID_INVALID);
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -83,13 +79,13 @@ export class TriggerErinnerungHandler extends TransactionalCommandHandler<Trigge
     const findResult = await this.erinnerungRepository.findById(erinnerungIdResult.value, tx);
     if (findResult.isFailure) {
       this.logger.error(`Failed to load Erinnerung: ${findResult.error}`, 'TriggerErinnerungHandler');
-      return Result.fail<void>(findResult.error ?? ERINNERUNG_ERROR_CODES.NOT_FOUND);
+      return Result.fail<ErinnerungResponseDto>(findResult.error ?? ERINNERUNG_ERROR_CODES.NOT_FOUND);
     }
 
     const erinnerung = findResult.value;
     if (!erinnerung) {
       this.logger.warn(`Erinnerung not found: ${command.erinnerungId}`, 'TriggerErinnerungHandler');
-      return Result.fail<void>(ERINNERUNG_ERROR_CODES.NOT_FOUND);
+      return Result.fail<ErinnerungResponseDto>(ERINNERUNG_ERROR_CODES.NOT_FOUND);
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -101,7 +97,7 @@ export class TriggerErinnerungHandler extends TransactionalCommandHandler<Trigge
       // Mappe Domain Errors zu Error Codes
       const errorCode = this.mapDomainErrorToCode(triggerResult.error);
       this.logger.warn(`Trigger failed: ${triggerResult.error} (id: ${command.erinnerungId})`, 'TriggerErinnerungHandler');
-      return Result.fail<void>(errorCode);
+      return Result.fail<ErinnerungResponseDto>(errorCode);
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -119,7 +115,7 @@ export class TriggerErinnerungHandler extends TransactionalCommandHandler<Trigge
     const saveResult = await this.erinnerungRepository.save(erinnerung, tx);
     if (saveResult.isFailure) {
       this.logger.error(`Failed to save triggered Erinnerung: ${saveResult.error}`, 'TriggerErinnerungHandler');
-      return Result.fail<void>(saveResult.error ?? ERINNERUNG_ERROR_CODES.SAVE_FAILED);
+      return Result.fail<ErinnerungResponseDto>(saveResult.error ?? ERINNERUNG_ERROR_CODES.SAVE_FAILED);
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -128,10 +124,22 @@ export class TriggerErinnerungHandler extends TransactionalCommandHandler<Trigge
     this.logger.log(`Erinnerung ausgeloest (id: ${erinnerung.id.toString()}, titel: "${erinnerung.titel.value}")`, 'TriggerErinnerungHandler');
 
     // ════════════════════════════════════════════════════════════════════════
-    // 7. void Result mit Events zurueckgeben
+    // 7. Response DTO erstellen und zurueckgeben
     // ════════════════════════════════════════════════════════════════════════
+    const responseDto: ErinnerungResponseDto = {
+      id: erinnerung.id.toString(),
+      einsatzId: erinnerung.einsatzId.toString(),
+      titel: erinnerung.titel.value,
+      beschreibung: erinnerung.beschreibung ?? null,
+      faelligAm: erinnerung.faelligAm.toISOString(),
+      status: erinnerung.status.value,
+      erstelltVon: erinnerung.erstelltVon.toString(),
+      createdAt: erinnerung.createdAt.toISOString(),
+      updatedAt: erinnerung.updatedAt.toISOString(),
+    };
+
     return {
-      result: undefined,
+      result: responseDto,
       events,
     };
   }

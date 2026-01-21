@@ -79,17 +79,48 @@ describe('TimeInput', () => {
       expect(onChange).toHaveBeenCalledWith({ hours: 23, minutes: 0 });
     });
 
-    it('should reject non-numeric input', () => {
+    it('should reject non-numeric input and not call onChange during typing', () => {
       // Given (Arrange)
       const onChange = vi.fn();
       render(<TimeInput value={{ hours: 14, minutes: 30 }} onChange={onChange} />);
 
       // When (Act)
       const hoursInput = screen.getByLabelText(/stunden/i);
+      fireEvent.focus(hoursInput);
       fireEvent.change(hoursInput, { target: { value: 'abc' } });
 
-      // Then (Assert) - Should fall back to 0 when no numeric value
+      // Then (Assert) - Should not call onChange when input is non-numeric (empty after filtering)
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to 0 on blur when input is empty', () => {
+      // Given (Arrange)
+      const onChange = vi.fn();
+      render(<TimeInput value={{ hours: 14, minutes: 30 }} onChange={onChange} />);
+
+      // When (Act) - Focus, clear input, then blur
+      const hoursInput = screen.getByLabelText(/stunden/i);
+      fireEvent.focus(hoursInput);
+      fireEvent.change(hoursInput, { target: { value: '' } });
+      fireEvent.blur(hoursInput);
+
+      // Then (Assert) - Should fall back to 0 on blur
       expect(onChange).toHaveBeenCalledWith({ hours: 0, minutes: 30 });
+    });
+
+    it('should allow user to clear and re-enter value', () => {
+      // Given (Arrange)
+      const onChange = vi.fn();
+      render(<TimeInput value={{ hours: 14, minutes: 30 }} onChange={onChange} />);
+
+      // When (Act) - Focus, clear, then enter new value
+      const hoursInput = screen.getByLabelText(/stunden/i);
+      fireEvent.focus(hoursInput);
+      fireEvent.change(hoursInput, { target: { value: '' } });
+      fireEvent.change(hoursInput, { target: { value: '9' } });
+
+      // Then (Assert) - Should call onChange with the new value
+      expect(onChange).toHaveBeenCalledWith({ hours: 9, minutes: 30 });
     });
   });
 

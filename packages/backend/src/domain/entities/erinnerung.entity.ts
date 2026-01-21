@@ -10,6 +10,8 @@ import { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktualisi
 import type { ErinnerungAenderungen } from '@domain/events/erinnerung-aktualisiert.event';
 import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.event';
 import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
+import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
+import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
 
 /**
  * Props für die Erstellung einer neuen Erinnerung.
@@ -55,6 +57,18 @@ export interface ReconstructErinnerungProps {
   deletedBy?: UserId | null;
   /** Zeitpunkt der Auslösung (Story 1.5) */
   ausgeloestAm?: Date | null;
+  /** Zeitpunkt der Bestätigung (Story 1.6) */
+  acknowledgedAm?: Date | null;
+  /** User der bestätigt hat (Story 1.6) */
+  acknowledgedBy?: UserId | null;
+  /** Zeitpunkt der Snooze-Aktion (Story 2.1) */
+  snoozedAt?: Date | null;
+  /** User der gesnoozed hat (Story 2.1) */
+  snoozedBy?: UserId | null;
+  /** Neue Fälligkeit nach Snooze (Story 2.1) */
+  snoozedUntil?: Date | null;
+  /** Anzahl der Snoozes (Story 2.1) */
+  snoozeCount?: number;
 }
 
 /**
@@ -110,6 +124,16 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
 
   // Auslösung Feld (Story 1.5)
   private _ausgeloestAm: Date | null;
+
+  // Bestätigung Felder (Story 1.6)
+  private _acknowledgedAm: Date | null;
+  private _acknowledgedBy: UserId | null;
+
+  // Snooze Felder (Story 2.1)
+  private _snoozedAt: Date | null;
+  private _snoozedBy: UserId | null;
+  private _snoozedUntil: Date | null;
+  private _snoozeCount: number;
 
   // ============================================================
   // Readonly Getters
@@ -180,6 +204,57 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     return this._ausgeloestAm ? new Date(this._ausgeloestAm.getTime()) : null;
   }
 
+  // Bestätigung Getters (Story 1.6)
+
+  /**
+   * Gibt den Zeitpunkt der Bestätigung zurück.
+   * Null wenn noch nicht bestätigt.
+   */
+  get acknowledgedAm(): Date | null {
+    return this._acknowledgedAm ? new Date(this._acknowledgedAm.getTime()) : null;
+  }
+
+  /**
+   * Gibt den User zurück der bestätigt hat.
+   * Null wenn noch nicht bestätigt.
+   */
+  get acknowledgedBy(): UserId | null {
+    return this._acknowledgedBy;
+  }
+
+  // Snooze Getters (Story 2.1)
+
+  /**
+   * Gibt den Zeitpunkt der Snooze-Aktion zurück.
+   * Null wenn nicht gesnoozed.
+   */
+  get snoozedAt(): Date | null {
+    return this._snoozedAt ? new Date(this._snoozedAt.getTime()) : null;
+  }
+
+  /**
+   * Gibt den User zurück der gesnoozed hat.
+   * Null wenn nicht gesnoozed.
+   */
+  get snoozedBy(): UserId | null {
+    return this._snoozedBy;
+  }
+
+  /**
+   * Gibt die neue Fälligkeit nach Snooze zurück.
+   * Null wenn nicht gesnoozed.
+   */
+  get snoozedUntil(): Date | null {
+    return this._snoozedUntil ? new Date(this._snoozedUntil.getTime()) : null;
+  }
+
+  /**
+   * Gibt die Anzahl der Snoozes zurück.
+   */
+  get snoozeCount(): number {
+    return this._snoozeCount;
+  }
+
   // ============================================================
   // Private Constructor (erzwingt Factory Methods)
   // ============================================================
@@ -198,6 +273,12 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     deletedAt: Date | null = null,
     deletedBy: UserId | null = null,
     ausgeloestAm: Date | null = null,
+    acknowledgedAm: Date | null = null,
+    acknowledgedBy: UserId | null = null,
+    snoozedAt: Date | null = null,
+    snoozedBy: UserId | null = null,
+    snoozedUntil: Date | null = null,
+    snoozeCount = 0,
   ) {
     super(id, createdAt, updatedAt);
     this._einsatzId = einsatzId;
@@ -210,6 +291,12 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     this._deletedAt = deletedAt;
     this._deletedBy = deletedBy;
     this._ausgeloestAm = ausgeloestAm;
+    this._acknowledgedAm = acknowledgedAm;
+    this._acknowledgedBy = acknowledgedBy;
+    this._snoozedAt = snoozedAt;
+    this._snoozedBy = snoozedBy;
+    this._snoozedUntil = snoozedUntil;
+    this._snoozeCount = snoozeCount;
   }
 
   // ============================================================
@@ -292,6 +379,12 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       props.deletedAt ?? null,
       props.deletedBy ?? null,
       props.ausgeloestAm ?? null,
+      props.acknowledgedAm ?? null,
+      props.acknowledgedBy ?? null,
+      props.snoozedAt ?? null,
+      props.snoozedBy ?? null,
+      props.snoozedUntil ?? null,
+      props.snoozeCount ?? 0,
     );
   }
 
@@ -469,6 +562,100 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
 
     // Domain Event emittieren für ETB-Integration und WebSocket
     this.addDomainEvent(new ErinnerungAusgeloestEvent(this.id, this._einsatzId, this._ausgeloestAm, this._titel.value, this._erstelltVon, this.id.toString()));
+
+    return Result.ok<void>(undefined);
+  }
+
+  /**
+   * Bestätigt eine ausgelöste Erinnerung (1-Tap Acknowledge).
+   *
+   * **Business Rules (Story 1.6):**
+   * - Nur Erinnerungen mit Status AUSGELOEST können bestätigt werden
+   * - Bei anderen Status wird ein Fehler zurückgegeben
+   * - Setzt Status auf ACKNOWLEDGED und speichert Bestätigungszeitpunkt + User
+   * - Emittiert ErinnerungAcknowledgedEvent für ETB-Integration und WebSocket
+   *
+   * @param acknowledgedBy - User der die Erinnerung bestätigt (für Audit-Trail)
+   * @returns Result<void> - Success oder Failure mit Error Code
+   *
+   * @example
+   * ```typescript
+   * const acknowledgeResult = erinnerung.acknowledge(userId);
+   * if (acknowledgeResult.isFailure) {
+   *   // Nur AUSGELOEST kann acknowledged werden
+   *   console.log(acknowledgeResult.error); // "ERINNERUNG_NOT_ACKNOWLEDGEABLE"
+   * }
+   * ```
+   */
+  public acknowledge(acknowledgedBy: UserId): Result<void> {
+    // Business Rule: Nur AUSGELOEST Status kann acknowledged werden (AC1)
+    if (!this._status.isAusgeloest()) {
+      return Result.fail<void>('ERINNERUNG_NOT_ACKNOWLEDGEABLE');
+    }
+
+    // Status-Wechsel durchführen
+    this._status = ErinnerungStatus.ACKNOWLEDGED();
+    this._acknowledgedAm = new Date();
+    this._acknowledgedBy = acknowledgedBy;
+
+    // Domain Event emittieren für ETB-Integration und WebSocket
+    this.addDomainEvent(new ErinnerungAcknowledgedEvent(this.id, this._einsatzId, this._acknowledgedAm, this._acknowledgedBy, this._titel.value, this.id.toString()));
+
+    return Result.ok<void>(undefined);
+  }
+
+  /**
+   * Verschiebt eine ausgelöste Erinnerung (Snooze).
+   *
+   * **Business Rules (Story 2.1):**
+   * - Nur Erinnerungen mit Status AUSGELOEST können gesnoozed werden
+   * - Bei anderen Status wird ein Fehler zurückgegeben
+   * - Setzt Status auf SNOOZED und aktualisiert faelligAm auf neue Zeit
+   * - Speichert Snooze-Zeitpunkt, User und neue Fälligkeit für Audit-Trail
+   * - Erhöht snoozeCount um 1
+   * - Emittiert ErinnerungSnoozedEvent für ETB-Integration und WebSocket
+   *
+   * @param snoozedBy - User der die Erinnerung snoozed (für Audit-Trail)
+   * @param snoozeMinutes - Snooze-Dauer in Minuten (1, 5, oder 10)
+   * @returns Result<void> - Success oder Failure mit Error Code
+   *
+   * @example
+   * ```typescript
+   * const snoozeResult = erinnerung.snooze(userId, 5);
+   * if (snoozeResult.isFailure) {
+   *   // Nur AUSGELOEST kann gesnoozed werden
+   *   console.log(snoozeResult.error); // "ERINNERUNG_NOT_SNOOZEABLE"
+   * }
+   * ```
+   */
+  public snooze(snoozedBy: UserId, snoozeMinutes: number): Result<void> {
+    // Business Rule: Nur AUSGELOEST Status kann gesnoozed werden (AC2)
+    if (!this._status.isAusgeloest()) {
+      return Result.fail<void>('ERINNERUNG_NOT_SNOOZEABLE');
+    }
+
+    // Validiere snoozeMinutes (nur 1, 5, 10 erlaubt)
+    const validMinutes = [1, 5, 10];
+    if (!validMinutes.includes(snoozeMinutes)) {
+      return Result.fail<void>('ERINNERUNG_SNOOZE_MINUTES_INVALID');
+    }
+
+    // Neue Fälligkeit berechnen
+    const snoozedAt = new Date();
+    const snoozedUntil = new Date(snoozedAt.getTime() + snoozeMinutes * 60 * 1000);
+
+    // Status-Wechsel und Felder aktualisieren
+    this._status = ErinnerungStatus.SNOOZED();
+    this._snoozedAt = snoozedAt;
+    this._snoozedBy = snoozedBy;
+    this._snoozedUntil = snoozedUntil;
+    this._snoozeCount = this._snoozeCount + 1;
+
+    // faelligAm aktualisieren (für Re-Trigger in Story 2.2)
+    this._faelligAm = snoozedUntil;
+
+    // Domain Event emittieren für ETB-Integration und WebSocket
+    this.addDomainEvent(new ErinnerungSnoozedEvent(this.id, this._einsatzId, snoozedAt, snoozedUntil, snoozedBy, snoozeMinutes, this._snoozeCount, this._titel.value, this.id.toString()));
 
     return Result.ok<void>(undefined);
   }

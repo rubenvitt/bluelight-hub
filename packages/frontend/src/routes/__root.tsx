@@ -6,6 +6,7 @@ import { setSetupRedirectInProgress } from '@/shared/lib/server-access-token';
 import { useDeepLinkEffect } from '@/features/server/hooks/useDeepLinkEffect';
 import { useLoadServers } from '@/features/server/hooks';
 import { urlParamsSchema } from '@/features/server/schemas/url-params.schema';
+import { useNotificationNavigation } from '@/features/reminders/hooks';
 
 // Reset Setup-Redirect-Flag beim App-Start - ABER NICHT wenn wir auf /server/setup sind!
 // Grund: Nach einem Full-Page-Redirect zu /server/setup (via window.location.href) wird die App
@@ -109,6 +110,9 @@ function RootComponent() {
 
   // Deep Link Integration für Desktop App
   useDeepLinkEffect();
+
+  // Notification Navigation - registriert Callback für Deep Links bei Notification-Klick
+  useNotificationNavigation();
 
   return (
     <Provider>

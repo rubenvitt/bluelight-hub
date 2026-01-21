@@ -11,6 +11,8 @@ import { CreateErinnerungHandler } from '@/application/erinnerung/commands/creat
 import { UpdateErinnerungHandler } from '@/application/erinnerung/commands/update-erinnerung/update-erinnerung.handler';
 import { DeleteErinnerungHandler } from '@/application/erinnerung/commands/delete-erinnerung/delete-erinnerung.handler';
 import { TriggerErinnerungHandler } from '@/application/erinnerung/commands/trigger-erinnerung/trigger-erinnerung.handler';
+import { AcknowledgeErinnerungHandler } from '@/application/erinnerung/commands/acknowledge-erinnerung/acknowledge-erinnerung.handler';
+import { SnoozeErinnerungHandler } from '@/application/erinnerung/commands/snooze-erinnerung/snooze-erinnerung.handler';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
 import { ErinnerungController } from './controllers/erinnerung.controller';
 import { ErinnerungGateway } from './gateways/erinnerung.gateway';
@@ -59,6 +61,8 @@ import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
     UpdateErinnerungHandler,
     DeleteErinnerungHandler,
     TriggerErinnerungHandler,
+    AcknowledgeErinnerungHandler,
+    SnoozeErinnerungHandler,
     GetErinnerungenByEinsatzHandler,
     // WebSocket (Story 1.5 AC4 + Security C1, C2, C3)
     ErinnerungGateway,
@@ -70,6 +74,8 @@ import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
     UpdateErinnerungHandler,
     DeleteErinnerungHandler,
     TriggerErinnerungHandler,
+    AcknowledgeErinnerungHandler,
+    SnoozeErinnerungHandler,
     GetErinnerungenByEinsatzHandler,
     ErinnerungGateway, // Export for WebSocket Event Adapter
   ],

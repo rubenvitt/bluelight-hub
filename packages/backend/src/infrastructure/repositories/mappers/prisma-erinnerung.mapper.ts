@@ -62,7 +62,27 @@ export class PrismaErinnerungMapper {
       deletedBy = deletedByResult.value;
     }
 
-    // 7. Entity via reconstruct() rekonstruieren (keine Events, keine Validierung)
+    // 7. Acknowledge: acknowledgedBy rekonstruieren (optional) (Story 1.6)
+    let acknowledgedBy: UserId | null = null;
+    if (prisma.acknowledgedBy) {
+      const acknowledgedByResult = UserId.create(prisma.acknowledgedBy);
+      if (acknowledgedByResult.isFailure || !acknowledgedByResult.value) {
+        throw new Error(`Invalid acknowledgedBy UserId from DB: ${prisma.acknowledgedBy}`);
+      }
+      acknowledgedBy = acknowledgedByResult.value;
+    }
+
+    // 8. Snooze: snoozedBy rekonstruieren (optional) (Story 2.1)
+    let snoozedBy: UserId | null = null;
+    if (prisma.snoozedBy) {
+      const snoozedByResult = UserId.create(prisma.snoozedBy);
+      if (snoozedByResult.isFailure || !snoozedByResult.value) {
+        throw new Error(`Invalid snoozedBy UserId from DB: ${prisma.snoozedBy}`);
+      }
+      snoozedBy = snoozedByResult.value;
+    }
+
+    // 9. Entity via reconstruct() rekonstruieren (keine Events, keine Validierung)
     return Erinnerung.reconstruct({
       id: idResult.value,
       einsatzId: einsatzIdResult.value,
@@ -79,6 +99,14 @@ export class PrismaErinnerungMapper {
       deletedBy,
       // Auslösung Feld (Story 1.5)
       ausgeloestAm: prisma.ausgeloestAm,
+      // Acknowledge Felder (Story 1.6)
+      acknowledgedAm: prisma.acknowledgedAm,
+      acknowledgedBy,
+      // Snooze Felder (Story 2.1)
+      snoozedAt: prisma.snoozedAt,
+      snoozedBy,
+      snoozedUntil: prisma.snoozedUntil,
+      snoozeCount: prisma.snoozeCount,
     });
   }
 
@@ -101,6 +129,14 @@ export class PrismaErinnerungMapper {
     deletedBy: string | null;
     // Auslösung Feld (Story 1.5)
     ausgeloestAm: Date | null;
+    // Acknowledge Felder (Story 1.6)
+    acknowledgedAm: Date | null;
+    acknowledgedBy: string | null;
+    // Snooze Felder (Story 2.1)
+    snoozedAt: Date | null;
+    snoozedBy: string | null;
+    snoozedUntil: Date | null;
+    snoozeCount: number;
   } {
     return {
       id: entity.id.toString(),
@@ -116,6 +152,14 @@ export class PrismaErinnerungMapper {
       deletedBy: entity.deletedBy?.toString() ?? null,
       // Auslösung Feld (Story 1.5)
       ausgeloestAm: entity.ausgeloestAm,
+      // Acknowledge Felder (Story 1.6)
+      acknowledgedAm: entity.acknowledgedAm,
+      acknowledgedBy: entity.acknowledgedBy?.toString() ?? null,
+      // Snooze Felder (Story 2.1)
+      snoozedAt: entity.snoozedAt,
+      snoozedBy: entity.snoozedBy?.toString() ?? null,
+      snoozedUntil: entity.snoozedUntil,
+      snoozeCount: entity.snoozeCount,
     };
   }
 

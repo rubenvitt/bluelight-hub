@@ -16,3 +16,5 @@ export { RolleFreigegebenEventHandler } from './rolle-freigegeben.handler';
 export { ErinnerungAktualisiertEventHandler } from './erinnerung-aktualisiert.handler';
 export { ErinnerungGeloeschtEventHandler } from './erinnerung-geloescht.handler';
 export { ErinnerungAusgeloestEventHandler } from './erinnerung-ausgeloest.handler';
+export { ErinnerungAcknowledgedEventHandler } from './erinnerung-acknowledged.handler';
+export { ErinnerungSnoozedEventHandler } from './erinnerung-snoozed.handler';

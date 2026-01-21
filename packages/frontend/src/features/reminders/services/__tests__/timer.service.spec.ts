@@ -42,7 +42,7 @@ describe('TimerService', () => {
   });
 
   afterEach(() => {
-    timerService.stop();
+    timerService.reset(); // Full reset including triggeredIds for clean test state
     vi.useRealTimers();
   });
 
@@ -125,7 +125,7 @@ describe('TimerService', () => {
       expect(onTrigger).not.toHaveBeenCalled();
     });
 
-    it('should clear triggered IDs on stop', () => {
+    it('should PRESERVE triggered IDs on stop (React StrictMode fix)', () => {
       // Given (Arrange)
       const erinnerung = createTestErinnerung({
         faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
@@ -137,8 +137,8 @@ describe('TimerService', () => {
       // When (Act)
       timerService.stop();
 
-      // Then (Assert)
-      expect(timerService.getTriggeredCount()).toBe(0);
+      // Then (Assert) - triggeredIds NOT cleared, prevents double-trigger on StrictMode remount
+      expect(timerService.getTriggeredCount()).toBe(1);
     });
 
     it('should be safe to call multiple times', () => {
@@ -150,6 +150,69 @@ describe('TimerService', () => {
       timerService.stop();
       timerService.stop();
       expect(timerService.isRunning()).toBe(false);
+    });
+  });
+
+  describe('reset()', () => {
+    it('should clear triggered IDs and einsatzId on reset', () => {
+      // Given (Arrange)
+      const erinnerung = createTestErinnerung({
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
+        status: 'GEPLANT',
+      });
+      timerService.start([erinnerung], 'test-einsatz-1', vi.fn());
+      expect(timerService.getTriggeredCount()).toBe(1);
+
+      // When (Act)
+      timerService.reset();
+
+      // Then (Assert) - Full reset including triggeredIds
+      expect(timerService.getTriggeredCount()).toBe(0);
+      expect(timerService.isRunning()).toBe(false);
+    });
+
+    it('should allow same erinnerung to trigger again after reset', () => {
+      // Given (Arrange)
+      const erinnerung = createTestErinnerung({
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
+        status: 'GEPLANT',
+      });
+      const onTrigger = vi.fn();
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
+      expect(onTrigger).toHaveBeenCalledTimes(1);
+
+      // When (Act)
+      timerService.reset();
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
+
+      // Then (Assert) - Erinnerung triggers again after reset
+      expect(onTrigger).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('React StrictMode double-mount simulation', () => {
+    it('should NOT double-trigger on stop() → start() with same einsatzId (StrictMode fix)', () => {
+      // Given (Arrange) - Simulates React StrictMode: mount → immediate unmount → remount
+      const erinnerung = createTestErinnerung({
+        faelligAm: new Date(2026, 0, 19, 11, 59, 0).toISOString(),
+        status: 'GEPLANT',
+      });
+      const onTrigger = vi.fn();
+
+      // First mount: start timer, erinnerung triggers
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
+      expect(onTrigger).toHaveBeenCalledTimes(1);
+
+      // Immediate unmount (StrictMode cleanup)
+      timerService.stop();
+
+      // When (Act) - Remount (StrictMode second render)
+      timerService.start([erinnerung], 'test-einsatz-1', onTrigger);
+      vi.advanceTimersByTime(500);
+
+      // Then (Assert) - Still only triggered once (no double-trigger!)
+      expect(onTrigger).toHaveBeenCalledTimes(1);
+      expect(timerService.getTriggeredCount()).toBe(1);
     });
   });
 

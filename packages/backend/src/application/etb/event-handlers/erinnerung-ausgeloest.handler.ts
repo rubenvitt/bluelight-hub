@@ -12,12 +12,12 @@
  * @see ErinnerungAusgeloestEvent - Trigger Event (Domain Event via Outbox)
  * @see AddEintragHandler - Delegierter Command Handler
  */
-import { Inject, Injectable } from '@nestjs/common';
+import type { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
 import type { IEventHandler } from '@domain/ports/i-event-handler.port';
 // biome-ignore lint/style/useImportType: ILogger needed for DI at runtime
 import { ILogger } from '@domain/ports/i-logger.port';
-import type { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
 import { LOGGER } from '@infrastructure/di-tokens';
+import { Inject, Injectable } from '@nestjs/common';
 import { AddEintragCommand } from '../commands/add-eintrag/add-eintrag.command';
 // biome-ignore lint/style/useImportType: AddEintragHandler needed for DI at runtime
 import { AddEintragHandler } from '../commands/add-eintrag/add-eintrag.handler';
@@ -59,7 +59,7 @@ export class ErinnerungAusgeloestEventHandler implements IEventHandler<Erinnerun
       const etbId = event.einsatzId.toString();
 
       // Story 1.5 AC5: Text fuer ETB-Eintrag
-      const text = `Erinnerung '${event.titel}' ausgeloest`;
+      const text = `Erinnerung '${event.titel}' ausgelöst`;
 
       // Command erstellen mit Validierung
       const commandResult = AddEintragCommand.create(

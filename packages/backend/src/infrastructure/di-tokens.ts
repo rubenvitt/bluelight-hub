@@ -52,7 +52,14 @@ export const SERVER_CONFIG_REPOSITORY = Symbol('IServerConfigRepository');
 /** Repository Token für IEinsatzTeilnehmerRepository (Story 115) */
 export const EINSATZ_TEILNEHMER_REPOSITORY = Symbol('IEinsatzTeilnehmerRepository');
 
-/** Repository Token für IErinnerungRepository (Story 1.1 - Erinnerungen) */
+/**
+ * DI Token für IErinnerungRepository Port.
+ *
+ * Verwendung in Handlers:
+ * @example
+ * @Inject(ERINNERUNG_REPOSITORY)
+ * private readonly repo: IErinnerungRepository
+ */
 export const ERINNERUNG_REPOSITORY = Symbol('IErinnerungRepository');
 
 /**
@@ -170,6 +177,12 @@ export const EVENT_HANDLER = {
 
   /** ErinnerungAusgeloest ETB-Eintrag Handler Token (Story 1.5 AC5) */
   ERINNERUNG_AUSGELOEST_ETB: Symbol('IEventHandler<ErinnerungAusgeloestEvent>:EtbEintrag'),
+
+  /** ErinnerungAcknowledged ETB-Eintrag Handler Token (Story 1.6 AC5) */
+  ERINNERUNG_ACKNOWLEDGED_ETB: Symbol('IEventHandler<ErinnerungAcknowledgedEvent>:EtbEintrag'),
+
+  /** ErinnerungSnoozed ETB-Eintrag Handler Token (Story 2.1 AC2) */
+  ERINNERUNG_SNOOZED_ETB: Symbol('IEventHandler<ErinnerungSnoozedEvent>:EtbEintrag'),
 } as const;
 
 /**

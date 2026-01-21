@@ -154,8 +154,10 @@ model User {
   // ========================================
   // Erinnerungen Relations (Story 1.1 Erinnerungen)
   // ========================================
-  createdErinnerungen Erinnerung[] @relation("ErinnerungCreator")
-  deletedErinnerungen Erinnerung[] @relation("ErinnerungDeleter") // Story 1.4: Soft-Delete Audit Trail
+  createdErinnerungen      Erinnerung[] @relation("ErinnerungCreator")
+  deletedErinnerungen      Erinnerung[] @relation("ErinnerungDeleter") // Story 1.4: Soft-Delete Audit Trail
+  acknowledgedErinnerungen Erinnerung[] @relation("ErinnerungAcknowledger") // Story 1.6: Acknowledge Audit Trail
+  snoozedErinnerungen      Erinnerung[] @relation("ErinnerungSnoozer") // Story 2.1: Snooze Audit Trail
 
   // Indexes
   @@index([username], map: "idx_user_username")
@@ -1311,8 +1313,14 @@ model Erinnerung {
   beschreibung String?          @db.VarChar(500)
   faelligAm    DateTime         @map("faellig_am")
   status       ErinnerungStatus @default(GEPLANT)
-  ausgeloestAm DateTime?        @map("ausgeloest_am") // Story 1.5: Zeitpunkt der Auslösung
-  erstelltVon  String           @map("erstellt_von") @db.VarChar(100)
+  ausgeloestAm   DateTime?        @map("ausgeloest_am") // Story 1.5: Zeitpunkt der Auslösung
+  acknowledgedAm DateTime?        @map("acknowledged_am") // Story 1.6: Zeitpunkt der Bestätigung
+  acknowledgedBy String?          @map("acknowledged_by") @db.VarChar(100) // Story 1.6: User der bestätigt hat
+  snoozedAt      DateTime?        @map("snoozed_at") // Story 2.1: Zeitpunkt der Snooze-Aktion
+  snoozedBy      String?          @map("snoozed_by") @db.VarChar(100) // Story 2.1: User der snoozed hat
+  snoozedUntil   DateTime?        @map("snoozed_until") // Story 2.1: Neue Fälligkeit nach Snooze
+  snoozeCount    Int              @default(0) @map("snooze_count") // Story 2.1: Anzahl der Snoozes
+  erstelltVon    String           @map("erstellt_von") @db.VarChar(100)
 
   // Audit Trail
   createdAt DateTime @default(now()) @map("created_at")
@@ -1324,9 +1332,11 @@ model Erinnerung {
   deletedBy String?   @map("deleted_by") @db.VarChar(100)
 
   // Relations
-  einsatz  Einsatz @relation(fields: [einsatzId], references: [id], onDelete: Cascade)
-  ersteller User    @relation("ErinnerungCreator", fields: [erstelltVon], references: [id], onDelete: Restrict)
-  loescher  User?   @relation("ErinnerungDeleter", fields: [deletedBy], references: [id], onDelete: Restrict)
+  einsatz     Einsatz @relation(fields: [einsatzId], references: [id], onDelete: Cascade)
+  ersteller   User    @relation("ErinnerungCreator", fields: [erstelltVon], references: [id], onDelete: Restrict)
+  loescher    User?   @relation("ErinnerungDeleter", fields: [deletedBy], references: [id], onDelete: Restrict)
+  acknowledger User?   @relation("ErinnerungAcknowledger", fields: [acknowledgedBy], references: [id], onDelete: Restrict) // Story 1.6
+  snoozer      User?   @relation("ErinnerungSnoozer", fields: [snoozedBy], references: [id], onDelete: Restrict) // Story 2.1
 
   // Indexes
   @@index([einsatzId])

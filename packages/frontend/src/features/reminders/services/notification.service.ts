@@ -18,6 +18,10 @@ export interface SendNotificationOptions {
   body?: string;
   /** Optionales Icon für Web Notifications */
   icon?: string;
+  /** Erinnerung-ID für Deep Link Navigation */
+  erinnerungId?: string;
+  /** Einsatz-ID für Deep Link Navigation */
+  einsatzId?: string;
 }
 
 /**
@@ -188,7 +192,7 @@ class NotificationService {
 
     // Nutze Tauri nur wenn Plugin wirklich verfügbar
     if (isTauri() && this.tauriPluginAvailable) {
-      return this.sendTauriNotification(title, body);
+      return this.sendTauriNotification(title, body, options.erinnerungId, options.einsatzId);
     }
 
     return this.sendWebNotification(title, body, options.icon);
@@ -198,14 +202,19 @@ class NotificationService {
    * Sendet eine Erinnerungs-Benachrichtigung mit Standard-Format
    *
    * Convenience-Methode für Erinnerungen mit konsistentem Format.
+   * Nutzt High Importance Channel und Deep Link Action für Navigation.
    *
    * @param erinnerungTitle - Titel der Erinnerung
+   * @param erinnerungId - ID der Erinnerung für Deep Link
+   * @param einsatzId - ID des Einsatzes für Deep Link
    * @returns Promise mit Erfolgs-Status
    */
-  async sendErinnerungNotification(erinnerungTitle: string): Promise<NotificationResult> {
+  async sendErinnerungNotification(erinnerungTitle: string, erinnerungId?: string, einsatzId?: string): Promise<NotificationResult> {
     return this.send({
       title: `Erinnerung: ${erinnerungTitle}`,
       body: 'Jetzt fällig',
+      erinnerungId,
+      einsatzId,
     });
   }
 
@@ -260,18 +269,30 @@ class NotificationService {
   }
 
   /**
-   * Sendet Tauri Native Notification
+   * Sendet Tauri Native Notification mit High Importance Channel
+   *
+   * Nutzt den "erinnerungen" Channel für hohe Priorität und
+   * registriert Action Type für Deep Link Navigation.
    */
-  private async sendTauriNotification(title: string, body: string): Promise<NotificationResult> {
+  private async sendTauriNotification(title: string, body: string, erinnerungId?: string, einsatzId?: string): Promise<NotificationResult> {
     try {
       const { sendNotification: tauriSendNotification } = await import('@tauri-apps/plugin-notification');
+      const { ERINNERUNG_CHANNEL_ID, ERINNERUNG_ACTION_TYPE_ID } = await import('./notification-setup.service');
 
       await tauriSendNotification({
         title,
         body,
+        // High Importance Channel für prominente Anzeige
+        channelId: ERINNERUNG_CHANNEL_ID,
+        // Action Type für Klick-Handling mit Deep Link
+        actionTypeId: ERINNERUNG_ACTION_TYPE_ID,
+        // Extra-Daten für Deep Link Navigation
+        extra: erinnerungId && einsatzId ? { erinnerungId, einsatzId } : undefined,
+        // Notification bleibt bis User interagiert (kein Auto-Dismiss)
+        autoCancel: true,
       });
 
-      logger.debug('Tauri Notification gesendet:', { title, body });
+      logger.debug('Tauri Notification gesendet:', { title, body, erinnerungId, einsatzId });
 
       return { success: true };
     } catch (error) {
@@ -386,5 +407,5 @@ export { notificationService, NotificationService };
 export const checkNotificationPermission = () => notificationService.checkPermission();
 export const requestNotificationPermission = () => notificationService.requestPermission();
 export const sendNotification = (options: SendNotificationOptions) => notificationService.send(options);
-export const sendErinnerungNotification = (title: string) => notificationService.sendErinnerungNotification(title);
+export const sendErinnerungNotification = (title: string, erinnerungId?: string, einsatzId?: string) => notificationService.sendErinnerungNotification(title, erinnerungId, einsatzId);
 export const isNotificationSupported = () => notificationService.isSupported();

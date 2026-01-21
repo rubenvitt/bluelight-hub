@@ -49,3 +49,32 @@ export {
   type TimerState,
   type TimerStoreState,
 } from './timer.store';
+
+export {
+  // Offline Store (Story 1.8)
+  offlineStore,
+  OFFLINE_STORE_KEYS,
+  // Offline Actions
+  initOfflineStore,
+  addPendingErinnerung,
+  removePendingErinnerung,
+  getPendingErinnerungById,
+  queueSyncAction,
+  clearProcessedActions,
+  updateActionRetryCount,
+  setLastSync,
+  setOfflineState,
+  replaceIdInQueue,
+  resetOfflineStore,
+  // Offline Hooks
+  usePendingErinnerungen,
+  useSyncQueueCount,
+  useLastSync,
+  useOfflineState,
+  useOfflineStoreState,
+  // Types
+  type PendingErinnerung,
+  type SyncActionType,
+  type SyncQueueAction,
+  type OfflineStoreState,
+} from './offline.store';

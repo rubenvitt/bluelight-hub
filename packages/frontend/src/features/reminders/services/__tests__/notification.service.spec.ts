@@ -33,6 +33,12 @@ vi.mock('@tauri-apps/plugin-notification', () => ({
   sendNotification: (opts: unknown) => mockTauriSendNotification(opts),
 }));
 
+// Mock notification-setup.service (für Channel + ActionType Constants)
+vi.mock('../notification-setup.service', () => ({
+  ERINNERUNG_CHANNEL_ID: 'erinnerungen',
+  ERINNERUNG_ACTION_TYPE_ID: 'erinnerung-action',
+}));
+
 // Mock logger
 vi.mock('@/shared/lib/logger', () => ({
   logger: {
@@ -270,6 +276,10 @@ describe('NotificationService', () => {
       expect(mockTauriSendNotification).toHaveBeenCalledWith({
         title: 'Tauri Test',
         body: 'Jetzt fällig',
+        channelId: 'erinnerungen',
+        actionTypeId: 'erinnerung-action',
+        extra: undefined,
+        autoCancel: true,
       });
     });
 
@@ -301,6 +311,10 @@ describe('NotificationService', () => {
       expect(mockTauriSendNotification).toHaveBeenCalledWith({
         title: 'Test',
         body: 'Custom Body',
+        channelId: 'erinnerungen',
+        actionTypeId: 'erinnerung-action',
+        extra: undefined,
+        autoCancel: true,
       });
     });
   });
@@ -320,6 +334,31 @@ describe('NotificationService', () => {
       expect(mockTauriSendNotification).toHaveBeenCalledWith({
         title: 'Erinnerung: Funkgeraet pruefen',
         body: 'Jetzt fällig',
+        channelId: 'erinnerungen',
+        actionTypeId: 'erinnerung-action',
+        extra: undefined,
+        autoCancel: true,
+      });
+    });
+
+    it('should include extra data when erinnerungId and einsatzId provided', async () => {
+      // Given (Arrange)
+      mockIsTauri.mockReturnValue(true);
+      mockIsPermissionGranted.mockResolvedValue(true);
+      mockTauriSendNotification.mockResolvedValue(undefined);
+      await notificationService.checkPermission();
+
+      // When (Act)
+      await notificationService.sendErinnerungNotification('Test Erinnerung', 'erin-123', 'eins-456');
+
+      // Then (Assert)
+      expect(mockTauriSendNotification).toHaveBeenCalledWith({
+        title: 'Erinnerung: Test Erinnerung',
+        body: 'Jetzt fällig',
+        channelId: 'erinnerungen',
+        actionTypeId: 'erinnerung-action',
+        extra: { erinnerungId: 'erin-123', einsatzId: 'eins-456' },
+        autoCancel: true,
       });
     });
   });
@@ -353,16 +392,23 @@ describe('NotificationService', () => {
       expect(result.error).toContain('Plugin Error');
     });
 
-    it('should handle Tauri permission check error gracefully', async () => {
+    it('should handle Tauri permission check error gracefully by falling back to Web API', async () => {
       // Given (Arrange)
+      // Tauri plugin check fails, so service falls back to Web Notification API
       mockIsTauri.mockReturnValue(true);
       mockIsPermissionGranted.mockRejectedValue(new Error('Permission check failed'));
+      Object.defineProperty(globalThis.Notification, 'permission', {
+        value: 'default',
+        writable: true,
+        configurable: true,
+      });
 
       // When (Act)
       const status = await notificationService.checkPermission();
 
       // Then (Assert)
-      expect(status).toBe('not-supported');
+      // Falls back to Web API which returns 'unknown' for 'default' permission
+      expect(status).toBe('unknown');
     });
   });
 });

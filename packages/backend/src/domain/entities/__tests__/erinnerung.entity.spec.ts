@@ -1357,6 +1357,52 @@ describe('Erinnerung Entity', () => {
           expect(result.isFailure).toBe(true);
           expect(result.error).toBe('ERINNERUNG_ERLEDIGUNGS_NOTIZ_REQUIRED');
         });
+
+        it('sollte ESKALIERT mit requiresNote=true UND gueltiger Notiz erfolgreich erledigen', () => {
+          // Given (Arrange)
+          const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ESKALIERT(), { requiresNote: true });
+          const notiz = 'Eskalation dokumentiert und behoben';
+
+          // When (Act)
+          const result = erinnerung.markErledigt(testUserId, notiz);
+
+          // Then (Assert)
+          expect(result.isSuccess).toBe(true);
+          expect(erinnerung.status.isErledigt()).toBe(true);
+          expect(erinnerung.erledigungsNotiz).toBe(notiz);
+        });
+      });
+
+      describe('AC6: State-Konsistenz bei Validation Errors', () => {
+        it('sollte keine Properties aendern wenn Pflicht-Notiz bei ESKALIERT fehlt', () => {
+          // Given (Arrange)
+          const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ESKALIERT(), { requiresNote: true });
+          const originalStatus = erinnerung.status.value;
+
+          // When (Act)
+          const result = erinnerung.markErledigt(testUserId);
+
+          // Then (Assert)
+          expect(result.isFailure).toBe(true);
+          expect(erinnerung.status.value).toBe(originalStatus);
+          expect(erinnerung.erledigtAm).toBeNull();
+          expect(erinnerung.erledigtBy).toBeNull();
+          expect(erinnerung.erledigungsNotiz).toBeNull();
+        });
+
+        it('sollte bei whitespace-only Notiz und requiresNote=true keine Properties aendern', () => {
+          // Given (Arrange)
+          const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED(), { requiresNote: true });
+
+          // When (Act)
+          const result = erinnerung.markErledigt(testUserId, '   ');
+
+          // Then (Assert)
+          expect(result.isFailure).toBe(true);
+          expect(result.error).toBe('ERINNERUNG_ERLEDIGUNGS_NOTIZ_REQUIRED');
+          expect(erinnerung.status.isAcknowledged()).toBe(true);
+          expect(erinnerung.erledigtAm).toBeNull();
+        });
       });
 
       describe('AC5: Kein Event bei fehlender Pflicht-Notiz', () => {
@@ -1375,19 +1421,19 @@ describe('Erinnerung Entity', () => {
       });
 
       describe('requiresNote Getter', () => {
-        it('sollte requiresNote=true zurueckgeben wenn gesetzt', () => {
-          // Given
+        it('sollte requiresNote=true korrekt zurueckgeben', () => {
+          // Given (Arrange)
           const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED(), { requiresNote: true });
 
-          // Then
+          // Then (Assert) - kein "When" da Getter direkt getestet wird
           expect(erinnerung.requiresNote).toBe(true);
         });
 
-        it('sollte requiresNote=false zurueckgeben wenn nicht gesetzt', () => {
-          // Given
+        it('sollte requiresNote=false korrekt zurueckgeben (Default)', () => {
+          // Given (Arrange)
           const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
 
-          // Then
+          // Then (Assert) - kein "When" da Getter direkt getestet wird
           expect(erinnerung.requiresNote).toBe(false);
         });
       });

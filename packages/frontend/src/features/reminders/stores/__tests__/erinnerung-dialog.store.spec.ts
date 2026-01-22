@@ -211,6 +211,21 @@ describe('ErinnerungDialogStore - MarkErledigt (Story 2.5)', () => {
       expect(state.isMarkErledigtOpen).toBe(false);
       expect(state.erinnerungToMarkErledigt).toBeNull();
     });
+
+    it('should clear requiresNote when closing dialog with requiresNote=true', () => {
+      // Given (Arrange)
+      const mockErinnerung = createMockErinnerung({ requiresNote: true });
+      openMarkErledigtDialog(mockErinnerung, 'test-einsatz-123');
+      expect(erinnerungDialogStore.state.erinnerungToMarkErledigt?.requiresNote).toBe(true);
+
+      // When (Act)
+      closeMarkErledigtDialog();
+
+      // Then (Assert)
+      const state = erinnerungDialogStore.state;
+      expect(state.erinnerungToMarkErledigt).toBeNull();
+      expect(state.isMarkErledigtOpen).toBe(false);
+    });
   });
 
   describe('resetErinnerungDialogStore()', () => {

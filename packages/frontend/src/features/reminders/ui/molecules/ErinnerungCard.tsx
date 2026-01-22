@@ -275,7 +275,7 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
                 {retriggerNumber}. Auslösung
               </span>
             )}
-            {/* Story 2.6: Pflicht-Notiz Badge wenn requiresNote=true */}
+            {/* Story 2.6 Issue 11: Pflicht-Notiz Badge wenn requiresNote=true - Text "Pflicht" statt "Notiz" (klarer) */}
             {erinnerung.requiresNote && (
               // biome-ignore lint/a11y/useSemanticElements: span mit role="status" ist hier korrekt fuer inline Status-Badge
               <span
@@ -285,7 +285,7 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
                 title="Bei Erledigung ist eine Notiz erforderlich"
               >
                 <PiNotepad className="h-3 w-3" aria-hidden="true" />
-                Notiz
+                Pflicht
               </span>
             )}
           </div>

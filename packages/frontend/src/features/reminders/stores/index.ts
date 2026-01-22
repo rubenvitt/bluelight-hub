@@ -8,6 +8,7 @@
  * **Story 1.4:** Delete Dialog
  * **Story 1.5 Task 13:** Timer Store
  * **Story 2.5:** MarkErledigt Dialog
+ * **Story 3.2 Task 2:** Animation Store fuer Real-time Updates
  */
 
 export {
@@ -132,3 +133,24 @@ export {
   type FloatingPillEntry,
   type FloatingPillStoreState,
 } from './floating-pill.store';
+
+export {
+  // Animation Store (Story 3.2 Task 2)
+  animationStore,
+  // Animation Actions
+  addAnimatedId,
+  removeAnimatedId,
+  clearAllAnimations,
+  resetAnimationStore,
+  // Animation Selectors
+  isAnimated,
+  getAnimationEntry,
+  // Animation Hooks
+  useIsAnimated,
+  useAnimationEntry,
+  useAnimationStoreState,
+  // Types
+  type AnimationType,
+  type AnimationEntry,
+  type AnimationStoreState,
+} from './animation.store';

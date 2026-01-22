@@ -6,6 +6,10 @@
  * **Story 2.2 AC2 (Re-Trigger Badge):**
  * - Bei snoozeCount > 0 und Status AUSGELOEST: Badge "X. Ausloesung"
  * - Zeigt dem User optisch, dass es ein Re-Trigger nach Snooze ist
+ *
+ * **Story 3.2 AC2 (Animation):**
+ * - Update-Animation bei WebSocket-Status-Wechsel
+ * - Insert-Animation bei neuer Erinnerung via WebSocket
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -40,6 +44,8 @@ vi.mock('@/features/reminders/stores', () => ({
   useIntensityLevel: vi.fn().mockReturnValue('none'),
   // Story 2.8: Mock Audio Failed Hook
   useAudioFailed: vi.fn().mockReturnValue(false),
+  // Story 3.2: Mock Animation Hook
+  useAnimationEntry: vi.fn().mockReturnValue(undefined),
 }));
 
 // Mock Countdown Hook
@@ -278,6 +284,221 @@ describe('ErinnerungCard', () => {
 
       // Then (Assert) - Kein button role bei GEPLANT
       expect(screen.queryByRole('button', { name: /Enter: Bestätigen/i })).not.toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Story 3.1: Team-Erinnerungsliste Tests
+   *
+   * AC3: ErinnerungCard zeigt Ersteller-Namen bei Team-Ansicht
+   * AC4: Ersteller-Name unter Erinnerung-Details
+   * AC5: Eigene vs fremde visuell unterscheidbar
+   * AC8: "Team"-Badge bei fremden Erinnerungen
+   */
+  describe('Team-Erinnerungsliste (Story 3.1)', () => {
+    describe('Team-Badge (AC8)', () => {
+      it('should show "Team" badge when erinnerung is from another user', () => {
+        // Given (Arrange) - Erinnerung von user-1, aktueller User ist user-2
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-1',
+          erstellerName: 'Max Mustermann',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" currentUserId="user-2" />);
+
+        // Then (Assert)
+        expect(screen.getByText('Team')).toBeInTheDocument();
+      });
+
+      it('should NOT show "Team" badge when erinnerung is from current user', () => {
+        // Given (Arrange) - Erinnerung von user-1, aktueller User ist auch user-1
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-1',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" currentUserId="user-1" />);
+
+        // Then (Assert)
+        expect(screen.queryByText('Team')).not.toBeInTheDocument();
+      });
+
+      it('should NOT show "Team" badge when erinnerung is assigned to current user', () => {
+        // Given (Arrange) - Erinnerung von user-1, assigned to user-2, aktueller User ist user-2
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-1',
+          assignedToId: 'user-2',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" currentUserId="user-2" />);
+
+        // Then (Assert)
+        expect(screen.queryByText('Team')).not.toBeInTheDocument();
+      });
+
+      it('should NOT show "Team" badge when currentUserId is not provided', () => {
+        // Given (Arrange) - Kein currentUserId bedeutet wir können nicht unterscheiden
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-1',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" />);
+
+        // Then (Assert)
+        expect(screen.queryByText('Team')).not.toBeInTheDocument();
+      });
+
+      it('should have correct aria-label and title for Team badge', () => {
+        // Given (Arrange)
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-1',
+          erstellerName: 'Max Mustermann',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" currentUserId="user-2" />);
+
+        // Then (Assert)
+        const badge = screen.getByText('Team');
+        expect(badge).toHaveAttribute('aria-label', 'Team-Erinnerung');
+        expect(badge).toHaveAttribute('title', 'Erstellt von Max Mustermann');
+      });
+    });
+
+    describe('Ersteller-Name Anzeige (AC3/AC4)', () => {
+      it('should show creator name when showCreator is true', () => {
+        // Given (Arrange)
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstellerName: 'Max Mustermann',
+        };
+
+        // When (Act)
+        // Note: currentUserId unterschiedlich von assignedToId (undefined) damit "von" statt "Erstellt von" gezeigt wird
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={true} currentUserId="other-user" />);
+
+        // Then (Assert)
+        expect(screen.getByText('von')).toBeInTheDocument();
+        expect(screen.getByText('Max Mustermann')).toBeInTheDocument();
+      });
+
+      it('should show creator name when erinnerung is from team (isTeamReminder)', () => {
+        // Given (Arrange)
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-1',
+          erstellerName: 'Anna Schmidt',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" currentUserId="user-2" />);
+
+        // Then (Assert)
+        expect(screen.getByText('von')).toBeInTheDocument();
+        expect(screen.getByText('Anna Schmidt')).toBeInTheDocument();
+      });
+
+      it('should NOT show creator name when showCreator is false and is own erinnerung', () => {
+        // Given (Arrange)
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-1',
+          erstellerName: 'Max Mustermann',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" currentUserId="user-1" showCreator={false} />);
+
+        // Then (Assert)
+        expect(screen.queryByText('von')).not.toBeInTheDocument();
+        expect(screen.queryByText('Max Mustermann')).not.toBeInTheDocument();
+      });
+
+      it('should NOT show creator name when erstellerName is not provided', () => {
+        // Given (Arrange)
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstellerName: undefined,
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={true} />);
+
+        // Then (Assert)
+        expect(screen.queryByText('von')).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  /**
+   * Story 3.2 AC2: Status-Aenderungsanimation
+   *
+   * Tests fuer Animation bei WebSocket-Updates:
+   * - Update-Animation: Highlight-Effekt bei Status-Wechsel
+   * - Insert-Animation: Slide-in bei neuer Erinnerung
+   */
+  describe('WebSocket Animation (Story 3.2 AC2)', () => {
+    it('should apply update animation class when animationEntry type is update', async () => {
+      // Given (Arrange)
+      const { useAnimationEntry } = await import('@/features/reminders/stores');
+      vi.mocked(useAnimationEntry).mockReturnValue({ type: 'update', timestamp: Date.now() });
+
+      const erinnerung: ErinnerungResponseDto = {
+        ...baseErinnerung,
+        status: 'GEPLANT',
+      };
+
+      // When (Act)
+      const { container } = render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" />);
+
+      // Then (Assert)
+      const card = container.firstChild as HTMLElement;
+      expect(card.className).toMatch(/animate-highlight/);
+    });
+
+    it('should apply insert animation class when animationEntry type is insert', async () => {
+      // Given (Arrange)
+      const { useAnimationEntry } = await import('@/features/reminders/stores');
+      vi.mocked(useAnimationEntry).mockReturnValue({ type: 'insert', timestamp: Date.now() });
+
+      const erinnerung: ErinnerungResponseDto = {
+        ...baseErinnerung,
+        status: 'GEPLANT',
+      };
+
+      // When (Act)
+      const { container } = render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" />);
+
+      // Then (Assert)
+      const card = container.firstChild as HTMLElement;
+      expect(card.className).toMatch(/animate-slide-in-right/);
+    });
+
+    it('should NOT apply animation classes when animationEntry is undefined', async () => {
+      // Given (Arrange)
+      const { useAnimationEntry } = await import('@/features/reminders/stores');
+      vi.mocked(useAnimationEntry).mockReturnValue(undefined);
+
+      const erinnerung: ErinnerungResponseDto = {
+        ...baseErinnerung,
+        status: 'GEPLANT',
+      };
+
+      // When (Act)
+      const { container } = render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" />);
+
+      // Then (Assert)
+      const card = container.firstChild as HTMLElement;
+      expect(card.className).not.toMatch(/animate-highlight/);
+      expect(card.className).not.toMatch(/animate-slide-in-right/);
     });
   });
 });

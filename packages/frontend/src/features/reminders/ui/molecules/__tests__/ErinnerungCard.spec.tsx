@@ -23,6 +23,7 @@ vi.mock('@/features/reminders/api', () => ({
 vi.mock('@/features/reminders/services', () => ({
   soundService: { stopAllSounds: vi.fn() },
   timerService: { resetTriggered: vi.fn() },
+  intensificationService: { stopTimer: vi.fn() },
 }));
 
 // Mock Sync Service
@@ -34,8 +35,11 @@ vi.mock('@/features/reminders/services/sync.service', () => ({
 vi.mock('@/features/reminders/stores', () => ({
   openEditDialog: vi.fn(),
   openDeleteDialog: vi.fn(),
+  openMarkErledigtDialog: vi.fn(),
   // Story 2.3: Mock Intensification Hook
   useIntensityLevel: vi.fn().mockReturnValue('none'),
+  // Story 2.8: Mock Audio Failed Hook
+  useAudioFailed: vi.fn().mockReturnValue(false),
 }));
 
 // Mock Countdown Hook

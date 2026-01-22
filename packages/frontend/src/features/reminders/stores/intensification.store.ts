@@ -31,6 +31,15 @@ export interface IntensificationEntry {
   startedAt: string | null;
   /** Zeitpunkt der letzten Level-Aenderung (ISO-String) */
   lastEscalatedAt: string | null;
+  /**
+   * Flag ob Audio-Wiedergabe fehlgeschlagen ist (Story 2.8)
+   *
+   * Wenn true, wird der visuelle Alarm verstaerkt:
+   * - Schnellere Animation (0.5s statt 1s)
+   * - Rote Badge-Farbe
+   * - FloatingPill sofort aktiviert
+   */
+  audioFailed: boolean;
 }
 
 /**
@@ -48,6 +57,7 @@ const createInitialEntry = (): IntensificationEntry => ({
   level: 'none',
   startedAt: null,
   lastEscalatedAt: null,
+  audioFailed: false,
 });
 
 /**
@@ -87,6 +97,7 @@ export const setIntensityLevel = (erinnerungId: string, level: IntensityLevel): 
           level,
           startedAt: existing.startedAt ?? (level !== 'none' ? now : null),
           lastEscalatedAt: level !== 'none' ? now : null,
+          audioFailed: existing.audioFailed, // audioFailed bleibt erhalten
         },
       },
     };
@@ -110,6 +121,7 @@ export const startIntensificationTracking = (erinnerungId: string): void => {
         level: 'none',
         startedAt: new Date().toISOString(),
         lastEscalatedAt: null,
+        audioFailed: false,
       },
     },
   }));
@@ -144,6 +156,35 @@ export const clearIntensity = (erinnerungId: string): void => {
  */
 export const clearAllIntensifications = (): void => {
   intensificationStore.setState(initialState);
+};
+
+/**
+ * Setzt das audioFailed Flag fuer eine Erinnerung (Story 2.8)
+ *
+ * Wird aufgerufen wenn sowohl Tauri als auch Web Audio fehlschlagen.
+ * Aktiviert visuellen Alarm-Verstaerkung:
+ * - Schnellere Pulsier-Animation (0.5s)
+ * - Rote Badge-Farbe
+ * - FloatingPill sofort aktiviert
+ *
+ * @param erinnerungId - ID der Erinnerung
+ * @param failed - true wenn Audio fehlgeschlagen
+ */
+export const setAudioFailed = (erinnerungId: string, failed: boolean): void => {
+  intensificationStore.setState((state) => {
+    const existing = state.entries[erinnerungId] ?? createInitialEntry();
+
+    return {
+      ...state,
+      entries: {
+        ...state.entries,
+        [erinnerungId]: {
+          ...existing,
+          audioFailed: failed,
+        },
+      },
+    };
+  });
 };
 
 /**
@@ -228,4 +269,14 @@ export const useIntensifiedCount = (): number => {
  */
 export const useIntensificationStoreState = (): IntensificationStoreState => {
   return useStore(intensificationStore, (state) => state);
+};
+
+/**
+ * Hook der prueft ob Audio fuer eine Erinnerung fehlgeschlagen ist (Story 2.8)
+ *
+ * @param erinnerungId - ID der Erinnerung
+ * @returns true wenn Audio fehlgeschlagen
+ */
+export const useAudioFailed = (erinnerungId: string): boolean => {
+  return useStore(intensificationStore, (state) => state.entries[erinnerungId]?.audioFailed ?? false);
 };

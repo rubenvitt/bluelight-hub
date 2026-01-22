@@ -19,6 +19,7 @@ import {
   getIntensityLevel,
   isIntensified,
   resetIntensificationStore,
+  setAudioFailed,
   type IntensityLevel,
 } from '../intensification.store';
 
@@ -395,6 +396,114 @@ describe('IntensificationStore', () => {
       // Then (Assert)
       expect(stateBefore).not.toBe(stateAfter);
       expect(stateBefore.entries).not.toBe(stateAfter.entries);
+    });
+  });
+
+  // Story 2.8: Audio-Ausfall Tests
+  describe('setAudioFailed() - Story 2.8', () => {
+    it('should set audioFailed flag to true for an erinnerung (AC2)', () => {
+      // Given (Arrange)
+      const erinnerungId = 'test-id-1';
+      startIntensificationTracking(erinnerungId);
+      expect(intensificationStore.state.entries[erinnerungId].audioFailed).toBe(false);
+
+      // When (Act)
+      setAudioFailed(erinnerungId, true);
+
+      // Then (Assert)
+      const state = intensificationStore.state;
+      expect(state.entries[erinnerungId].audioFailed).toBe(true);
+    });
+
+    it('should set audioFailed flag to false for an erinnerung', () => {
+      // Given (Arrange)
+      const erinnerungId = 'test-id-1';
+      startIntensificationTracking(erinnerungId);
+      setAudioFailed(erinnerungId, true);
+      expect(intensificationStore.state.entries[erinnerungId].audioFailed).toBe(true);
+
+      // When (Act)
+      setAudioFailed(erinnerungId, false);
+
+      // Then (Assert)
+      const state = intensificationStore.state;
+      expect(state.entries[erinnerungId].audioFailed).toBe(false);
+    });
+
+    it('should create entry if not exists when setting audioFailed', () => {
+      // Given (Arrange)
+      const erinnerungId = 'new-id';
+      expect(intensificationStore.state.entries[erinnerungId]).toBeUndefined();
+
+      // When (Act)
+      setAudioFailed(erinnerungId, true);
+
+      // Then (Assert)
+      const state = intensificationStore.state;
+      expect(state.entries[erinnerungId]).toBeDefined();
+      expect(state.entries[erinnerungId].audioFailed).toBe(true);
+      expect(state.entries[erinnerungId].level).toBe('none'); // Default level
+    });
+
+    it('should preserve other entry properties when setting audioFailed', () => {
+      // Given (Arrange)
+      const erinnerungId = 'test-id-1';
+      setIntensityLevel(erinnerungId, 'warning');
+      const originalEntry = intensificationStore.state.entries[erinnerungId];
+
+      // When (Act)
+      setAudioFailed(erinnerungId, true);
+
+      // Then (Assert)
+      const state = intensificationStore.state;
+      expect(state.entries[erinnerungId].level).toBe('warning'); // Preserved
+      expect(state.entries[erinnerungId].startedAt).toBe(originalEntry.startedAt); // Preserved
+      expect(state.entries[erinnerungId].audioFailed).toBe(true); // Changed
+    });
+
+    it('should preserve audioFailed when updating intensity level', () => {
+      // Given (Arrange)
+      const erinnerungId = 'test-id-1';
+      startIntensificationTracking(erinnerungId);
+      setAudioFailed(erinnerungId, true);
+      expect(intensificationStore.state.entries[erinnerungId].audioFailed).toBe(true);
+
+      // When (Act)
+      setIntensityLevel(erinnerungId, 'warning');
+
+      // Then (Assert)
+      const state = intensificationStore.state;
+      expect(state.entries[erinnerungId].level).toBe('warning');
+      expect(state.entries[erinnerungId].audioFailed).toBe(true); // Still true
+    });
+  });
+
+  describe('audioFailed initialization - Story 2.8', () => {
+    it('should initialize audioFailed to false in startIntensificationTracking', () => {
+      // Given (Arrange)
+      const erinnerungId = 'test-id-1';
+
+      // When (Act)
+      startIntensificationTracking(erinnerungId);
+
+      // Then (Assert)
+      const state = intensificationStore.state;
+      expect(state.entries[erinnerungId].audioFailed).toBe(false);
+    });
+
+    it('should reset audioFailed to false when startIntensificationTracking overwrites', () => {
+      // Given (Arrange)
+      const erinnerungId = 'test-id-1';
+      setIntensityLevel(erinnerungId, 'warning');
+      setAudioFailed(erinnerungId, true);
+      expect(intensificationStore.state.entries[erinnerungId].audioFailed).toBe(true);
+
+      // When (Act) - Restart tracking (e.g., after snooze)
+      startIntensificationTracking(erinnerungId);
+
+      // Then (Assert)
+      const state = intensificationStore.state;
+      expect(state.entries[erinnerungId].audioFailed).toBe(false);
     });
   });
 });

@@ -93,6 +93,7 @@ export {
   clearIntensity,
   clearAllIntensifications,
   resetIntensificationStore,
+  setAudioFailed,
   // Intensification Selectors
   getIntensityLevel,
   isIntensified,
@@ -102,6 +103,7 @@ export {
   useIntensificationEntry,
   useIntensifiedCount,
   useIntensificationStoreState,
+  useAudioFailed,
   // Types
   type IntensityLevel,
   type IntensificationEntry,

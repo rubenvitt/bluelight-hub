@@ -412,7 +412,7 @@ export class ErinnerungController {
   @ApiWrappedResponse(ErinnerungResponseDto, {
     description: 'Erinnerung erfolgreich als erledigt markiert',
   })
-  @ApiBadRequestResponse({ description: 'Ungültige ErinnerungId, UserId oder Notiz zu lang' })
+  @ApiBadRequestResponse({ description: 'Ungültige ErinnerungId, UserId, Notiz zu lang oder Pflicht-Notiz fehlt (requiresNote=true)' })
   @ApiNotFoundResponse({ description: 'Erinnerung nicht gefunden' })
   @ApiConflictResponse({ description: 'Erinnerung kann nicht erledigt werden (Status ist nicht ACKNOWLEDGED oder ESKALIERT)' })
   async markErledigt(
@@ -446,8 +446,9 @@ export class ErinnerungController {
         throw new BadRequestException('Erledigungs-Notiz darf maximal 500 Zeichen haben');
       }
       // Story 2.6: Pflicht-Notiz fehlt bei requiresNote=true
+      // NOTE: Using 400 instead of 422 for consistency with other validation errors
       if (result.error === ERINNERUNG_ERROR_CODES.ERLEDIGUNGS_NOTIZ_REQUIRED) {
-        throw new BadRequestException('Pflicht-Notiz ist erforderlich');
+        throw new BadRequestException('Erledigungs-Notiz ist erforderlich');
       }
       throw new BadRequestException(result.error);
     }

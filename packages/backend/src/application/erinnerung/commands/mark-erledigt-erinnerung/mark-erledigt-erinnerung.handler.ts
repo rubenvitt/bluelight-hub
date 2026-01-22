@@ -177,6 +177,10 @@ export class MarkErledigtErinnerungHandler extends TransactionalCommandHandler<M
     if (domainError.includes('ERINNERUNG_NOTIZ_TOO_LONG')) {
       return ERINNERUNG_ERROR_CODES.NOTIZ_TOO_LONG;
     }
+    // Story 2.6: Pflicht-Notiz Validierung
+    if (domainError.includes('ERINNERUNG_ERLEDIGUNGS_NOTIZ_REQUIRED')) {
+      return ERINNERUNG_ERROR_CODES.ERLEDIGUNGS_NOTIZ_REQUIRED;
+    }
     return domainError;
   }
 }

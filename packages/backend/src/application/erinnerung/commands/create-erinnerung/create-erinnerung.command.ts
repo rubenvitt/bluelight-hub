@@ -1,4 +1,5 @@
 import { Result } from '@domain/common/result';
+import { Erinnerung } from '@domain/entities/erinnerung.entity';
 import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
 
 /**
@@ -125,6 +126,8 @@ export class CreateErinnerungCommand {
     // ════════════════════════════════════════════════════════════════════════
     // Command erstellen
     // ════════════════════════════════════════════════════════════════════════
-    return Result.ok(new CreateErinnerungCommand(trimmedEinsatzId, trimmedTitel, props.beschreibung?.trim() || undefined, props.faelligAm, trimmedErstelltVon, props.requiresNote ?? false));
+    return Result.ok(
+      new CreateErinnerungCommand(trimmedEinsatzId, trimmedTitel, props.beschreibung?.trim() || undefined, props.faelligAm, trimmedErstelltVon, props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE),
+    );
   }
 }

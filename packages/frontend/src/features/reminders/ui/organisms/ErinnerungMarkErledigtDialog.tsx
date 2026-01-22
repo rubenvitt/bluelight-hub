@@ -64,8 +64,10 @@ type ErledigungsFormData = { erledigungsNotiz?: string };
 export function ErinnerungMarkErledigtDialog({ isOpen, onClose, erinnerung, einsatzId }: ErinnerungMarkErledigtDialogProps) {
   const { mutate: markErledigt, isPending } = useMarkErledigtErinnerung();
 
+  // Story 2.6 Issue 14: useMemo Optimierung für requiresNote
+  const requiresNote = useMemo(() => erinnerung?.requiresNote ?? false, [erinnerung?.requiresNote]);
+
   // Story 2.6: Dynamisches Schema basierend auf requiresNote
-  const requiresNote = erinnerung?.requiresNote ?? false;
   const erledigungsFormSchema = useMemo(() => createErledigungsFormSchema(requiresNote), [requiresNote]);
 
   const form = useForm<ErledigungsFormData>({
@@ -75,6 +77,8 @@ export function ErinnerungMarkErledigtDialog({ isOpen, onClose, erinnerung, eins
     validatorAdapter: zodValidator(),
     validators: {
       onChange: erledigungsFormSchema,
+      // Story 2.6 Issue 5: onSubmit Validation für Pflicht-Notiz
+      onSubmit: erledigungsFormSchema,
     },
     onSubmit: async ({ value }) => {
       if (!erinnerung) return;
@@ -97,6 +101,13 @@ export function ErinnerungMarkErledigtDialog({ isOpen, onClose, erinnerung, eins
       );
     },
   });
+
+  // Story 2.6 Issue 1: Button disabled wenn requiresNote=true und Notiz leer
+  const canSubmit = useMemo(() => {
+    if (!requiresNote) return true;
+    const notiz = form.state.values.erledigungsNotiz?.trim();
+    return notiz !== undefined && notiz.length > 0;
+  }, [requiresNote, form.state.values.erledigungsNotiz]);
 
   const handleClose = useCallback(() => {
     if (!isPending) {
@@ -183,6 +194,8 @@ export function ErinnerungMarkErledigtDialog({ isOpen, onClose, erinnerung, eins
                     maxLength={MAX_NOTIZ_LENGTH}
                     rows={3}
                     disabled={isPending}
+                    // Story 2.6 Issue 4: Auto-Focus auf Textarea wenn Pflicht-Notiz
+                    autoFocus={requiresNote}
                     className={cn(
                       'w-full rounded-lg border bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 disabled:opacity-50 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500',
                       hasError
@@ -218,6 +231,8 @@ export function ErinnerungMarkErledigtDialog({ isOpen, onClose, erinnerung, eins
             form.handleSubmit();
           }}
           loading={isPending}
+          // Story 2.6 Issue 1: Button disabled wenn Pflicht-Notiz fehlt
+          disabled={isPending || !canSubmit}
         >
           <PiCheckCircle className="mr-1.5 h-4 w-4" />
           Als erledigt markieren

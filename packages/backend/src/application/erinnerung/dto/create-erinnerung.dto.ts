@@ -87,7 +87,7 @@ export class CreateErinnerungDto {
     description: 'Pflicht-Notiz bei Erledigung erforderlich (Story 2.6)',
     example: false,
     required: false,
-    default: false,
+    default: false, // Sync mit Erinnerung.DEFAULT_REQUIRES_NOTE
   })
   @IsOptional()
   @IsBoolean({ message: 'requiresNote muss ein Boolean sein' })

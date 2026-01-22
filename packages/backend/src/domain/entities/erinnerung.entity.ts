@@ -122,6 +122,12 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
    */
   public static readonly MAX_BESCHREIBUNG_LENGTH = 500;
 
+  /**
+   * Story 2.6: Default-Wert für Pflicht-Notiz Flag.
+   * Zentrale Definition um Redundanz zu vermeiden (Issue 6).
+   */
+  public static readonly DEFAULT_REQUIRES_NOTE = false;
+
   private readonly _einsatzId: EinsatzId;
   private _titel: ErinnerungTitel;
   private _beschreibung: string | null;
@@ -337,7 +343,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     erledigtAm: Date | null = null,
     erledigtBy: UserId | null = null,
     erledigungsNotiz: string | null = null,
-    requiresNote = false,
+    requiresNote = Erinnerung.DEFAULT_REQUIRES_NOTE,
   ) {
     super(id, createdAt, updatedAt);
     this._einsatzId = einsatzId;
@@ -430,7 +436,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       null, // erledigtAm
       null, // erledigtBy
       null, // erledigungsNotiz
-      props.requiresNote ?? false, // Story 2.6: requiresNote (default: false)
+      props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE, // Story 2.6
     );
 
     // Emit Domain Event
@@ -467,7 +473,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       props.erledigtAm ?? null,
       props.erledigtBy ?? null,
       props.erledigungsNotiz ?? null,
-      props.requiresNote ?? false,
+      props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE,
     );
   }
 

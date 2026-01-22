@@ -121,7 +121,7 @@ export class PrismaErinnerungMapper {
       erledigtAm: prisma.erledigtAm,
       erledigtBy,
       erledigungsNotiz: prisma.erledigungsNotiz,
-      // Pflicht-Notiz Flag (Story 2.6)
+      // Story 2.6: Pflicht-Notiz Flag - bei Erledigung muss eine Notiz angegeben werden
       requiresNote: prisma.requiresNote,
     });
   }
@@ -186,7 +186,7 @@ export class PrismaErinnerungMapper {
       erledigtAm: entity.erledigtAm,
       erledigtBy: entity.erledigtBy?.toString() ?? null,
       erledigungsNotiz: entity.erledigungsNotiz,
-      // Pflicht-Notiz Flag (Story 2.6)
+      // Story 2.6: Pflicht-Notiz Flag - bei Erledigung muss eine Notiz angegeben werden
       requiresNote: entity.requiresNote,
     };
   }

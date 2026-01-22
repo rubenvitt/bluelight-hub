@@ -9,17 +9,22 @@
  * **Story 1.7 AC5:** Sortierung nach Urgency Level
  * **Story 1.8 AC1:** Offline-Banner und Sync-Status
  * **Story 2.4 AC2:** FloatingPill Portal fuer urgent Alarme
+ * **Story 3.1:** Tabs fuer "Meine" / "Team" Ansicht
+ * **Story 3.2 AC1:** Echtzeit-Updates via WebSocket
+ * **Story 3.2 AC3:** Toast-Notification bei Team-Events
  */
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { ErinnerungResponseDto } from '@/shared';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
-import { PiAlarm, PiPlus } from 'react-icons/pi';
+import { Tabs } from '@/shared/ui/molecules/tabs.molecule';
+import { PiAlarm, PiPlus, PiWifiHigh, PiWifiSlash } from 'react-icons/pi';
 import { toast } from 'sonner';
+import { useCurrentUser } from '@/features/auth';
 import { useErinnerungenByEinsatz } from '../../api';
-import { useAlarmTrigger, useOfflineStatus, useReconnectSync, useTrayBadge, useTrayClickNavigation } from '../../hooks';
-import { openQuickCreateDialog } from '../../stores';
+import { useAlarmTrigger, useErinnerungWebSocket, useOfflineStatus, useReconnectSync, useTrayBadge, useTrayClickNavigation } from '../../hooks';
+import { addAnimatedId, openQuickCreateDialog } from '../../stores';
 import { getUrgencyLevel } from '../../utils/countdown-utils';
 import { FloatingPillPortal } from '../organisms/FloatingPillPortal';
 import { ErinnerungCard } from './ErinnerungCard';
@@ -90,6 +95,10 @@ interface ErinnerungenListProps {
 export function ErinnerungenList({ einsatzId, className, compact = false }: ErinnerungenListProps) {
   const { data: erinnerungen, isLoading, error } = useErinnerungenByEinsatz({ einsatzId });
 
+  // Story 3.1: Aktueller User fuer Filter-Logik
+  const { user } = useCurrentUser();
+  const currentUserId = user?.id;
+
   // Story 1.8: Offline-Status und Sync-Handling
   const { isOffline, pendingActionsCount, offlineSince } = useOfflineStatus();
   const { isSyncing } = useReconnectSync(einsatzId);
@@ -97,6 +106,30 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
   // Story 1.9: Tray-Badge synchronisieren und Tray-Click Navigation
   useTrayBadge();
   useTrayClickNavigation(einsatzId);
+
+  // Story 3.2 AC2: Animation-Callbacks fuer WebSocket-Events
+  const handleWebSocketCreated = useCallback((event: { erinnerungId: string }) => {
+    addAnimatedId(event.erinnerungId, 'insert');
+  }, []);
+
+  const handleWebSocketUpdated = useCallback((event: { erinnerungId: string }) => {
+    addAnimatedId(event.erinnerungId, 'update');
+  }, []);
+
+  const handleWebSocketAcknowledged = useCallback((event: { erinnerungId: string }) => {
+    addAnimatedId(event.erinnerungId, 'update');
+  }, []);
+
+  // Story 3.2 AC1+AC3: WebSocket fuer Echtzeit-Updates und Team-Toasts
+  const { isConnected } = useErinnerungWebSocket({
+    einsatzId,
+    enabled: true,
+    showTeamToasts: true, // AC3: Toast bei Team-Events
+    // Story 3.2 AC2: Animation bei Status-Aenderung
+    onCreated: handleWebSocketCreated,
+    onUpdated: handleWebSocketUpdated,
+    onAcknowledged: handleWebSocketAcknowledged,
+  });
 
   // Story 1.5: Alarm Trigger Hook fuer automatische Erinnerungs-Ausloesung
   useAlarmTrigger({
@@ -136,6 +169,21 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
     });
   }, [erinnerungen]);
 
+  /**
+   * Story 3.1 AC2: Filter-Logik fuer "Meine" vs "Team"
+   * - Meine: Selbst erstellt (erstelltVon === userId) ODER mir zugewiesen (assignedToId === userId)
+   * - Team: Alle nicht-abgeschlossenen Erinnerungen (status !== 'ERLEDIGT')
+   */
+  const myErinnerungen = useMemo(() => {
+    if (!currentUserId) return sortedErinnerungen;
+    return sortedErinnerungen.filter((e) => e.erstelltVon === currentUserId || e.assignedToId === currentUserId);
+  }, [sortedErinnerungen, currentUserId]);
+
+  // Story 3.1 AC6: Team-Tab zeigt alle nicht-abgeschlossenen Erinnerungen
+  const teamErinnerungen = useMemo(() => {
+    return sortedErinnerungen.filter((e) => e.status !== 'ERLEDIGT');
+  }, [sortedErinnerungen]);
+
   if (isLoading) {
     return (
       <div className={cn('animate-pulse', className)}>
@@ -170,6 +218,16 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
             {sortedErinnerungen.length > 0 && (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700 text-xs dark:bg-amber-900/40 dark:text-amber-300">{sortedErinnerungen.length}</span>
             )}
+            {/* Story 3.2 Task 1.2: WebSocket-Status-Indikator */}
+            <span
+              className={cn(
+                'flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs',
+                isConnected ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+              )}
+              title={isConnected ? 'Echtzeit-Updates aktiv' : 'Verbindung unterbrochen'}
+            >
+              {isConnected ? <PiWifiHigh className="h-3 w-3" /> : <PiWifiSlash className="h-3 w-3" />}
+            </span>
           </div>
           <Button size="sm" appearance="ghost" onClick={handleCreateClick}>
             <PiPlus className="mr-1 h-4 w-4" />
@@ -178,23 +236,78 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
         </div>
       )}
 
-      {/* Liste oder Empty State */}
-      {sortedErinnerungen.length === 0 ? (
-        <div className={cn('rounded-lg border border-gray-300 border-dashed p-6 text-center dark:border-gray-600', compact && 'p-4')}>
-          <PiAlarm className="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" />
-          <p className="mt-2 text-gray-500 text-sm dark:text-gray-400">Keine Erinnerungen vorhanden</p>
-          <Button size="sm" appearance="ghost" className="mt-3" onClick={handleCreateClick}>
-            <PiPlus className="mr-1 h-4 w-4" />
-            Erinnerung erstellen
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {sortedErinnerungen.map((erinnerung) => (
-            <ErinnerungCard key={erinnerung.id} erinnerung={erinnerung} einsatzId={einsatzId} />
-          ))}
-        </div>
-      )}
+      {/* Story 3.1 AC1: Tabs fuer "Meine" / "Team" Ansicht */}
+      <Tabs
+        items={[
+          {
+            label: `Meine (${myErinnerungen.length})`,
+            content: (
+              <ErinnerungListContent
+                erinnerungen={myErinnerungen}
+                einsatzId={einsatzId}
+                currentUserId={currentUserId}
+                showCreator={false}
+                compact={compact}
+                onCreateClick={handleCreateClick}
+                emptyMessage="Du hast keine eigenen Erinnerungen"
+              />
+            ),
+          },
+          {
+            label: `Team (${teamErinnerungen.length})`,
+            content: (
+              <ErinnerungListContent
+                erinnerungen={teamErinnerungen}
+                einsatzId={einsatzId}
+                currentUserId={currentUserId}
+                showCreator={true}
+                compact={compact}
+                onCreateClick={handleCreateClick}
+                emptyMessage="Keine Team-Erinnerungen vorhanden"
+              />
+            ),
+          },
+        ]}
+        defaultIndex={0}
+      />
+    </div>
+  );
+}
+
+/**
+ * Interne Hilfskomponente fuer die Erinnerungsliste innerhalb der Tabs.
+ *
+ * Rendert entweder die Liste der Erinnerungen oder einen Empty State.
+ */
+interface ErinnerungListContentProps {
+  erinnerungen: ErinnerungResponseDto[];
+  einsatzId: string;
+  currentUserId?: string;
+  showCreator: boolean;
+  compact: boolean;
+  onCreateClick: () => void;
+  emptyMessage: string;
+}
+
+function ErinnerungListContent({ erinnerungen, einsatzId, currentUserId, showCreator, compact, onCreateClick, emptyMessage }: ErinnerungListContentProps) {
+  if (erinnerungen.length === 0) {
+    return (
+      <div className={cn('rounded-lg border border-gray-300 border-dashed p-6 text-center dark:border-gray-600', compact && 'p-4')}>
+        <PiAlarm className="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500" />
+        <p className="mt-2 text-gray-500 text-sm dark:text-gray-400">{emptyMessage}</p>
+        <Button size="sm" appearance="ghost" className="mt-3" onClick={onCreateClick}>
+          <PiPlus className="mr-1 h-4 w-4" />
+          Erinnerung erstellen
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {erinnerungen.map((erinnerung) => (
+        <ErinnerungCard key={erinnerung.id} erinnerung={erinnerung} einsatzId={einsatzId} showCreator={showCreator} currentUserId={currentUserId} />
+      ))}
     </div>
   );
 }

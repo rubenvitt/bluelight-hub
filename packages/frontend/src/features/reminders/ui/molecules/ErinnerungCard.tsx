@@ -46,6 +46,10 @@
  * - Visueller Fokus-Indikator (grüner Ring) bei Fokus
  * - Hinweistext "Enter: Bestätigen · Esc: 5 Min Snooze" bei Fokus
  * - Accessibility: role="button" und aria-label fuer Screen Reader
+ *
+ * **Story 3.2 AC2 (Status-Aenderungsanimation):**
+ * - Update-Animation: Kurzer Highlight bei Status-Wechsel via WebSocket
+ * - Insert-Animation: Slide-in bei neuer Erinnerung via WebSocket
  */
 
 import type { ErinnerungResponseDto } from '@/shared';
@@ -57,8 +61,9 @@ import { useAcknowledgeErinnerung, useSnoozeErinnerung, type SnoozeMinutes } fro
 import { soundService, timerService, intensificationService } from '../../services';
 import { useCountdown } from '../../hooks/use-countdown';
 import { syncService } from '../../services/sync.service';
-import { openDeleteDialog, openEditDialog, openMarkErledigtDialog, useIntensityLevel, useAudioFailed } from '../../stores';
+import { openDeleteDialog, openEditDialog, openMarkErledigtDialog, useAnimationEntry, useIntensityLevel, useAudioFailed } from '../../stores';
 import { AlarmStateBadge } from '../atoms/AlarmStateBadge';
+import { AvatarInitials } from '../atoms/AvatarInitials';
 import { CountdownDisplay } from '../atoms/CountdownDisplay';
 import { SnoozeButtonGroup } from './SnoozeButtonGroup';
 
@@ -69,6 +74,16 @@ interface ErinnerungCardProps {
   einsatzId: string;
   /** Zusaetzliche CSS-Klassen */
   className?: string;
+  /**
+   * Story 3.1 AC3/AC4: Ersteller-Namen anzeigen (fuer Team-Ansicht)
+   * @default false
+   */
+  showCreator?: boolean;
+  /**
+   * Story 3.1 AC5/AC8: Aktuelle User-ID fuer "eigene vs fremde" Unterscheidung
+   * Wenn angegeben, werden fremde Erinnerungen mit "Team"-Badge markiert
+   */
+  currentUserId?: string;
 }
 
 /**
@@ -78,7 +93,7 @@ interface ErinnerungCardProps {
  * **Story 1.3 AC3:** Nur GEPLANT Status ist editierbar
  * **Story 1.7:** Visuelle Status-Anzeige mit AlarmStateBadge und CountdownDisplay
  */
-export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungCardProps) {
+export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator = false, currentUserId }: ErinnerungCardProps) {
   // Story 1.7: Countdown Hook für dynamische Updates und Urgency Level
   const { urgencyLevel, remaining } = useCountdown(erinnerung.faelligAm);
 
@@ -92,6 +107,9 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
 
   // Story 2.8: Audio-Ausfall Flag aus Store
   const audioFailed = useAudioFailed(erinnerung.id);
+
+  // Story 3.2 AC2: Animation bei WebSocket-Updates
+  const animationEntry = useAnimationEntry(erinnerung.id);
 
   // Story 1.6: Acknowledge Mutation Hook
   const acknowledgeErinnerung = useAcknowledgeErinnerung();
@@ -116,6 +134,11 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
   // Story 2.2 AC2: Re-Trigger Badge anzeigen wenn snoozeCount > 0 und AUSGELOEST
   const isRetrigger = isTriggered && (erinnerung.snoozeCount ?? 0) > 0;
   const retriggerNumber = (erinnerung.snoozeCount ?? 0) + 1; // 1. Auslösung = 0 Snoozes + 1
+
+  // Story 3.1 AC5/AC8: Eigene vs. fremde Erinnerung erkennen
+  // Eine Erinnerung ist "meine" wenn ich sie erstellt habe ODER mir zugewiesen wurde
+  const isOwnReminder = currentUserId ? erinnerung.erstelltVon === currentUserId || erinnerung.assignedToId === currentUserId : true;
+  const isTeamReminder = currentUserId && !isOwnReminder;
 
   const handleEdit = useCallback(() => {
     if (isEditable) {
@@ -237,12 +260,30 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
     return 'border-gray-200 dark:border-gray-700';
   };
 
+  // Story 3.2 AC2: Animation-Classes basierend auf Animation-Typ
+  const getAnimationClasses = () => {
+    if (!animationEntry) return '';
+
+    switch (animationEntry.type) {
+      case 'update':
+        // Highlight-Effekt bei Update (kurzer Glow/Pulse)
+        return 'animate-highlight ring-2 ring-blue-400 ring-opacity-75';
+      case 'insert':
+        // Slide-in Animation für neue Items
+        return 'animate-slide-in-right';
+      default:
+        return '';
+    }
+  };
+
   // Gemeinsame CSS-Klassen für Card-Container
   const cardBaseClasses = cn(
     'rounded-lg border bg-white p-4 shadow-sm transition-all dark:bg-gray-800',
     getBorderClasses(),
     // Background für AUSGELOEST
     isTriggered && 'bg-red-50 dark:bg-red-900/20',
+    // Story 3.2 AC2: Animation bei WebSocket-Updates
+    getAnimationClasses(),
     className,
   );
 
@@ -297,8 +338,30 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
                 Pflicht
               </span>
             )}
+            {/* Story 3.1 AC8: "Team"-Badge bei fremden Erinnerungen */}
+            {isTeamReminder && (
+              // biome-ignore lint/a11y/useSemanticElements: span mit role="status" ist hier korrekt fuer inline Status-Badge
+              <span
+                role="status"
+                aria-label="Team-Erinnerung"
+                className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-1.5 py-0.5 font-medium text-blue-700 text-xs dark:bg-blue-900/40 dark:text-blue-300"
+                title={`Erstellt von ${erinnerung.erstellerName ?? 'Unbekannt'}`}
+              >
+                Team
+              </span>
+            )}
           </div>
           {erinnerung.beschreibung && <p className="mt-0.5 text-gray-500 text-xs dark:text-gray-400">{erinnerung.beschreibung}</p>}
+
+          {/* Story 3.1 AC3/AC4/AC5: Ersteller-Namen anzeigen (bei showCreator, Team-Erinnerung, oder zugewiesener Erinnerung) */}
+          {(showCreator || isTeamReminder || (erinnerung.assignedToId && erinnerung.assignedToId === currentUserId)) && erinnerung.erstellerName && (
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <AvatarInitials name={erinnerung.erstellerName} size="sm" />
+              <p className="text-gray-400 text-xs dark:text-gray-500">
+                <span className="text-gray-500 dark:text-gray-400">{erinnerung.assignedToId === currentUserId ? 'Erstellt von' : 'von'}</span> {erinnerung.erstellerName}
+              </p>
+            </div>
+          )}
 
           {/* Story 1.7 AC3/AC4: CountdownDisplay mit dynamischen Updates */}
           <div className="mt-2 flex items-center gap-2">

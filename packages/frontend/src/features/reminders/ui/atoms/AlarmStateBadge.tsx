@@ -36,6 +36,14 @@ interface AlarmStateBadgeProps {
    * - 'urgent': Intensivstes Pulsieren nach 60s (Story 2.4)
    */
   intensityLevel?: IntensityLevel;
+  /**
+   * Flag ob Audio-Wiedergabe fehlgeschlagen ist (Story 2.8)
+   *
+   * Wenn true, wird der visuelle Alarm verstärkt:
+   * - Animation beschleunigt auf 0.5s
+   * - Intensivere rote Farbe
+   */
+  audioFailed?: boolean;
 }
 
 /**
@@ -113,6 +121,16 @@ const URGENCY_COLORS: Record<UrgencyLevel, { bg: string; text: string; dark: str
 };
 
 /**
+ * Intensivierte Farben bei Audio-Ausfall (Story 2.8)
+ * Verwendet dunkleres Rot für maximale Aufmerksamkeit ohne Sound
+ */
+const AUDIO_FAILED_COLORS = {
+  bg: 'bg-red-200',
+  text: 'text-red-800',
+  dark: 'dark:bg-red-800/60 dark:text-red-200',
+};
+
+/**
  * Issue #10 WCAG Fix: Text-Suffixe für Urgency Level (nicht nur Farbe)
  * Stellt sicher, dass Dringlichkeit auch ohne Farbe erkennbar ist.
  */
@@ -146,9 +164,18 @@ function getUrgencyLevel(minutesUntilDue: number | undefined): UrgencyLevel {
 }
 
 /**
- * Holt die Farben basierend auf Status und Urgency Level
+ * Holt die Farben basierend auf Status, Urgency Level und Audio-Status
+ *
+ * @param status - Aktueller Erinnerungs-Status
+ * @param minutesUntilDue - Verbleibende Minuten (nur für GEPLANT)
+ * @param audioFailed - true wenn Audio fehlgeschlagen (Story 2.8)
  */
-function getColors(status: ErinnerungStatus, minutesUntilDue?: number): { bg: string; text: string; dark: string } {
+function getColors(status: ErinnerungStatus, minutesUntilDue?: number, audioFailed?: boolean): { bg: string; text: string; dark: string } {
+  // Story 2.8: Audio-Ausfall = intensiveres Rot bei AUSGELOEST
+  if (status === 'AUSGELOEST' && audioFailed) {
+    return AUDIO_FAILED_COLORS;
+  }
+
   // Nur GEPLANT bekommt progressive Farbwechsel
   if (status === 'GEPLANT') {
     const urgencyLevel = getUrgencyLevel(minutesUntilDue);
@@ -158,16 +185,23 @@ function getColors(status: ErinnerungStatus, minutesUntilDue?: number): { bg: st
 }
 
 /**
- * Holt die Animations-Klasse basierend auf Status und Intensivierungs-Level (Story 2.3)
+ * Holt die Animations-Klasse basierend auf Status, Intensivierungs-Level und Audio-Status
  *
  * @param status - Aktueller Erinnerungs-Status
  * @param intensityLevel - Aktuelles Intensivierungs-Level
+ * @param audioFailed - true wenn Audio-Wiedergabe fehlgeschlagen ist (Story 2.8)
  * @returns Animations-Klassen für Badge und Icon
  */
-function getAnimationClasses(status: ErinnerungStatus, intensityLevel: IntensityLevel): { badge: string; icon: string } {
+function getAnimationClasses(status: ErinnerungStatus, intensityLevel: IntensityLevel, audioFailed: boolean): { badge: string; icon: string } {
   // Nur AUSGELOEST bekommt Animationen
   if (status !== 'AUSGELOEST') {
     return { badge: '', icon: '' };
+  }
+
+  // Story 2.8 AC2: audioFailed takes precedence over intensity levels
+  // When audio is unavailable, we use the most aggressive visual alarm regardless of intensity
+  if (audioFailed) {
+    return { badge: 'animate-pulse-audio-failed animate-border-glow-urgent', icon: 'animate-bounce' };
   }
 
   // Story 2.3/2.4: Intensivierte Animationen mit visueller Differenzierung
@@ -201,12 +235,12 @@ function getAnimationClasses(status: ErinnerungStatus, intensityLevel: Intensity
  * <AlarmStateBadge status="AUSGELOEST" />
  * <AlarmStateBadge status="AUSGELOEST" intensityLevel="warning" />
  */
-export function AlarmStateBadge({ status, minutesUntilDue, size = 'md', className, intensityLevel = 'none' }: AlarmStateBadgeProps) {
+export function AlarmStateBadge({ status, minutesUntilDue, size = 'md', className, intensityLevel = 'none', audioFailed = false }: AlarmStateBadgeProps) {
   const Icon = STATUS_ICONS[status];
   const label = STATUS_LABELS[status];
-  const colors = getColors(status, minutesUntilDue);
+  const colors = getColors(status, minutesUntilDue, audioFailed);
   const sizeClasses = SIZE_CLASSES[size];
-  const animationClasses = getAnimationClasses(status, intensityLevel);
+  const animationClasses = getAnimationClasses(status, intensityLevel, audioFailed);
 
   // Issue #10 WCAG Fix: Text-Indikation der Urgency (nicht nur Farbe)
   const urgencyLevel = status === 'GEPLANT' ? getUrgencyLevel(minutesUntilDue) : 'normal';
@@ -218,8 +252,11 @@ export function AlarmStateBadge({ status, minutesUntilDue, size = 'md', classNam
     warning: ' (Intensiviert - 30s)',
     urgent: ' (Dringend - 60s)',
   };
-  const intensitySuffix = status === 'AUSGELOEST' ? INTENSITY_LABELS[intensityLevel] : '';
-  const displayLabel = `${label}${urgencySuffix}${intensitySuffix}`;
+
+  // Story 2.8: Audio-Ausfall Suffix für Screen Reader
+  const audioFailedSuffix = audioFailed && status === 'AUSGELOEST' ? ' (Kein Audio!)' : '';
+  const intensitySuffix = status === 'AUSGELOEST' && !audioFailed ? INTENSITY_LABELS[intensityLevel] : '';
+  const displayLabel = `${label}${urgencySuffix}${intensitySuffix}${audioFailedSuffix}`;
 
   return (
     <output

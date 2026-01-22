@@ -9,11 +9,14 @@
  * - Browser (Testing): Web Audio API mit Sound-Files oder Graceful Degradation
  *
  * **Story 1.5 AC2:** Akustisches Feedback bei Erinnerungs-Trigger
+ * **Story 2.7:** Audio-Einstellungen (Volume, Sound-Auswahl, Preview)
  */
 
 import { isTauri } from '@tauri-apps/api/core';
 import { invoke } from '@tauri-apps/api/core';
 import { logger } from '@/shared/lib/logger';
+import { SOUND_FILES, toAudioVolume, type AlarmLevel, type SoundOption } from '@/features/settings/schemas';
+import { getAudioSettings } from '@/features/settings/hooks';
 
 /**
  * Sound Level für Erinnerungen
@@ -25,26 +28,52 @@ import { logger } from '@/shared/lib/logger';
 export type SoundLevel = 'info' | 'warning' | 'urgent';
 
 /**
- * Sound File Mapping für Web Audio Fallback
+ * Web Audio Error - Recoverable (könnte nach User-Interaktion funktionieren)
  *
- * Pfade relativ zum public/ Ordner.
- * Fallback wird nur im Browser-Modus (Testing) verwendet.
+ * **Story 2.8 AC2:** Autoplay blocked ist ein recoverable Error - der Sound
+ * könnte nach einer User-Interaktion (z.B. Klick auf Button) funktionieren.
  */
-const SOUND_FILES: Record<SoundLevel, string> = {
-  info: '/sounds/alarm-info.mp3',
-  warning: '/sounds/alarm-warning.mp3',
-  urgent: '/sounds/alarm-urgent.mp3',
-};
+export class WebAudioRecoverableError extends Error {
+  readonly isRecoverable = true;
+  constructor(message: string) {
+    super(message);
+    this.name = 'WebAudioRecoverableError';
+  }
+}
+
+/**
+ * Web Audio Error - Fatal (wird nie funktionieren)
+ *
+ * **Story 2.8 AC2:** Fatal Errors wie fehlende Dateien erfordern visuellen Alarm.
+ */
+export class WebAudioFatalError extends Error {
+  readonly isRecoverable = false;
+  constructor(message: string) {
+    super(message);
+    this.name = 'WebAudioFatalError';
+  }
+}
+
+/**
+ * Ergebnis einer Sound-Wiedergabe
+ *
+ * @property fallbackUsed - True wenn Web Audio als Fallback nach Tauri-Fehler genutzt wurde (Story 2.8)
+ */
+export interface SoundResult {
+  success: boolean;
+  error?: string;
+  skipped?: boolean;
+  fallbackUsed?: boolean;
+}
 
 /**
  * Web Audio Fallback State
  *
  * Caching der Audio-Elemente für schnellere Wiedergabe bei erneutem Abspielen.
- * AudioContext wird lazy initialisiert um Browser-Autoplay-Policies zu umgehen.
+ * Lazy initialisiert um Browser-Autoplay-Policies zu umgehen.
  */
 interface WebAudioState {
   audioElements: Map<SoundLevel, HTMLAudioElement>;
-  audioContext: AudioContext | null;
   initialized: boolean;
 }
 
@@ -70,7 +99,6 @@ export class SoundService {
   private static instance: SoundService | null = null;
   private webAudioState: WebAudioState = {
     audioElements: new Map(),
-    audioContext: null,
     initialized: false,
   };
 
@@ -97,111 +125,237 @@ export class SoundService {
   /**
    * Spielt einen Alarm-Sound basierend auf dem Sound-Level ab.
    *
-   * Priorisiert Tauri Native Sound (Desktop) und fällt auf Web Audio
-   * zurück (Browser Testing). Bei Fehlern wird graceful degradiert
-   * mit Console-Log statt Absturz.
+   * Lädt Audio-Settings aus dem Tauri Store und spielt den konfigurierten
+   * Sound mit der eingestellten Lautstärke ab. Bei deaktiviertem Audio
+   * wird die Wiedergabe übersprungen.
    *
    * @param level - Sound-Level ('info' | 'warning' | 'urgent')
    * @returns Promise mit Erfolgs-Status und optionalem Fehler
+   *
+   * **Story 2.7 AC6:** Konfigurierte Töne bei Alarm nutzen
    */
-  public async playAlarm(level: SoundLevel): Promise<{ success: boolean; error?: string }> {
+  public async playAlarm(level: SoundLevel): Promise<SoundResult> {
     try {
-      if (isTauri()) {
-        await this.playTauriNativeSound(level);
-      } else {
-        await this.playWebAudioFallback(level);
+      // Audio-Settings laden (Story 2.7 AC6)
+      const settings = await getAudioSettings();
+
+      // Globale Stummschaltung prüfen (Story 2.7 AC7)
+      if (!settings.enabled) {
+        logger.info(`[SoundService] Audio deaktiviert, überspringe Alarm: ${level}`);
+        return { success: true, skipped: true };
       }
 
-      logger.info(`[SoundService] Alarm abgespielt: ${level}`);
-      return { success: true };
+      const levelConfig = settings.levels[level as AlarmLevel];
+      return this.playWithConfig(level, levelConfig.sound, levelConfig.volume);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
       logger.warn(`[SoundService] Sound konnte nicht abgespielt werden (${level}): ${errorMessage}`);
 
       // Graceful Degradation: Log statt Fehler werfen
-      console.log(`[SoundService] Fallback: Alarm-Event für Level "${level}" (kein Sound verfügbar)`);
+      logger.info(`[SoundService] Fallback: Alarm-Event für Level "${level}" (kein Sound verfügbar)`);
 
       return { success: false, error: errorMessage };
     }
   }
 
   /**
-   * Spielt Sound über Tauri Native API ab.
+   * Spielt einen Sound mit expliziter Konfiguration ab.
    *
-   * Nutzt Tauri invoke() um den Sound im Rust-Backend abzuspielen.
-   * Dies ermöglicht native System-Sounds und bessere Performance.
+   * Diese Methode erlaubt die direkte Steuerung von Sound-Auswahl und
+   * Lautstärke ohne Zugriff auf den Settings-Store.
    *
-   * @param level - Sound-Level für Tauri Backend
-   * @throws Error wenn Tauri invoke fehlschlägt
+   * @param level - Alarm-Level ('info' | 'warning' | 'urgent')
+   * @param sound - Sound-Option ('default' | 'chime' | 'bell' | 'alert')
+   * @param volume - Lautstärke (0-100)
+   * @returns Promise mit Erfolgs-Status
+   *
+   * **Story 2.7 AC3:** Lautstärke-Einstellung pro Stufe
+   * **Story 2.7 AC6:** Konfigurierte Töne bei Alarm nutzen
    */
-  private async playTauriNativeSound(level: SoundLevel): Promise<void> {
-    await invoke('play_sound', { soundType: level });
+  public async playWithConfig(level: SoundLevel, sound: SoundOption, volume: number): Promise<SoundResult> {
+    try {
+      const audioVolume = toAudioVolume(volume);
+      const soundFile = SOUND_FILES[level as AlarmLevel][sound];
+
+      if (isTauri()) {
+        // Story 2.8 AC1: Tauri mit Fallback zu Web Audio
+        try {
+          await this.playTauriNativeSoundWithVolume(level, sound, audioVolume);
+          logger.info(`[SoundService] Sound abgespielt: ${level}/${sound} @ ${volume}%`);
+          return { success: true };
+        } catch (tauriError) {
+          // AC1: Bei Tauri-Fehler automatisch Web Audio Fallback
+          const tauriErrorMessage = tauriError instanceof Error ? tauriError.message : 'Unbekannter Tauri-Fehler';
+          logger.warn(`[SoundService] Tauri sound failed, using Web Audio fallback: ${tauriErrorMessage}`);
+
+          // Fallback zu Web Audio
+          const webAudioResult = await this.playWebAudioWithFallbackTracking(soundFile, audioVolume);
+          if (webAudioResult.success) {
+            logger.info(`[SoundService] Fallback erfolgreich: ${level}/${sound} @ ${volume}%`);
+            return { success: true, fallbackUsed: true };
+          }
+          // Beide fehlgeschlagen → AC2 wird von Caller behandelt
+          return { success: false, error: webAudioResult.error, fallbackUsed: true };
+        }
+      } else {
+        // Nicht-Tauri Umgebung: Nur Web Audio
+        await this.playWebAudioWithVolume(soundFile, audioVolume);
+        logger.info(`[SoundService] Sound abgespielt: ${level}/${sound} @ ${volume}%`);
+        return { success: true };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      logger.warn(`[SoundService] playWithConfig fehlgeschlagen: ${errorMessage}`);
+      return { success: false, error: errorMessage };
+    }
   }
 
   /**
-   * Spielt Sound über Web Audio API ab (Browser Fallback).
+   * Spielt eine Sound-Vorschau für die Einstellungs-UI ab.
    *
-   * Verwendet HTML5 Audio Element mit Caching für bessere Performance.
-   * Bei fehlendem Sound-File wird graceful degradiert mit Console-Log.
+   * Identisch zu playWithConfig, aber mit explizitem Logging für
+   * bessere Unterscheidung im Debug-Output.
    *
-   * @param level - Sound-Level für Audio-File Auswahl
-   * @throws Error wenn Audio nicht abgespielt werden kann
+   * @param level - Alarm-Level
+   * @param sound - Sound-Option
+   * @param volume - Lautstärke (0-100)
+   * @returns Promise mit Erfolgs-Status
+   *
+   * **Story 2.7 AC4:** Vorschau-Funktion
    */
-  private async playWebAudioFallback(level: SoundLevel): Promise<void> {
+  public async playPreview(level: SoundLevel, sound: SoundOption, volume: number): Promise<SoundResult> {
+    logger.info(`[SoundService] Preview: ${level}/${sound} @ ${volume}%`);
+    return this.playWithConfig(level, sound, volume);
+  }
+
+  /**
+   * Spielt Sound über Tauri Native API mit Volume-Control ab.
+   *
+   * Nutzt Tauri invoke() um den Sound im Rust-Backend abzuspielen.
+   * Volume wird als Float (0.0-1.0) an das Backend übergeben.
+   *
+   * @param level - Sound-Level für Tauri Backend
+   * @param sound - Sound-Option für Custom Sound
+   * @param volume - Lautstärke (0.0-1.0)
+   * @throws Error wenn Tauri invoke fehlschlägt
+   *
+   * **Story 2.7 AC3:** Volume-Control für Tauri
+   */
+  private async playTauriNativeSoundWithVolume(level: SoundLevel, sound: SoundOption, volume: number): Promise<void> {
+    // Volume clamping VOR Tauri invoke (Defense in Depth)
+    const clampedVolume = Math.max(0, Math.min(1, volume));
+
+    await invoke('play_sound', {
+      soundType: level,
+      volume: clampedVolume,
+      soundFile: sound !== 'default' ? SOUND_FILES[level as AlarmLevel][sound] : undefined,
+    });
+  }
+
+  /**
+   * Spielt Sound über Web Audio API mit Fallback-Tracking (Story 2.8).
+   *
+   * Wie playWebAudioWithVolume(), aber gibt SoundResult zurück statt zu werfen.
+   * Ermöglicht dem Caller zwischen recoverable und fatal Errors zu unterscheiden.
+   *
+   * @param soundFile - Pfad zur Sound-Datei
+   * @param volume - Lautstärke (0.0-1.0)
+   * @returns SoundResult mit success/error Status
+   *
+   * **Story 2.8 AC1:** Web Audio als Fallback nach Tauri-Fehler
+   */
+  private async playWebAudioWithFallbackTracking(soundFile: string, volume: number): Promise<SoundResult> {
+    try {
+      await this.playWebAudioWithVolume(soundFile, volume);
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Web Audio Fehler';
+      logger.warn(`[SoundService] Web Audio fallback failed: ${errorMessage}`);
+      return { success: false, error: `Audio nicht verfügbar: ${errorMessage}` };
+    }
+  }
+
+  /**
+   * Spielt Sound über Web Audio API mit Volume-Control ab.
+   *
+   * Verwendet HTML5 Audio Element. Volume wird über audio.volume gesetzt.
+   * Audio-Elemente werden nach Playback automatisch freigegeben (Memory Leak Prevention).
+   *
+   * **Story 2.8 AC2:** Unterscheidet zwischen recoverable und fatal Errors:
+   * - Recoverable: Autoplay blocked (NotAllowedError) - könnte nach User-Interaktion funktionieren
+   * - Fatal: File not found (NotSupportedError), AbortError - wird nie funktionieren
+   *
+   * @param soundFile - Pfad zur Sound-Datei
+   * @param volume - Lautstärke (0.0-1.0)
+   * @throws Error wenn Audio nicht abgespielt werden kann (mit Fehler-Typ für Caller)
+   *
+   * **Story 2.7 AC3:** Volume-Control für Web Audio
+   * **Story 2.8 AC2:** Error-Unterscheidung für visuellen Alarm
+   */
+  private async playWebAudioWithVolume(soundFile: string, volume: number): Promise<void> {
     // Lazy Initialisierung des Web Audio State
     if (!this.webAudioState.initialized) {
       this.initializeWebAudio();
     }
 
-    // Cached Audio Element verwenden oder neu erstellen
-    let audio = this.webAudioState.audioElements.get(level);
+    // Audio Element für diese spezifische Datei erstellen
+    // (kein Caching, da verschiedene Sound-Optionen)
+    const audio = new Audio(soundFile);
+    audio.volume = Math.max(0, Math.min(1, volume)); // Clamp 0-1
 
-    if (!audio) {
-      audio = new Audio(SOUND_FILES[level]);
-      this.webAudioState.audioElements.set(level, audio);
-    }
-
-    // Audio zurücksetzen falls bereits abgespielt
-    audio.currentTime = 0;
+    /**
+     * Gibt Audio-Element Ressourcen frei.
+     * Wird nach Playback-Ende oder bei Fehlern aufgerufen.
+     */
+    const releaseAudioElement = () => {
+      audio.src = '';
+      audio.remove();
+    };
 
     try {
       await audio.play();
+
+      // Audio-Element nach Playback freigeben (Memory Leak Prevention)
+      audio.addEventListener('ended', releaseAudioElement, { once: true });
+
+      // Bei Error ebenfalls freigeben
+      audio.addEventListener('error', releaseAudioElement, { once: true });
     } catch (playError) {
-      // Graceful Degradation: Wenn kein Sound-File vorhanden
-      // oder Autoplay blockiert, loggen statt Fehler werfen
+      // Bei Exception sofort freigeben
+      releaseAudioElement();
+
+      // Story 2.8 AC2: Error-Klassifizierung für Caller
       if (playError instanceof Error) {
         if (playError.name === 'NotAllowedError') {
-          console.log(`[SoundService] Browser blockiert Autoplay für "${level}". User-Interaktion erforderlich.`);
+          // Recoverable: Autoplay blocked - könnte nach User-Interaktion funktionieren
+          logger.warn(`[SoundService] Browser blockiert Autoplay. User-Interaktion erforderlich.`);
+          throw new WebAudioRecoverableError('Autoplay blockiert - bitte interagieren Sie mit der App');
         } else if (playError.name === 'NotSupportedError') {
-          console.log(`[SoundService] Sound-File nicht gefunden: ${SOUND_FILES[level]}`);
+          // Fatal: File not found
+          logger.error(`[SoundService] Sound-File nicht gefunden: ${soundFile}`);
+          throw new WebAudioFatalError(`Sound-Datei nicht gefunden: ${soundFile}`);
+        } else if (playError.name === 'AbortError') {
+          // Fatal: Playback wurde abgebrochen
+          logger.error(`[SoundService] Sound-Wiedergabe abgebrochen: ${playError.message}`);
+          throw new WebAudioFatalError(`Sound-Wiedergabe abgebrochen`);
         } else {
-          throw playError;
+          // Unbekannter Fehler → als fatal behandeln
+          throw new WebAudioFatalError(playError.message);
         }
       }
+      throw playError;
     }
   }
 
   /**
    * Initialisiert Web Audio State für Browser-Umgebung.
    *
-   * Erstellt AudioContext für erweiterte Audio-Kontrolle.
-   * AudioContext wird erst bei Bedarf erstellt (Browser-Policy).
+   * Setzt initialized Flag für Lazy Initialization.
+   * AudioContext entfernt (YAGNI) - HTMLAudioElement.volume reicht für Volume Control.
    */
   private initializeWebAudio(): void {
-    try {
-      // AudioContext für erweiterte Kontrolle (Volume, etc.)
-      // Nicht unbedingt nötig für simple Playback, aber für zukünftige Features
-      if (typeof AudioContext !== 'undefined') {
-        this.webAudioState.audioContext = new AudioContext();
-      }
-
-      this.webAudioState.initialized = true;
-      logger.debug('[SoundService] Web Audio initialisiert');
-    } catch (_error) {
-      // Browser unterstützt AudioContext nicht - kein kritischer Fehler
-      logger.warn('[SoundService] AudioContext nicht verfügbar, nutze nur HTML5 Audio');
-      this.webAudioState.initialized = true;
-    }
+    this.webAudioState.initialized = true;
+    logger.debug('[SoundService] Web Audio initialisiert');
   }
 
   /**
@@ -210,6 +364,8 @@ export class SoundService {
    * Diese Methode ersetzt den aktuellen Sound durch den neuen Level.
    * Im Gegensatz zu stopAllSounds() + playAlarm() ist dies eine atomare Operation
    * die Debouncing eingebaut hat um Sound-Ueberlappung zu vermeiden.
+   *
+   * Nutzt die Audio-Settings für Sound-Auswahl und Lautstärke.
    *
    * @param level - Neues Sound-Level ('warning' oder 'urgent')
    * @returns Promise mit Erfolgs-Status und optionalem Fehler
@@ -220,7 +376,7 @@ export class SoundService {
    * await soundService.escalateToLevel('warning');
    * ```
    */
-  public async escalateToLevel(level: SoundLevel): Promise<{ success: boolean; error?: string }> {
+  public async escalateToLevel(level: SoundLevel): Promise<SoundResult> {
     // Debounce: Verhindere zu schnelle aufeinanderfolgende Eskalationen
     const now = Date.now();
     if (this.lastEscalationTime && now - this.lastEscalationTime < SoundService.ESCALATION_DEBOUNCE_MS) {
@@ -231,7 +387,7 @@ export class SoundService {
 
     logger.info(`[SoundService] Eskaliere Sound zu: ${level}`);
 
-    // Spiele neuen Sound (ersetzt automatisch den vorherigen durch Audio-Element Reuse)
+    // Spiele neuen Sound mit konfigurierten Settings
     return this.playAlarm(level);
   }
 
@@ -269,8 +425,7 @@ export class SoundService {
   /**
    * Räumt Audio-Ressourcen auf.
    *
-   * Schließt AudioContext, stoppt alle Sounds, gibt Audio-Elemente frei
-   * und setzt Debounce-State zurueck.
+   * Stoppt alle Sounds, gibt Audio-Elemente frei und setzt Debounce-State zurueck.
    * Sollte beim App-Shutdown aufgerufen werden um Resource Leaks zu vermeiden.
    *
    * @returns Promise das resolvet wenn Cleanup abgeschlossen ist
@@ -283,13 +438,6 @@ export class SoundService {
       audio.src = ''; // Browser-Ressourcen freigeben
     }
     this.webAudioState.audioElements.clear();
-
-    if (this.webAudioState.audioContext) {
-      await this.webAudioState.audioContext.close().catch(() => {
-        // Ignorieren - AudioContext Cleanup ist nicht kritisch
-      });
-      this.webAudioState.audioContext = null;
-    }
 
     // Debounce-State zuruecksetzen (Memory Leak Prevention)
     this.clearEscalationDebounce();
@@ -308,13 +456,6 @@ export class SoundService {
     if (SoundService.instance) {
       SoundService.instance.stopAllSounds();
       SoundService.instance.webAudioState.audioElements.clear();
-
-      if (SoundService.instance.webAudioState.audioContext) {
-        SoundService.instance.webAudioState.audioContext.close().catch(() => {
-          // Ignorieren - AudioContext Cleanup ist nicht kritisch
-        });
-      }
-
       SoundService.instance = null;
     }
   }

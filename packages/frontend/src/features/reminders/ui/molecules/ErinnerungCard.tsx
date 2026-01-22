@@ -57,7 +57,7 @@ import { useAcknowledgeErinnerung, useSnoozeErinnerung, type SnoozeMinutes } fro
 import { soundService, timerService, intensificationService } from '../../services';
 import { useCountdown } from '../../hooks/use-countdown';
 import { syncService } from '../../services/sync.service';
-import { openDeleteDialog, openEditDialog, openMarkErledigtDialog, useIntensityLevel } from '../../stores';
+import { openDeleteDialog, openEditDialog, openMarkErledigtDialog, useIntensityLevel, useAudioFailed } from '../../stores';
 import { AlarmStateBadge } from '../atoms/AlarmStateBadge';
 import { CountdownDisplay } from '../atoms/CountdownDisplay';
 import { SnoozeButtonGroup } from './SnoozeButtonGroup';
@@ -89,6 +89,9 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
 
   // Story 2.3: Intensivierungs-Level aus Store
   const intensityLevel = useIntensityLevel(erinnerung.id);
+
+  // Story 2.8: Audio-Ausfall Flag aus Store
+  const audioFailed = useAudioFailed(erinnerung.id);
 
   // Story 1.6: Acknowledge Mutation Hook
   const acknowledgeErinnerung = useAcknowledgeErinnerung();
@@ -200,9 +203,14 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
 
   // Story 1.7 AC5: Card-Border-Farben basierend auf Status und Urgency Level
   // Story 2.3 AC2: Intensivierte Border-Animation bei Nicht-Reaktion
+  // Story 2.8 AC2: Intensivere Farben bei Audio-Ausfall
   const getBorderClasses = () => {
     // AUSGELOEST: Roter Border mit Animation
     if (isTriggered) {
+      // Story 2.8 AC2: Bei Audio-Ausfall intensivere visuelle Darstellung
+      if (audioFailed) {
+        return 'border-red-600 dark:border-red-500 ring-4 ring-red-400 dark:ring-red-700 animate-border-glow-urgent';
+      }
       // Story 2.3 AC2: Bei Intensivierung animate-border-glow hinzufuegen
       if (intensityLevel !== 'none') {
         return 'border-red-500 dark:border-red-400 ring-2 ring-red-300 dark:ring-red-800 animate-border-glow';
@@ -245,7 +253,8 @@ export function ErinnerungCard({ erinnerung, einsatzId, className }: ErinnerungC
       <div className="flex items-start gap-3">
         {/* Story 1.7 AC1/AC6: AlarmStateBadge statt inline Icon */}
         {/* Story 2.3 AC2: intensityLevel fuer schnelleres Pulsieren */}
-        <AlarmStateBadge status={erinnerung.status} minutesUntilDue={minutesUntilDue} size="md" intensityLevel={intensityLevel} />
+        {/* Story 2.8 AC2: audioFailed fuer visuelle Verstaerkung bei Audio-Ausfall */}
+        <AlarmStateBadge status={erinnerung.status} minutesUntilDue={minutesUntilDue} size="md" intensityLevel={intensityLevel} audioFailed={audioFailed} />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

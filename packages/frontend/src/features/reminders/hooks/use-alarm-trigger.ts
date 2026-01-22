@@ -42,7 +42,7 @@ import { logger } from '@/shared/lib/logger';
 import { toast } from 'sonner';
 import { useTriggerErinnerung } from '../api';
 import { timerService, soundService, sendErinnerungNotification, sendIntensifiedNotification, requestNotificationPermission, intensificationService } from '../services';
-import type { IntensityLevel } from '../stores/intensification.store';
+import { type IntensityLevel, setAudioFailed } from '../stores/intensification.store';
 import { showFloatingPill, hideFloatingPill } from '../stores/floating-pill.store';
 
 /**
@@ -226,14 +226,45 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
       let notificationSuccess = false;
 
       // 1. Sound abspielen
+      let soundResult: { success: boolean; error?: string; fallbackUsed?: boolean } = { success: false };
       try {
-        const soundResult = await soundService.playAlarm('info');
+        soundResult = await soundService.playAlarm('info');
         soundSuccess = soundResult.success;
         if (!soundSuccess) {
           logger.warn(`[AlarmTrigger] Sound failed (non-critical): ${soundResult.error}`);
         }
+        // Story 2.8 AC3: Log Fallback-Nutzung
+        if (soundResult.fallbackUsed) {
+          logger.info(`[AlarmTrigger] Used Web Audio fallback for ${erinnerung.id}`);
+        }
       } catch (err) {
         logger.warn(`[AlarmTrigger] Sound failed (non-critical): ${err}`);
+      }
+
+      // Story 2.8 AC2: Toast und visuelle Verstaerkung bei totalem Audio-Ausfall
+      if (soundResult.error) {
+        // Story 2.8 CR Fix: Validate erinnerung is still AUSGELOEST before setting flag
+        const currentErinnerung = erinnerungenRef.current.find((e) => e.id === erinnerung.id);
+        if (!currentErinnerung || currentErinnerung.status !== 'AUSGELOEST') {
+          logger.warn(`[AlarmTrigger] Erinnerung ${erinnerung.id} nicht mehr AUSGELOEST, überspringe audioFailed`);
+          return;
+        }
+
+        // AC2: audioFailed Flag setzen fuer visuelle Verstaerkung
+        setAudioFailed(erinnerung.id, true);
+
+        // AC2 (optional): FloatingPill sofort aktivieren (nicht erst bei urgent)
+        // Da kein Audio abgespielt werden kann, muss visuelle Aufmerksamkeit maximiert werden
+        logger.info(`[AlarmTrigger] Story 2.8: Audio-Ausfall - Aktiviere FloatingPill sofort fuer: ${erinnerung.titel}`);
+        showFloatingPill(erinnerung.id, {
+          titel: erinnerung.titel,
+          ausgeloestAm: erinnerung.ausgeloestAm ?? erinnerung.faelligAm,
+        });
+
+        toast.error('Audio nicht verfügbar', {
+          description: `${erinnerung.titel} - Bitte Lautsprecher prüfen. Der visuelle Alarm wurde verstärkt.`,
+          duration: 10000,
+        });
       }
 
       // 2. Notification zeigen (mit Deep Link Daten für Navigation)
@@ -304,6 +335,10 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
       timerService.stop();
       // Story 2.3: Alle Intensification Timer stoppen
       intensificationService.stopAllTimers();
+      // Story 2.8 CR Fix: Clear audioFailed flags to prevent memory leak
+      for (const erinnerung of erinnerungen) {
+        setAudioFailed(erinnerung.id, false);
+      }
     };
   }, [enabled, erinnerungen, einsatzId, executeTriggerSequence]);
 

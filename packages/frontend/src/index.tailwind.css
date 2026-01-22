@@ -216,6 +216,28 @@ body {
   }
 }
 
+/* Story 2.8: Audio-Ausfall Animation (0.5s schnelles Pulsieren mit Shake) */
+/* Visueller Ausgleich fuer fehlenden Audio-Alarm */
+@keyframes pulse-audio-failed {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1) translateX(0) translateZ(0);
+  }
+  25% {
+    opacity: 0.6;
+    transform: scale(1.03) translateX(-1px) translateZ(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(0.98) translateX(1px) translateZ(0);
+  }
+  75% {
+    opacity: 0.6;
+    transform: scale(1.03) translateX(-1px) translateZ(0);
+  }
+}
+
 /* H6 Fix: Verwende filter: drop-shadow statt box-shadow für GPU-Beschleunigung */
 @keyframes border-glow-urgent {
   0%,
@@ -255,6 +277,12 @@ body {
   will-change: transform, opacity;
 }
 
+/* Story 2.8: Audio-Ausfall Animation (AC2: 0.5s statt 1s) */
+.animate-pulse-audio-failed {
+  animation: pulse-audio-failed 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  will-change: transform, opacity;
+}
+
 /* H5 Fix: Animation startet verzögert nach entrance (0.3s) */
 .animate-border-glow-urgent {
   animation: border-glow-urgent 0.3s ease-in-out infinite;
@@ -281,6 +309,7 @@ body {
   .animate-border-glow,
   .animate-pulse-urgent,
   .animate-border-glow-urgent,
+  .animate-pulse-audio-failed,
   .animate-floating-pill-entrance,
   .animate-floating-pill-exit {
     animation: none;
@@ -314,6 +343,12 @@ body {
   .animate-border-glow-urgent {
     opacity: 1;
     box-shadow: 0 0 15px rgba(220, 38, 38, 0.9);
+  }
+
+  /* Story 2.8: Static fallback for audio-failed alarms */
+  .animate-pulse-audio-failed {
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(185, 28, 28, 1);
   }
 
   /* Story 2.4: FloatingPill ohne Animation */

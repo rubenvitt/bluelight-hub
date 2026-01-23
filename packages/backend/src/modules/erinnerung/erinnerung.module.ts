@@ -14,6 +14,7 @@ import { TriggerErinnerungHandler } from '@/application/erinnerung/commands/trig
 import { AcknowledgeErinnerungHandler } from '@/application/erinnerung/commands/acknowledge-erinnerung/acknowledge-erinnerung.handler';
 import { SnoozeErinnerungHandler } from '@/application/erinnerung/commands/snooze-erinnerung/snooze-erinnerung.handler';
 import { MarkErledigtErinnerungHandler } from '@/application/erinnerung/commands/mark-erledigt-erinnerung/mark-erledigt-erinnerung.handler';
+import { AssignErinnerungHandler } from '@/application/erinnerung/commands/assign-erinnerung/assign-erinnerung.handler';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
 import { ErinnerungController } from './controllers/erinnerung.controller';
 import { ErinnerungGateway } from './gateways/erinnerung.gateway';
@@ -65,6 +66,7 @@ import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
     AcknowledgeErinnerungHandler,
     SnoozeErinnerungHandler,
     MarkErledigtErinnerungHandler,
+    AssignErinnerungHandler,
     GetErinnerungenByEinsatzHandler,
     // WebSocket (Story 1.5 AC4 + Security C1, C2, C3)
     ErinnerungGateway,
@@ -79,6 +81,7 @@ import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
     AcknowledgeErinnerungHandler,
     SnoozeErinnerungHandler,
     MarkErledigtErinnerungHandler,
+    AssignErinnerungHandler,
     GetErinnerungenByEinsatzHandler,
     ErinnerungGateway, // Export for WebSocket Event Adapter
   ],

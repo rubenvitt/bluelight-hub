@@ -55,8 +55,8 @@
 import type { ErinnerungResponseDto } from '@/shared';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
-import { useCallback, useMemo, useState } from 'react';
-import { PiCheckCircle, PiCheckSquareOffset, PiCloudSlash, PiNotepad, PiPencil, PiTrash } from 'react-icons/pi';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PiCheckCircle, PiCheckSquareOffset, PiCloudSlash, PiNotepad, PiPencil, PiTrash, PiUserPlus } from 'react-icons/pi';
 import { useAcknowledgeErinnerung, useSnoozeErinnerung, type SnoozeMinutes } from '../../api';
 import { soundService, timerService, intensificationService } from '../../services';
 import { useCountdown } from '../../hooks/use-countdown';
@@ -66,6 +66,34 @@ import { AlarmStateBadge } from '../atoms/AlarmStateBadge';
 import { AvatarInitials } from '../atoms/AvatarInitials';
 import { CountdownDisplay } from '../atoms/CountdownDisplay';
 import { SnoozeButtonGroup } from './SnoozeButtonGroup';
+import { ErinnerungAssignDialog } from '../organisms/ErinnerungAssignDialog';
+
+/**
+ * Hook zur Erkennung der Benutzer-Praeferenz fuer reduzierte Bewegung.
+ *
+ * Story 3.2 AC2 Accessibility: Bei `prefers-reduced-motion: reduce` werden
+ * Animationen durch subtile statische Effekte ersetzt.
+ *
+ * @returns true wenn der Benutzer reduzierte Bewegung bevorzugt
+ */
+const usePrefersReducedMotion = (): boolean => {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    // SSR-safe: Pruefe ob window verfuegbar ist
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  return prefersReducedMotion;
+};
 
 interface ErinnerungCardProps {
   /** Die anzuzeigende Erinnerung */
@@ -111,6 +139,9 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
   // Story 3.2 AC2: Animation bei WebSocket-Updates
   const animationEntry = useAnimationEntry(erinnerung.id);
 
+  // Story 3.2 AC2 Accessibility: Reduced-Motion Praeferenz des Benutzers
+  const prefersReducedMotion = usePrefersReducedMotion();
+
   // Story 1.6: Acknowledge Mutation Hook
   const acknowledgeErinnerung = useAcknowledgeErinnerung();
 
@@ -134,6 +165,11 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
   // Story 2.2 AC2: Re-Trigger Badge anzeigen wenn snoozeCount > 0 und AUSGELOEST
   const isRetrigger = isTriggered && (erinnerung.snoozeCount ?? 0) > 0;
   const retriggerNumber = (erinnerung.snoozeCount ?? 0) + 1; // 1. Auslösung = 0 Snoozes + 1
+  // Story 3.4 AC1: Nur aktive Erinnerungen (nicht ERLEDIGT/ESKALIERT) können zugewiesen werden
+  const isAssignable = !['ERLEDIGT', 'ESKALIERT'].includes(erinnerung.status);
+
+  // Story 3.4: State fuer Zuweisungs-Dialog
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
 
   // Story 3.1 AC5/AC8: Eigene vs. fremde Erinnerung erkennen
   // Eine Erinnerung ist "meine" wenn ich sie erstellt habe ODER mir zugewiesen wurde
@@ -159,6 +195,13 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
       openMarkErledigtDialog(erinnerung, einsatzId);
     }
   }, [erinnerung, einsatzId, isMarkErledigtable]);
+
+  // Story 3.4: Zuweisungs-Dialog oeffnen
+  const handleOpenAssignDialog = useCallback(() => {
+    if (isAssignable) {
+      setIsAssignDialogOpen(true);
+    }
+  }, [isAssignable]);
 
   // Story 1.6 AC1: Acknowledge-Handler mit API Call
   // Story 2.3 AC4: Intensification Timer wird bei Acknowledge gestoppt
@@ -261,9 +304,26 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
   };
 
   // Story 3.2 AC2: Animation-Classes basierend auf Animation-Typ
+  // Accessibility: Bei prefers-reduced-motion subtile statische Effekte statt Animationen
   const getAnimationClasses = () => {
     if (!animationEntry) return '';
 
+    // Bei prefers-reduced-motion: Subtile statische Effekte statt Animationen
+    // Dies erfuellt AC2 "subtile Animation" - bei reduced-motion als statischer visueller Hinweis
+    if (prefersReducedMotion) {
+      switch (animationEntry.type) {
+        case 'update':
+          // Statischer blauer Ring als Highlight (ohne Animation)
+          return 'ring-2 ring-blue-400 ring-opacity-50';
+        case 'insert':
+          // Statischer gruener Ring fuer neue Items (ohne Slide-Animation)
+          return 'ring-2 ring-green-400 ring-opacity-50';
+        default:
+          return '';
+      }
+    }
+
+    // Normale Animationen wenn reduced-motion nicht aktiv
     switch (animationEntry.type) {
       case 'update':
         // Highlight-Effekt bei Update (kurzer Glow/Pulse)
@@ -390,6 +450,20 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
           </Button>
         )}
 
+        {/* Story 3.4: Zuweisen-Button - nur bei zuweisbaren Status (nicht ERLEDIGT/ESKALIERT) */}
+        {isAssignable && (
+          <Button
+            appearance="ghost"
+            size="sm"
+            onClick={handleOpenAssignDialog}
+            aria-label="Erinnerung zuweisen"
+            title="Erinnerung zuweisen"
+            className="h-12 w-12 p-0 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/20 dark:hover:text-blue-300"
+          >
+            <PiUserPlus className="h-5 w-5" />
+          </Button>
+        )}
+
         {/* Loeschen-Button (Story 1.4 AC1/AC2) - nur bei GEPLANT oder AUSGELOEST Status */}
         {isDeletable && (
           <Button
@@ -444,23 +518,34 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
     </div>
   );
 
+  // Story 3.4: Zuweisungs-Dialog (wird immer gerendert, sichtbar nur wenn isAssignDialogOpen)
+  const assignDialog = <ErinnerungAssignDialog isOpen={isAssignDialogOpen} onClose={() => setIsAssignDialogOpen(false)} erinnerung={erinnerung} einsatzId={einsatzId} />;
+
   // Render: Interaktiver Container fuer acknowledgeable Cards, sonst normaler div
   // Biome a11y: Semantisches <button> Element statt div mit role="button"
   if (isAcknowledgeable) {
     return (
-      <button
-        type="button"
-        onKeyDown={handleKeyDown}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        onClick={handleAcknowledge}
-        aria-label={`Erinnerung "${erinnerung.titel}" - Enter: Bestätigen, Escape: 5 Min Snooze`}
-        className={cn(cardBaseClasses, 'w-full cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-green-500')}
-      >
-        {cardContent}
-      </button>
+      <>
+        <button
+          type="button"
+          onKeyDown={handleKeyDown}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          onClick={handleAcknowledge}
+          aria-label={`Erinnerung "${erinnerung.titel}" - Enter: Bestätigen, Escape: 5 Min Snooze`}
+          className={cn(cardBaseClasses, 'w-full cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-green-500')}
+        >
+          {cardContent}
+        </button>
+        {assignDialog}
+      </>
     );
   }
 
-  return <div className={cardBaseClasses}>{cardContent}</div>;
+  return (
+    <>
+      <div className={cardBaseClasses}>{cardContent}</div>
+      {assignDialog}
+    </>
+  );
 }

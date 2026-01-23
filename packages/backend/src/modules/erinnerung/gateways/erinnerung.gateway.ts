@@ -96,6 +96,20 @@ export interface ErinnerungRetriggeredPayload {
 }
 
 /**
+ * WebSocket Payload fuer erinnerung.assigned Event (Story 3.4).
+ */
+export interface ErinnerungAssignedPayload {
+  erinnerungId: string;
+  einsatzId: string;
+  assignedToId: string;
+  assignedToName: string;
+  assignedById: string;
+  assignedByName: string;
+  titel: string;
+  timestamp: string;
+}
+
+/**
  * WebSocket Gateway fuer Erinnerungen.
  *
  * **Story 1.5 AC4: WebSocket Event fuer Team-Sync**
@@ -289,6 +303,19 @@ export class ErinnerungGateway implements OnGatewayConnection, OnGatewayDisconne
     const roomName = this.getRoomName(payload.einsatzId);
     this.server.to(roomName).emit('erinnerung.retriggered', payload);
     this.logger.log(`Emitted erinnerung.retriggered to room ${roomName}: erinnerungId=${payload.erinnerungId}, snoozeCount=${payload.snoozeCount}`, 'ErinnerungGateway');
+  }
+
+  /**
+   * Emittiert `erinnerung.assigned` Event an alle Clients im Einsatz-Room.
+   *
+   * **Story 3.4:** WebSocket Event fuer Team-Sync bei Zuweisung einer bestehenden Erinnerung
+   *
+   * @param payload - Event-Payload mit erinnerungId, einsatzId, assignedToId, assignedToName, assignedById, assignedByName, titel, timestamp
+   */
+  emitErinnerungAssigned(payload: ErinnerungAssignedPayload): void {
+    const roomName = this.getRoomName(payload.einsatzId);
+    this.server.to(roomName).emit('erinnerung.assigned', payload);
+    this.logger.log(`Emitted erinnerung.assigned to room ${roomName}: erinnerungId=${payload.erinnerungId}, assignedTo=${payload.assignedToId}`, 'ErinnerungGateway');
   }
 
   /**

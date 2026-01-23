@@ -6,6 +6,7 @@
  */
 
 // Commands
+export * from './commands/assign-erinnerung';
 export * from './commands/create-erinnerung';
 export * from './commands/update-erinnerung';
 

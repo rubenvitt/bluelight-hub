@@ -27,6 +27,10 @@ export interface ComboboxProps {
   className?: string;
   error?: string;
   openOnFocus?: boolean;
+  /** ID fuer das Input-Element (fuer Label-Verknuepfung) */
+  id?: string;
+  /** ARIA Label fuer Accessibility (falls kein sichtbares Label vorhanden) */
+  'aria-label'?: string;
 }
 
 export function Combobox({
@@ -44,6 +48,8 @@ export function Combobox({
   className,
   error,
   openOnFocus = false,
+  id,
+  'aria-label': ariaLabel,
 }: ComboboxProps) {
   const [query, setQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<ComboboxItem | null>(null);
@@ -104,6 +110,8 @@ export function Combobox({
           {leadingIcon && <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-gray-500 dark:text-gray-400">{leadingIcon}</div>}
           <ComboboxInput
             ref={inputRef}
+            id={id}
+            aria-label={ariaLabel}
             className={cn(
               'block w-full rounded-lg border-2 bg-gray-50 px-4 py-3 pr-12 font-medium text-base text-gray-900',
               'transition-all duration-200',
@@ -166,11 +174,10 @@ export function Combobox({
           </div>
 
           <ComboboxOptions
-            transition
             className={cn(
               'absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white py-1 text-base shadow-lg',
               'border border-gray-200',
-              'data-[closed]:data-[leave]:opacity-0 data-[leave]:transition data-[leave]:duration-100 data-[leave]:ease-in',
+              'transition duration-100 ease-in',
               'sm:text-sm',
               'dark:border-gray-700 dark:bg-gray-800 dark:shadow-none',
             )}

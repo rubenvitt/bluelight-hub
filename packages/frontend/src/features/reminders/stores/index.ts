@@ -137,10 +137,12 @@ export {
 export {
   // Animation Store (Story 3.2 Task 2)
   animationStore,
+  ANIMATION_CONFIG,
   // Animation Actions
   addAnimatedId,
   removeAnimatedId,
   clearAllAnimations,
+  clearAllAnimationTimers,
   resetAnimationStore,
   // Animation Selectors
   isAnimated,

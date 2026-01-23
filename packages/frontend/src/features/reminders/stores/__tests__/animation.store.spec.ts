@@ -46,6 +46,18 @@ describe('animation.store', () => {
       expect(getAnimationEntry(erinnerungId)?.type).toBe('insert');
     });
 
+    it('should add erinnerung ID with delete type', () => {
+      // Given (Arrange)
+      const erinnerungId = 'delete-id-789';
+
+      // When (Act)
+      addAnimatedId(erinnerungId, 'delete');
+
+      // Then (Assert)
+      expect(isAnimated(erinnerungId)).toBe(true);
+      expect(getAnimationEntry(erinnerungId)?.type).toBe('delete');
+    });
+
     it('should default to update type when not specified', () => {
       // Given (Arrange)
       const erinnerungId = 'default-id-789';
@@ -95,21 +107,27 @@ describe('animation.store', () => {
       expect(isAnimated(erinnerungId)).toBe(true);
     });
 
-    it('should handle multiple animated IDs', () => {
+    it('should handle multiple animated IDs with all types', () => {
       // Given (Arrange)
       const id1 = 'id-1';
       const id2 = 'id-2';
       const id3 = 'id-3';
+      const id4 = 'id-4';
 
       // When (Act)
       addAnimatedId(id1, 'update');
       addAnimatedId(id2, 'insert');
-      addAnimatedId(id3, 'update');
+      addAnimatedId(id3, 'delete');
+      addAnimatedId(id4, 'update');
 
       // Then (Assert)
       expect(isAnimated(id1)).toBe(true);
       expect(isAnimated(id2)).toBe(true);
       expect(isAnimated(id3)).toBe(true);
+      expect(isAnimated(id4)).toBe(true);
+      expect(getAnimationEntry(id1)?.type).toBe('update');
+      expect(getAnimationEntry(id2)?.type).toBe('insert');
+      expect(getAnimationEntry(id3)?.type).toBe('delete');
     });
   });
 
@@ -205,6 +223,20 @@ describe('animation.store', () => {
       // Then (Assert)
       expect(entry).toBeDefined();
       expect(entry?.type).toBe('insert');
+      expect(entry?.timestamp).toBeGreaterThan(0);
+    });
+
+    it('should return animation entry with delete type', () => {
+      // Given (Arrange)
+      const erinnerungId = 'delete-entry-id';
+      addAnimatedId(erinnerungId, 'delete');
+
+      // When (Act)
+      const entry = getAnimationEntry(erinnerungId);
+
+      // Then (Assert)
+      expect(entry).toBeDefined();
+      expect(entry?.type).toBe('delete');
       expect(entry?.timestamp).toBeGreaterThan(0);
     });
 

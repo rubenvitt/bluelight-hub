@@ -10,7 +10,7 @@
  * Laedt aktive Teilnehmer ueber useAktiveEinsatzTeilnehmer Hook.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { PiUser } from 'react-icons/pi';
 import { cn } from '@/shared/ui/cn';
 import { Combobox, type ComboboxItem } from '@/shared/ui/headless/combobox';
@@ -31,6 +31,12 @@ interface AssigneeSelectorProps {
   error?: string;
   /** Zusaetzliche CSS-Klassen */
   className?: string;
+  /** ID fuer das Input-Element (fuer Label-Verknuepfung) */
+  id?: string;
+  /** ARIA Label fuer Accessibility */
+  'aria-label'?: string;
+  /** Callback wenn sich der Loading-State aendert */
+  onLoadingChange?: (isLoading: boolean) => void;
 }
 
 /**
@@ -54,8 +60,13 @@ interface AssigneeSelectorProps {
  * />
  * ```
  */
-export function AssigneeSelector({ einsatzId, value, onChange, onBlur, disabled = false, error, className }: AssigneeSelectorProps) {
-  const { data: teilnehmer, isLoading, isError } = useAktiveEinsatzTeilnehmer(einsatzId);
+export function AssigneeSelector({ einsatzId, value, onChange, onBlur, disabled = false, error, className, id, 'aria-label': ariaLabel, onLoadingChange }: AssigneeSelectorProps) {
+  const { data: teilnehmer, isLoading, isError, refetch } = useAktiveEinsatzTeilnehmer(einsatzId);
+
+  // Kommuniziere Loading-State nach aussen (fuer Button-Disabling im Parent)
+  useEffect(() => {
+    onLoadingChange?.(isLoading);
+  }, [isLoading, onLoadingChange]);
 
   // AC2: Formatiere Teilnehmer fuer Combobox (Username + Funkrufname)
   const comboboxItems: ComboboxItem[] = useMemo(() => {
@@ -84,12 +95,15 @@ export function AssigneeSelector({ einsatzId, value, onChange, onBlur, disabled 
     );
   }
 
-  // Error State
+  // Error State mit Retry
   if (isError) {
     return (
       <div className={cn('w-full', className)}>
-        <div className="rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3 text-red-700 text-sm dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-          Teilnehmer konnten nicht geladen werden
+        <div className="flex flex-col gap-2 rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3 text-red-700 text-sm dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
+          <p>Teilnehmer konnten nicht geladen werden</p>
+          <button type="button" onClick={() => refetch()} className="self-start text-red-600 underline hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+            Erneut versuchen
+          </button>
         </div>
       </div>
     );
@@ -98,6 +112,8 @@ export function AssigneeSelector({ einsatzId, value, onChange, onBlur, disabled 
   return (
     <div className={cn('w-full', className)}>
       <Combobox
+        id={id}
+        aria-label={ariaLabel ?? 'Teilnehmer auswaehlen'}
         items={comboboxItems}
         value={value ?? ''}
         onChange={handleChange}

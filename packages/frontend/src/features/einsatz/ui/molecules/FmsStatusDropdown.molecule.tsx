@@ -1,5 +1,4 @@
-import { Fragment } from 'react';
-import { Listbox, Transition } from '@headlessui/react';
+import { Listbox } from '@headlessui/react';
 import { PiCheck, PiCaretUpDown } from 'react-icons/pi';
 import { FMS_STATUS_LABELS, FMS_STATUS_OPTIONS, getStatusBgClasses, getStatusClasses, type FmsStatus } from '../../constants/fms-status.constants';
 
@@ -46,37 +45,38 @@ export function FmsStatusDropdown({ value, onChange, disabled = false, className
           </span>
         </Listbox.Button>
 
-        <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-          <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm dark:bg-gray-800 dark:text-gray-100">
-            {FMS_STATUS_OPTIONS.map((status) => (
-              <Listbox.Option
-                key={status}
-                value={status}
-                className={({ active }) => {
-                  // Konsistente Styling mit FMS_STATUS_COLORS für alle States
-                  const baseClasses = 'relative cursor-pointer select-none py-2 pr-4 pl-10';
-                  const statusClasses = getStatusClasses(status);
-                  const activeClasses = active ? 'ring-2 ring-primary-500 ring-inset' : '';
-                  return `${baseClasses} ${statusClasses} ${activeClasses}`;
-                }}
-              >
-                {({ selected }) => (
-                  <>
-                    <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                      <span className={`mr-2 inline-block h-2 w-2 rounded-full ${getStatusBgClasses(status)}`} aria-hidden="true" />
-                      {status} - {FMS_STATUS_LABELS[status] ?? `Status ${status}`}
+        <Listbox.Options
+          transition
+          className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none transition ease-in duration-100 data-[closed]:opacity-0 sm:text-sm dark:bg-gray-800 dark:text-gray-100"
+        >
+          {FMS_STATUS_OPTIONS.map((status) => (
+            <Listbox.Option
+              key={status}
+              value={status}
+              className={({ active }) => {
+                // Konsistente Styling mit FMS_STATUS_COLORS für alle States
+                const baseClasses = 'relative cursor-pointer select-none py-2 pr-4 pl-10';
+                const statusClasses = getStatusClasses(status);
+                const activeClasses = active ? 'ring-2 ring-primary-500 ring-inset' : '';
+                return `${baseClasses} ${statusClasses} ${activeClasses}`;
+              }}
+            >
+              {({ selected }) => (
+                <>
+                  <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                    <span className={`mr-2 inline-block h-2 w-2 rounded-full ${getStatusBgClasses(status)}`} aria-hidden="true" />
+                    {status} - {FMS_STATUS_LABELS[status] ?? `Status ${status}`}
+                  </span>
+                  {selected && (
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                      <PiCheck className="h-5 w-5" aria-hidden="true" />
                     </span>
-                    {selected && (
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                        <PiCheck className="h-5 w-5" aria-hidden="true" />
-                      </span>
-                    )}
-                  </>
-                )}
-              </Listbox.Option>
-            ))}
-          </Listbox.Options>
-        </Transition>
+                  )}
+                </>
+              )}
+            </Listbox.Option>
+          ))}
+        </Listbox.Options>
       </div>
     </Listbox>
   );

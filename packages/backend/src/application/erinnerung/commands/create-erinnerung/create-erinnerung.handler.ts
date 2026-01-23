@@ -15,6 +15,7 @@ import { ERINNERUNG_REPOSITORY, LOGGER, OUTBOX_REPOSITORY } from '@infrastructur
 import type { CreateErinnerungCommand } from './create-erinnerung.command';
 import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
 import type { ErinnerungResponseDto } from '../../dto/erinnerung-response.dto';
+import type { Prisma } from '@/generated/prisma/client';
 
 /**
  * Handler zum Erstellen einer neuen Erinnerung.
@@ -77,6 +78,51 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // 1b. Story 3.3 Security: Validiere dass Ersteller Teilnehmer des Einsatzes ist
+    // ════════════════════════════════════════════════════════════════════════
+    const prismaClient = tx as Prisma.TransactionClient;
+    const creatorIsParticipant = await prismaClient.einsatzTeilnehmer.findFirst({
+      where: {
+        einsatzId: command.einsatzId,
+        userId: command.erstelltVon,
+        leftAt: null, // Nur aktive Teilnehmer
+      },
+      select: { id: true },
+    });
+
+    if (!creatorIsParticipant) {
+      this.logger.warn(`Unauthorized: User ${command.erstelltVon} is not participant of Einsatz ${command.einsatzId}`, 'CreateErinnerungHandler');
+      return Result.fail<ErinnerungResponseDto>(ERINNERUNG_ERROR_CODES.UNAUTHORIZED_ACCESS);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // 1c. Story 3.3: Validiere assignedToId (falls gesetzt)
+    // ════════════════════════════════════════════════════════════════════════
+    let assignedToUserId: UserId | null = null;
+    if (command.assignedToId) {
+      const assignedToIdResult = UserId.create(command.assignedToId);
+      if (assignedToIdResult.isFailure || !assignedToIdResult.value) {
+        return Result.fail<ErinnerungResponseDto>(assignedToIdResult.error ?? ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_TO);
+      }
+
+      // Validiere: assignedToId muss aktiver Einsatz-Teilnehmer sein
+      const isActiveTeilnehmer = await prismaClient.einsatzTeilnehmer.findFirst({
+        where: {
+          einsatzId: command.einsatzId,
+          userId: command.assignedToId,
+          leftAt: null, // Nur aktive Teilnehmer
+        },
+        select: { id: true },
+      });
+
+      if (!isActiveTeilnehmer) {
+        return Result.fail<ErinnerungResponseDto>(ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_TO);
+      }
+
+      assignedToUserId = assignedToIdResult.value;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // 2. Erinnerung Aggregate erstellen
     // ════════════════════════════════════════════════════════════════════════
     const erinnerungResult = Erinnerung.create({
@@ -86,6 +132,7 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
       faelligAm: command.faelligAm,
       erstelltVon: userIdResult.value,
       requiresNote: command.requiresNote,
+      assignedToId: assignedToUserId, // Story 3.3: Zuweisung bei Erstellung
     });
 
     if (erinnerungResult.isFailure || !erinnerungResult.value) {
@@ -118,6 +165,18 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
     erinnerung.clearDomainEvents();
 
     // ════════════════════════════════════════════════════════════════════════
+    // 5b. Story 3.3: AssignedTo Name aus DB laden (falls zugewiesen)
+    // ════════════════════════════════════════════════════════════════════════
+    let assignedToName: string | null = null;
+    if (assignedToUserId) {
+      const assignedUser = await prismaClient.user.findUnique({
+        where: { id: assignedToUserId.toString() },
+        select: { username: true },
+      });
+      assignedToName = assignedUser?.username ?? null;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // 6. Response DTO erstellen und zurückgeben
     // ════════════════════════════════════════════════════════════════════════
     const responseDto: ErinnerungResponseDto = {
@@ -132,6 +191,8 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
       updatedAt: erinnerung.updatedAt.toISOString(),
       snoozeCount: erinnerung.snoozeCount,
       requiresNote: erinnerung.requiresNote,
+      assignedToId: assignedToUserId?.toString() ?? null, // Story 3.3
+      assignedToName, // Story 3.3
     };
 
     return {

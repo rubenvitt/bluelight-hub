@@ -39,6 +39,7 @@ export class ErinnerungErstelltEvent extends DomainEvent {
    * @param faelligAm - Fälligkeitszeitpunkt
    * @param erstelltVon - User der die Erinnerung erstellt hat
    * @param aggregateId - Optional: ID des Aggregate Root (für Event Store)
+   * @param assignedToId - Story 3.3: Optional zugewiesener User bei Erstellung
    */
   constructor(
     public readonly erinnerungId: ErinnerungId,
@@ -47,6 +48,7 @@ export class ErinnerungErstelltEvent extends DomainEvent {
     public readonly faelligAm: Date,
     public readonly erstelltVon: UserId,
     aggregateId?: string,
+    public readonly assignedToId?: UserId,
   ) {
     super(aggregateId);
   }

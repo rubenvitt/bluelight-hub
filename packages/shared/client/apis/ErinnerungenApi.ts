@@ -14,6 +14,7 @@
 
 import * as runtime from '../runtime';
 import type {
+  AssignErinnerungDto,
   CreateErinnerungDto,
   ErinnerungControllerCreateVAlpha201Response,
   ErinnerungControllerGetByEinsatzVAlpha200Response,
@@ -22,6 +23,8 @@ import type {
   UpdateErinnerungDto,
 } from '../models/index';
 import {
+  AssignErinnerungDtoFromJSON,
+  AssignErinnerungDtoToJSON,
   CreateErinnerungDtoFromJSON,
   CreateErinnerungDtoToJSON,
   ErinnerungControllerCreateVAlpha201ResponseFromJSON,
@@ -39,6 +42,12 @@ import {
 export interface ErinnerungControllerAcknowledgeVAlphaRequest {
   einsatzId: string;
   id: string;
+}
+
+export interface ErinnerungControllerAssignVAlphaRequest {
+  einsatzId: string;
+  id: string;
+  assignErinnerungDto: AssignErinnerungDto;
 }
 
 export interface ErinnerungControllerCreateVAlphaRequest {
@@ -126,6 +135,60 @@ export class ErinnerungenApi extends runtime.BaseAPI {
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
   ): Promise<ErinnerungControllerCreateVAlpha201Response> {
     const response = await this.erinnerungControllerAcknowledgeVAlphaRaw(requestParameters, initOverrides);
+    return await response.value();
+  }
+
+  /**
+   * Weist eine bestehende Erinnerung einem anderen Benutzer zu. Nur aktive Erinnerungen (nicht ERLEDIGT/ESKALIERT) können zugewiesen werden.
+   * Bestehende Erinnerung zuweisen
+   */
+  async erinnerungControllerAssignVAlphaRaw(
+    requestParameters: ErinnerungControllerAssignVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ErinnerungControllerCreateVAlpha201Response>> {
+    if (requestParameters['einsatzId'] == null) {
+      throw new runtime.RequiredError('einsatzId', 'Required parameter "einsatzId" was null or undefined when calling erinnerungControllerAssignVAlpha().');
+    }
+
+    if (requestParameters['id'] == null) {
+      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling erinnerungControllerAssignVAlpha().');
+    }
+
+    if (requestParameters['assignErinnerungDto'] == null) {
+      throw new runtime.RequiredError('assignErinnerungDto', 'Required parameter "assignErinnerungDto" was null or undefined when calling erinnerungControllerAssignVAlpha().');
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    headerParameters['Content-Type'] = 'application/json';
+
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/einsatz/{einsatzId}/erinnerungen/{id}/assign`
+          .replace(`{${'einsatzId'}}`, encodeURIComponent(String(requestParameters['einsatzId'])))
+          .replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
+        method: 'POST',
+        headers: headerParameters,
+        query: queryParameters,
+        body: AssignErinnerungDtoToJSON(requestParameters['assignErinnerungDto']),
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response, (jsonValue) => ErinnerungControllerCreateVAlpha201ResponseFromJSON(jsonValue));
+  }
+
+  /**
+   * Weist eine bestehende Erinnerung einem anderen Benutzer zu. Nur aktive Erinnerungen (nicht ERLEDIGT/ESKALIERT) können zugewiesen werden.
+   * Bestehende Erinnerung zuweisen
+   */
+  async erinnerungControllerAssignVAlpha(
+    requestParameters: ErinnerungControllerAssignVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ErinnerungControllerCreateVAlpha201Response> {
+    const response = await this.erinnerungControllerAssignVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
 

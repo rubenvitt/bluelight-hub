@@ -47,6 +47,7 @@ interface ErinnerungAssignDialogProps {
 export function ErinnerungAssignDialog({ isOpen, onClose, erinnerung, einsatzId }: ErinnerungAssignDialogProps) {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isTeilnehmerLoading, setIsTeilnehmerLoading] = useState(true);
 
   const { mutate: assignErinnerung, isPending } = useAssignErinnerung();
 
@@ -54,6 +55,11 @@ export function ErinnerungAssignDialog({ isOpen, onClose, erinnerung, einsatzId 
   const handleUserChange = useCallback((userId: string | null) => {
     setSelectedUserId(userId);
     setError(null);
+  }, []);
+
+  // Handler fuer Loading-State des AssigneeSelector
+  const handleLoadingChange = useCallback((loading: boolean) => {
+    setIsTeilnehmerLoading(loading);
   }, []);
 
   // Handler fuer Zuweisung
@@ -103,7 +109,7 @@ export function ErinnerungAssignDialog({ isOpen, onClose, erinnerung, einsatzId 
   const isAssignable = erinnerung && !['ERLEDIGT', 'ESKALIERT'].includes(erinnerung.status);
 
   return (
-    <Dialog open={isOpen} onClose={handleClose}>
+    <Dialog isOpen={isOpen} onClose={handleClose}>
       <Dialog.Panel className="w-full max-w-md">
         <Dialog.Title className="flex items-center gap-2">
           <PiUser className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -138,7 +144,15 @@ export function ErinnerungAssignDialog({ isOpen, onClose, erinnerung, einsatzId 
               <label htmlFor="assignee-select" className="mb-1.5 block font-medium text-gray-700 text-sm dark:text-gray-300">
                 Zuweisen an
               </label>
-              <AssigneeSelector einsatzId={einsatzId} value={selectedUserId} onChange={handleUserChange} disabled={isPending} error={error ?? undefined} />
+              <AssigneeSelector
+                id="assignee-select"
+                einsatzId={einsatzId}
+                value={selectedUserId}
+                onChange={handleUserChange}
+                onLoadingChange={handleLoadingChange}
+                disabled={isPending}
+                error={error ?? undefined}
+              />
               {error && <p className="mt-1 text-red-600 text-sm dark:text-red-400">{error}</p>}
             </div>
 
@@ -150,7 +164,7 @@ export function ErinnerungAssignDialog({ isOpen, onClose, erinnerung, einsatzId 
               <Button variant="outline" onClick={handleClose} disabled={isPending}>
                 Abbrechen
               </Button>
-              <Button variant="primary" onClick={handleAssign} disabled={isPending || !selectedUserId} isLoading={isPending}>
+              <Button variant="primary" onClick={handleAssign} disabled={isPending || !selectedUserId || isTeilnehmerLoading} isLoading={isPending}>
                 Zuweisen
               </Button>
             </div>

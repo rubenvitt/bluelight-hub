@@ -4,6 +4,8 @@ import type { ILogger } from '@domain/ports/i-logger.port';
 import type { IErinnerungRepository } from '@domain/repositories/i-erinnerung.repository';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
 import { ERINNERUNG_REPOSITORY, LOGGER } from '@infrastructure/di-tokens';
+// biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
+import { PrismaService } from '@infrastructure/database/prisma.service';
 import type { ErinnerungResponseDto } from '../../dto/erinnerung-response.dto';
 import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
 import type { GetErinnerungenByEinsatzQuery } from './get-erinnerungen-by-einsatz.query';
@@ -26,6 +28,7 @@ export class GetErinnerungenByEinsatzHandler {
     private readonly erinnerungRepository: IErinnerungRepository,
     @Inject(LOGGER)
     private readonly logger: ILogger,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -67,29 +70,61 @@ export class GetErinnerungenByEinsatzHandler {
     const erinnerungen = erinnerungenResult.value ?? [];
 
     // ════════════════════════════════════════════════════════════════════════
-    // 3. Domain Entities zu DTOs mappen
+    // 3. User-IDs sammeln und User-Namen laden (Story 3.1)
     // ════════════════════════════════════════════════════════════════════════
-    const dtos: ErinnerungResponseDto[] = erinnerungen.map((erinnerung) => ({
-      id: erinnerung.id.toString(),
-      einsatzId: erinnerung.einsatzId.toString(),
-      titel: erinnerung.titel.value,
-      beschreibung: erinnerung.beschreibung ?? null,
-      faelligAm: erinnerung.faelligAm.toISOString(),
-      status: erinnerung.status.value,
-      erstelltVon: erinnerung.erstelltVon.toString(),
-      createdAt: erinnerung.createdAt.toISOString(),
-      updatedAt: erinnerung.updatedAt.toISOString(),
-      snoozeCount: erinnerung.snoozeCount,
-      requiresNote: erinnerung.requiresNote,
-    }));
+    const userIds = new Set<string>();
+    for (const erinnerung of erinnerungen) {
+      userIds.add(erinnerung.erstelltVon.toString());
+      if (erinnerung.assignedToId) {
+        userIds.add(erinnerung.assignedToId.toString());
+      }
+    }
+
+    // Batch-Query für User-Namen (vermeidet N+1)
+    const userNameMap = new Map<string, string>();
+    if (userIds.size > 0) {
+      const users = await this.prisma.user.findMany({
+        where: { id: { in: Array.from(userIds) } },
+        select: { id: true, username: true },
+      });
+      for (const user of users) {
+        userNameMap.set(user.id, user.username);
+      }
+    }
 
     // ════════════════════════════════════════════════════════════════════════
-    // 4. Audit-Trail loggen
+    // 4. Domain Entities zu DTOs mappen
+    // ════════════════════════════════════════════════════════════════════════
+    const dtos: ErinnerungResponseDto[] = erinnerungen.map((erinnerung) => {
+      const erstelltVonId = erinnerung.erstelltVon.toString();
+      const assignedToIdStr = erinnerung.assignedToId?.toString() ?? null;
+
+      return {
+        id: erinnerung.id.toString(),
+        einsatzId: erinnerung.einsatzId.toString(),
+        titel: erinnerung.titel.value,
+        beschreibung: erinnerung.beschreibung ?? null,
+        faelligAm: erinnerung.faelligAm.toISOString(),
+        status: erinnerung.status.value,
+        erstelltVon: erstelltVonId,
+        createdAt: erinnerung.createdAt.toISOString(),
+        updatedAt: erinnerung.updatedAt.toISOString(),
+        snoozeCount: erinnerung.snoozeCount,
+        requiresNote: erinnerung.requiresNote,
+        // Story 3.1: User-Namen für Ersteller und Zugewiesenen
+        erstellerName: userNameMap.get(erstelltVonId) ?? 'Unbekannt',
+        assignedToId: assignedToIdStr,
+        assignedToName: assignedToIdStr ? (userNameMap.get(assignedToIdStr) ?? null) : null,
+      };
+    });
+
+    // ════════════════════════════════════════════════════════════════════════
+    // 5. Audit-Trail loggen
     // ════════════════════════════════════════════════════════════════════════
     this.logger.log(`Erinnerungen abgerufen (einsatz: ${query.einsatzId}, count: ${dtos.length})`, 'GetErinnerungenByEinsatzHandler');
 
     // ════════════════════════════════════════════════════════════════════════
-    // 5. Result zurückgeben
+    // 6. Result zurückgeben
     // ════════════════════════════════════════════════════════════════════════
     return Result.ok<ErinnerungResponseDto[]>(dtos);
   }

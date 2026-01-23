@@ -24,10 +24,12 @@ import type {
   ErinnerungControllerMarkErledigtVAlphaRequest,
   AssignErinnerungDto,
   ErinnerungControllerAssignVAlphaRequest,
+  AktiveTeilnehmerResponseDto,
 } from '@/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ERINNERUNG_QUERY_KEYS, calculateRetryDelay } from './queries';
+import { AKTIVE_TEILNEHMER_QUERY_KEYS } from '@/features/einsatz/api/use-aktive-einsatz-teilnehmer';
 import { offlineDetectionService } from '../services/offline-detection.service';
 import { syncService } from '../services/sync.service';
 import { soundService, timerService, intensificationService } from '../services';
@@ -1280,13 +1282,18 @@ export const useAssignErinnerung = () => {
       // Snapshot the previous value
       const previousErinnerungen = queryClient.getQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId));
 
-      // Optimistically update assignedToId
+      // C4 Fix: Lade Teilnehmer aus Cache um assignedToName fuer Optimistic Update zu holen
+      const teilnehmer = queryClient.getQueryData<AktiveTeilnehmerResponseDto[]>(AKTIVE_TEILNEHMER_QUERY_KEYS.byEinsatz(einsatzId));
+      const assignedUser = teilnehmer?.find((t) => t.userId === data.assignedToId);
+
+      // Optimistically update assignedToId and assignedToName
       if (previousErinnerungen) {
         const updatedErinnerungen = previousErinnerungen.map((e) => {
           if (e.id === erinnerungId) {
             return {
               ...e,
               assignedToId: data.assignedToId,
+              assignedToName: assignedUser?.username ?? null, // C4 Fix: Optimistic Name aus Teilnehmer-Cache
               updatedAt: new Date().toISOString(),
             };
           }

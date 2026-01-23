@@ -75,6 +75,7 @@ models/AdminUserDto.ts
 models/AktiveTeilnehmerResponseDto.ts
 models/ApiMeta.ts
 models/ApiPagination.ts
+models/AssignErinnerungDto.ts
 models/AuthCheckResponseDto.ts
 models/AuthControllerAdminLogin200Response.ts
 models/AuthControllerAdminLogout200Response.ts

@@ -159,6 +159,7 @@ model User {
   acknowledgedErinnerungen Erinnerung[] @relation("ErinnerungAcknowledger") // Story 1.6: Acknowledge Audit Trail
   snoozedErinnerungen      Erinnerung[] @relation("ErinnerungSnoozer") // Story 2.1: Snooze Audit Trail
   erledigteErinnerungen    Erinnerung[] @relation("ErinnerungErledigter") // Story 2.5: Erledigt Audit Trail
+  assignedErinnerungen     Erinnerung[] @relation("ErinnerungAssignedTo") // Story 3.1: Zugewiesene Erinnerungen
 
   // Indexes
   @@index([username], map: "idx_user_username")
@@ -1327,6 +1328,7 @@ model Erinnerung {
   requiresNote     Boolean          @default(false) @map("requires_note") // Story 2.6: Pflicht-Notiz bei Erledigung
   // NOTE: Kein Index auf requiresNote - bei Bedarf hinzufügen wenn Filter-Queries benötigt werden (YAGNI)
   erstelltVon    String           @map("erstellt_von") @db.VarChar(100)
+  assignedToId   String?          @map("assigned_to_id") @db.VarChar(100) // Story 3.1: Zugewiesener User
 
   // Audit Trail
   createdAt DateTime @default(now()) @map("created_at")
@@ -1344,6 +1346,7 @@ model Erinnerung {
   acknowledger User?   @relation("ErinnerungAcknowledger", fields: [acknowledgedBy], references: [id], onDelete: Restrict) // Story 1.6
   snoozer      User?   @relation("ErinnerungSnoozer", fields: [snoozedBy], references: [id], onDelete: Restrict) // Story 2.1
   erledigter   User?   @relation("ErinnerungErledigter", fields: [erledigtBy], references: [id], onDelete: Restrict) // Story 2.5
+  assignedTo   User?   @relation("ErinnerungAssignedTo", fields: [assignedToId], references: [id], onDelete: Restrict) // Story 3.1
 
   // Indexes
   @@index([einsatzId])
@@ -1353,5 +1356,6 @@ model Erinnerung {
   @@index([erstelltVon])
   @@index([isDeleted]) // Effiziente Filterung für Soft-Delete Boolean (Story 1.4)
   @@index([deletedAt]) // Effiziente Filterung für Soft-Delete Timestamp (Story 1.4)
+  @@index([einsatzId, assignedToId]) // Story 3.1: Filter nach Zugewiesenem
   @@map("erinnerungen")
 }

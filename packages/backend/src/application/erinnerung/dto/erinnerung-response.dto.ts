@@ -125,4 +125,30 @@ export class ErinnerungResponseDto {
     example: false,
   })
   requiresNote!: boolean;
+
+  @ApiProperty({
+    description: 'Name des Erstellers der Erinnerung (Story 3.1)',
+    example: 'Markus Müller',
+    type: String,
+    required: false,
+  })
+  erstellerName?: string;
+
+  @ApiProperty({
+    description: 'ID des zugewiesenen Users (Story 3.1)',
+    example: 'clw3h8x9y0003yzabcdefghij',
+    type: String,
+    nullable: true,
+    required: false,
+  })
+  assignedToId?: string | null;
+
+  @ApiProperty({
+    description: 'Name des zugewiesenen Users (Story 3.1)',
+    example: 'Anna Schmidt',
+    type: String,
+    nullable: true,
+    required: false,
+  })
+  assignedToName?: string | null;
 }

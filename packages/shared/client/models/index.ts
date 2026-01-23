@@ -45,6 +45,7 @@ export * from './AdminUserDto';
 export * from './AktiveTeilnehmerResponseDto';
 export * from './ApiMeta';
 export * from './ApiPagination';
+export * from './AssignErinnerungDto';
 export * from './AuthCheckResponseDto';
 export * from './AuthControllerAdminLogin200Response';
 export * from './AuthControllerAdminLogout200Response';

@@ -32,10 +32,25 @@ export interface AnimationStoreState {
 }
 
 /**
- * Animation Dauer in Millisekunden
- * Nach dieser Zeit wird die Animation automatisch entfernt
+ * Zentrale Animation-Konfiguration
+ *
+ * Exportiert fuer Wiederverwendung in CSS/Tailwind und Tests.
+ * Bei Aenderungen hier muessen CSS-Variablen entsprechend angepasst werden.
  */
-const ANIMATION_DURATION_MS = 1500;
+export const ANIMATION_CONFIG = {
+  /** Dauer der Highlight-Animation in Millisekunden */
+  HIGHLIGHT_DURATION_MS: 1500,
+  /** Dauer der Slide-In-Animation in Millisekunden */
+  SLIDE_IN_DURATION_MS: 400,
+} as const;
+
+/**
+ * Timer-Tracking Map zur Vermeidung von Memory Leaks.
+ *
+ * Speichert aktive setTimeout-IDs pro erinnerungId, damit Timer
+ * bei schnellen WebSocket-Events abgebrochen werden koennen.
+ */
+const activeTimers = new Map<string, number>();
 
 /**
  * TanStack Store fuer Animation-State
@@ -50,12 +65,22 @@ export const animationStore = new Store<AnimationStoreState>({
 
 /**
  * Fuegt eine Erinnerung zur Animation-Liste hinzu.
- * Entfernt automatisch nach ANIMATION_DURATION_MS.
+ * Entfernt automatisch nach ANIMATION_CONFIG.HIGHLIGHT_DURATION_MS.
+ *
+ * Bestehende Timer werden abgebrochen um Memory Leaks bei
+ * schnellen aufeinanderfolgenden WebSocket-Events zu vermeiden.
  *
  * @param erinnerungId - ID der zu animierenden Erinnerung
  * @param type - Typ der Animation (update, insert, delete)
  */
 export function addAnimatedId(erinnerungId: string, type: AnimationType = 'update'): void {
+  // Bestehenden Timer abbrechen falls vorhanden (Memory Leak Prevention)
+  const existingTimer = activeTimers.get(erinnerungId);
+  if (existingTimer !== undefined) {
+    clearTimeout(existingTimer);
+    activeTimers.delete(erinnerungId);
+  }
+
   animationStore.setState((state) => {
     const newMap = new Map(state.animatedIds);
     newMap.set(erinnerungId, {
@@ -65,10 +90,13 @@ export function addAnimatedId(erinnerungId: string, type: AnimationType = 'updat
     return { ...state, animatedIds: newMap };
   });
 
-  // Auto-Cleanup nach Animation-Dauer
-  setTimeout(() => {
+  // Auto-Cleanup nach Animation-Dauer mit Timer-Tracking
+  const timerId = window.setTimeout(() => {
     removeAnimatedId(erinnerungId);
-  }, ANIMATION_DURATION_MS);
+    activeTimers.delete(erinnerungId);
+  }, ANIMATION_CONFIG.HIGHLIGHT_DURATION_MS);
+
+  activeTimers.set(erinnerungId, timerId);
 }
 
 /**
@@ -85,9 +113,10 @@ export function removeAnimatedId(erinnerungId: string): void {
 }
 
 /**
- * Entfernt alle Animationen.
+ * Entfernt alle Animationen und bricht aktive Timer ab.
  */
 export function clearAllAnimations(): void {
+  clearAllAnimationTimers();
   animationStore.setState((state) => ({
     ...state,
     animatedIds: new Map(),
@@ -95,9 +124,24 @@ export function clearAllAnimations(): void {
 }
 
 /**
+ * Bricht alle aktiven Animation-Timer ab.
+ *
+ * Cleanup-Funktion fuer Component Unmount und Tests.
+ * Verhindert Memory Leaks bei langen Sessions.
+ */
+export function clearAllAnimationTimers(): void {
+  for (const timerId of activeTimers.values()) {
+    clearTimeout(timerId);
+  }
+  activeTimers.clear();
+}
+
+/**
  * Resettet den Animation-Store auf Initialzustand.
+ * Bricht auch alle aktiven Timer ab.
  */
 export function resetAnimationStore(): void {
+  clearAllAnimationTimers();
   animationStore.setState(() => ({
     animatedIds: new Map(),
   }));

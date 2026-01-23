@@ -230,6 +230,10 @@ class WindowService {
    * @returns Promise<void>
    */
   async resizeMainWindow(orientation: WindowOrientation): Promise<void> {
+    // TODO: Temporär deaktiviert - wieder aktivieren wenn gewünscht
+    logger.debug('resizeMainWindow: Temporär deaktiviert');
+    return;
+
     if (!isTauri()) {
       logger.debug('resizeMainWindow: Nur in Tauri verfügbar');
       return;

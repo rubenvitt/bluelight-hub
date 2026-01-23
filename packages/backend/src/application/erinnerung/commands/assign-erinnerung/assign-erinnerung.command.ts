@@ -115,7 +115,11 @@ export class AssignErinnerungCommand {
     const trimmedAssignedById = props.assignedById?.trim() ?? '';
 
     if (trimmedAssignedById.length === 0) {
-      return Result.fail<AssignErinnerungCommand>(ERINNERUNG_ERROR_CODES.USER_ID_INVALID);
+      return Result.fail<AssignErinnerungCommand>(ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_BY);
+    }
+
+    if (!AssignErinnerungCommand.CUID2_PATTERN.test(trimmedAssignedById)) {
+      return Result.fail<AssignErinnerungCommand>(ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_BY);
     }
 
     // ════════════════════════════════════════════════════════════════════════

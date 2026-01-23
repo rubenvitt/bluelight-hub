@@ -5,6 +5,7 @@ import { Result } from '@domain/common/result';
 // biome-ignore lint/style/useImportType: IEinsatzRepository needed for DI at runtime
 import { IEinsatzRepository } from '@domain/repositories';
 import { EinsatzId } from '@domain/value-objects/einsatz-id';
+import { EINSATZ_ERROR_CODES } from '../../errors';
 import { GetNextEinsatzIdQuery } from './get-next-einsatz-id.query';
 import { EINSATZ_REPOSITORY, LOGGER } from '@infrastructure/di-tokens';
 
@@ -100,9 +101,9 @@ export class GetNextEinsatzIdQueryHandler implements IQueryHandler<GetNextEinsat
         return Result.fail(repoResult.error ?? 'Repository-Fehler');
       }
 
-      // Einsatz nicht gefunden → Return fail (Business Error: Kann nicht navigieren zu nicht-existierendem Einsatz)
+      // Einsatz nicht gefunden -> Return fail (Business Error: Kann nicht navigieren zu nicht-existierendem Einsatz)
       if (repoResult.value === null || repoResult.value === undefined) {
-        return Result.fail(`Einsatz ${query.einsatzId} nicht gefunden`);
+        return Result.fail(EINSATZ_ERROR_CODES.NOT_FOUND);
       }
 
       // Extrahiere createdAt vom Aggregate

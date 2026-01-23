@@ -14,6 +14,7 @@ import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowled
 import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
 import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 import { ErinnerungErledigtEvent } from '@domain/events/erinnerung-erledigt.event';
+import { ErinnerungAssignedEvent } from '@domain/events/erinnerung-assigned.event';
 
 /**
  * Props für die Erstellung einer neuen Erinnerung.
@@ -26,6 +27,8 @@ export interface CreateErinnerungProps {
   erstelltVon: UserId;
   /** Story 2.6: Pflicht-Notiz bei Erledigung erforderlich (default: false) */
   requiresNote?: boolean;
+  /** Story 3.3: Zugewiesener User bei Erstellung (optional, null = Ersteller) */
+  assignedToId?: UserId | null;
 }
 
 /**
@@ -81,6 +84,8 @@ export interface ReconstructErinnerungProps {
   erledigungsNotiz?: string | null;
   /** Pflicht-Notiz bei Erledigung erforderlich (Story 2.6) */
   requiresNote?: boolean;
+  /** Zugewiesener User (Story 3.1) */
+  assignedToId?: UserId | null;
 }
 
 /**
@@ -160,6 +165,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
 
   // Pflicht-Notiz Flag (Story 2.6)
   private readonly _requiresNote: boolean;
+
+  // Zuweisung Feld (Story 3.1 Vorbereitung für Story 3.3)
+  private _assignedToId: UserId | null;
 
   // ============================================================
   // Readonly Getters
@@ -316,6 +324,16 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     return this._requiresNote;
   }
 
+  // Zuweisung Getter (Story 3.1)
+
+  /**
+   * Gibt die ID des zugewiesenen Users zurück.
+   * Null wenn nicht zugewiesen.
+   */
+  get assignedToId(): UserId | null {
+    return this._assignedToId;
+  }
+
   // ============================================================
   // Private Constructor (erzwingt Factory Methods)
   // ============================================================
@@ -344,6 +362,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     erledigtBy: UserId | null = null,
     erledigungsNotiz: string | null = null,
     requiresNote = Erinnerung.DEFAULT_REQUIRES_NOTE,
+    assignedToId: UserId | null = null,
   ) {
     super(id, createdAt, updatedAt);
     this._einsatzId = einsatzId;
@@ -366,6 +385,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     this._erledigtBy = erledigtBy;
     this._erledigungsNotiz = erledigungsNotiz;
     this._requiresNote = requiresNote;
+    this._assignedToId = assignedToId;
   }
 
   // ============================================================
@@ -413,6 +433,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       return Result.fail<Erinnerung>(idResult.error ?? 'ERINNERUNG_ID_INVALID');
     }
 
+    // Story 3.3: assignedToId für Zuweisung bei Erstellung
+    const assignedToId = props.assignedToId ?? null;
+
     const erinnerung = new Erinnerung(
       idResult.value,
       props.einsatzId,
@@ -437,10 +460,21 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       null, // erledigtBy
       null, // erledigungsNotiz
       props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE, // Story 2.6
+      assignedToId, // Story 3.3: Zuweisung bei Erstellung
     );
 
-    // Emit Domain Event
-    erinnerung.addDomainEvent(new ErinnerungErstelltEvent(idResult.value, props.einsatzId, titelResult.value.value, props.faelligAm, props.erstelltVon, idResult.value.toString()));
+    // Emit Domain Event (Story 3.3: mit assignedToId)
+    erinnerung.addDomainEvent(
+      new ErinnerungErstelltEvent(
+        idResult.value,
+        props.einsatzId,
+        titelResult.value.value,
+        props.faelligAm,
+        props.erstelltVon,
+        idResult.value.toString(),
+        assignedToId ?? undefined, // Story 3.3: Zugewiesener User
+      ),
+    );
 
     return Result.ok<Erinnerung>(erinnerung);
   }
@@ -474,6 +508,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       props.erledigtBy ?? null,
       props.erledigungsNotiz ?? null,
       props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE,
+      props.assignedToId ?? null,
     );
   }
 
@@ -823,6 +858,46 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
 
     // Domain Event emittieren für ETB-Integration
     this.addDomainEvent(new ErinnerungErledigtEvent(this.id, this._einsatzId, this._erledigtAm, this._erledigtBy, this._titel.value, trimmedNotiz, this.id.toString()));
+
+    return Result.ok<void>(undefined);
+  }
+
+  /**
+   * Weist eine Erinnerung einem anderen User zu.
+   *
+   * **Business Rules (Story 3.1 Vorbereitung für Story 3.3):**
+   * - Nur aktive Erinnerungen (GEPLANT, AUSGELOEST, ACKNOWLEDGED, SNOOZED) können zugewiesen werden
+   * - ERLEDIGT oder gelöschte Erinnerungen können nicht zugewiesen werden
+   * - Emittiert ErinnerungAssignedEvent für WebSocket und ETB-Integration
+   *
+   * @param assignedToId - UserId des Users dem die Erinnerung zugewiesen werden soll
+   * @param assignedById - UserId der Person die die Zuweisung durchführt (für Audit-Trail)
+   * @returns Result<void> - Success oder Failure mit Error Code
+   *
+   * @example
+   * ```typescript
+   * const assignResult = erinnerung.assignToUser(targetUserId, currentUserId);
+   * if (assignResult.isFailure) {
+   *   console.log(assignResult.error); // "ERINNERUNG_NOT_ASSIGNABLE"
+   * }
+   * ```
+   */
+  public assignToUser(assignedToId: UserId, assignedById: UserId): Result<void> {
+    // Business Rule: Nur aktive Erinnerungen können zugewiesen werden
+    if (!this._status.isActive()) {
+      return Result.fail<void>('ERINNERUNG_NOT_ASSIGNABLE');
+    }
+
+    // Bereits gelöscht?
+    if (this._isDeleted) {
+      return Result.fail<void>('ERINNERUNG_NOT_ASSIGNABLE');
+    }
+
+    // Zuweisung durchführen
+    this._assignedToId = assignedToId;
+
+    // Domain Event emittieren für WebSocket und ETB-Integration
+    this.addDomainEvent(new ErinnerungAssignedEvent(this.id, this._einsatzId, assignedToId, assignedById, this._titel.value, new Date(), this.id.toString()));
 
     return Result.ok<void>(undefined);
   }

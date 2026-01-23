@@ -182,7 +182,7 @@ describe('AssignErinnerungHandler', () => {
 
   describe('execute', () => {
     it('should assign erinnerung successfully to active participant (AC1)', async () => {
-      // Given (Arrange)
+      // Given: GEPLANT Erinnerung existiert, assignedToId ist aktiver Teilnehmer im Einsatz
       const einsatzId = generateValidEinsatzId();
       const erinnerungId = generateValidErinnerungId();
       const assignedToId = generateValidUserId();
@@ -194,10 +194,10 @@ describe('AssignErinnerungHandler', () => {
       const mockErinnerung = createMockErinnerung({ id: erinnerungId, einsatzId, status: 'GEPLANT' });
       mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
 
-      // When (Act)
+      // When: Handler.execute() wird mit gueltigem AssignErinnerungCommand aufgerufen
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: Erinnerung ist zugewiesen, Event in Outbox gespeichert, Transaction erfolgreich
       expect(result.isSuccess).toBe(true);
       expect(result.value).toBeDefined();
       expect(result.value!.id).toBe(erinnerungId);
@@ -208,7 +208,7 @@ describe('AssignErinnerungHandler', () => {
     });
 
     it('should fail when assignedToId is not active participant (AC1)', async () => {
-      // Given (Arrange)
+      // Given: GEPLANT Erinnerung existiert, assignedToId ist KEIN aktiver Teilnehmer (findFirst returns null)
       const einsatzId = generateValidEinsatzId();
       const erinnerungId = generateValidErinnerungId();
       const inactiveUserId = generateValidUserId();
@@ -229,10 +229,10 @@ describe('AssignErinnerungHandler', () => {
         return callback(txMock);
       });
 
-      // When (Act)
+      // When: Handler.execute() wird mit Command fuer inaktiven User aufgerufen
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: Result ist Failure mit INVALID_ASSIGNED_TO, keine Persistierung erfolgt
       expect(result.isSuccess).toBe(false);
       expect(result.error).toBe(ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_TO);
       expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
@@ -240,23 +240,23 @@ describe('AssignErinnerungHandler', () => {
     });
 
     it('should fail when erinnerung does not exist (AC1)', async () => {
-      // Given (Arrange)
+      // Given: Repository findet keine Erinnerung mit der angegebenen ID (findById returns null)
       const commandResult = createValidCommand();
       const command = commandResult.value!;
 
       mockErinnerungRepository.findById.mockResolvedValue(Result.ok(null));
 
-      // When (Act)
+      // When: Handler.execute() wird mit Command fuer nicht-existente Erinnerung aufgerufen
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: Result ist Failure mit NOT_FOUND, keine Persistierung versucht
       expect(result.isSuccess).toBe(false);
       expect(result.error).toBe(ERINNERUNG_ERROR_CODES.NOT_FOUND);
       expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
     });
 
     it('should fail when erinnerung is already completed (ERLEDIGT) (AC1)', async () => {
-      // Given (Arrange)
+      // Given: Erinnerung existiert aber hat Status ERLEDIGT (nicht zuweisbar)
       const einsatzId = generateValidEinsatzId();
       const erinnerungId = generateValidErinnerungId();
 
@@ -266,16 +266,16 @@ describe('AssignErinnerungHandler', () => {
       const mockErinnerung = createMockErinnerung({ id: erinnerungId, einsatzId, status: 'ERLEDIGT' });
       mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
 
-      // When (Act)
+      // When: Handler.execute() wird fuer erledigte Erinnerung aufgerufen
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: Result ist Failure, Erinnerung bleibt unveraendert
       expect(result.isSuccess).toBe(false);
       expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
     });
 
     it('should fail when erinnerung is escalated (ESKALIERT) (AC1)', async () => {
-      // Given (Arrange)
+      // Given: Erinnerung existiert aber hat Status ESKALIERT (nicht zuweisbar)
       const einsatzId = generateValidEinsatzId();
       const erinnerungId = generateValidErinnerungId();
 
@@ -285,16 +285,16 @@ describe('AssignErinnerungHandler', () => {
       const mockErinnerung = createMockErinnerung({ id: erinnerungId, einsatzId, status: 'ESKALIERT' });
       mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
 
-      // When (Act)
+      // When: Handler.execute() wird fuer eskalierte Erinnerung aufgerufen
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: Result ist Failure, Erinnerung bleibt unveraendert
       expect(result.isSuccess).toBe(false);
       expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
     });
 
     it('should emit ErinnerungAssignedEvent on success (AC1)', async () => {
-      // Given (Arrange)
+      // Given: GEPLANT Erinnerung existiert, aktiver Teilnehmer wird zugewiesen
       const einsatzId = generateValidEinsatzId();
       const erinnerungId = generateValidErinnerungId();
 
@@ -304,10 +304,10 @@ describe('AssignErinnerungHandler', () => {
       const mockErinnerung = createMockErinnerung({ id: erinnerungId, einsatzId, status: 'GEPLANT' });
       mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
 
-      // When (Act)
+      // When: Handler.execute() wird erfolgreich ausgefuehrt
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: ErinnerungAssignedEvent wird in Outbox gespeichert fuer spaetere Publikation
       expect(result.isSuccess).toBe(true);
       expect(mockOutboxRepository.save).toHaveBeenCalledTimes(1);
 
@@ -319,7 +319,7 @@ describe('AssignErinnerungHandler', () => {
     });
 
     it('should fail when erinnerung belongs to different einsatz', async () => {
-      // Given (Arrange)
+      // Given: Erinnerung existiert aber gehoert zu anderem Einsatz als im Command angegeben
       const einsatzId = generateValidEinsatzId();
       const differentEinsatzId = generateValidEinsatzId();
       const erinnerungId = generateValidErinnerungId();
@@ -331,10 +331,10 @@ describe('AssignErinnerungHandler', () => {
       const mockErinnerung = createMockErinnerung({ id: erinnerungId, einsatzId: differentEinsatzId, status: 'GEPLANT' });
       mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
 
-      // When (Act)
+      // When: Handler.execute() wird mit falschem Einsatz-Kontext aufgerufen
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: Result ist Failure mit NOT_FOUND (Security: keine Info-Leakage ueber Existenz)
       expect(result.isSuccess).toBe(false);
       expect(result.error).toBe(ERINNERUNG_ERROR_CODES.NOT_FOUND);
       expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
@@ -343,7 +343,8 @@ describe('AssignErinnerungHandler', () => {
 
   describe('Command Validation', () => {
     it('should fail when erinnerungId is empty', () => {
-      // Given & When (Arrange & Act)
+      // Given: Command wird mit leerem erinnerungId erstellt
+      // When: Command.create() validiert Input
       const result = AssignErinnerungCommand.create({
         erinnerungId: '',
         einsatzId: generateValidEinsatzId(),
@@ -351,13 +352,14 @@ describe('AssignErinnerungHandler', () => {
         assignedById: generateValidUserId(),
       });
 
-      // Then (Assert)
+      // Then: Validation schlaegt fehl mit ID_REQUIRED Error
       expect(result.isFailure).toBe(true);
       expect(result.error).toBe(ERINNERUNG_ERROR_CODES.ID_REQUIRED);
     });
 
     it('should fail when erinnerungId is invalid format', () => {
-      // Given & When (Arrange & Act)
+      // Given: Command wird mit ungueltigem CUID2 Format erstellt
+      // When: Command.create() validiert CUID2 Format
       const result = AssignErinnerungCommand.create({
         erinnerungId: 'invalid-id',
         einsatzId: generateValidEinsatzId(),
@@ -365,13 +367,14 @@ describe('AssignErinnerungHandler', () => {
         assignedById: generateValidUserId(),
       });
 
-      // Then (Assert)
+      // Then: Validation schlaegt fehl mit ID_INVALID Error
       expect(result.isFailure).toBe(true);
       expect(result.error).toBe(ERINNERUNG_ERROR_CODES.ID_INVALID);
     });
 
     it('should fail when einsatzId is empty', () => {
-      // Given & When (Arrange & Act)
+      // Given: Command wird mit leerem einsatzId erstellt
+      // When: Command.create() validiert Input
       const result = AssignErinnerungCommand.create({
         erinnerungId: generateValidErinnerungId(),
         einsatzId: '',
@@ -379,13 +382,14 @@ describe('AssignErinnerungHandler', () => {
         assignedById: generateValidUserId(),
       });
 
-      // Then (Assert)
+      // Then: Validation schlaegt fehl mit EINSATZ_ID_REQUIRED Error
       expect(result.isFailure).toBe(true);
       expect(result.error).toBe(ERINNERUNG_ERROR_CODES.EINSATZ_ID_REQUIRED);
     });
 
     it('should fail when assignedToId is empty', () => {
-      // Given & When (Arrange & Act)
+      // Given: Command wird mit leerem assignedToId erstellt (wem zuweisen?)
+      // When: Command.create() validiert Input
       const result = AssignErinnerungCommand.create({
         erinnerungId: generateValidErinnerungId(),
         einsatzId: generateValidEinsatzId(),
@@ -393,13 +397,14 @@ describe('AssignErinnerungHandler', () => {
         assignedById: generateValidUserId(),
       });
 
-      // Then (Assert)
+      // Then: Validation schlaegt fehl mit INVALID_ASSIGNED_TO Error
       expect(result.isFailure).toBe(true);
       expect(result.error).toBe(ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_TO);
     });
 
     it('should fail when assignedById is empty', () => {
-      // Given & When (Arrange & Act)
+      // Given: Command wird mit leerem assignedById erstellt (wer weist zu?)
+      // When: Command.create() validiert Input
       const result = AssignErinnerungCommand.create({
         erinnerungId: generateValidErinnerungId(),
         einsatzId: generateValidEinsatzId(),
@@ -407,16 +412,17 @@ describe('AssignErinnerungHandler', () => {
         assignedById: '',
       });
 
-      // Then (Assert)
+      // Then: Validation schlaegt fehl mit USER_ID_INVALID Error
       expect(result.isFailure).toBe(true);
       expect(result.error).toBe(ERINNERUNG_ERROR_CODES.USER_ID_INVALID);
     });
 
     it('should succeed with valid command', () => {
-      // Given & When (Arrange & Act)
+      // Given: Alle Felder sind gueltige CUID2 IDs
+      // When: Command.create() validiert Input
       const result = createValidCommand();
 
-      // Then (Assert)
+      // Then: Command wird erfolgreich erstellt mit allen Value Objects
       expect(result.isSuccess).toBe(true);
       expect(result.value).toBeDefined();
     });
@@ -424,7 +430,7 @@ describe('AssignErinnerungHandler', () => {
 
   describe('Transaction Behavior', () => {
     it('should execute within prisma transaction', async () => {
-      // Given (Arrange)
+      // Given: Gueltige Erinnerung und Command, PrismaService ist fuer Transaction bereit
       const einsatzId = generateValidEinsatzId();
       const erinnerungId = generateValidErinnerungId();
 
@@ -434,16 +440,16 @@ describe('AssignErinnerungHandler', () => {
       const mockErinnerung = createMockErinnerung({ id: erinnerungId, einsatzId, status: 'GEPLANT' });
       mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
 
-      // When (Act)
+      // When: Handler.execute() wird aufgerufen
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: Gesamte Operation laeuft in einer Transaction fuer atomare Konsistenz
       expect(result.isSuccess).toBe(true);
       expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
     });
 
     it('should not save events when repository save fails', async () => {
-      // Given (Arrange)
+      // Given: Repository.save ist so konfiguriert, dass es fehlschlaegt (DB Error simuliert)
       const einsatzId = generateValidEinsatzId();
       const erinnerungId = generateValidErinnerungId();
 
@@ -454,10 +460,10 @@ describe('AssignErinnerungHandler', () => {
       mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
       mockErinnerungRepository.save.mockResolvedValue(Result.fail('Database error'));
 
-      // When (Act)
+      // When: Handler.execute() versucht zu persistieren aber Repository failt
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: Outbox Events werden NICHT gespeichert (Atomaritaet), Result ist Failure
       expect(result.isSuccess).toBe(false);
       expect(mockErinnerungRepository.save).toHaveBeenCalled();
       expect(mockOutboxRepository.save).not.toHaveBeenCalled();
@@ -466,7 +472,7 @@ describe('AssignErinnerungHandler', () => {
 
   describe('Response DTO Mapping', () => {
     it('should return correctly mapped ErinnerungResponseDto with assignedToName', async () => {
-      // Given (Arrange)
+      // Given: Erfolgreiche Zuweisung, User "Max Mustermann" existiert in DB fuer assignedToId
       const einsatzId = generateValidEinsatzId();
       const erinnerungId = generateValidErinnerungId();
       const assignedToId = generateValidUserId();
@@ -490,10 +496,10 @@ describe('AssignErinnerungHandler', () => {
         return callback(txMock);
       });
 
-      // When (Act)
+      // When: Handler.execute() wird erfolgreich ausgefuehrt
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: Response DTO enthaelt korrekt gemappte Felder inkl. aufgeloestem Username
       expect(result.isSuccess).toBe(true);
       const dto = result.value!;
 
@@ -506,7 +512,7 @@ describe('AssignErinnerungHandler', () => {
 
   describe('Logging', () => {
     it('should log successful assignment', async () => {
-      // Given (Arrange)
+      // Given: Alle Voraussetzungen fuer erfolgreiche Zuweisung erfuellt
       const einsatzId = generateValidEinsatzId();
       const erinnerungId = generateValidErinnerungId();
 
@@ -516,10 +522,10 @@ describe('AssignErinnerungHandler', () => {
       const mockErinnerung = createMockErinnerung({ id: erinnerungId, einsatzId, status: 'GEPLANT' });
       mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
 
-      // When (Act)
+      // When: Handler.execute() wird erfolgreich ausgefuehrt
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: Info-Log mit "Erinnerung zugewiesen" wird geschrieben fuer Audit Trail
       expect(result.isSuccess).toBe(true);
       expect(mockLogger.log).toHaveBeenCalled();
       const logCall = mockLogger.log.mock.calls[0][0];
@@ -527,7 +533,7 @@ describe('AssignErinnerungHandler', () => {
     });
 
     it('should log warning when assignedToId is not active participant', async () => {
-      // Given (Arrange)
+      // Given: Erinnerung existiert, aber assignedToId ist kein aktiver Teilnehmer
       const einsatzId = generateValidEinsatzId();
       const erinnerungId = generateValidErinnerungId();
 
@@ -547,10 +553,10 @@ describe('AssignErinnerungHandler', () => {
         return callback(txMock);
       });
 
-      // When (Act)
+      // When: Handler.execute() versucht Zuweisung an nicht-aktiven Teilnehmer
       const result = await handler.execute(command);
 
-      // Then (Assert)
+      // Then: Warning-Log fuer Security/Audit, Result ist Failure
       expect(result.isSuccess).toBe(false);
       expect(mockLogger.warn).toHaveBeenCalled();
       const warnCall = mockLogger.warn.mock.calls[0][0];

@@ -92,7 +92,17 @@ export class PrismaErinnerungMapper {
       erledigtBy = erledigtByResult.value;
     }
 
-    // 10. Entity via reconstruct() rekonstruieren (keine Events, keine Validierung)
+    // 10. AssignedTo: assignedToId rekonstruieren (optional) (Story 3.1)
+    let assignedToId: UserId | null = null;
+    if (prisma.assignedToId) {
+      const assignedToIdResult = UserId.create(prisma.assignedToId);
+      if (assignedToIdResult.isFailure || !assignedToIdResult.value) {
+        throw new Error(`Invalid assignedToId UserId from DB: ${prisma.assignedToId}`);
+      }
+      assignedToId = assignedToIdResult.value;
+    }
+
+    // 11. Entity via reconstruct() rekonstruieren (keine Events, keine Validierung)
     return Erinnerung.reconstruct({
       id: idResult.value,
       einsatzId: einsatzIdResult.value,
@@ -123,6 +133,8 @@ export class PrismaErinnerungMapper {
       erledigungsNotiz: prisma.erledigungsNotiz,
       // Story 2.6: Pflicht-Notiz Flag - bei Erledigung muss eine Notiz angegeben werden
       requiresNote: prisma.requiresNote,
+      // Story 3.1: Zugewiesener User
+      assignedToId,
     });
   }
 
@@ -159,6 +171,8 @@ export class PrismaErinnerungMapper {
     erledigungsNotiz: string | null;
     // Pflicht-Notiz Flag (Story 2.6)
     requiresNote: boolean;
+    // Zugewiesener User (Story 3.1)
+    assignedToId: string | null;
   } {
     return {
       id: entity.id.toString(),
@@ -188,6 +202,8 @@ export class PrismaErinnerungMapper {
       erledigungsNotiz: entity.erledigungsNotiz,
       // Story 2.6: Pflicht-Notiz Flag - bei Erledigung muss eine Notiz angegeben werden
       requiresNote: entity.requiresNote,
+      // Story 3.1: Zugewiesener User
+      assignedToId: entity.assignedToId?.toString() ?? null,
     };
   }
 

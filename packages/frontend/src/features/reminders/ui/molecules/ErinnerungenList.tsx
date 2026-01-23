@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { useCurrentUser } from '@/features/auth';
 import { useErinnerungenByEinsatz } from '../../api';
 import { useAlarmTrigger, useErinnerungWebSocket, useOfflineStatus, useReconnectSync, useTrayBadge, useTrayClickNavigation } from '../../hooks';
-import { addAnimatedId, openQuickCreateDialog } from '../../stores';
+import { addAnimatedId, getAnimationEntry, openQuickCreateDialog } from '../../stores';
 import { getUrgencyLevel } from '../../utils/countdown-utils';
 import { FloatingPillPortal } from '../organisms/FloatingPillPortal';
 import { ErinnerungCard } from './ErinnerungCard';
@@ -113,6 +113,13 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
   }, []);
 
   const handleWebSocketUpdated = useCallback((event: { erinnerungId: string }) => {
+    // Issue 2 Fix: Nur animieren wenn nicht bereits als 'insert' animiert
+    // Vermeidet Race Condition wenn 'created' unmittelbar von 'updated' gefolgt wird
+    const existingEntry = getAnimationEntry(event.erinnerungId);
+    if (existingEntry?.type === 'insert') {
+      // Insert-Animation hat Vorrang, skip update
+      return;
+    }
     addAnimatedId(event.erinnerungId, 'update');
   }, []);
 
@@ -120,8 +127,14 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
     addAnimatedId(event.erinnerungId, 'update');
   }, []);
 
+  // Story 3.4 C5 Fix: Handler fuer Assigned-Events
+  const handleWebSocketAssigned = useCallback((event: { erinnerungId: string }) => {
+    addAnimatedId(event.erinnerungId, 'update');
+  }, []);
+
   // Story 3.2 AC1+AC3: WebSocket fuer Echtzeit-Updates und Team-Toasts
-  const { isConnected } = useErinnerungWebSocket({
+  // Issue 5 Fix: Nutze 'status' statt 'isConnected' fuer Reconnect-Anzeige
+  const { status } = useErinnerungWebSocket({
     einsatzId,
     enabled: true,
     showTeamToasts: true, // AC3: Toast bei Team-Events
@@ -129,6 +142,7 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
     onCreated: handleWebSocketCreated,
     onUpdated: handleWebSocketUpdated,
     onAcknowledged: handleWebSocketAcknowledged,
+    onAssigned: handleWebSocketAssigned, // Story 3.4 C5 Fix: Animation bei Zuweisung
   });
 
   // Story 1.5: Alarm Trigger Hook fuer automatische Erinnerungs-Ausloesung
@@ -219,14 +233,17 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
               <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700 text-xs dark:bg-amber-900/40 dark:text-amber-300">{sortedErinnerungen.length}</span>
             )}
             {/* Story 3.2 Task 1.2: WebSocket-Status-Indikator */}
+            {/* Issue 5 Fix: Erweiterter Status mit 'connecting' State fuer Reconnect-Anzeige */}
             <span
               className={cn(
                 'flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs',
-                isConnected ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+                status === 'connected' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+                status === 'connecting' && 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+                (status === 'disconnected' || status === 'error') && 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
               )}
-              title={isConnected ? 'Echtzeit-Updates aktiv' : 'Verbindung unterbrochen'}
+              title={status === 'connected' ? 'Echtzeit-Updates aktiv' : status === 'connecting' ? 'Verbinde...' : status === 'error' ? 'Verbindungsfehler' : 'Verbindung unterbrochen'}
             >
-              {isConnected ? <PiWifiHigh className="h-3 w-3" /> : <PiWifiSlash className="h-3 w-3" />}
+              {status === 'connected' ? <PiWifiHigh className="size-3" /> : status === 'connecting' ? <PiWifiSlash className="size-3 animate-pulse" /> : <PiWifiSlash className="size-3" />}
             </span>
           </div>
           <Button size="sm" appearance="ghost" onClick={handleCreateClick}>

@@ -1,5 +1,4 @@
-import { Fragment } from 'react';
-import { Listbox, Transition } from '@headlessui/react';
+import { Listbox } from '@headlessui/react';
 import { PiTruck, PiCheck, PiCaretUpDown } from 'react-icons/pi';
 import { FmsStatusBadge } from '../atoms/FmsStatusBadge.atom';
 import { cn } from '@/shared/ui/cn';
@@ -58,50 +57,47 @@ export function FahrzeugZuweisungsDropdown({ currentFahrzeugId, fahrzeuge, onAss
           </span>
         </Listbox.Button>
 
-        <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-          <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm dark:bg-gray-800 dark:text-gray-100">
-            {/* Erste Option: Zuweisung entfernen */}
-            <Listbox.Option
-              value={null}
-              className={({ active }) => cn('relative cursor-pointer select-none py-2 pr-4 pl-10', active ? 'bg-gray-100 dark:bg-gray-700' : '', 'text-gray-600 dark:text-gray-400')}
-            >
+        <Listbox.Options
+          transition
+          className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none transition ease-in duration-100 data-[closed]:opacity-0 sm:text-sm dark:bg-gray-800 dark:text-gray-100"
+        >
+          {/* Erste Option: Zuweisung entfernen */}
+          <Listbox.Option
+            value={null}
+            className={({ active }) => cn('relative cursor-pointer select-none py-2 pr-4 pl-10', active ? 'bg-gray-100 dark:bg-gray-700' : '', 'text-gray-600 dark:text-gray-400')}
+          >
+            {({ selected }) => (
+              <>
+                <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>Keine Zuweisung</span>
+                {selected && (
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                    <PiCheck className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                )}
+              </>
+            )}
+          </Listbox.Option>
+
+          {/* Fahrzeug-Optionen */}
+          {fahrzeuge.map((fahrzeug) => (
+            <Listbox.Option key={fahrzeug.id} value={fahrzeug.id} className={({ active }) => cn('relative cursor-pointer select-none py-2 pr-4 pl-10', active ? 'bg-blue-50 dark:bg-blue-900/20' : '')}>
               {({ selected }) => (
                 <>
-                  <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>Keine Zuweisung</span>
+                  <span className={`flex items-center gap-2 truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                    <PiTruck className="h-4 w-4 flex-shrink-0 text-gray-500" aria-hidden="true" />
+                    <span>{fahrzeug.funkrufname}</span>
+                    <FmsStatusBadge status={fahrzeug.fmsStatus} />
+                  </span>
                   {selected && (
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600 dark:text-blue-400">
                       <PiCheck className="h-5 w-5" aria-hidden="true" />
                     </span>
                   )}
                 </>
               )}
             </Listbox.Option>
-
-            {/* Fahrzeug-Optionen */}
-            {fahrzeuge.map((fahrzeug) => (
-              <Listbox.Option
-                key={fahrzeug.id}
-                value={fahrzeug.id}
-                className={({ active }) => cn('relative cursor-pointer select-none py-2 pr-4 pl-10', active ? 'bg-blue-50 dark:bg-blue-900/20' : '')}
-              >
-                {({ selected }) => (
-                  <>
-                    <span className={`flex items-center gap-2 truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                      <PiTruck className="h-4 w-4 flex-shrink-0 text-gray-500" aria-hidden="true" />
-                      <span>{fahrzeug.funkrufname}</span>
-                      <FmsStatusBadge status={fahrzeug.fmsStatus} />
-                    </span>
-                    {selected && (
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600 dark:text-blue-400">
-                        <PiCheck className="h-5 w-5" aria-hidden="true" />
-                      </span>
-                    )}
-                  </>
-                )}
-              </Listbox.Option>
-            ))}
-          </Listbox.Options>
-        </Transition>
+          ))}
+        </Listbox.Options>
       </div>
     </Listbox>
   );

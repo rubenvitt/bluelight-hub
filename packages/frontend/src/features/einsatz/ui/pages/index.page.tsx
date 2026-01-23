@@ -14,8 +14,8 @@ import { Heading } from '@/shared/ui/atoms/heading.atom';
 import { Spinner } from '@/shared/ui/atoms/spinner.atom';
 import { Text } from '@/shared/ui/atoms/text.atom';
 import { ColorModeMenu } from '@/shared/ui/molecules/color-mode-menu.molecule';
-import { useRouter } from '@tanstack/react-router';
-import { PiShieldCheck, PiSignIn } from 'react-icons/pi';
+import { Link, useRouter } from '@tanstack/react-router';
+import { PiGear, PiShieldCheck, PiSignIn } from 'react-icons/pi';
 
 export function IndexPage() {
   const { isLoading, user, adminStatus } = useCurrentUser();
@@ -71,11 +71,16 @@ export function IndexPage() {
         </div>
 
         <div className="flex flex-shrink-0 items-center justify-between pt-4">
-          <div className="flex gap-4">
+          <div className="flex items-center gap-4">
             <Button appearance="outline" intent="danger" size="sm" onClick={() => logout.mutateAsync()}>
               Abmelden
             </Button>
             <ColorModeMenu placement="top" />
+            <Link to="/app/settings/audio">
+              <Button appearance="ghost" size="sm" title="Audio-Einstellungen">
+                <PiGear className="h-4 w-4" />
+              </Button>
+            </Link>
           </div>
 
           <div className="flex gap-2">

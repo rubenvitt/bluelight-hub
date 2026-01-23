@@ -6,9 +6,14 @@
  *
  * **Wichtig:** Muss einmalig beim App-Start aufgerufen werden (main.tsx)
  *
+ * **Plattform-Hinweise:**
+ * - Channel und Action Types sind nur auf Android/iOS verfügbar
+ * - Auf Desktop (macOS/Windows/Linux) werden diese APIs stillschweigend ignoriert
+ * - Notifications selbst funktionieren auf allen Plattformen
+ *
  * Features:
- * - Channel "erinnerungen" mit High Importance (Priorität 4)
- * - Action Type "erinnerung-action" für Klick-Handling
+ * - Channel "erinnerungen" mit High Importance (nur Android)
+ * - Action Type "erinnerung-action" für Klick-Handling (nur Android/iOS)
  * - Deep Link Navigation zur Erinnerung bei Notification-Klick
  */
 
@@ -140,13 +145,11 @@ class NotificationSetupService {
   }
 
   /**
-   * Erstellt Notification Channel mit High Importance
+   * Erstellt Notification Channel mit High Importance (nur Android)
    *
-   * Android/Desktop: Notifications werden prominent angezeigt
-   *
-   * **Hinweis:** `channels()` ist nur in Tauri Desktop verfügbar, nicht im Browser.
-   * Daher wird createChannel direkt aufgerufen - bei bereits existierendem
-   * Channel wird der Fehler ignoriert.
+   * Auf Android werden Notifications mit High Importance prominent angezeigt.
+   * Auf Desktop (macOS/Windows/Linux) sind Channels nicht verfügbar und
+   * der Fehler wird stillschweigend ignoriert.
    */
   private async createErinnerungChannel(): Promise<void> {
     try {
@@ -166,10 +169,10 @@ class NotificationSetupService {
 
       logger.info('[NotificationSetup] Channel created with High Importance');
     } catch (error) {
-      // Channel existiert bereits oder API nicht verfügbar - beides OK
+      // Channel API nur auf Android verfügbar - auf Desktop (macOS/Windows/Linux) ignorieren
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('already exists') || errorMessage.includes('not allowed')) {
-        logger.debug('[NotificationSetup] Channel already exists or API not available');
+      if (errorMessage.includes('already exists') || errorMessage.includes('not allowed') || errorMessage.includes('not found') || errorMessage.includes('not supported')) {
+        logger.debug('[NotificationSetup] Channel API not available on this platform (expected on Desktop)');
         return;
       }
       logger.error('[NotificationSetup] Failed to create channel:', error);
@@ -180,7 +183,7 @@ class NotificationSetupService {
   /**
    * Registriert Action Types für Notification-Buttons
    *
-   * **Hinweis:** Nicht auf allen Plattformen verfügbar (z.B. nicht auf macOS).
+   * **Hinweis:** Nur auf Android/iOS verfügbar, nicht auf Desktop.
    */
   private async registerActionTypes(): Promise<void> {
     try {
@@ -201,10 +204,10 @@ class NotificationSetupService {
 
       logger.info('[NotificationSetup] Action types registered');
     } catch (error) {
-      // API nicht auf allen Plattformen verfügbar (z.B. macOS)
+      // API nur auf Android/iOS verfügbar - auf Desktop ignorieren
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('not allowed') || errorMessage.includes('not supported')) {
-        logger.debug('[NotificationSetup] Action types API not available on this platform');
+      if (errorMessage.includes('not allowed') || errorMessage.includes('not supported') || errorMessage.includes('not found')) {
+        logger.debug('[NotificationSetup] Action types API not available on this platform (expected on Desktop)');
         return;
       }
       logger.error('[NotificationSetup] Failed to register action types:', error);
@@ -218,7 +221,7 @@ class NotificationSetupService {
    * Wird aufgerufen wenn User auf Notification oder Action-Button klickt.
    * Nutzt Zod safeParse() für sichere Runtime-Validierung der extra Daten.
    *
-   * **Hinweis:** Nicht auf allen Plattformen verfügbar (z.B. nicht auf macOS).
+   * **Hinweis:** Nur auf Android/iOS verfügbar, nicht auf Desktop.
    */
   private async registerActionHandler(): Promise<void> {
     try {
@@ -260,10 +263,10 @@ class NotificationSetupService {
 
       logger.info('[NotificationSetup] Action handler registered');
     } catch (error) {
-      // API nicht auf allen Plattformen verfügbar (z.B. macOS)
+      // API nur auf Android/iOS verfügbar - auf Desktop ignorieren
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('not allowed') || errorMessage.includes('not supported')) {
-        logger.debug('[NotificationSetup] Action handler API not available on this platform');
+      if (errorMessage.includes('not allowed') || errorMessage.includes('not supported') || errorMessage.includes('not found')) {
+        logger.debug('[NotificationSetup] Action handler API not available on this platform (expected on Desktop)');
         return;
       }
       logger.error('[NotificationSetup] Failed to register action handler:', error);

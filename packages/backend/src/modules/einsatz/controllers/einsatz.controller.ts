@@ -1,4 +1,5 @@
 import { ArchiveEinsatzCommand, CompleteEinsatzCommand, CreateEinsatzCommand, StartEinsatzCommand, UpdateEinsatzCommand } from '@/application/einsatz/commands';
+import { EINSATZ_ERROR_CODES } from '@/application/einsatz/errors';
 import { Result } from '@domain/common/result';
 import {
   CompletenessQueryDto,
@@ -167,8 +168,8 @@ export class EinsatzController {
     const result = await this.getTeilnehmerHandler.execute(queryResult.value);
 
     if (result.isFailure) {
-      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) {
-        throw new NotFoundException(result.error);
+      if (result.error === EINSATZ_ERROR_CODES.NOT_FOUND) {
+        throw new NotFoundException(`Einsatz mit ID ${id} nicht gefunden`);
       }
       throw new BadRequestException(result.error);
     }
@@ -186,7 +187,9 @@ export class EinsatzController {
   async getPrevious(@Param('id') id: string): Promise<NavigationResponseDto> {
     const result = await this.queryBus.execute(new GetPreviousEinsatzIdQuery(id));
     if (result.isFailure) {
-      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) throw new NotFoundException(result.error);
+      if (result.error === EINSATZ_ERROR_CODES.NOT_FOUND) {
+        throw new NotFoundException(`Einsatz mit ID ${id} nicht gefunden`);
+      }
       throw new BadRequestException(result.error ?? 'Fehler beim Abrufen des vorherigen Einsatzes');
     }
     return result.value ?? { id: null };
@@ -202,7 +205,9 @@ export class EinsatzController {
   async getNext(@Param('id') id: string): Promise<NavigationResponseDto> {
     const result = await this.queryBus.execute(new GetNextEinsatzIdQuery(id));
     if (result.isFailure) {
-      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) throw new NotFoundException(result.error);
+      if (result.error === EINSATZ_ERROR_CODES.NOT_FOUND) {
+        throw new NotFoundException(`Einsatz mit ID ${id} nicht gefunden`);
+      }
       throw new BadRequestException(result.error ?? 'Fehler beim Abrufen des nächsten Einsatzes');
     }
     return result.value ?? { id: null };
@@ -334,9 +339,9 @@ export class EinsatzController {
 
     const result = await this.commandBus.execute<CompleteEinsatzCommand, Result<void>>(commandResult.value);
     if (result.isFailure) {
-      // "nicht gefunden" → 404 Not Found, andere Fehler → 400 Bad Request
-      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) {
-        throw new NotFoundException(result.error);
+      // EINSATZ_NOT_FOUND -> 404 Not Found, andere Fehler -> 400 Bad Request
+      if (result.error === EINSATZ_ERROR_CODES.NOT_FOUND) {
+        throw new NotFoundException(`Einsatz mit ID ${id} nicht gefunden`);
       }
       throw new BadRequestException(result.error);
     }

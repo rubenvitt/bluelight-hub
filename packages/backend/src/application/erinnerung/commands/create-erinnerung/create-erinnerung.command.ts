@@ -13,6 +13,8 @@ export interface CreateErinnerungCommandProps {
   erstelltVon: string;
   /** Story 2.6: Pflicht-Notiz bei Erledigung erforderlich (default: false) */
   requiresNote?: boolean;
+  /** Story 3.3: ID des zugewiesenen Users (optional, null = Ersteller) */
+  assignedToId?: string | null;
 }
 
 /**
@@ -61,6 +63,8 @@ export class CreateErinnerungCommand {
     public readonly faelligAm: Date,
     public readonly erstelltVon: string,
     public readonly requiresNote: boolean,
+    /** Story 3.3: Zugewiesener User (undefined = Ersteller ist zugewiesen) */
+    public readonly assignedToId: string | undefined,
   ) {}
 
   /**
@@ -124,10 +128,28 @@ export class CreateErinnerungCommand {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // Validiere assignedToId (Story 3.3)
+    // ════════════════════════════════════════════════════════════════════════
+    let trimmedAssignedToId: string | undefined;
+    if (props.assignedToId && props.assignedToId.trim() !== '') {
+      trimmedAssignedToId = props.assignedToId.trim();
+      // Optional: CUID2 Format Validierung für assignedToId
+      // Handler validiert zusätzlich ob User aktiver Teilnehmer ist
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // Command erstellen
     // ════════════════════════════════════════════════════════════════════════
     return Result.ok(
-      new CreateErinnerungCommand(trimmedEinsatzId, trimmedTitel, props.beschreibung?.trim() || undefined, props.faelligAm, trimmedErstelltVon, props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE),
+      new CreateErinnerungCommand(
+        trimmedEinsatzId,
+        trimmedTitel,
+        props.beschreibung?.trim() || undefined,
+        props.faelligAm,
+        trimmedErstelltVon,
+        props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE,
+        trimmedAssignedToId,
+      ),
     );
   }
 }

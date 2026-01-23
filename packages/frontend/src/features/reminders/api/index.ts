@@ -16,6 +16,7 @@ export {
   useAcknowledgeErinnerung,
   useSnoozeErinnerung,
   useMarkErledigtErinnerung,
+  useAssignErinnerung,
   type CreateErinnerungVariables,
   type UpdateErinnerungVariables,
   type DeleteErinnerungVariables,

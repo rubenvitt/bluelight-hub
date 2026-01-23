@@ -481,6 +481,9 @@ pnpm --filter @bluelight-hub/backend lint:arch      # Architecture Lint
 pnpm --filter @bluelight-hub/backend docs:generate  # Compodoc generieren
 ```
 
+### MCP
+Nutze die Tools von Serena.
+
 ### Testing
 
 ```bash

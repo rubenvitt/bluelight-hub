@@ -92,4 +92,21 @@ export class CreateErinnerungDto {
   @IsOptional()
   @IsBoolean({ message: 'requiresNote muss ein Boolean sein' })
   requiresNote?: boolean;
+
+  /**
+   * Story 3.3: ID des Users, dem die Erinnerung zugewiesen wird.
+   * Wenn nicht angegeben, ist die Erinnerung dem Ersteller zugewiesen.
+   *
+   * @example "clw3h8x9y0003user2xxxxxx"
+   */
+  @ApiProperty({
+    description: 'ID des zugewiesenen Users (Story 3.3). Leer = Ersteller',
+    example: 'clw3h8x9y0003user2xxxxxx',
+    type: String,
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString({ message: 'assignedToId muss ein String sein' })
+  assignedToId?: string | null;
 }

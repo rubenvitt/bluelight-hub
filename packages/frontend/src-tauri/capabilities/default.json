@@ -40,6 +40,22 @@
     "store:allow-keys",
     "barcode-scanner:default",
     "deep-link:default",
-    "notification:default"
+    "notification:default",
+    "notification:allow-notify",
+    "notification:allow-show",
+    "notification:allow-request-permission",
+    "notification:allow-is-permission-granted",
+    "notification:allow-check-permissions",
+    "notification:allow-permission-state",
+    "notification:allow-create-channel",
+    "notification:allow-delete-channel",
+    "notification:allow-list-channels",
+    "notification:allow-register-action-types",
+    "notification:allow-register-listener",
+    "notification:allow-get-pending",
+    "notification:allow-cancel",
+    "notification:allow-get-active",
+    "notification:allow-remove-active",
+    "notification:allow-batch"
   ]
 }

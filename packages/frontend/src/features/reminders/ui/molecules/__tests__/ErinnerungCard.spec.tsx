@@ -10,6 +10,10 @@
  * **Story 3.2 AC2 (Animation):**
  * - Update-Animation bei WebSocket-Status-Wechsel
  * - Insert-Animation bei neuer Erinnerung via WebSocket
+ *
+ * **Story 3.5 (Ersteller und Zugewiesener anzeigen):**
+ * - AC1: Unterschiedliche Personen → Zugewiesener prominent, Ersteller sekundär
+ * - AC2: Gleiche Person → nur einmal anzeigen
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -499,6 +503,205 @@ describe('ErinnerungCard', () => {
       const card = container.firstChild as HTMLElement;
       expect(card.className).not.toMatch(/animate-highlight/);
       expect(card.className).not.toMatch(/animate-slide-in-right/);
+    });
+  });
+
+  /**
+   * Story 3.5: Ersteller und Zugewiesener anzeigen
+   *
+   * AC1: Unterschiedliche Personen → Zugewiesener prominent (Hauptanzeige), Ersteller sekundär
+   * AC2: Gleiche Person → nur einmal anzeigen (ohne "Erstellt von")
+   */
+  describe('Ersteller und Zugewiesener Anzeige (Story 3.5)', () => {
+    describe('AC1: Unterschiedliche Ersteller und Zugewiesener', () => {
+      it('should show assignee as primary display with larger avatar when different from creator', () => {
+        // Given (Arrange) - Erstellt von Markus, zugewiesen an Thomas
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-markus',
+          erstellerName: 'Markus',
+          assignedToId: 'user-thomas',
+          assignedToName: 'Thomas',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={true} />);
+
+        // Then (Assert) - Thomas als Hauptanzeige
+        const avatars = screen.getAllByLabelText(/Avatar für/);
+        // Erstes Avatar sollte Thomas sein (Hauptanzeige)
+        expect(avatars[0]).toHaveAttribute('aria-label', 'Avatar für Thomas');
+        expect(screen.getByText('Thomas')).toBeInTheDocument();
+      });
+
+      it('should show creator as secondary text "Erstellt von X" when different from assignee', () => {
+        // Given (Arrange) - Erstellt von Markus, zugewiesen an Thomas
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-markus',
+          erstellerName: 'Markus',
+          assignedToId: 'user-thomas',
+          assignedToName: 'Thomas',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={true} />);
+
+        // Then (Assert) - "Erstellt von Markus" als sekundärer Text
+        expect(screen.getByText('Erstellt von')).toBeInTheDocument();
+        expect(screen.getByText('Markus')).toBeInTheDocument();
+      });
+
+      it('should display secondary creator text with smaller styling (text-xs)', () => {
+        // Given (Arrange)
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-markus',
+          erstellerName: 'Markus',
+          assignedToId: 'user-thomas',
+          assignedToName: 'Thomas',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={true} />);
+
+        // Then (Assert) - Sekundärer Text hat text-xs Klasse
+        const creatorText = screen.getByText('Erstellt von').closest('p');
+        expect(creatorText?.className).toMatch(/text-xs/);
+      });
+    });
+
+    describe('AC2: Gleiche Person als Ersteller und Zugewiesener', () => {
+      it('should show only assignee name without "Erstellt von" when same person', () => {
+        // Given (Arrange) - Ersteller und Zugewiesener ist dieselbe Person (Thomas)
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-thomas',
+          erstellerName: 'Thomas',
+          assignedToId: 'user-thomas',
+          assignedToName: 'Thomas',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={true} />);
+
+        // Then (Assert)
+        expect(screen.getByText('Thomas')).toBeInTheDocument();
+        expect(screen.queryByText('Erstellt von')).not.toBeInTheDocument();
+      });
+
+      it('should display single avatar when creator equals assignee', () => {
+        // Given (Arrange) - Gleiche Person
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-thomas',
+          erstellerName: 'Thomas',
+          assignedToId: 'user-thomas',
+          assignedToName: 'Thomas',
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={true} />);
+
+        // Then (Assert) - Nur ein Avatar für die Person
+        const avatars = screen.getAllByLabelText(/Avatar für Thomas/);
+        expect(avatars).toHaveLength(1);
+      });
+    });
+
+    describe('Fallback: Kein Zugewiesener', () => {
+      it('should show only creator when no assignee is set', () => {
+        // Given (Arrange) - Nur Ersteller, kein Zugewiesener
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-markus',
+          erstellerName: 'Markus',
+          assignedToId: null,
+          assignedToName: null,
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={true} />);
+
+        // Then (Assert) - Zeigt Markus als Hauptperson
+        expect(screen.getByText('Markus')).toBeInTheDocument();
+        const avatar = screen.getByLabelText('Avatar für Markus');
+        expect(avatar).toBeInTheDocument();
+      });
+
+      it('should NOT show "Erstellt von" text when only creator exists', () => {
+        // Given (Arrange) - Nur Ersteller, kein Zugewiesener
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-markus',
+          erstellerName: 'Markus',
+          assignedToId: undefined,
+          assignedToName: undefined,
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={true} />);
+
+        // Then (Assert) - Kein "Erstellt von" wenn nur eine Person
+        expect(screen.queryByText('Erstellt von')).not.toBeInTheDocument();
+      });
+    });
+
+    describe('Edge Cases: Missing Names', () => {
+      it('should NOT render creator/assignee section when both names are undefined', () => {
+        // Given (Arrange)
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-markus',
+          erstellerName: undefined,
+          assignedToId: 'user-thomas',
+          assignedToName: undefined,
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={true} />);
+
+        // Then (Assert)
+        expect(screen.queryByLabelText(/Avatar für/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Erstellt von/)).not.toBeInTheDocument();
+      });
+
+      it('should fallback to creator when assignedToName is missing', () => {
+        // Given (Arrange)
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-markus',
+          erstellerName: 'Markus',
+          assignedToId: 'user-thomas',
+          assignedToName: undefined,
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={true} />);
+
+        // Then (Assert)
+        expect(screen.getByText('Markus')).toBeInTheDocument();
+        expect(screen.queryByText(/Erstellt von/)).not.toBeInTheDocument();
+      });
+    });
+
+    describe('Render Conditions', () => {
+      it('should show names based on data availability, not showCreator flag', () => {
+        // Given (Arrange) - showCreator=false aber Daten vorhanden
+        const erinnerung: ErinnerungResponseDto = {
+          ...baseErinnerung,
+          erstelltVon: 'user-markus',
+          erstellerName: 'Markus',
+          assignedToId: null,
+          assignedToName: null,
+        };
+
+        // When (Act)
+        render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" showCreator={false} />);
+
+        // Then (Assert) - Nach Fix sollte Markus angezeigt werden
+        expect(screen.getByText('Markus')).toBeInTheDocument();
+      });
     });
   });
 });

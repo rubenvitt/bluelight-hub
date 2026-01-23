@@ -84,10 +84,19 @@ describe('CreateErinnerungHandler', () => {
       debug: jest.fn(),
     } as unknown as jest.Mocked<ILogger>;
 
-    // Mock PrismaService mit Transaction-Support
+    // Mock PrismaService mit Transaction-Support und EinsatzTeilnehmer Query
+    // Story 3.3: Handler prüft ob Ersteller und assignedTo aktive Teilnehmer sind
     mockPrismaService = {
       $transaction: jest.fn().mockImplementation(async (callback) => {
-        const txMock = {}; // Minimaler TX Mock
+        const txMock = {
+          einsatzTeilnehmer: {
+            // Default: Ersteller ist aktiver Teilnehmer (für bestehende Tests)
+            findFirst: jest.fn().mockResolvedValue({ id: 'default-teilnehmer-id' }),
+          },
+          user: {
+            findUnique: jest.fn().mockResolvedValue(null), // Kein assignedTo User
+          },
+        };
         return callback(txMock);
       }),
     };
@@ -308,7 +317,15 @@ describe('CreateErinnerungHandler', () => {
       // Given (Arrange)
       const commandResult = createValidCommand();
       const command = commandResult.value!;
-      const txMarker = { txId: 'test-tx' };
+      const txMarker = {
+        txId: 'test-tx',
+        einsatzTeilnehmer: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'teilnehmer-id' }),
+        },
+        user: {
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+      };
       mockPrismaService.$transaction.mockImplementation(async (callback) => callback(txMarker));
 
       // When (Act)
@@ -325,7 +342,15 @@ describe('CreateErinnerungHandler', () => {
       // Given (Arrange)
       const commandResult = createValidCommand();
       const command = commandResult.value!;
-      const txMarker = { txId: 'outbox-tx' };
+      const txMarker = {
+        txId: 'outbox-tx',
+        einsatzTeilnehmer: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'teilnehmer-id' }),
+        },
+        user: {
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+      };
       mockPrismaService.$transaction.mockImplementation(async (callback) => callback(txMarker));
 
       // When (Act)
@@ -457,7 +482,15 @@ describe('CreateErinnerungHandler', () => {
       // Given (Arrange)
       const commandResult = createValidCommand();
       const command = commandResult.value!;
-      const txMarker = { txId: 'same-tx' };
+      const txMarker = {
+        txId: 'same-tx',
+        einsatzTeilnehmer: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'teilnehmer-id' }),
+        },
+        user: {
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+      };
       mockPrismaService.$transaction.mockImplementation(async (callback) => callback(txMarker));
 
       // When (Act)
@@ -555,6 +588,354 @@ describe('CreateErinnerungHandler', () => {
       expect(mockLogger.error).toHaveBeenCalled();
       const errorCall = mockLogger.error.mock.calls[0][0];
       expect(errorCall).toContain('Failed to save Erinnerung');
+    });
+  });
+
+  /**
+   * Story 3.3: assignedToId Validierung
+   *
+   * Tests für die Zuweisung von Erinnerungen an spezifische Benutzer.
+   * Der Handler validiert:
+   * - assignedToId muss eine gültige UserId sein (falls gesetzt)
+   * - assignedToId muss ein aktiver Einsatz-Teilnehmer sein (leftAt === null)
+   */
+  describe('Story 3.3: assignedToId Validation', () => {
+    /**
+     * Erstellt einen Command mit assignedToId.
+     */
+    const createCommandWithAssignedTo = (assignedToId?: string | null) => {
+      const faelligAm = new Date(Date.now() + 30 * 60 * 1000); // 30 Minuten in der Zukunft
+      return CreateErinnerungCommand.create({
+        einsatzId: generateValidEinsatzId(),
+        titel: 'Lagebesprechung',
+        beschreibung: 'Im ELW 1',
+        faelligAm,
+        erstelltVon: generateValidUserId(),
+        assignedToId,
+      });
+    };
+
+    it('should create erinnerung with valid assignedToId when user is active participant', async () => {
+      // Given: assignedToId ist aktiver Teilnehmer des Einsatzes
+      const assignedUserId = generateValidUserId();
+      const commandResult = createCommandWithAssignedTo(assignedUserId);
+      expect(commandResult.isSuccess).toBe(true);
+      const command = commandResult.value!;
+
+      // Mock: Prisma findet aktiven Teilnehmer
+      const mockTxWithEinsatzTeilnehmer = {
+        einsatzTeilnehmer: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'teilnehmer-123' }),
+        },
+        user: {
+          findUnique: jest.fn().mockResolvedValue({ username: 'Max Mustermann' }),
+        },
+      };
+      mockPrismaService.$transaction.mockImplementation(async (callback) => callback(mockTxWithEinsatzTeilnehmer));
+
+      // When: createErinnerung mit assignedToId
+      const result = await handler.execute(command);
+
+      // Then: Erfolg, Erinnerung mit assignedToId erstellt
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBeDefined();
+      expect(result.value!.assignedToId).toBe(assignedUserId);
+      expect(result.value!.assignedToName).toBe('Max Mustermann');
+      expect(mockErinnerungRepository.save).toHaveBeenCalledTimes(1);
+      expect(mockTxWithEinsatzTeilnehmer.einsatzTeilnehmer.findFirst).toHaveBeenCalledWith({
+        where: {
+          einsatzId: command.einsatzId,
+          userId: assignedUserId,
+          leftAt: null, // Nur aktive Teilnehmer
+        },
+        select: { id: true },
+      });
+    });
+
+    it('should fail with INVALID_ASSIGNED_TO when assignedToId is not active participant', async () => {
+      // Given: assignedToId ist KEIN aktiver Teilnehmer (leftAt !== null oder nicht vorhanden)
+      const inactiveUserId = generateValidUserId();
+      const commandResult = createCommandWithAssignedTo(inactiveUserId);
+      expect(commandResult.isSuccess).toBe(true);
+      const command = commandResult.value!;
+
+      // Mock: Ersteller ist Teilnehmer (erster Aufruf), assignedTo ist KEIN Teilnehmer (zweiter Aufruf)
+      let findFirstCallCount = 0;
+      const mockTxWithSelectiveParticipant = {
+        einsatzTeilnehmer: {
+          findFirst: jest.fn().mockImplementation(async (query: { where: { userId: string } }) => {
+            findFirstCallCount++;
+            // Erster Aufruf: Ersteller-Check → OK
+            if (findFirstCallCount === 1) {
+              return { id: 'creator-teilnehmer-id' };
+            }
+            // Zweiter Aufruf: assignedTo-Check → NICHT gefunden
+            return null;
+          }),
+        },
+      };
+      mockPrismaService.$transaction.mockImplementation(async (callback) => callback(mockTxWithSelectiveParticipant));
+
+      // When: createErinnerung mit assignedToId
+      const result = await handler.execute(command);
+
+      // Then: Result.fail mit INVALID_ASSIGNED_TO Error Code
+      expect(result.isSuccess).toBe(false);
+      expect(result.error).toBe(ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_TO);
+      expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      expect(findFirstCallCount).toBe(2); // Beide Checks wurden ausgeführt
+    });
+
+    it('should fail with INVALID_ASSIGNED_TO when assignedToId user has left the einsatz', async () => {
+      // Given: assignedToId hat den Einsatz verlassen (leftAt !== null)
+      const leftUserId = generateValidUserId();
+      const commandResult = createCommandWithAssignedTo(leftUserId);
+      expect(commandResult.isSuccess).toBe(true);
+      const command = commandResult.value!;
+
+      // Mock: Ersteller ist Teilnehmer, aber assignedTo hat leftAt gesetzt
+      let findFirstCallCount = 0;
+      const mockTxWithLeftParticipant = {
+        einsatzTeilnehmer: {
+          findFirst: jest.fn().mockImplementation(async () => {
+            findFirstCallCount++;
+            // Erster Aufruf: Ersteller-Check → OK
+            if (findFirstCallCount === 1) {
+              return { id: 'creator-teilnehmer-id' };
+            }
+            // Zweiter Aufruf: assignedTo-Check → Query mit leftAt: null findet nichts
+            return null;
+          }),
+        },
+      };
+      mockPrismaService.$transaction.mockImplementation(async (callback) => callback(mockTxWithLeftParticipant));
+
+      // When: createErinnerung mit assignedToId
+      const result = await handler.execute(command);
+
+      // Then: Result.fail mit INVALID_ASSIGNED_TO Error Code
+      expect(result.isSuccess).toBe(false);
+      expect(result.error).toBe(ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_TO);
+      expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should create erinnerung without assignedToId (for all participants)', async () => {
+      // Given: assignedToId ist null/undefined
+      const commandResult = createCommandWithAssignedTo(undefined);
+      expect(commandResult.isSuccess).toBe(true);
+      const command = commandResult.value!;
+
+      // When: createErinnerung ohne assignedToId
+      const result = await handler.execute(command);
+
+      // Then: Erfolg, Erinnerung mit assignedToId = null
+      expect(result.isSuccess).toBe(true);
+      expect(result.value).toBeDefined();
+      expect(result.value!.assignedToId).toBeNull();
+      expect(result.value!.assignedToName).toBeNull();
+      expect(mockErinnerungRepository.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should create erinnerung when assignedToId is explicit null', async () => {
+      // Given: assignedToId ist explizit null
+      const commandResult = createCommandWithAssignedTo(null);
+      expect(commandResult.isSuccess).toBe(true);
+      const command = commandResult.value!;
+
+      // When: createErinnerung mit assignedToId = null
+      const result = await handler.execute(command);
+
+      // Then: Erfolg, Erinnerung ohne Zuweisung erstellt
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.assignedToId).toBeNull();
+      expect(result.value!.assignedToName).toBeNull();
+    });
+
+    it('should create erinnerung when assignedToId is empty string (treated as no assignment)', async () => {
+      // Given: assignedToId ist leerer String
+      const commandResult = createCommandWithAssignedTo('');
+      expect(commandResult.isSuccess).toBe(true);
+      const command = commandResult.value!;
+
+      // When: createErinnerung mit leerem assignedToId
+      const result = await handler.execute(command);
+
+      // Then: Erfolg, leerer String wird als "keine Zuweisung" behandelt
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.assignedToId).toBeNull();
+    });
+
+    it('should fail when assignedToId has invalid UserId format', async () => {
+      // Given: assignedToId hat ungültiges Format (kein valides CUID)
+      const invalidUserId = 'invalid-user-id-format';
+      const commandResult = createCommandWithAssignedTo(invalidUserId);
+      expect(commandResult.isSuccess).toBe(true);
+      const command = commandResult.value!;
+
+      // Mock: UserId.create wird für ungültiges Format fehlschlagen
+      const originalCreate = UserId.create.bind(UserId);
+      const userIdCreateSpy = jest.spyOn(UserId, 'create');
+
+      // Track: Lasse erste Aufruf durchgehen (erstelltVon),
+      // dann fail für assignedToId (ungültiges Format)
+      let callCount = 0;
+      userIdCreateSpy.mockImplementation((id?: string) => {
+        callCount++;
+        if (callCount === 1) {
+          // Erster Aufruf: Original-Implementierung (für erstelltVon)
+          return originalCreate(id);
+        }
+        // Zweiter Aufruf (assignedToId): Fehlschlagen wegen ungültigem Format
+        return Result.fail(ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_TO);
+      });
+
+      try {
+        // When: createErinnerung mit ungültigem assignedToId
+        const result = await handler.execute(command);
+
+        // Then: Result.fail
+        expect(result.isSuccess).toBe(false);
+        expect(result.error).toBe(ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_TO);
+        expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
+      } finally {
+        userIdCreateSpy.mockRestore();
+      }
+    });
+
+    it('should include assignedToName in response when user is assigned', async () => {
+      // Given: Erinnerung mit assignedToId wird erstellt
+      const assignedUserId = generateValidUserId();
+      const commandResult = createCommandWithAssignedTo(assignedUserId);
+      const command = commandResult.value!;
+
+      // Mock: Aktiver Teilnehmer mit Username
+      const mockTxWithUser = {
+        einsatzTeilnehmer: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'teilnehmer-456' }),
+        },
+        user: {
+          findUnique: jest.fn().mockResolvedValue({ username: 'Erika Musterfrau' }),
+        },
+      };
+      mockPrismaService.$transaction.mockImplementation(async (callback) => callback(mockTxWithUser));
+
+      // When: createErinnerung
+      const result = await handler.execute(command);
+
+      // Then: assignedToName ist im Response enthalten
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.assignedToName).toBe('Erika Musterfrau');
+      expect(mockTxWithUser.user.findUnique).toHaveBeenCalledWith({
+        where: { id: assignedUserId },
+        select: { username: true },
+      });
+    });
+
+    it('should set assignedToName to null when user not found in database', async () => {
+      // Given: Erinnerung mit assignedToId, aber User existiert nicht mehr
+      const assignedUserId = generateValidUserId();
+      const commandResult = createCommandWithAssignedTo(assignedUserId);
+      const command = commandResult.value!;
+
+      // Mock: Aktiver Teilnehmer existiert, aber User-Lookup fehlschlägt
+      const mockTxWithMissingUser = {
+        einsatzTeilnehmer: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'teilnehmer-789' }),
+        },
+        user: {
+          findUnique: jest.fn().mockResolvedValue(null), // User nicht gefunden
+        },
+      };
+      mockPrismaService.$transaction.mockImplementation(async (callback) => callback(mockTxWithMissingUser));
+
+      // When: createErinnerung
+      const result = await handler.execute(command);
+
+      // Then: Erfolg, aber assignedToName ist null
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.assignedToId).toBe(assignedUserId);
+      expect(result.value!.assignedToName).toBeNull();
+    });
+
+    it('should emit ErinnerungErstelltEvent with assignedToId', async () => {
+      // Given: Erinnerung mit Zuweisung
+      const assignedUserId = generateValidUserId();
+      const commandResult = createCommandWithAssignedTo(assignedUserId);
+      const command = commandResult.value!;
+
+      const mockTxWithParticipant = {
+        einsatzTeilnehmer: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'teilnehmer-event' }),
+        },
+        user: {
+          findUnique: jest.fn().mockResolvedValue({ username: 'Event User' }),
+        },
+      };
+      mockPrismaService.$transaction.mockImplementation(async (callback) => callback(mockTxWithParticipant));
+
+      // When: createErinnerung
+      const result = await handler.execute(command);
+
+      // Then: Event enthält assignedToId
+      expect(result.isSuccess).toBe(true);
+      expect(mockOutboxRepository.save).toHaveBeenCalledTimes(1);
+
+      const savedEvents = mockOutboxRepository.save.mock.calls[0][0];
+      expect(savedEvents.length).toBeGreaterThan(0);
+
+      const createdEvent = savedEvents[0] as ErinnerungErstelltEvent;
+      expect(createdEvent).toBeInstanceOf(ErinnerungErstelltEvent);
+      // Event sollte die Erinnerung-ID enthalten, assignedToId ist Teil des Aggregates
+      expect(createdEvent.erinnerungId).toBeDefined();
+    });
+
+    it('should fail with UNAUTHORIZED_ACCESS when creator is not active participant', async () => {
+      // Given: Ersteller ist kein Teilnehmer des Einsatzes
+      const commandResult = createCommandWithAssignedTo(undefined);
+      expect(commandResult.isSuccess).toBe(true);
+      const command = commandResult.value!;
+
+      // Mock: Ersteller ist KEIN aktiver Teilnehmer
+      const mockTxWithNoCreatorParticipation = {
+        einsatzTeilnehmer: {
+          findFirst: jest.fn().mockResolvedValue(null), // Ersteller ist kein Teilnehmer
+        },
+      };
+      mockPrismaService.$transaction.mockImplementation(async (callback) => callback(mockTxWithNoCreatorParticipation));
+
+      // When: createErinnerung
+      const result = await handler.execute(command);
+
+      // Then: Result.fail mit UNAUTHORIZED_ACCESS Error Code
+      expect(result.isSuccess).toBe(false);
+      expect(result.error).toBe(ERINNERUNG_ERROR_CODES.UNAUTHORIZED_ACCESS);
+      expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.save).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Unauthorized'), 'CreateErinnerungHandler');
+    });
+
+    it('should fail with UNAUTHORIZED_ACCESS when creator has left the einsatz', async () => {
+      // Given: Ersteller hat den Einsatz verlassen (leftAt !== null)
+      const commandResult = createCommandWithAssignedTo(undefined);
+      expect(commandResult.isSuccess).toBe(true);
+      const command = commandResult.value!;
+
+      // Mock: Ersteller hat leftAt gesetzt (Query mit leftAt: null findet nichts)
+      const mockTxWithLeftCreator = {
+        einsatzTeilnehmer: {
+          findFirst: jest.fn().mockResolvedValue(null), // Query filtert auf leftAt: null
+        },
+      };
+      mockPrismaService.$transaction.mockImplementation(async (callback) => callback(mockTxWithLeftCreator));
+
+      // When: createErinnerung
+      const result = await handler.execute(command);
+
+      // Then: Result.fail mit UNAUTHORIZED_ACCESS Error Code
+      expect(result.isSuccess).toBe(false);
+      expect(result.error).toBe(ERINNERUNG_ERROR_CODES.UNAUTHORIZED_ACCESS);
+      expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
     });
   });
 });

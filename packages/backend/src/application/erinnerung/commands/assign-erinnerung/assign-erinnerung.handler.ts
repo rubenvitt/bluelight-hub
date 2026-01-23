@@ -116,7 +116,24 @@ export class AssignErinnerungHandler extends TransactionalCommandHandler<AssignE
     // ════════════════════════════════════════════════════════════════════════
     const assignedByIdResult = UserId.create(command.assignedById);
     if (assignedByIdResult.isFailure || !assignedByIdResult.value) {
-      return Result.fail<ErinnerungResponseDto>(assignedByIdResult.error ?? ERINNERUNG_ERROR_CODES.USER_ID_INVALID);
+      return Result.fail<ErinnerungResponseDto>(assignedByIdResult.error ?? ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_BY);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // 3.5. Validiere assignedById ist auch aktiver Teilnehmer (Authorization)
+    // ════════════════════════════════════════════════════════════════════════
+    const assignedByIsTeilnehmer = await prismaClient.einsatzTeilnehmer.findFirst({
+      where: {
+        einsatzId: command.einsatzId,
+        userId: command.assignedById,
+        leftAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (!assignedByIsTeilnehmer) {
+      this.logger.warn(`User ${command.assignedById} ist kein aktiver Teilnehmer von Einsatz ${command.einsatzId} - kann nicht zuweisen`, 'AssignErinnerungHandler');
+      return Result.fail<ErinnerungResponseDto>(ERINNERUNG_ERROR_CODES.UNAUTHORIZED_ACCESS);
     }
 
     // ════════════════════════════════════════════════════════════════════════

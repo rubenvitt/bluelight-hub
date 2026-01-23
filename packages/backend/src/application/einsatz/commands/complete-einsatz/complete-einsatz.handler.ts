@@ -8,6 +8,7 @@ import { CommandHandler } from '@nestjs/cqrs';
 import { Inject, Injectable } from '@nestjs/common';
 import { CompleteEinsatzCommand } from './complete-einsatz.command';
 import { TransactionalCommandHandler } from '@application/common/handlers/transactional-command.handler';
+import { EINSATZ_ERROR_CODES } from '../../errors';
 // biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
 import { PrismaService } from '@/infrastructure/database/prisma.service';
 // biome-ignore lint/style/useImportType: IOutboxRepository needed for DI at runtime
@@ -154,7 +155,7 @@ export class CompleteEinsatzHandler extends TransactionalCommandHandler<Complete
         phase: 'load',
         einsatzId: command.einsatzId,
       });
-      return Result.fail(`Einsatz ${command.einsatzId} nicht gefunden`);
+      return Result.fail(EINSATZ_ERROR_CODES.NOT_FOUND);
     }
 
     // Step 4: Validate Completeness via Domain Service

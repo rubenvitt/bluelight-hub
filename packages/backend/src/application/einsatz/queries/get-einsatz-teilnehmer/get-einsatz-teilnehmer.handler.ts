@@ -2,24 +2,29 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import type { ILogger } from '@domain/ports/i-logger.port';
 import { LOGGER } from '@infrastructure/di-tokens';
-import type { PrismaService } from '@infrastructure/database/prisma.service';
+// biome-ignore lint/style/useImportType: PrismaService is Injectable class, needed for DI at runtime (AC1)
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 import type { AktiveTeilnehmerResponseDto } from '../../dto/aktive-teilnehmer-response.dto';
+import { EINSATZ_ERROR_CODES } from '../../errors';
 import type { GetEinsatzTeilnehmerQuery } from './get-einsatz-teilnehmer.query';
 
 /**
  * Handler zum Abrufen aller aktiven Teilnehmer eines Einsatzes.
  *
- * **Story 3.3 AC1:**
- * "sehe ich alle aktiven Einsatz-Teilnehmer als Auswahl"
+ * **Story 3.3 AC1:** Ermoeglicht die Auswahl eines Zuweisungsempfaengers
+ * bei der Erinnerungserstellung ("sehe ich alle aktiven Einsatz-Teilnehmer als Auswahl").
  *
  * **CQRS Query-Side Pattern:**
  * - Read-Only: Aendert niemals Domain State
  * - Result<T>: Kein Exception-Throwing fuer vorhersagbare Fehler
  * - Direct Prisma Access: Keine Repository-Abstraktion noetig fuer einfache Reads
  *
- * **Filter:**
+ * **Filterlogik:**
  * - Nur Teilnehmer mit leftAt === null (noch aktiv im Einsatz)
  * - Sortiert nach joinedAt ASC (aelteste zuerst = laenger dabei)
+ *
+ * @see GetEinsatzTeilnehmerQuery - Input DTO mit Validierung
+ * @see AktiveTeilnehmerResponseDto - Output DTO fuer Frontend
  */
 @Injectable()
 export class GetEinsatzTeilnehmerHandler {
@@ -50,7 +55,7 @@ export class GetEinsatzTeilnehmerHandler {
       });
 
       if (!einsatzExists) {
-        return Result.fail<AktiveTeilnehmerResponseDto[]>(`Einsatz mit ID ${query.einsatzId} nicht gefunden`);
+        return Result.fail<AktiveTeilnehmerResponseDto[]>(EINSATZ_ERROR_CODES.NOT_FOUND);
       }
 
       // 2. Aktive Teilnehmer laden mit User-Join

@@ -4,7 +4,7 @@ import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import type { ValidatedUser } from '@/modules/auth/strategies/jwt.strategy';
 import { ApiWrappedCreatedResponse, ApiWrappedResponse } from '@/modules/common/decorators/api-wrapped-response.decorator';
-import { CreateErinnerungDto, UpdateErinnerungDto, ErinnerungResponseDto } from '@/application/erinnerung/dto';
+import { AssignErinnerungDto, CreateErinnerungDto, UpdateErinnerungDto, ErinnerungResponseDto } from '@/application/erinnerung/dto';
 import { CreateErinnerungCommand } from '@/application/erinnerung/commands/create-erinnerung/create-erinnerung.command';
 import { CreateErinnerungHandler } from '@/application/erinnerung/commands/create-erinnerung/create-erinnerung.handler';
 import { UpdateErinnerungCommand } from '@/application/erinnerung/commands/update-erinnerung/update-erinnerung.command';
@@ -19,6 +19,8 @@ import { SnoozeErinnerungCommand } from '@/application/erinnerung/commands/snooz
 import { SnoozeErinnerungHandler } from '@/application/erinnerung/commands/snooze-erinnerung/snooze-erinnerung.handler';
 import { MarkErledigtErinnerungCommand } from '@/application/erinnerung/commands/mark-erledigt-erinnerung/mark-erledigt-erinnerung.command';
 import { MarkErledigtErinnerungHandler } from '@/application/erinnerung/commands/mark-erledigt-erinnerung/mark-erledigt-erinnerung.handler';
+import { AssignErinnerungCommand } from '@/application/erinnerung/commands/assign-erinnerung/assign-erinnerung.command';
+import { AssignErinnerungHandler } from '@/application/erinnerung/commands/assign-erinnerung/assign-erinnerung.handler';
 import { SnoozeErinnerungDto } from '@/application/erinnerung/dto/snooze-erinnerung.dto';
 import { MarkErledigtErinnerungDto } from '@/application/erinnerung/dto/mark-erledigt-erinnerung.dto';
 import { GetErinnerungenByEinsatzQuery } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.query';
@@ -53,6 +55,7 @@ export class ErinnerungController {
     private readonly acknowledgeHandler: AcknowledgeErinnerungHandler,
     private readonly snoozeHandler: SnoozeErinnerungHandler,
     private readonly markErledigtHandler: MarkErledigtErinnerungHandler,
+    private readonly assignHandler: AssignErinnerungHandler,
     private readonly getByEinsatzHandler: GetErinnerungenByEinsatzHandler,
   ) {}
 
@@ -468,6 +471,65 @@ export class ErinnerungController {
 
     if (!result.value) {
       throw new BadRequestException('Erinnerung konnte nicht erledigt werden');
+    }
+
+    return result.value;
+  }
+
+  /**
+   * Weist eine bestehende Erinnerung einem anderen Benutzer zu.
+   *
+   * Ermöglicht die nachträgliche Zuweisung einer Erinnerung an einen anderen
+   * Einsatz-Teilnehmer. Nur aktive Erinnerungen können zugewiesen werden.
+   *
+   * **Story 3.4 ACs:**
+   * - AC1: Bestehende Erinnerung nachträglich zuweisen, Teilnehmer erhält Notification
+   * - AC2: Nach Zuweisung verschwindet Erinnerung aus "Meine Erinnerungen" des alten Besitzers
+   */
+  @Post(':id/assign')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Bestehende Erinnerung zuweisen',
+    description: 'Weist eine bestehende Erinnerung einem anderen Benutzer zu. Nur aktive Erinnerungen (nicht ERLEDIGT/ESKALIERT) können zugewiesen werden.',
+  })
+  @ApiWrappedResponse(ErinnerungResponseDto, {
+    description: 'Erinnerung erfolgreich zugewiesen',
+  })
+  @ApiBadRequestResponse({ description: 'Ungültiger Teilnehmer oder Erinnerung nicht zuweisbar' })
+  @ApiNotFoundResponse({ description: 'Erinnerung nicht gefunden' })
+  async assign(
+    @Param('einsatzId') einsatzId: string,
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    dto: AssignErinnerungDto,
+    @CurrentUser() user: ValidatedUser,
+  ): Promise<ErinnerungResponseDto> {
+    const commandResult = AssignErinnerungCommand.create({
+      erinnerungId: id,
+      einsatzId,
+      assignedToId: dto.assignedToId,
+      assignedById: user.userId,
+    });
+
+    if (commandResult.isFailure || !commandResult.value) {
+      throw new BadRequestException(commandResult.error);
+    }
+
+    const result = await this.assignHandler.execute(commandResult.value);
+
+    if (result.isFailure) {
+      // Error Mapping: NOT_FOUND → 404, INVALID_ASSIGNED_TO → 400, sonst 400
+      if (result.error === ERINNERUNG_ERROR_CODES.NOT_FOUND) {
+        throw new NotFoundException('Erinnerung nicht gefunden');
+      }
+      if (result.error === ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_TO) {
+        throw new BadRequestException('Ungültiger Teilnehmer');
+      }
+      throw new BadRequestException(result.error);
+    }
+
+    if (!result.value) {
+      throw new BadRequestException('Erinnerung konnte nicht zugewiesen werden');
     }
 
     return result.value;

@@ -20,8 +20,10 @@ import type {
   ErinnerungControllerAcknowledgeVAlphaRequest,
   SnoozeErinnerungDto,
   ErinnerungControllerSnoozeVAlphaRequest,
-  MarkErledvigtErinnerungDto,
+  MarkErledigtErinnerungDto,
   ErinnerungControllerMarkErledigtVAlphaRequest,
+  AssignErinnerungDto,
+  ErinnerungControllerAssignVAlphaRequest,
 } from '@/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -131,6 +133,8 @@ export const useCreateErinnerung = () => {
           erstelltVon: 'offline',
           createdAt: now,
           updatedAt: now,
+          snoozeCount: 0,
+          requiresNote: data.requiresNote ?? false,
         };
 
         // Queue für Sync bei Reconnect
@@ -141,6 +145,7 @@ export const useCreateErinnerung = () => {
           beschreibung: data.beschreibung ?? null,
           faelligAm: data.faelligAm,
           createdAt: now,
+          requiresNote: data.requiresNote ?? false,
         });
 
         logger.debug('[useCreateErinnerung] Created offline erinnerung', { tempId });
@@ -192,6 +197,8 @@ export const useCreateErinnerung = () => {
           erstelltVon: 'optimistic', // Placeholder (will be replaced on success)
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          snoozeCount: 0,
+          requiresNote: data.requiresNote ?? false,
         };
 
         queryClient.setQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId), [...previousErinnerungen, optimisticErinnerung]);
@@ -1093,7 +1100,7 @@ export const useMarkErledigtErinnerung = () => {
         const request: ErinnerungControllerMarkErledigtVAlphaRequest = {
           einsatzId,
           id: erinnerungId,
-          markErledvigtErinnerungDto: { erledigungsNotiz },
+          markErledigtErinnerungDto: { erledigungsNotiz },
         };
         const response = await api.erinnerungen().erinnerungControllerMarkErledigtVAlpha(request);
         return response.data;
@@ -1183,5 +1190,135 @@ export const useMarkErledigtErinnerung = () => {
     },
     // Kein Retry für MarkErledigt - 409 ist erwartetes Verhalten bei falschem Status
     retry: false,
+  });
+};
+
+export interface AssignErinnerungVariables {
+  /**
+   * Einsatz-ID
+   */
+  einsatzId: string;
+
+  /**
+   * Erinnerungs-ID
+   */
+  erinnerungId: string;
+
+  /**
+   * Daten für Zuweisung
+   */
+  data: AssignErinnerungDto;
+}
+
+interface AssignErinnerungContext {
+  einsatzId: string;
+  erinnerungId: string;
+  previousErinnerungen: ErinnerungResponseDto[] | undefined;
+}
+
+/**
+ * Hook fuer Erinnerungs-Zuweisung an anderen Benutzer
+ *
+ * Weist eine bestehende Erinnerung einem anderen Benutzer zu.
+ * Nur Erinnerungen mit aktivem Status (nicht ERLEDIGT/ESKALIERT) koennen zugewiesen werden.
+ *
+ * **Story 3.4 AC1:** "Bestehende Erinnerung nachtraeglich zuweisen"
+ * **Story 3.4 AC1:** "Teilnehmer aus aktiven Einsatz-Teilnehmern auswaehlen"
+ * **Story 3.4 AC2:** "Nach Zuweisung verschwindet Erinnerung aus 'Meine Erinnerungen'"
+ *
+ * @returns Mutation fuer Erinnerungs-Zuweisung
+ *
+ * @example
+ * ```tsx
+ * const assignErinnerung = useAssignErinnerung();
+ *
+ * const handleAssign = (erinnerung: ErinnerungResponseDto, assignedToId: string) => {
+ *   assignErinnerung.mutate({
+ *     einsatzId: erinnerung.einsatzId,
+ *     erinnerungId: erinnerung.id,
+ *     data: { assignedToId },
+ *   });
+ * };
+ * ```
+ */
+export const useAssignErinnerung = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<ErinnerungResponseDto, ResponseError, AssignErinnerungVariables, AssignErinnerungContext>({
+    mutationKey: ['erinnerung', 'assign'],
+    mutationFn: async ({ einsatzId, erinnerungId, data }) => {
+      // Kein Offline-Support fuer Assign - erfordert aktive Teilnehmer-Validierung
+      try {
+        const request: ErinnerungControllerAssignVAlphaRequest = {
+          einsatzId,
+          id: erinnerungId,
+          assignErinnerungDto: data,
+        };
+        const response = await api.erinnerungen().erinnerungControllerAssignVAlpha(request);
+        return response.data;
+      } catch (error) {
+        // Bei Netzwerkfehler: Propagiere als spezieller Fehler fuer besseres Error Handling
+        if (isNetworkError(error)) {
+          logger.warn('[useAssignErinnerung] Network error during API call', { error, erinnerungId });
+          offlineDetectionService.markOffline();
+          throw new Error('Netzwerkverbindung verloren. Bitte erneut versuchen wenn online.');
+        }
+        throw error;
+      }
+    },
+    onMutate: async ({ einsatzId, erinnerungId, data }) => {
+      // Cancel ALL related queries to prevent race conditions
+      await Promise.all([
+        queryClient.cancelQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+        }),
+        queryClient.cancelQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
+        }),
+      ]);
+
+      // Snapshot the previous value
+      const previousErinnerungen = queryClient.getQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId));
+
+      // Optimistically update assignedToId
+      if (previousErinnerungen) {
+        const updatedErinnerungen = previousErinnerungen.map((e) => {
+          if (e.id === erinnerungId) {
+            return {
+              ...e,
+              assignedToId: data.assignedToId,
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return e;
+        });
+
+        queryClient.setQueryData<ErinnerungResponseDto[]>(ERINNERUNG_QUERY_KEYS.list(einsatzId), updatedErinnerungen);
+      }
+
+      // Return context object with previous value for rollback
+      return { einsatzId, erinnerungId, previousErinnerungen };
+    },
+    onError: async (error: ResponseError, _variables, context) => {
+      // Rollback to previous value on error
+      if (context?.previousErinnerungen !== undefined) {
+        queryClient.setQueryData(ERINNERUNG_QUERY_KEYS.list(context.einsatzId), context.previousErinnerungen);
+      }
+
+      const message = await getApiErrorMessage(error, 'Die Erinnerung konnte nicht zugewiesen werden.', 'assignErinnerung');
+      logger.error('Failed to assign Erinnerung', error);
+      toast.error('Fehler', { description: message });
+    },
+    onSettled: async (_data, error, { einsatzId, erinnerungId }) => {
+      // Ensure consistency - invalidate Erinnerungen list and detail for this Einsatz
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId) }), queryClient.invalidateQueries({ queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId) })]);
+
+      // Success-Toast nach erfolgreicher Zuweisung (nur wenn kein Fehler)
+      if (!error) {
+        toast.success('Erinnerung zugewiesen');
+      }
+    },
+    retry: 3,
+    retryDelay: calculateRetryDelay,
   });
 };

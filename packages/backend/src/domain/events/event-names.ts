@@ -158,6 +158,8 @@ export const EVENT_NAMES = {
     ERLEDIGT: 'erinnerung.erledigt',
     /** Event: Erinnerung wurde gelöscht (Soft-Delete) (Story 1.4) */
     GELOESCHT: 'erinnerung.geloescht',
+    /** Event: Erinnerung wurde einem User zugewiesen (Story 3.1 Vorbereitung für 3.3) */
+    ASSIGNED: 'erinnerung.assigned',
   },
 } as const;
 

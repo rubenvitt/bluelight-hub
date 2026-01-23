@@ -47,6 +47,7 @@ import type { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgel
 import type { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
 import type { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
 import type { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
+import type { ErinnerungErledigtEvent } from '@domain/events/erinnerung-erledigt.event';
 
 /**
  * Serialisiertes Event-Payload für Outbox-Persistierung.
@@ -270,6 +271,8 @@ export class EventSerializer {
         return this.serializeErinnerungSnoozed(event as unknown as ErinnerungSnoozedEvent);
       case 'erinnerung.retriggered':
         return this.serializeErinnerungRetriggered(event as unknown as ErinnerungRetriggeredEvent);
+      case 'erinnerung.erledigt':
+        return this.serializeErinnerungErledigt(event as unknown as ErinnerungErledigtEvent);
 
       default:
         throw new Error(`Unknown event type: ${eventName}. EventSerializer needs to be updated.`);
@@ -752,6 +755,20 @@ export class EventSerializer {
       erstelltVon: event.erstelltVon.toString(), // UserId → string
       snoozeCount: event.snoozeCount, // Already primitive number
       previousSnoozedAt: event.previousSnoozedAt?.toISOString() ?? null, // Date | null → ISO string | null
+    };
+  }
+
+  /**
+   * Serialisiert ErinnerungErledigtEvent (Story 2.5).
+   */
+  private serializeErinnerungErledigt(event: ErinnerungErledigtEvent): Record<string, unknown> {
+    return {
+      erinnerungId: event.erinnerungId.toString(), // ErinnerungId → string
+      einsatzId: event.einsatzId.toString(), // EinsatzId → string
+      erledigtAm: event.erledigtAm.toISOString(), // Date → ISO string
+      erledigtBy: event.erledigtBy.toString(), // UserId → string
+      titel: event.titel, // Already primitive string
+      erledigungsNotiz: event.erledigungsNotiz, // string | null
     };
   }
 }

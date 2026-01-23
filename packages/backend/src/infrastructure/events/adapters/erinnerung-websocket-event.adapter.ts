@@ -7,6 +7,7 @@ import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowled
 import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
 import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 import { ErinnerungErstelltEvent } from '@domain/events/erinnerung-erstellt.event';
+import { ErinnerungAssignedEvent } from '@domain/events/erinnerung-assigned.event';
 import { LOGGER } from '@infrastructure/di-tokens';
 // biome-ignore lint/style/useImportType: ErinnerungGateway needed for DI at runtime
 import { ErinnerungGateway } from '@/modules/erinnerung/gateways/erinnerung.gateway';
@@ -313,6 +314,70 @@ export class ErinnerungWebSocketEventAdapter {
       // Fire-and-Forget: Fehler loggen, aber nicht propagieren
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to emit WebSocket event for ErinnerungRetriggered: erinnerungId=${event.erinnerungId}, error=${errorMessage}`, 'ErinnerungWebSocketEventAdapter');
+    }
+  }
+
+  /**
+   * Empfaengt ErinnerungAssignedEvent und emittiert WebSocket Event.
+   *
+   * **Story 3.4:** WebSocket Event fuer Team-Sync bei Zuweisung einer bestehenden Erinnerung
+   *
+   * **Event Flow:**
+   * 1. OutboxEventPublisher emittiert 'erinnerung.assigned' Event
+   * 2. NestJS EventEmitter ruft diese Methode auf (via @OnEvent)
+   * 3. Diese Methode laedt User-Namen aus DB und emittiert WebSocket Event via ErinnerungGateway
+   *
+   * @param event - Das empfangene Domain Event
+   */
+  @OnEvent(ErinnerungAssignedEvent.eventName())
+  async onErinnerungAssigned(event: ErinnerungAssignedEvent): Promise<void> {
+    this.logger.log(
+      `Processing ErinnerungAssigned for WebSocket: erinnerungId=${event.erinnerungId}, einsatzId=${event.einsatzId}, assignedToId=${event.assignedToId}`,
+      'ErinnerungWebSocketEventAdapter',
+    );
+
+    // Graceful Degradation: Wenn Gateway nicht verfuegbar, nur loggen
+    if (!this.gateway) {
+      this.logger.error(
+        'ErinnerungGateway not available - WebSocket event will not be emitted. Check module configuration and ensure ErinnerungGateway is properly registered.',
+        'ErinnerungWebSocketEventAdapter',
+      );
+      return;
+    }
+
+    // H1 Workaround: Race Condition Prevention - Delay to ensure DB commit is completed
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    try {
+      // User-Namen aus DB laden
+      const [assignedToUser, assignedByUser] = await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: event.assignedToId.toString() },
+          select: { username: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: event.assignedById.toString() },
+          select: { username: true },
+        }),
+      ]);
+
+      // WebSocket Event emittieren
+      this.gateway.emitErinnerungAssigned({
+        erinnerungId: event.erinnerungId.toString(),
+        einsatzId: event.einsatzId.toString(),
+        assignedToId: event.assignedToId.toString(),
+        assignedToName: assignedToUser?.username ?? 'Unbekannt',
+        assignedById: event.assignedById.toString(),
+        assignedByName: assignedByUser?.username ?? 'Unbekannt',
+        titel: event.titel,
+        timestamp: event.assignedAt.toISOString(),
+      });
+
+      this.logger.log(`WebSocket event emitted for ErinnerungAssigned: erinnerungId=${event.erinnerungId}, assignedToId=${event.assignedToId}`, 'ErinnerungWebSocketEventAdapter');
+    } catch (error) {
+      // Fire-and-Forget: Fehler loggen, aber nicht propagieren
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to emit WebSocket event for ErinnerungAssigned: erinnerungId=${event.erinnerungId}, error=${errorMessage}`, 'ErinnerungWebSocketEventAdapter');
     }
   }
 }

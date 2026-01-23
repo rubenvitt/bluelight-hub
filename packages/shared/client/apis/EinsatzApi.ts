@@ -23,6 +23,7 @@ import type {
   EinsatzControllerGetEinsatzDetailsVAlpha200Response,
   EinsatzControllerGetPreviousVAlpha200Response,
   EinsatzControllerGetStatusCountsVAlpha200Response,
+  EinsatzControllerGetTeilnehmerVAlpha200Response,
   UpdateEinsatzDto,
 } from '../models/index';
 import {
@@ -44,6 +45,8 @@ import {
   EinsatzControllerGetPreviousVAlpha200ResponseToJSON,
   EinsatzControllerGetStatusCountsVAlpha200ResponseFromJSON,
   EinsatzControllerGetStatusCountsVAlpha200ResponseToJSON,
+  EinsatzControllerGetTeilnehmerVAlpha200ResponseFromJSON,
+  EinsatzControllerGetTeilnehmerVAlpha200ResponseToJSON,
   UpdateEinsatzDtoFromJSON,
   UpdateEinsatzDtoToJSON,
 } from '../models/index';
@@ -102,6 +105,10 @@ export interface EinsatzControllerGetPreviousVAlphaRequest {
 
 export interface EinsatzControllerGetStatusCountsVAlphaRequest {
   includeArchived?: boolean;
+}
+
+export interface EinsatzControllerGetTeilnehmerVAlphaRequest {
+  id: string;
 }
 
 export interface EinsatzControllerStartVAlphaRequest {
@@ -634,6 +641,47 @@ export class EinsatzApi extends runtime.BaseAPI {
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
   ): Promise<EinsatzControllerGetStatusCountsVAlpha200Response> {
     const response = await this.einsatzControllerGetStatusCountsVAlphaRaw(requestParameters, initOverrides);
+    return await response.value();
+  }
+
+  /**
+   * Gibt alle aktiven Teilnehmer (leftAt === null) eines Einsatzes zurück. Für Zuweisungs-Dropdown bei Erinnerungen.
+   * Aktive Teilnehmer eines Einsatzes abrufen
+   */
+  async einsatzControllerGetTeilnehmerVAlphaRaw(
+    requestParameters: EinsatzControllerGetTeilnehmerVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<EinsatzControllerGetTeilnehmerVAlpha200Response>> {
+    if (requestParameters['id'] == null) {
+      throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling einsatzControllerGetTeilnehmerVAlpha().');
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    const response = await this.request(
+      {
+        path: `/api/v-alpha/einsatz/{id}/teilnehmer`.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id']))),
+        method: 'GET',
+        headers: headerParameters,
+        query: queryParameters,
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response, (jsonValue) => EinsatzControllerGetTeilnehmerVAlpha200ResponseFromJSON(jsonValue));
+  }
+
+  /**
+   * Gibt alle aktiven Teilnehmer (leftAt === null) eines Einsatzes zurück. Für Zuweisungs-Dropdown bei Erinnerungen.
+   * Aktive Teilnehmer eines Einsatzes abrufen
+   */
+  async einsatzControllerGetTeilnehmerVAlpha(
+    requestParameters: EinsatzControllerGetTeilnehmerVAlphaRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<EinsatzControllerGetTeilnehmerVAlpha200Response> {
+    const response = await this.einsatzControllerGetTeilnehmerVAlphaRaw(requestParameters, initOverrides);
     return await response.value();
   }
 

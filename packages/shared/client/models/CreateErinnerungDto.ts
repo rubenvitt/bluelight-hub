@@ -43,6 +43,12 @@ export interface CreateErinnerungDto {
    * @memberof CreateErinnerungDto
    */
   requiresNote?: boolean;
+  /**
+   * ID des zugewiesenen Users (Story 3.3). Leer = Ersteller
+   * @type {string}
+   * @memberof CreateErinnerungDto
+   */
+  assignedToId?: string | null;
 }
 
 /**
@@ -67,6 +73,7 @@ export function CreateErinnerungDtoFromJSONTyped(json: any, ignoreDiscriminator:
     faelligAm: json['faelligAm'],
     beschreibung: json['beschreibung'] == null ? undefined : json['beschreibung'],
     requiresNote: json['requiresNote'] == null ? undefined : json['requiresNote'],
+    assignedToId: json['assignedToId'] == null ? undefined : json['assignedToId'],
   };
 }
 
@@ -84,5 +91,6 @@ export function CreateErinnerungDtoToJSONTyped(value?: CreateErinnerungDto | nul
     faelligAm: value['faelligAm'],
     beschreibung: value['beschreibung'],
     requiresNote: value['requiresNote'],
+    assignedToId: value['assignedToId'],
   };
 }

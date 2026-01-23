@@ -103,6 +103,24 @@ export interface ErinnerungResponseDto {
    * @memberof ErinnerungResponseDto
    */
   requiresNote: boolean;
+  /**
+   * Name des Erstellers der Erinnerung (Story 3.1)
+   * @type {string}
+   * @memberof ErinnerungResponseDto
+   */
+  erstellerName?: string;
+  /**
+   * ID des zugewiesenen Users (Story 3.1)
+   * @type {string}
+   * @memberof ErinnerungResponseDto
+   */
+  assignedToId?: string | null;
+  /**
+   * Name des zugewiesenen Users (Story 3.1)
+   * @type {string}
+   * @memberof ErinnerungResponseDto
+   */
+  assignedToName?: string | null;
 }
 
 /**
@@ -159,6 +177,9 @@ export function ErinnerungResponseDtoFromJSONTyped(json: any, ignoreDiscriminato
     erledigtBy: json['erledigtBy'] == null ? undefined : json['erledigtBy'],
     erledigungsNotiz: json['erledigungsNotiz'] == null ? undefined : json['erledigungsNotiz'],
     requiresNote: json['requiresNote'],
+    erstellerName: json['erstellerName'] == null ? undefined : json['erstellerName'],
+    assignedToId: json['assignedToId'] == null ? undefined : json['assignedToId'],
+    assignedToName: json['assignedToName'] == null ? undefined : json['assignedToName'],
   };
 }
 
@@ -186,5 +207,8 @@ export function ErinnerungResponseDtoToJSONTyped(value?: ErinnerungResponseDto |
     erledigtBy: value['erledigtBy'],
     erledigungsNotiz: value['erledigungsNotiz'],
     requiresNote: value['requiresNote'],
+    erstellerName: value['erstellerName'],
+    assignedToId: value['assignedToId'],
+    assignedToName: value['assignedToName'],
   };
 }

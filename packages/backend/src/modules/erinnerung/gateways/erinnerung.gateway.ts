@@ -21,12 +21,22 @@ export interface ErinnerungTriggeredPayload {
 
 /**
  * WebSocket Payload fuer erinnerung.created Event.
+ *
+ * **Story 3.3:** Erweitert um assignedToId/assignedToName fuer Team-Zuweisung.
  */
 export interface ErinnerungCreatedPayload {
   erinnerungId: string;
   einsatzId: string;
   titel: string;
   faelligAm: string;
+  /** Story 3.3: ID des Erstellers */
+  erstelltVon: string;
+  /** Story 3.3: Name des Erstellers */
+  erstellerName: string;
+  /** Story 3.3: ID des zugewiesenen Users (optional) */
+  assignedToId: string | null;
+  /** Story 3.3: Name des zugewiesenen Users (optional) */
+  assignedToName: string | null;
   timestamp: string;
 }
 

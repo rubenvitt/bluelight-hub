@@ -40,3 +40,6 @@ export { useWeisePersonZuFahrzeugZu, useEntfernePersonVonFahrzeug } from './use-
 
 // EinsatzTeilnehmer Hooks (Story 115 - ETB Absender Auto-Fill)
 export { useMyEinsatzTeilnahme, useJoinEinsatz, useUpdateFunkrufname, useEinsatzTeilnehmer, TEILNAHME_QUERY_KEYS } from './use-einsatz-teilnahme';
+
+// Aktive Teilnehmer Hooks (Story 3.3 - Erinnerung zuweisen)
+export { useAktiveEinsatzTeilnehmer, AKTIVE_TEILNEHMER_QUERY_KEYS } from './use-aktive-einsatz-teilnehmer';

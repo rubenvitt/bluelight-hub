@@ -30,6 +30,7 @@ import { cn } from '@/shared/ui/cn';
 import { useCreateErinnerung } from '../../api';
 import { createErinnerungSchema, TIME_PRESETS, type CreateErinnerungFormData } from '../../schemas/erinnerung.schema';
 import { TimeInput } from '../molecules/TimeInput';
+import { AssigneeSelector } from '../molecules/AssigneeSelector';
 import { calculateCustomFaelligAm, formatTimeForToast, getDefaultCustomTime } from '../../utils/time-calculation';
 
 /**
@@ -74,6 +75,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
       customTime: getDefaultCustomTime(), // Story 1.2 AC2: aktuelle Zeit + 30 Min
       beschreibung: undefined,
       requiresNote: false, // Story 2.6: Pflicht-Notiz default aus
+      assignedToId: null, // Story 3.3: Keine Zuweisung = fuer alle
     },
     validatorAdapter: zodValidator(),
     validators: {
@@ -107,6 +109,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
             faelligAm: faelligAm.toISOString(),
             beschreibung: value.beschreibung?.trim() || undefined,
             requiresNote: value.requiresNote, // Story 2.6: Pflicht-Notiz Flag
+            assignedToId: value.assignedToId ?? undefined, // Story 3.3: Zuweisung an Person
           },
         },
         {
@@ -268,6 +271,26 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                   </form.Field>
                 )}
               </form.Field>
+            )}
+          </form.Field>
+
+          {/* Story 3.3: Zuweisung an Person */}
+          <form.Field name="assignedToId">
+            {(field) => (
+              <div>
+                <label htmlFor="assignedToId" className="mb-1.5 block font-medium text-gray-700 text-sm dark:text-gray-300">
+                  Zuweisen an <span className="text-gray-400 text-xs">(optional)</span>
+                </label>
+                <AssigneeSelector
+                  einsatzId={einsatzId}
+                  value={field.state.value}
+                  onChange={(userId) => field.handleChange(userId)}
+                  onBlur={field.handleBlur}
+                  disabled={isPending}
+                  error={field.state.meta.errors.length > 0 ? formatErrors(field.state.meta.errors) : undefined}
+                />
+                <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">Leer lassen für alle Teilnehmer</p>
+              </div>
             )}
           </form.Field>
 

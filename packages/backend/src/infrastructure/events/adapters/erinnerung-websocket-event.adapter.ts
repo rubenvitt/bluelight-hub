@@ -6,9 +6,12 @@ import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.
 import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
 import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
 import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
+import { ErinnerungErstelltEvent } from '@domain/events/erinnerung-erstellt.event';
 import { LOGGER } from '@infrastructure/di-tokens';
 // biome-ignore lint/style/useImportType: ErinnerungGateway needed for DI at runtime
 import { ErinnerungGateway } from '@/modules/erinnerung/gateways/erinnerung.gateway';
+// biome-ignore lint/style/useImportType: PrismaService needed for DI at runtime
+import { PrismaService } from '@/infrastructure/database/prisma.service';
 
 /**
  * WebSocket Event Adapter fuer Erinnerung Domain Events.
@@ -31,7 +34,78 @@ export class ErinnerungWebSocketEventAdapter {
   constructor(
     @Optional() private readonly gateway: ErinnerungGateway | undefined,
     @Inject(LOGGER) private readonly logger: ILogger,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * Empfaengt ErinnerungErstelltEvent und emittiert WebSocket Event.
+   *
+   * **Story 3.3:** WebSocket Event fuer Team-Sync bei Erstellung mit Zuweisung
+   *
+   * **Event Flow:**
+   * 1. OutboxEventPublisher emittiert 'erinnerung.erstellt' Event
+   * 2. NestJS EventEmitter ruft diese Methode auf (via @OnEvent)
+   * 3. Diese Methode laedt User-Namen aus DB und emittiert WebSocket Event via ErinnerungGateway
+   *
+   * @param event - Das empfangene Domain Event
+   */
+  @OnEvent(ErinnerungErstelltEvent.eventName())
+  async onErinnerungErstellt(event: ErinnerungErstelltEvent): Promise<void> {
+    this.logger.log(
+      `Processing ErinnerungErstellt for WebSocket: erinnerungId=${event.erinnerungId}, einsatzId=${event.einsatzId}, assignedToId=${event.assignedToId?.toString() ?? 'null'}`,
+      'ErinnerungWebSocketEventAdapter',
+    );
+
+    // Graceful Degradation: Wenn Gateway nicht verfuegbar, nur loggen
+    if (!this.gateway) {
+      this.logger.error(
+        'ErinnerungGateway not available - WebSocket event will not be emitted. Check module configuration and ensure ErinnerungGateway is properly registered.',
+        'ErinnerungWebSocketEventAdapter',
+      );
+      return;
+    }
+
+    // H1 Workaround: Race Condition Prevention - Delay to ensure DB commit is completed
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    try {
+      // Story 3.3: User-Namen aus DB laden
+      const [erstellerUser, assignedToUser] = await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: event.erstelltVon.toString() },
+          select: { username: true },
+        }),
+        event.assignedToId
+          ? this.prisma.user.findUnique({
+              where: { id: event.assignedToId.toString() },
+              select: { username: true },
+            })
+          : Promise.resolve(null),
+      ]);
+
+      // WebSocket Event emittieren
+      this.gateway.emitErinnerungCreated({
+        erinnerungId: event.erinnerungId.toString(),
+        einsatzId: event.einsatzId.toString(),
+        titel: event.titel,
+        faelligAm: event.faelligAm.toISOString(),
+        erstelltVon: event.erstelltVon.toString(),
+        erstellerName: erstellerUser?.username ?? 'Unbekannt',
+        assignedToId: event.assignedToId?.toString() ?? null,
+        assignedToName: assignedToUser?.username ?? null,
+        timestamp: new Date().toISOString(),
+      });
+
+      this.logger.log(
+        `WebSocket event emitted for ErinnerungErstellt: erinnerungId=${event.erinnerungId}, assignedToId=${event.assignedToId?.toString() ?? 'null'}`,
+        'ErinnerungWebSocketEventAdapter',
+      );
+    } catch (error) {
+      // Fire-and-Forget: Fehler loggen, aber nicht propagieren
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to emit WebSocket event for ErinnerungErstellt: erinnerungId=${event.erinnerungId}, error=${errorMessage}`, 'ErinnerungWebSocketEventAdapter');
+    }
+  }
 
   /**
    * Empfaengt ErinnerungAusgeloestEvent und emittiert WebSocket Event.

@@ -413,15 +413,37 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
           </div>
           {erinnerung.beschreibung && <p className="mt-0.5 text-gray-500 text-xs dark:text-gray-400">{erinnerung.beschreibung}</p>}
 
-          {/* Story 3.1 AC3/AC4/AC5: Ersteller-Namen anzeigen (bei showCreator, Team-Erinnerung, oder zugewiesener Erinnerung) */}
-          {(showCreator || isTeamReminder || (erinnerung.assignedToId && erinnerung.assignedToId === currentUserId)) && erinnerung.erstellerName && (
-            <div className="mt-0.5 flex items-center gap-1.5">
-              <AvatarInitials name={erinnerung.erstellerName} size="sm" />
-              <p className="text-gray-400 text-xs dark:text-gray-500">
-                <span className="text-gray-500 dark:text-gray-400">{erinnerung.assignedToId === currentUserId ? 'Erstellt von' : 'von'}</span> {erinnerung.erstellerName}
-              </p>
-            </div>
-          )}
+          {/* Story 3.5: Ersteller und Zugewiesener hierarchisch anzeigen
+              AC1: Unterschiedliche Personen → Zugewiesener prominent, Ersteller sekundär
+              AC2: Gleiche Person → nur einmal anzeigen */}
+          {(erinnerung.erstellerName || erinnerung.assignedToName) &&
+            (() => {
+              // Prüfe ob Ersteller und Zugewiesener dieselbe Person sind
+              const isSamePerson = erinnerung.assignedToId === erinnerung.erstelltVon;
+              // Hauptperson: Zugewiesener (wenn vorhanden), sonst Ersteller
+              const primaryName = erinnerung.assignedToName ?? erinnerung.erstellerName;
+              // Sekundär: Ersteller anzeigen nur wenn unterschiedlich und Ersteller bekannt
+              const showSecondaryCreator = !isSamePerson && erinnerung.erstellerName && erinnerung.assignedToName;
+
+              if (!primaryName) return null;
+
+              return (
+                <>
+                  {/* Hauptanzeige: Zugewiesener (oder Ersteller wenn kein Zugewiesener) */}
+                  <div className="mt-1 flex items-center gap-2">
+                    <AvatarInitials name={primaryName} size="md" />
+                    <span className="font-medium text-gray-700 text-sm dark:text-gray-300">{primaryName}</span>
+                  </div>
+
+                  {/* Sekundär: Ersteller (nur wenn unterschiedlich) - AC1 */}
+                  {showSecondaryCreator && (
+                    <p className="mt-0.5 text-gray-500 text-xs dark:text-gray-400" aria-label={`Erinnerung erstellt von ${erinnerung.erstellerName}`}>
+                      Erstellt von {erinnerung.erstellerName}
+                    </p>
+                  )}
+                </>
+              );
+            })()}
 
           {/* Story 1.7 AC3/AC4: CountdownDisplay mit dynamischen Updates */}
           <div className="mt-2 flex items-center gap-2">

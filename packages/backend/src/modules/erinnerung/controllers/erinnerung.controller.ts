@@ -119,6 +119,14 @@ export class ErinnerungController {
     dto: CreateErinnerungDto,
     @CurrentUser() user: ValidatedUser,
   ): Promise<ErinnerungResponseDto> {
+    // DEBUG: Log received DTO to verify requiresNote
+    console.log('[DEBUG] Create Erinnerung - received DTO:', {
+      titel: dto.titel,
+      faelligAm: dto.faelligAm,
+      requiresNote: dto.requiresNote,
+      requiresNoteType: typeof dto.requiresNote,
+    });
+
     const commandResult = CreateErinnerungCommand.create({
       einsatzId,
       titel: dto.titel,
@@ -126,6 +134,7 @@ export class ErinnerungController {
       faelligAm: new Date(dto.faelligAm),
       erstelltVon: user.userId,
       requiresNote: dto.requiresNote,
+      assignedToId: dto.assignedToId, // Story 3.3: Zuweisung bei Erstellung
     });
 
     if (commandResult.isFailure || !commandResult.value) {
@@ -135,6 +144,10 @@ export class ErinnerungController {
     const result = await this.createHandler.execute(commandResult.value);
 
     if (result.isFailure) {
+      // Story 3.3: Ungültiger Teilnehmer → 400 Bad Request
+      if (result.error === ERINNERUNG_ERROR_CODES.INVALID_ASSIGNED_TO) {
+        throw new BadRequestException('Ungültiger Teilnehmer');
+      }
       throw new BadRequestException(result.error);
     }
 

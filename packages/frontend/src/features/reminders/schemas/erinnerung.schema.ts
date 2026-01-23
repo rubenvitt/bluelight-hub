@@ -29,6 +29,10 @@ export type CustomTime = z.infer<typeof customTimeSchema>;
  * - requiresNote (optional, default: false)
  * - Wenn true, muss bei Erledigung eine Notiz eingegeben werden
  *
+ * **Story 3.3:** Zuweisung an Person
+ * - assignedToId (optional, CUID2 User-ID)
+ * - Wenn leer, ist die Erinnerung fuer alle sichtbar
+ *
  * @example
  * ```typescript
  * const form = useForm({
@@ -47,6 +51,8 @@ export const createErinnerungSchema = z
     beschreibung: z.string().max(500, 'Beschreibung darf maximal 500 Zeichen lang sein').optional(),
     /** Story 2.6: Pflicht-Notiz bei Erledigung erforderlich */
     requiresNote: z.boolean().optional(),
+    /** Story 3.3: Zuweisung an einen aktiven Einsatz-Teilnehmer (optional) */
+    assignedToId: z.string().optional().nullable(),
   })
   .superRefine((data, ctx) => {
     if (data.timeMode === 'preset' && data.minuten === undefined) {

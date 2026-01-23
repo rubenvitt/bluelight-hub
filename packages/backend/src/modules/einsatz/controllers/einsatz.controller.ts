@@ -9,6 +9,7 @@ import {
   EinsatzListItemDto,
   EinsatzQueryDto,
   EinsatzResponseDto,
+  AktiveTeilnehmerResponseDto,
   NavigationResponseDto,
   StatusCountsQueryDto,
   StatusCountsResponseDto,
@@ -23,6 +24,8 @@ import {
   GetNextEinsatzIdQuery,
   GetPreviousEinsatzIdQuery,
   GetStatusCountsQuery,
+  GetEinsatzTeilnehmerQuery,
+  GetEinsatzTeilnehmerHandler,
 } from '@/application/einsatz/queries';
 import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { Roles } from '@/modules/auth/decorators/roles.decorator';
@@ -72,6 +75,7 @@ export class EinsatzController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
+    private readonly getTeilnehmerHandler: GetEinsatzTeilnehmerHandler,
   ) {}
 
   /**
@@ -133,6 +137,43 @@ export class EinsatzController {
     if (result.isFailure) throw new BadRequestException(result.error ?? 'Fehler beim Abrufen der Status-Statistiken');
     if (!result.value) throw new InternalServerErrorException('Keine Status-Statistiken zurückgegeben');
     return result.value;
+  }
+
+  /**
+   * Aktive Teilnehmer eines Einsatzes abrufen via Handler
+   *
+   * **Story 3.3 AC1:**
+   * Liefert alle aktiven Einsatz-Teilnehmer für "Zuweisen an" Dropdown.
+   * Nur Teilnehmer mit leftAt === null werden zurückgegeben.
+   */
+  @Get(':id/teilnehmer')
+  @ApiOperation({
+    summary: 'Aktive Teilnehmer eines Einsatzes abrufen',
+    description: 'Gibt alle aktiven Teilnehmer (leftAt === null) eines Einsatzes zurück. Für Zuweisungs-Dropdown bei Erinnerungen.',
+  })
+  @ApiWrappedResponse(AktiveTeilnehmerResponseDto, {
+    isArray: true,
+    description: 'Liste aller aktiven Teilnehmer des Einsatzes',
+  })
+  @ApiNotFoundResponse({ description: 'Einsatz nicht gefunden' })
+  @ApiBadRequestResponse({ description: 'Ungültige Einsatz-ID' })
+  async getTeilnehmer(@Param('id') id: string): Promise<AktiveTeilnehmerResponseDto[]> {
+    const queryResult = GetEinsatzTeilnehmerQuery.create({ einsatzId: id });
+
+    if (queryResult.isFailure || !queryResult.value) {
+      throw new BadRequestException(queryResult.error);
+    }
+
+    const result = await this.getTeilnehmerHandler.execute(queryResult.value);
+
+    if (result.isFailure) {
+      if (result.error?.includes('nicht gefunden') || result.error?.includes('not found')) {
+        throw new NotFoundException(result.error);
+      }
+      throw new BadRequestException(result.error);
+    }
+
+    return result.value ?? [];
   }
 
   /**

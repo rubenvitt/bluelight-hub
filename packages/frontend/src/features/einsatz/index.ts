@@ -37,6 +37,9 @@ export {
   useJoinEinsatz,
   useUpdateFunkrufname,
   TEILNAHME_QUERY_KEYS,
+  // Aktive Teilnehmer (Story 3.3 - Erinnerung zuweisen)
+  useAktiveEinsatzTeilnehmer,
+  AKTIVE_TEILNEHMER_QUERY_KEYS,
 } from './api';
 
 // ============================================

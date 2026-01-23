@@ -25,3 +25,6 @@ export { GetEinsatzCompletenessQuery, GetEinsatzCompletenessQueryHandler } from 
 // Navigation Queries (Story 4-8: Previous/Next Navigation)
 export { GetPreviousEinsatzIdQuery, GetPreviousEinsatzIdQueryHandler } from './get-previous-einsatz-id';
 export { GetNextEinsatzIdQuery, GetNextEinsatzIdQueryHandler } from './get-next-einsatz-id';
+
+// GetEinsatzTeilnehmer (Story 3.3: Teilnehmer für Zuweisung)
+export { GetEinsatzTeilnehmerQuery, GetEinsatzTeilnehmerHandler } from './get-einsatz-teilnehmer';

@@ -11,3 +11,4 @@ export { NavigationResponseDto } from './navigation-response.dto';
 export { EinsatzResponseDto, type EinsatzCompleteness, type MissingField, type NameComponents, type EinsatzLinks } from './einsatz-response.dto';
 export { StatusCountsQueryDto } from './status-counts-query.dto';
 export { CompletenessQueryDto } from './completeness-query.dto';
+export { AktiveTeilnehmerResponseDto } from './aktive-teilnehmer-response.dto';

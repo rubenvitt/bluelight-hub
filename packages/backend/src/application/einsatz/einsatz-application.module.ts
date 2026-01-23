@@ -29,6 +29,7 @@ import {
   GetAllEinsaetzeQueryHandler,
   GetPreviousEinsatzIdQueryHandler,
   GetNextEinsatzIdQueryHandler,
+  GetEinsatzTeilnehmerHandler,
 } from './queries';
 
 /**
@@ -113,6 +114,8 @@ import {
     GetAllEinsaetzeQueryHandler,
     GetPreviousEinsatzIdQueryHandler,
     GetNextEinsatzIdQueryHandler,
+    // Story 3.3: Teilnehmer Query Handler
+    GetEinsatzTeilnehmerHandler,
   ],
   exports: [
     // Export handlers for use in Infrastructure Layer (Controllers)
@@ -139,6 +142,8 @@ import {
     GetAllEinsaetzeQueryHandler,
     GetPreviousEinsatzIdQueryHandler,
     GetNextEinsatzIdQueryHandler,
+    // Story 3.3: Teilnehmer Query Handler
+    GetEinsatzTeilnehmerHandler,
   ],
 })
 export class EinsatzApplicationModule {}

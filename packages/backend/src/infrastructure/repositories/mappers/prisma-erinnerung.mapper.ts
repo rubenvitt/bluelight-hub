@@ -92,7 +92,27 @@ export class PrismaErinnerungMapper {
       erledigtBy = erledigtByResult.value;
     }
 
-    // 10. Entity via reconstruct() rekonstruieren (keine Events, keine Validierung)
+    // 10. Zuweisung: assignedToId rekonstruieren (optional) (Story 3.3/3.4)
+    let assignedToId: UserId | null = null;
+    if (prisma.assignedToId) {
+      const assignedToIdResult = UserId.create(prisma.assignedToId);
+      if (assignedToIdResult.isFailure || !assignedToIdResult.value) {
+        throw new Error(`Invalid assignedToId UserId from DB: ${prisma.assignedToId}`);
+      }
+      assignedToId = assignedToIdResult.value;
+    }
+
+    // 11. Zuweisung: assignedBy rekonstruieren (optional) (Story 3.3/3.4)
+    let assignedBy: UserId | null = null;
+    if (prisma.assignedBy) {
+      const assignedByResult = UserId.create(prisma.assignedBy);
+      if (assignedByResult.isFailure || !assignedByResult.value) {
+        throw new Error(`Invalid assignedBy UserId from DB: ${prisma.assignedBy}`);
+      }
+      assignedBy = assignedByResult.value;
+    }
+
+    // 12. Entity via reconstruct() rekonstruieren (keine Events, keine Validierung)
     return Erinnerung.reconstruct({
       id: idResult.value,
       einsatzId: einsatzIdResult.value,
@@ -123,6 +143,10 @@ export class PrismaErinnerungMapper {
       erledigungsNotiz: prisma.erledigungsNotiz,
       // Story 2.6: Pflicht-Notiz Flag - bei Erledigung muss eine Notiz angegeben werden
       requiresNote: prisma.requiresNote,
+      // Story 3.3/3.4: Zuweisung Felder
+      assignedToId,
+      assignedBy,
+      assignedAt: prisma.assignedAt,
     });
   }
 
@@ -159,6 +183,10 @@ export class PrismaErinnerungMapper {
     erledigungsNotiz: string | null;
     // Pflicht-Notiz Flag (Story 2.6)
     requiresNote: boolean;
+    // Zuweisung Felder (Story 3.3/3.4)
+    assignedToId: string | null;
+    assignedBy: string | null;
+    assignedAt: Date | null;
   } {
     return {
       id: entity.id.toString(),
@@ -188,6 +216,10 @@ export class PrismaErinnerungMapper {
       erledigungsNotiz: entity.erledigungsNotiz,
       // Story 2.6: Pflicht-Notiz Flag - bei Erledigung muss eine Notiz angegeben werden
       requiresNote: entity.requiresNote,
+      // Story 3.3/3.4: Zuweisung Felder
+      assignedToId: entity.assignedToId?.toString() ?? null,
+      assignedBy: entity.assignedBy?.toString() ?? null,
+      assignedAt: entity.assignedAt,
     };
   }
 

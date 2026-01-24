@@ -62,7 +62,7 @@ export class DeleteErinnerungHandler extends TransactionalCommandHandler<DeleteE
    * @param tx - Transaction Context fuer atomare Operationen
    * @returns Result mit void oder Error
    */
-  protected async executeInTransaction(command: DeleteErinnerungCommand, tx: TransactionContext): Promise<Result<void> | { result: void; events: DomainEvent[] }> {
+  protected async executeInTransaction(command: DeleteErinnerungCommand, tx: TransactionContext): Promise<Result<void> | { result: undefined; events: DomainEvent[] }> {
     // ════════════════════════════════════════════════════════════════════════
     // 1. Value Objects erstellen
     // ════════════════════════════════════════════════════════════════════════

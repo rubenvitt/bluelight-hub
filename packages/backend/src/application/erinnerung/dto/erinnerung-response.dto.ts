@@ -125,4 +125,20 @@ export class ErinnerungResponseDto {
     example: false,
   })
   requiresNote!: boolean;
+
+  @ApiProperty({
+    description: 'ID des zugewiesenen Users (Story 3.3/3.4)',
+    example: 'clw3h8x9y0004abcdefghijkl',
+    nullable: true,
+    required: false,
+  })
+  assignedToId?: string | null;
+
+  @ApiProperty({
+    description: 'Name des zugewiesenen Users (Story 3.3/3.4)',
+    example: 'Max Mustermann',
+    nullable: true,
+    required: false,
+  })
+  assignedToName?: string | null;
 }

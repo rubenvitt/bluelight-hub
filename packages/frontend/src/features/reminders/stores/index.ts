@@ -154,3 +154,29 @@ export {
   type AnimationEntry,
   type AnimationStoreState,
 } from './animation.store';
+
+export {
+  // Team-Filter Store (Story 3.6 Task 1)
+  teamFilterStore,
+  // Team-Filter Actions
+  setTeamFilter,
+  setAvailableTeilnehmer,
+  resetTeamFilterStore,
+  // Team-Filter Selectors
+  getTeamFilter,
+  getAvailableTeilnehmer,
+  // Team-Filter Hooks
+  useTeamFilter,
+  useAvailableTeilnehmer,
+  useTeamFilterStoreState,
+  useIsFilterActive,
+  useTeilnehmerCount,
+  // Team-Filter Helpers (Tagged Union)
+  isUserFilter,
+  createTeamFilter,
+  teamFilterToValue,
+  // Types
+  type TeamFilterType,
+  type Teilnehmer,
+  type TeamFilterStoreState,
+} from './team-filter.store';

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { PropsWithChildren } from 'react';
 import { useReconnectSync } from '../use-reconnect-sync';
@@ -98,7 +98,7 @@ describe('useReconnectSync', () => {
       const { result } = renderHook(() => useReconnectSync(), { wrapper: createWrapper() });
 
       // When (Act)
-      let syncResult;
+      let syncResult: { successCount: number; failureCount: number; results: unknown[] } | undefined;
       await act(async () => {
         syncResult = await result.current.triggerSync();
       });
@@ -136,16 +136,16 @@ describe('useReconnectSync', () => {
       // Given (Arrange)
       vi.mocked(syncService.hasPendingSync).mockReturnValue(true);
 
-      let resolveSync: (value: any) => void;
-      const syncPromise = new Promise((resolve) => {
+      let resolveSync: (value: { successCount: number; failureCount: number; results: unknown[] }) => void;
+      const syncPromise = new Promise<{ successCount: number; failureCount: number; results: unknown[] }>((resolve) => {
         resolveSync = resolve;
       });
-      vi.mocked(syncService.syncAll).mockReturnValue(syncPromise as any);
+      vi.mocked(syncService.syncAll).mockReturnValue(syncPromise);
 
       const { result } = renderHook(() => useReconnectSync(), { wrapper: createWrapper() });
 
       // When (Act) - Start sync
-      let syncResultPromise: Promise<any>;
+      let syncResultPromise: Promise<{ successCount: number; failureCount: number; results: unknown[] }>;
       act(() => {
         syncResultPromise = result.current.triggerSync();
       });
@@ -155,7 +155,7 @@ describe('useReconnectSync', () => {
 
       // Cleanup - resolve the promise
       await act(async () => {
-        resolveSync!({ successCount: 0, failureCount: 0, results: [] });
+        resolveSync?.({ successCount: 0, failureCount: 0, results: [] });
         await syncResultPromise;
       });
 
@@ -224,7 +224,7 @@ describe('useReconnectSync', () => {
         results: [{ actionId: '1', success: true }],
       });
 
-      let registeredCallback: ((data: any) => void) | null = null;
+      let registeredCallback: ((data: { offlineSince: Date; onlineSince: Date }) => void) | null = null;
       vi.mocked(offlineDetectionService.setOnOnlineCallback).mockImplementation((cb) => {
         registeredCallback = cb;
       });
@@ -247,7 +247,7 @@ describe('useReconnectSync', () => {
       // Given (Arrange)
       vi.mocked(syncService.hasPendingSync).mockReturnValue(false);
 
-      let registeredCallback: ((data: any) => void) | null = null;
+      let registeredCallback: ((data: { offlineSince: Date; onlineSince: Date }) => void) | null = null;
       vi.mocked(offlineDetectionService.setOnOnlineCallback).mockImplementation((cb) => {
         registeredCallback = cb;
       });

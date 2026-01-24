@@ -953,7 +953,16 @@ export class EventDeserializer {
 
     const faelligAm = new Date(payload.faelligAm as string);
 
-    const event = new ErinnerungErstelltEvent(erinnerungIdResult.value!, einsatzIdResult.value!, payload.titel as string, faelligAm, erstelltVonResult.value!, aggregateId);
+    // Story 3.3: Optional assignedToId aus Payload deserialisieren
+    let assignedToId: UserId | null = null;
+    if (payload.assignedToId) {
+      const assignedToIdResult = UserId.create(payload.assignedToId as string);
+      if (assignedToIdResult.isSuccess && assignedToIdResult.value) {
+        assignedToId = assignedToIdResult.value;
+      }
+    }
+
+    const event = new ErinnerungErstelltEvent(erinnerungIdResult.value!, einsatzIdResult.value!, payload.titel as string, faelligAm, erstelltVonResult.value!, assignedToId, aggregateId);
 
     return Result.ok<DomainEvent>(event);
   }

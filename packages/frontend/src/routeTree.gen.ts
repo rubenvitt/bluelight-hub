@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ServerSetupRouteImport } from './routes/server/setup'
 import { Route as ServerManageRouteImport } from './routes/server/manage'
+import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppEinsatzRouteImport } from './routes/app/einsatz'
 import { Route as AppEinsaetzeRouteImport } from './routes/app/einsaetze'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
@@ -25,6 +26,7 @@ import { Route as AdminSetupRouteImport } from './routes/admin/setup'
 import { Route as AdminInvitesRouteImport } from './routes/admin/invites'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 import { Route as AppEinsaetzeIndexRouteImport } from './routes/app/einsaetze/index'
+import { Route as AppSettingsAudioRouteImport } from './routes/app/settings/audio'
 import { Route as AppEinsatzEinsatzIdRouteImport } from './routes/app/einsatz/$einsatzId'
 import { Route as AppEinsaetzeEinsatzIdRouteImport } from './routes/app/einsaetze/$einsatzId'
 import { Route as AdminStammdatenPersonenRouteImport } from './routes/admin/stammdaten/personen'
@@ -104,6 +106,11 @@ const ServerManageRoute = ServerManageRouteImport.update({
   path: '/server/manage',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEinsatzRoute = AppEinsatzRouteImport.update({
   id: '/einsatz',
   path: '/einsatz',
@@ -143,6 +150,11 @@ const AppEinsaetzeIndexRoute = AppEinsaetzeIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppEinsaetzeRoute,
+} as any)
+const AppSettingsAudioRoute = AppSettingsAudioRouteImport.update({
+  id: '/audio',
+  path: '/audio',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppEinsatzEinsatzIdRoute = AppEinsatzEinsatzIdRouteImport.update({
   id: '/$einsatzId',
@@ -382,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/app/einsaetze': typeof AppEinsaetzeRouteWithChildren
   '/app/einsatz': typeof AppEinsatzRouteWithChildren
+  '/app/settings': typeof AppSettingsRouteWithChildren
   '/server/manage': typeof ServerManageRoute
   '/server/setup': typeof ServerSetupRoute
   '/admin/': typeof AdminIndexRoute
@@ -392,6 +405,7 @@ export interface FileRoutesByFullPath {
   '/admin/stammdaten/personen': typeof AdminStammdatenPersonenRoute
   '/app/einsaetze/$einsatzId': typeof AppEinsaetzeEinsatzIdRoute
   '/app/einsatz/$einsatzId': typeof AppEinsatzEinsatzIdRouteWithChildren
+  '/app/settings/audio': typeof AppSettingsAudioRoute
   '/app/einsaetze/': typeof AppEinsaetzeIndexRoute
   '/app/einsatz/$einsatzId/': typeof AppEinsatzEinsatzIdIndexRoute
   '/app/einsatz/$einsatzId/betreuung/betroffene': typeof AppEinsatzEinsatzIdBetreuungBetroffeneRoute
@@ -436,6 +450,7 @@ export interface FileRoutesByTo {
   '/admin/tokens': typeof AdminTokensRoute
   '/admin/users': typeof AdminUsersRoute
   '/app/einsatz': typeof AppEinsatzRouteWithChildren
+  '/app/settings': typeof AppSettingsRouteWithChildren
   '/server/manage': typeof ServerManageRoute
   '/server/setup': typeof ServerSetupRoute
   '/admin': typeof AdminIndexRoute
@@ -445,6 +460,7 @@ export interface FileRoutesByTo {
   '/admin/stammdaten/fahrzeuge': typeof AdminStammdatenFahrzeugeRoute
   '/admin/stammdaten/personen': typeof AdminStammdatenPersonenRoute
   '/app/einsaetze/$einsatzId': typeof AppEinsaetzeEinsatzIdRoute
+  '/app/settings/audio': typeof AppSettingsAudioRoute
   '/app/einsaetze': typeof AppEinsaetzeIndexRoute
   '/app/einsatz/$einsatzId': typeof AppEinsatzEinsatzIdIndexRoute
   '/app/einsatz/$einsatzId/betreuung/betroffene': typeof AppEinsatzEinsatzIdBetreuungBetroffeneRoute
@@ -491,6 +507,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/app/einsaetze': typeof AppEinsaetzeRouteWithChildren
   '/app/einsatz': typeof AppEinsatzRouteWithChildren
+  '/app/settings': typeof AppSettingsRouteWithChildren
   '/server/manage': typeof ServerManageRoute
   '/server/setup': typeof ServerSetupRoute
   '/admin/': typeof AdminIndexRoute
@@ -501,6 +518,7 @@ export interface FileRoutesById {
   '/admin/stammdaten/personen': typeof AdminStammdatenPersonenRoute
   '/app/einsaetze/$einsatzId': typeof AppEinsaetzeEinsatzIdRoute
   '/app/einsatz/$einsatzId': typeof AppEinsatzEinsatzIdRouteWithChildren
+  '/app/settings/audio': typeof AppSettingsAudioRoute
   '/app/einsaetze/': typeof AppEinsaetzeIndexRoute
   '/app/einsatz/$einsatzId/': typeof AppEinsatzEinsatzIdIndexRoute
   '/app/einsatz/$einsatzId/betreuung/betroffene': typeof AppEinsatzEinsatzIdBetreuungBetroffeneRoute
@@ -549,6 +567,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/app/einsaetze'
     | '/app/einsatz'
+    | '/app/settings'
     | '/server/manage'
     | '/server/setup'
     | '/admin/'
@@ -559,6 +578,7 @@ export interface FileRouteTypes {
     | '/admin/stammdaten/personen'
     | '/app/einsaetze/$einsatzId'
     | '/app/einsatz/$einsatzId'
+    | '/app/settings/audio'
     | '/app/einsaetze/'
     | '/app/einsatz/$einsatzId/'
     | '/app/einsatz/$einsatzId/betreuung/betroffene'
@@ -603,6 +623,7 @@ export interface FileRouteTypes {
     | '/admin/tokens'
     | '/admin/users'
     | '/app/einsatz'
+    | '/app/settings'
     | '/server/manage'
     | '/server/setup'
     | '/admin'
@@ -612,6 +633,7 @@ export interface FileRouteTypes {
     | '/admin/stammdaten/fahrzeuge'
     | '/admin/stammdaten/personen'
     | '/app/einsaetze/$einsatzId'
+    | '/app/settings/audio'
     | '/app/einsaetze'
     | '/app/einsatz/$einsatzId'
     | '/app/einsatz/$einsatzId/betreuung/betroffene'
@@ -657,6 +679,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/app/einsaetze'
     | '/app/einsatz'
+    | '/app/settings'
     | '/server/manage'
     | '/server/setup'
     | '/admin/'
@@ -667,6 +690,7 @@ export interface FileRouteTypes {
     | '/admin/stammdaten/personen'
     | '/app/einsaetze/$einsatzId'
     | '/app/einsatz/$einsatzId'
+    | '/app/settings/audio'
     | '/app/einsaetze/'
     | '/app/einsatz/$einsatzId/'
     | '/app/einsatz/$einsatzId/betreuung/betroffene'
@@ -769,6 +793,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServerManageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/einsatz': {
       id: '/app/einsatz'
       path: '/einsatz'
@@ -824,6 +855,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/einsaetze/'
       preLoaderRoute: typeof AppEinsaetzeIndexRouteImport
       parentRoute: typeof AppEinsaetzeRoute
+    }
+    '/app/settings/audio': {
+      id: '/app/settings/audio'
+      path: '/audio'
+      fullPath: '/app/settings/audio'
+      preLoaderRoute: typeof AppSettingsAudioRouteImport
+      parentRoute: typeof AppSettingsRoute
     }
     '/app/einsatz/$einsatzId': {
       id: '/app/einsatz/$einsatzId'
@@ -1263,14 +1301,28 @@ const AppEinsatzRouteWithChildren = AppEinsatzRoute._addFileChildren(
   AppEinsatzRouteChildren,
 )
 
+interface AppSettingsRouteChildren {
+  AppSettingsAudioRoute: typeof AppSettingsAudioRoute
+}
+
+const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsAudioRoute: AppSettingsAudioRoute,
+}
+
+const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
+  AppSettingsRouteChildren,
+)
+
 interface AppRouteChildren {
   AppEinsaetzeRoute: typeof AppEinsaetzeRouteWithChildren
   AppEinsatzRoute: typeof AppEinsatzRouteWithChildren
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppEinsaetzeRoute: AppEinsaetzeRouteWithChildren,
   AppEinsatzRoute: AppEinsatzRouteWithChildren,
+  AppSettingsRoute: AppSettingsRouteWithChildren,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

@@ -24,6 +24,7 @@ import { EVENT_NAMES } from './event-names';
  *   'Lagebesprechung',
  *   new Date(Date.now() + 30 * 60 * 1000),
  *   userId,
+ *   null, // keine Zuweisung bei Erstellung
  *   erinnerungId.toString()
  * );
  * console.log(ErinnerungErstelltEvent.eventName()); // "erinnerung.erstellt"
@@ -38,6 +39,7 @@ export class ErinnerungErstelltEvent extends DomainEvent {
    * @param titel - Titel der Erinnerung
    * @param faelligAm - Fälligkeitszeitpunkt
    * @param erstelltVon - User der die Erinnerung erstellt hat
+   * @param assignedToId - Story 3.3: Optional zugewiesener User (null bei Erstellung ohne Zuweisung)
    * @param aggregateId - Optional: ID des Aggregate Root (für Event Store)
    */
   constructor(
@@ -46,6 +48,7 @@ export class ErinnerungErstelltEvent extends DomainEvent {
     public readonly titel: string,
     public readonly faelligAm: Date,
     public readonly erstelltVon: UserId,
+    public readonly assignedToId: UserId | null = null,
     aggregateId?: string,
   ) {
     super(aggregateId);

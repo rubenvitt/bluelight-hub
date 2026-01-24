@@ -13,6 +13,8 @@ export interface CreateErinnerungCommandProps {
   erstelltVon: string;
   /** Story 2.6: Pflicht-Notiz bei Erledigung erforderlich (default: false) */
   requiresNote?: boolean;
+  /** Story 3.3: Optionale initiale Zuweisung an einen User */
+  assignedToId?: string;
 }
 
 /**
@@ -61,6 +63,7 @@ export class CreateErinnerungCommand {
     public readonly faelligAm: Date,
     public readonly erstelltVon: string,
     public readonly requiresNote: boolean,
+    public readonly assignedToId: string | undefined,
   ) {}
 
   /**
@@ -127,7 +130,15 @@ export class CreateErinnerungCommand {
     // Command erstellen
     // ════════════════════════════════════════════════════════════════════════
     return Result.ok(
-      new CreateErinnerungCommand(trimmedEinsatzId, trimmedTitel, props.beschreibung?.trim() || undefined, props.faelligAm, trimmedErstelltVon, props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE),
+      new CreateErinnerungCommand(
+        trimmedEinsatzId,
+        trimmedTitel,
+        props.beschreibung?.trim() || undefined,
+        props.faelligAm,
+        trimmedErstelltVon,
+        props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE,
+        props.assignedToId?.trim() || undefined,
+      ),
     );
   }
 }

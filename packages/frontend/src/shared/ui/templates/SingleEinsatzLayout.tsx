@@ -34,7 +34,7 @@ import { Link, Outlet, useMatchRoute, useNavigate, useParams, useRouter } from '
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { PiArrowLeft, PiArrowsOut, PiClock, PiGear, PiGridFour, PiQuestion, PiRadio, PiSiren, PiWarning } from 'react-icons/pi';
+import { PiArrowLeft, PiArrowsOut, PiClock, PiGridFour, PiQuestion, PiRadio, PiSiren, PiSpeakerHigh, PiWarning } from 'react-icons/pi';
 
 interface SingleEinsatzLayoutProps {
   className?: string;
@@ -460,10 +460,12 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
                       <PiRadio className="mr-2 h-4 w-4" />
                       {currentFunkrufname ? <span className="truncate">{currentFunkrufname}</span> : <span className="text-blue-600 dark:text-blue-400">Funkrufname setzen</span>}
                     </Button>
-                    <Button appearance="ghost" size="sm" className="mb-2 w-full">
-                      <PiGear className="mr-2 h-4 w-4" />
-                      Modul-Einstellungen
-                    </Button>
+                    <Link to="/app/settings/audio">
+                      <Button appearance="ghost" size="sm" className="mb-2 w-full justify-start">
+                        <PiSpeakerHigh className="mr-2 h-4 w-4" />
+                        Audio-Einstellungen
+                      </Button>
+                    </Link>
                     <Button
                       intent="danger"
                       size="sm"

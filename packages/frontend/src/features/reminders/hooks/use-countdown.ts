@@ -57,7 +57,6 @@ export function useCountdown(faelligAm: Date | string): CountdownState {
   // Ref um aktuelles Interval zu tracken (vermeidet stale closure)
   const currentIntervalRef = useRef<number>(0);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: state.remaining absichtlich nicht in deps - würde Infinite Loop verursachen. Wir tracken das Interval via currentIntervalRef.
   useEffect(() => {
     // Cleanup vorheriges Interval
     if (intervalRef.current !== null) {

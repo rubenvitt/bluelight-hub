@@ -15,6 +15,7 @@ import { ERINNERUNG_REPOSITORY, LOGGER, OUTBOX_REPOSITORY } from '@infrastructur
 import type { CreateErinnerungCommand } from './create-erinnerung.command';
 import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
 import type { ErinnerungResponseDto } from '../../dto/erinnerung-response.dto';
+import type { Prisma } from '@/generated/prisma/client';
 
 /**
  * Handler zum Erstellen einer neuen Erinnerung.
@@ -95,6 +96,47 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
     const erinnerung = erinnerungResult.value;
 
     // ════════════════════════════════════════════════════════════════════════
+    // 2a. Story 3.3: Optionale initiale Zuweisung
+    // ════════════════════════════════════════════════════════════════════════
+    let assignedToName: string | null = null;
+    if (command.assignedToId) {
+      // Validiere assignedToId als CUID2
+      const assignedToIdResult = UserId.create(command.assignedToId);
+      if (assignedToIdResult.isFailure || !assignedToIdResult.value) {
+        return Result.fail<ErinnerungResponseDto>(ERINNERUNG_ERROR_CODES.ASSIGNED_TO_INVALID);
+      }
+
+      // Prüfe ob User aktiver Einsatzteilnehmer ist (leftAt: null = aktiv)
+      const prismaTx = tx as Prisma.TransactionClient;
+      const teilnehmer = await prismaTx.einsatzTeilnehmer.findFirst({
+        where: {
+          einsatzId: command.einsatzId,
+          userId: command.assignedToId,
+          leftAt: null, // Nur aktive Teilnehmer (nicht verlassen)
+        },
+        include: {
+          user: {
+            select: {
+              username: true,
+            },
+          },
+        },
+      });
+
+      if (!teilnehmer) {
+        return Result.fail<ErinnerungResponseDto>(ERINNERUNG_ERROR_CODES.ASSIGNED_TO_NOT_TEILNEHMER);
+      }
+
+      // Zuweisung durchführen
+      const assignResult = erinnerung.assignToUser(assignedToIdResult.value, userIdResult.value);
+      if (assignResult.isFailure) {
+        return Result.fail<ErinnerungResponseDto>(assignResult.error ?? ERINNERUNG_ERROR_CODES.ASSIGNMENT_FAILED);
+      }
+
+      assignedToName = teilnehmer.user.username;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // 3. Im Repository persistieren
     // ════════════════════════════════════════════════════════════════════════
     const saveResult = await this.erinnerungRepository.save(erinnerung, tx);
@@ -132,6 +174,8 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
       updatedAt: erinnerung.updatedAt.toISOString(),
       snoozeCount: erinnerung.snoozeCount,
       requiresNote: erinnerung.requiresNote,
+      assignedToId: erinnerung.assignedToId?.toString() ?? null,
+      assignedToName: assignedToName,
     };
 
     return {

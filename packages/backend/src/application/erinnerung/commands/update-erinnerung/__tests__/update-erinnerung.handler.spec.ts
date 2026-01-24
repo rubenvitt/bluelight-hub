@@ -39,7 +39,7 @@ describe('UpdateErinnerungHandler', () => {
    * Generiert eine gültige CUID2 ID für Tests.
    */
   const generateValidErinnerungId = () => ErinnerungId.create().value!.toString();
-  const generateValidEinsatzId = () => EinsatzId.create().value!.toString();
+  const _generateValidEinsatzId = () => EinsatzId.create().value!.toString();
   const generateValidUserId = () => UserId.create().value!.toString();
 
   /**

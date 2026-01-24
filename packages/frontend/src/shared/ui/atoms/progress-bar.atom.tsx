@@ -1,5 +1,4 @@
 import { cn } from '@/shared/ui/cn';
-import { Transition } from '@headlessui/react';
 
 export type ProgressBarVariant = 'default' | 'success' | 'warning' | 'error' | 'info';
 
@@ -15,9 +14,10 @@ interface ProgressBarProps {
 }
 
 /**
- * ProgressBar-Komponente für Fortschrittsanzeigen
+ * ProgressBar-Komponente fuer Fortschrittsanzeigen
  *
- * Zeigt einen animierten Fortschrittsbalken mit verschiedenen Varianten und Größen.
+ * Zeigt einen animierten Fortschrittsbalken mit verschiedenen Varianten und Groessen.
+ * Nutzt native CSS-Transitions fuer die Animation.
  */
 export function ProgressBar({ value, max = 100, variant = 'default', size = 'md', label, showPercentage = false, animated = true, className }: ProgressBarProps) {
   const safeMax = Number.isFinite(max) && max > 0 ? max : 100;
@@ -54,9 +54,7 @@ export function ProgressBar({ value, max = 100, variant = 'default', size = 'md'
         </div>
       )}
       <div className={cn('w-full overflow-hidden rounded-full', backgroundClasses[variant], sizeClasses[size])} role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={max}>
-        <Transition show={true} appear={animated} enter="transition-transform duration-500 ease-out" enterFrom="scale-x-0" enterTo="scale-x-100">
-          <div className={cn('h-full origin-left rounded-full transition-all duration-300 ease-out', variantClasses[variant], animated && 'animate-pulse')} style={{ width: `${percentage}%` }} />
-        </Transition>
+        <div className={cn('h-full origin-left rounded-full', 'transition-all duration-500 ease-out', variantClasses[variant], animated && 'animate-pulse')} style={{ width: `${percentage}%` }} />
       </div>
     </div>
   );

@@ -121,7 +121,7 @@ describe('GetErinnerungenByEinsatzQuery', () => {
     describe('Edge Cases', () => {
       it('should accept einsatzId with 24 characters (minimum CUID2 length)', () => {
         // Given
-        const props = { einsatzId: 'clw3h8x9y0000qwertyuiop' }; // 23 chars - should fail
+        const _props = { einsatzId: 'clw3h8x9y0000qwertyuiop' }; // 23 chars - should fail
         const props24 = { einsatzId: 'clw3h8x9y0000qwertyuiopa' }; // 24 chars
 
         // When

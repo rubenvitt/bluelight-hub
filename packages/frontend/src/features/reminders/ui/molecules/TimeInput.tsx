@@ -25,6 +25,8 @@ interface TimeInputProps {
   error?: boolean;
   /** Zusätzliche CSS-Klassen */
   className?: string;
+  /** ID für A11y Label-Verknüpfung */
+  id?: string;
 }
 
 /**
@@ -38,7 +40,7 @@ interface TimeInputProps {
  * />
  * ```
  */
-export function TimeInput({ value, onChange, disabled = false, error = false, className }: TimeInputProps) {
+export function TimeInput({ value, onChange, disabled = false, error = false, className, id }: TimeInputProps) {
   const minutesRef = useRef<HTMLInputElement>(null);
 
   // Lokaler State für Eingabe während Focus - erlaubt leere Felder
@@ -129,6 +131,7 @@ export function TimeInput({ value, onChange, disabled = false, error = false, cl
   return (
     <div className={cn('flex items-center gap-1', className)}>
       <input
+        id={id}
         type="text"
         inputMode="numeric"
         pattern="[0-9]*"

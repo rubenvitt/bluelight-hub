@@ -11,7 +11,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SyncService, syncService } from '../sync.service';
-import { offlineStore, resetOfflineStore, addPendingErinnerung, queueSyncAction, type PendingErinnerung, type SyncQueueAction } from '../../stores/offline.store';
+import { offlineStore, resetOfflineStore, addPendingErinnerung, queueSyncAction, type PendingErinnerung } from '../../stores/offline.store';
 
 // Mock the API
 vi.mock('@/shared', () => ({

@@ -147,7 +147,7 @@ export class ErinnerungGateway implements OnGatewayConnection, OnGatewayDisconne
 
   constructor(
     @Inject(LOGGER) private readonly logger: ILogger,
-    private readonly configService: ConfigService,
+    readonly _configService: ConfigService,
   ) {}
 
   /**

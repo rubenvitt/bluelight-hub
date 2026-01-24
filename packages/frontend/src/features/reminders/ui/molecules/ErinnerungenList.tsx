@@ -12,9 +12,10 @@
  * **Story 3.1:** Tabs fuer "Meine" / "Team" Ansicht
  * **Story 3.2 AC1:** Echtzeit-Updates via WebSocket
  * **Story 3.2 AC3:** Toast-Notification bei Team-Events
+ * **Story 3.6:** Filter fuer Team-Erinnerungen nach Zuweisung
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import type { ErinnerungResponseDto } from '@/shared';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
@@ -22,10 +23,13 @@ import { Tabs } from '@/shared/ui/molecules/tabs.molecule';
 import { PiAlarm, PiPlus, PiWifiHigh, PiWifiSlash } from 'react-icons/pi';
 import { toast } from 'sonner';
 import { useCurrentUser } from '@/features/auth';
+import { useAktiveEinsatzTeilnehmer } from '@/features/einsatz/api';
+import { sanitizeName } from '@/shared/utils/sanitize';
 import { useErinnerungenByEinsatz } from '../../api';
 import { useAlarmTrigger, useErinnerungWebSocket, useOfflineStatus, useReconnectSync, useTrayBadge, useTrayClickNavigation } from '../../hooks';
-import { addAnimatedId, openQuickCreateDialog } from '../../stores';
+import { addAnimatedId, openQuickCreateDialog, resetTeamFilterStore, setAvailableTeilnehmer, setTeamFilter, useAvailableTeilnehmer, useTeamFilter, type TeamFilterType } from '../../stores';
 import { getUrgencyLevel } from '../../utils/countdown-utils';
+import { TeamFilterDropdown } from '../atoms/TeamFilterDropdown';
 import { FloatingPillPortal } from '../organisms/FloatingPillPortal';
 import { ErinnerungCard } from './ErinnerungCard';
 import { OfflineBanner } from './OfflineBanner';
@@ -87,17 +91,127 @@ interface ErinnerungenListProps {
 }
 
 /**
+ * Story 3.6 Issue #5: Helper zur Pruefung ob Erinnerung dem User gehoert.
+ *
+ * Eine Erinnerung gehoert dem User wenn:
+ * - Er sie erstellt hat (erstelltVon)
+ * - Oder sie ihm zugewiesen wurde (assignedToId)
+ */
+function isMyErinnerung(erinnerung: ErinnerungResponseDto, userId: string): boolean {
+  return erinnerung.erstelltVon === userId || erinnerung.assignedToId === userId;
+}
+
+/**
  * Liste aller Erinnerungen fuer einen Einsatz.
  *
  * Zeigt Erinnerungen sortiert nach Faelligkeit an.
  * Unterstuetzt Erstellen und Bearbeiten von Erinnerungen.
+ *
+ * Story 3.6 Issue #6: Wrapper-Komponente mit User-Guard.
+ * Delegiert an ErinnerungenListInner wenn User eingeloggt ist.
  */
 export function ErinnerungenList({ einsatzId, className, compact = false }: ErinnerungenListProps) {
+  const { user } = useCurrentUser();
+
+  // Story 3.6 Issue #6: Guard - User muss eingeloggt sein
+  if (!user) {
+    return (
+      <div className={cn('rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20', className)}>
+        <p className="text-sm text-yellow-700 dark:text-yellow-300">Bitte einloggen um Erinnerungen zu sehen</p>
+      </div>
+    );
+  }
+
+  // Nach Guard ist user garantiert non-null - rendere innere Komponente
+  return <ErinnerungenListInner einsatzId={einsatzId} className={className} compact={compact} currentUserId={user.id} />;
+}
+
+/**
+ * Props fuer die innere Erinnerungen-Liste Komponente.
+ */
+interface ErinnerungenListInnerProps extends ErinnerungenListProps {
+  /** Garantiert non-null User-ID (nach Guard in Wrapper) */
+  currentUserId: string;
+}
+
+/**
+ * Innere Komponente mit allen Hooks.
+ *
+ * Wird nur gerendert wenn User eingeloggt ist (currentUserId garantiert non-null).
+ * Ermoeglicht saubere Hook-Aufrufe ohne bedingte Logik (React Rules of Hooks).
+ */
+function ErinnerungenListInner({ einsatzId, className, compact = false, currentUserId }: ErinnerungenListInnerProps) {
   const { data: erinnerungen, isLoading, error } = useErinnerungenByEinsatz({ einsatzId });
 
-  // Story 3.1: Aktueller User fuer Filter-Logik
-  const { user } = useCurrentUser();
-  const currentUserId = user?.id;
+  // Story 3.6 Task 3.1: Team-Filter Store Hooks
+  const selectedFilter = useTeamFilter();
+  const availableTeilnehmer = useAvailableTeilnehmer();
+
+  // Story 3.6 Task 3.4: Teilnehmer aus Einsatz laden
+  const { data: einsatzTeilnehmer } = useAktiveEinsatzTeilnehmer(einsatzId);
+
+  /**
+   * Story 3.6 Issue #4: Cleanup bei Unmount
+   *
+   * Resettet den Team-Filter Store wenn die Komponente unmountet wird.
+   * Verhindert Memory Leaks und stale Filter-States.
+   */
+  useEffect(() => {
+    return () => {
+      resetTeamFilterStore();
+    };
+  }, []);
+
+  /**
+   * Story 3.6 Issue #2 Fix: Primary Effect - Einsatz-Teilnehmer (hat Prioritaet)
+   * Story 3.6 Issue #3: XSS Defense-in-Depth - Namen werden sanitiert
+   *
+   * Setzt die verfuegbaren Teilnehmer aus den Einsatz-Teilnehmern.
+   * Dieser Effect hat Prioritaet - wenn Einsatz-Teilnehmer vorhanden sind,
+   * werden sie verwendet (unabhaengig vom Fallback).
+   */
+  useEffect(() => {
+    if (einsatzTeilnehmer && einsatzTeilnehmer.length > 0) {
+      // Mapping von AktiveTeilnehmerResponseDto zu Teilnehmer Format
+      const teilnehmerList = einsatzTeilnehmer.map((t) => ({
+        id: t.userId,
+        name: sanitizeName(t.username || t.funkrufname),
+      }));
+      setAvailableTeilnehmer(teilnehmerList);
+    }
+  }, [einsatzTeilnehmer]);
+
+  /**
+   * Story 3.6 Issue #2 Fix: Fallback Effect - Teilnehmer aus Erinnerungen
+   * Story 3.6 Issue #3: XSS Defense-in-Depth - Namen werden sanitiert
+   *
+   * Wird nur verwendet wenn KEINE Einsatz-Teilnehmer vorhanden sind.
+   * Extrahiert Teilnehmer aus den Erinnerungen (erstelltVon, assignedTo).
+   *
+   * Separate Effects verhindern Race Conditions zwischen Primary und Fallback.
+   */
+  useEffect(() => {
+    // Nur wenn keine Einsatz-Teilnehmer vorhanden sind
+    if ((!einsatzTeilnehmer || einsatzTeilnehmer.length === 0) && erinnerungen && erinnerungen.length > 0) {
+      // Story 3.6 Task 4.4: Fallback - Teilnehmer aus Erinnerungen extrahieren
+      const teilnehmerMap = new Map<string, string>();
+      for (const e of erinnerungen) {
+        if (e.erstelltVon && e.erstellerName) {
+          teilnehmerMap.set(e.erstelltVon, sanitizeName(e.erstellerName));
+        }
+        if (e.assignedToId && e.assignedToName) {
+          teilnehmerMap.set(e.assignedToId, sanitizeName(e.assignedToName));
+        }
+      }
+      const fallbackList = Array.from(teilnehmerMap, ([id, name]) => ({ id, name }));
+      setAvailableTeilnehmer(fallbackList);
+    }
+  }, [einsatzTeilnehmer, erinnerungen]);
+
+  // Story 3.6 Task 3.1: Filter-Change Handler
+  const handleFilterChange = useCallback((filter: TeamFilterType) => {
+    setTeamFilter(filter);
+  }, []);
 
   // Story 1.8: Offline-Status und Sync-Handling
   const { isOffline, pendingActionsCount, offlineSince } = useOfflineStatus();
@@ -170,19 +284,43 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
   }, [erinnerungen]);
 
   /**
-   * Story 3.1 AC2: Filter-Logik fuer "Meine" vs "Team"
-   * - Meine: Selbst erstellt (erstelltVon === userId) ODER mir zugewiesen (assignedToId === userId)
-   * - Team: Alle nicht-abgeschlossenen Erinnerungen (status !== 'ERLEDIGT')
+   * Story 3.1 AC2: Filter-Logik fuer "Meine" Erinnerungen
+   * Story 3.6 Issue #5: Nutzt extrahierte Helper-Funktion
    */
   const myErinnerungen = useMemo(() => {
-    if (!currentUserId) return sortedErinnerungen;
-    return sortedErinnerungen.filter((e) => e.erstelltVon === currentUserId || e.assignedToId === currentUserId);
+    return sortedErinnerungen.filter((e) => isMyErinnerung(e, currentUserId));
   }, [sortedErinnerungen, currentUserId]);
 
   // Story 3.1 AC6: Team-Tab zeigt alle nicht-abgeschlossenen Erinnerungen
   const teamErinnerungen = useMemo(() => {
     return sortedErinnerungen.filter((e) => e.status !== 'ERLEDIGT');
   }, [sortedErinnerungen]);
+
+  /**
+   * Story 3.6 Task 3.2: Gefilterte Team-Erinnerungen basierend auf selectedFilter
+   * Story 3.6 Issue #5: Nutzt extrahierte Helper-Funktion fuer 'mine' case
+   *
+   * Filter-Logik (Tagged Union):
+   * - { type: 'all' }: Alle Team-Erinnerungen (AC5)
+   * - { type: 'mine' }: Ersteller ODER Zugewiesener === currentUserId (AC3)
+   * - { type: 'unassigned' }: assignedToId ist null/undefined (AC4)
+   * - { type: 'user', userId }: assignedToId === userId (AC2)
+   */
+  const filteredTeamErinnerungen = useMemo(() => {
+    const base = teamErinnerungen;
+
+    switch (selectedFilter.type) {
+      case 'all':
+        return base;
+      case 'mine':
+        return base.filter((e) => isMyErinnerung(e, currentUserId));
+      case 'unassigned':
+        return base.filter((e) => !e.assignedToId);
+      case 'user':
+        // AC2: Filter by specific userId
+        return base.filter((e) => e.assignedToId === selectedFilter.userId);
+    }
+  }, [teamErinnerungen, selectedFilter, currentUserId]);
 
   if (isLoading) {
     return (
@@ -256,15 +394,27 @@ export function ErinnerungenList({ einsatzId, className, compact = false }: Erin
           {
             label: `Team (${teamErinnerungen.length})`,
             content: (
-              <ErinnerungListContent
-                erinnerungen={teamErinnerungen}
-                einsatzId={einsatzId}
-                currentUserId={currentUserId}
-                showCreator={true}
-                compact={compact}
-                onCreateClick={handleCreateClick}
-                emptyMessage="Keine Team-Erinnerungen vorhanden"
-              />
+              <div className="space-y-3">
+                {/* Story 3.6 Task 3.3: TeamFilterDropdown im Team-Tab Header */}
+                <div className="flex items-center justify-between gap-2">
+                  <TeamFilterDropdown selectedFilter={selectedFilter} onFilterChange={handleFilterChange} teilnehmer={availableTeilnehmer} currentUserId={currentUserId} className="w-44" />
+                  {/* Story 3.6 AC2: Anzeige der gefilterten Anzahl */}
+                  {selectedFilter.type !== 'all' && (
+                    <span className="text-gray-500 text-xs dark:text-gray-400">
+                      {filteredTeamErinnerungen.length} von {teamErinnerungen.length}
+                    </span>
+                  )}
+                </div>
+                <ErinnerungListContent
+                  erinnerungen={filteredTeamErinnerungen}
+                  einsatzId={einsatzId}
+                  currentUserId={currentUserId}
+                  showCreator={true}
+                  compact={compact}
+                  onCreateClick={handleCreateClick}
+                  emptyMessage={selectedFilter.type === 'all' ? 'Keine Team-Erinnerungen vorhanden' : 'Keine Erinnerungen fuer diesen Filter'}
+                />
+              </div>
             ),
           },
         ]}

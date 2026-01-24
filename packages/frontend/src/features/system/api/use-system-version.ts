@@ -21,9 +21,11 @@ interface RootResponse {
  * Der generierte API-Client typisiert die Root-Response als void,
  * daher nutzen wir hier einen direkten fetch mit korrekter Typisierung.
  * fetchWithRefresh wird verwendet um den Server Access Token Header mitzuschicken.
+ *
+ * @param baseUrl - Die Server-URL vom Aufrufer (vermeidet doppelten getBaseUrl() Aufruf)
  */
-async function fetchBackendVersion(): Promise<string | undefined> {
-  const response = await fetchWithRefresh(getBaseUrl());
+async function fetchBackendVersion(baseUrl: string): Promise<string | undefined> {
+  const response = await fetchWithRefresh(baseUrl);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch backend version: ${response.status}`);
@@ -51,9 +53,16 @@ async function fetchBackendVersion(): Promise<string | undefined> {
  * ```
  */
 export const useSystemVersion = () => {
+  // Query nur ausführen wenn ein Server konfiguriert ist
+  const baseUrl = getBaseUrl();
+  const isServerConfigured = !!baseUrl;
+
   const query = useQuery({
     queryKey: SYSTEM_QUERY_KEYS.version(),
-    queryFn: fetchBackendVersion,
+    // baseUrl ist garantiert truthy wenn enabled=true, daher as string statt non-null assertion
+    queryFn: () => fetchBackendVersion(baseUrl as string),
+    // Nur ausführen wenn Server konfiguriert - verhindert SyntaxError bei leerem URL
+    enabled: isServerConfigured,
     // Version ändert sich nicht während einer Session, daher nie als stale markieren
     staleTime: Infinity,
     refetchOnWindowFocus: false,

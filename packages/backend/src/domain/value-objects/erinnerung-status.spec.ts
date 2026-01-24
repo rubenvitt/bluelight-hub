@@ -1,5 +1,4 @@
 import { ErinnerungStatus } from '@domain/value-objects/erinnerung-status';
-import { Result } from '@domain/common/result';
 
 describe('ErinnerungStatus', () => {
   describe('create() - Factory Method', () => {

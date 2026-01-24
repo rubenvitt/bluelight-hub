@@ -43,7 +43,7 @@ Bluelight-Hub ist eine **Desktop-basierte Einsatzunterstützungsanwendung** für
 - **Domain:** Emergency Response Management (DRK)
 - **Deployment:** Desktop application (Tauri) with local/remote backend
 - **Users:** Admin, Koordinator, Mitglied roles (NOT implemented, only USER/ADMIN/SUPER_ADMIN)
-- **Architecture Style:** Standard 3-Layer (Controller → Service → Repository)
+- **Architecture Style:** Clean Architecture (CQRS, DDD, Hexagonal) with Transactional Outbox Pattern
 - **Data Strategy:** CRUD with Audit Trail, Soft-Delete, No-Delete Policy (Einsätze)
 
 ---
@@ -167,19 +167,27 @@ Bluelight-Hub ist eine **Desktop-basierte Einsatzunterstützungsanwendung** für
 
 ### Architecture Style
 
-**Backend:** **Standard 3-Layer Architecture** (NOT Hexagonal, NOT CQRS)
+**Backend:** **Clean Architecture & CQRS**
+(Domain-Driven Design with Hexagonal approach)
 
 ```
-Controller Layer (HTTP)
+Controller Layer (Ports/Adapters)
     ↓
-Service Layer (Business Logic)
+Application Layer (Commands/Queries)
     ↓
-Repository Layer (Data Access)
+Domain Layer (Aggregates, Policies, Value Objects)
     ↓
-Prisma ORM
+Infrastructure Layer (Repositories, External Services)
     ↓
-PostgreSQL
+Prisma ORM & PostgreSQL
 ```
+
+**Transactional Outbox Pattern:**
+Ensures atomicity between data persistence and domain events.
+1. Application: Executes Command
+2. Domain: Returns Result + Events
+3. Infrastructure: Saves Aggregate + Events (in same TX)
+4. Worker: Polls Outbox -> Publishes to EventBus
 
 **Frontend:** **Component-based with Atomic Design**
 
@@ -208,30 +216,30 @@ Atoms (Base components)
 
 ### Module Structure (ACTUAL)
 
-Das Backend besteht aus **7 funktionalen Modulen** (nicht die 8+ in arc42 beschriebenen):
+Das Backend folgt einer **vertikalen Slicing-Architektur** nach DDD-Prinzipien:
 
 ```
 packages/backend/src/
-├── auth/                    # Authentifizierung (Unified Auth)
-├── einsatz/                 # Einsatzmanagement
-├── etb/                     # Einsatztagebuch
-├── user-management/         # Benutzerverwaltung
-├── modules/
-│   └── lagekarte/          # Lagekarten-Management
-├── health/                  # Health Checks
-├── config/                  # Konfiguration
-├── common/                  # Shared utilities
-├── prisma/                  # Prisma client
-├── cli/                     # CLI-Tools
-├── utils/                   # Helper functions
-└── websocket/              # WebSocket (leer, nicht implementiert)
+├── application/             # Application Layer (Commands, Queries, Use Cases)
+│   ├── einsatz/            # Einsatz Features
+│   ├── etb/                # ETB Features
+│   └── ...
+├── domain/                  # Domain Layer (Enterprise Rules)
+│   ├── model/              # Aggregates & Entities
+│   ├── ports/              # Repository Interfaces
+│   └── policies/           # Domain Policies (z.B. ArchivalPolicy)
+├── infrastructure/          # Infrastructure Layer (Implementation)
+│   ├── database/           # Prisma & Repositories
+│   ├── http/               # Controllers & Filters
+│   └── outbox/             # Transactional Outbox Implementation
+└── modules/                 # NestJS Wiring (Dependency Injection)
 ```
 
-**Fehlende Module aus arc42:**
-- ❌ Ressource Module (Personal, Fahrzeuge, Material)
-- ❌ Dashboard Module (nur Frontend)
-- ❌ Digitalfunk Integration
-- ❌ Kommunikation Module
+**Features:**
+- ✅ **Application Layer:** Trennung von Commands (Write) und Queries (Read)
+- ✅ **Domain Layer:** Unabhängig von Frameworks, reine Business-Logik
+- ✅ **Infrastructure:** Kapselt externe Abhängigkeiten (DB, Auth, etc.)
+- ✅ **DI-Wiring:** Explizite Module zur Zusammenführung der Layer
 
 ### API Design
 
@@ -472,7 +480,7 @@ packages/backend/src/
 
 #### Role-Based Access Control (RBAC)
 
-**3 Rollen (NICHT die arc42-beschriebenen Admin/Koordinator/Mitglied):**
+**3 Rollen (Implementiert):**
 
 | Role | Permissions | Guards |
 |------|-------------|--------|
@@ -502,45 +510,27 @@ packages/backend/src/
 
 ### Component Architecture (Atomic Design)
 
-**135+ Komponenten** in 5 hierarchischen Ebenen:
+**Feature-Sliced Atomic Design** (Modular Architecture)
 
 ```
-src/components/
-├── atoms/ (24)           # Basis UI-Elemente
-│   ├── button.atom.tsx
-│   ├── input.atom.tsx
-│   ├── badge.atom.tsx
-│   ├── container.atom.tsx
+src/
+├── features/             # Domain Features (e.g. einsatz, etb)
+│   ├── einsatz/
+│   │   ├── api/          # React Query Hooks (Queries & Mutations)
+│   │   ├── stores/       # TanStack Stores (UI State)
+│   │   └── ui/           # Feature-specific Components (Atomic)
+│   │       ├── atoms/
+│   │       ├── molecules/
+│   │       └── organisms/
 │   └── ...
-├── molecules/ (46)       # Kombinierte Komponenten
-│   ├── shared/ (14)     # Wiederverwendbar
-│   │   ├── password-input.molecule.tsx
-│   │   ├── tabs.molecule.tsx
-│   │   └── ...
-│   ├── einsatz/ (13)    # Feature-spezifisch
-│   ├── etb/ (8)
-│   ├── lagekarte/ (4)
-│   └── ...
-├── organisms/ (52)       # Komplexe Module
-│   ├── etb/ (17)        # ETB-Komponenten
-│   ├── lagekarte/ (16)  # Karten-Komponenten
-│   ├── einsatz/ (5)     # Einsatz-Komponenten
-│   ├── admin/ (4)       # Admin-Panel
-│   ├── command-palette/ (6)
-│   ├── dashboard/ (2)
-│   └── auth/ (2)
-├── templates/ (4)        # Seiten-Layouts
-│   ├── admin-layout.template.tsx
-│   ├── auth-layout.template.tsx
-│   ├── einsatz-layout.template.tsx
-│   └── dashboard-layout.template.tsx
-└── pages/ (6)            # Route-Komponenten
-    ├── index.page.tsx
-    ├── login.page.tsx
-    ├── einsatz.page.tsx
-    ├── etb.page.tsx
-    ├── lagekarte.page.tsx
-    └── admin.page.tsx
+├── shared/               # Shared logic & UI
+│   ├── ui/               # Global Design System
+│   │   ├── atoms/        # Base components (Button, Input)
+│   │   ├── molecules/    # Combined components
+│   │   └── organisms/    # Complex widgets
+│   └── hooks/            # Shared logic
+├── routes/               # TanStack Router (File-based)
+└── services/             # Infrastructure Services
 ```
 
 ### Feature Breakdown

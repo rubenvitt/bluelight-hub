@@ -1,6 +1,5 @@
 import { Label } from '@/shared/ui/atoms/label.atom';
-import { Listbox, ListboxButton, ListboxOption, ListboxOptions, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
+import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/react';
 import { PiCaretDown, PiCheck } from 'react-icons/pi';
 
 export type InviteStatusFilter = 'all' | 'active' | 'used' | 'expired' | 'revoked';
@@ -51,32 +50,33 @@ export function InviteFilters({ selectedStatus, onChange }: InviteFiltersProps) 
               <PiCaretDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
             </span>
           </ListboxButton>
-          <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-            <ListboxOptions className="absolute z-10 mt-1 max-h-60 w-40 overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:border-gray-700 dark:bg-gray-800">
-              {STATUS_FILTER_OPTIONS.map((option) => (
-                <ListboxOption
-                  key={option.value}
-                  value={option.value}
-                  className={({ focus }) =>
-                    `relative cursor-pointer select-none py-2 pr-4 pl-10 text-sm ${
-                      focus ? 'bg-primary-100 text-primary-900 dark:bg-primary-900/30 dark:text-primary-200' : 'text-gray-900 dark:text-gray-100'
-                    }`
-                  }
-                >
-                  {({ selected }) => (
-                    <>
-                      <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>{option.label}</span>
-                      {selected ? (
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-primary-600 dark:text-primary-400">
-                          <PiCheck className="h-5 w-5" aria-hidden="true" />
-                        </span>
-                      ) : null}
-                    </>
-                  )}
-                </ListboxOption>
-              ))}
-            </ListboxOptions>
-          </Transition>
+          <ListboxOptions
+            transition
+            className="absolute z-10 mt-1 max-h-60 w-40 overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg ring-1 ring-black/5 transition duration-100 ease-in focus:outline-none data-[closed]:opacity-0 dark:border-gray-700 dark:bg-gray-800"
+          >
+            {STATUS_FILTER_OPTIONS.map((option) => (
+              <ListboxOption
+                key={option.value}
+                value={option.value}
+                className={({ focus }) =>
+                  `relative cursor-pointer select-none py-2 pr-4 pl-10 text-sm ${
+                    focus ? 'bg-primary-100 text-primary-900 dark:bg-primary-900/30 dark:text-primary-200' : 'text-gray-900 dark:text-gray-100'
+                  }`
+                }
+              >
+                {({ selected }) => (
+                  <>
+                    <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>{option.label}</span>
+                    {selected ? (
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-primary-600 dark:text-primary-400">
+                        <PiCheck className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                    ) : null}
+                  </>
+                )}
+              </ListboxOption>
+            ))}
+          </ListboxOptions>
         </div>
       </Listbox>
     </div>

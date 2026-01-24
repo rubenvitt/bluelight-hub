@@ -99,7 +99,7 @@ export class WsJwtAuthGuard implements CanActivate {
       client.data.role = payload.role;
 
       return true;
-    } catch (error) {
+    } catch (_error) {
       client.disconnect();
       throw new UnauthorizedException('Invalid token');
     }

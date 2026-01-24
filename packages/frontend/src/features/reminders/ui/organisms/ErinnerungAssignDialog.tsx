@@ -103,25 +103,22 @@ export function ErinnerungAssignDialog({ isOpen, onClose, erinnerung, einsatzId 
   const isAssignable = erinnerung && !['ERLEDIGT', 'ESKALIERT'].includes(erinnerung.status);
 
   return (
-    <Dialog open={isOpen} onClose={handleClose}>
-      <Dialog.Panel className="w-full max-w-md">
-        <Dialog.Title className="flex items-center gap-2">
-          <PiUser className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-          <span>Erinnerung zuweisen</span>
-        </Dialog.Title>
+    <Dialog isOpen={isOpen} onClose={handleClose} size="md">
+      <Dialog.Title className="flex items-center gap-2">
+        <PiUser className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        <span>Erinnerung zuweisen</span>
+      </Dialog.Title>
 
+      <Dialog.Body>
         {!erinnerung ? (
           <div className="py-4 text-gray-500 dark:text-gray-400">Keine Erinnerung ausgewaehlt</div>
         ) : !isAssignable ? (
           <div className="flex flex-col items-center gap-3 py-6">
             <PiWarning className="h-12 w-12 text-amber-500" />
             <p className="text-center text-gray-700 dark:text-gray-300">Diese Erinnerung kann nicht zugewiesen werden, da sie bereits erledigt oder eskaliert ist.</p>
-            <Button variant="outline" onClick={handleClose}>
-              Schliessen
-            </Button>
           </div>
         ) : (
-          <div className="mt-4 space-y-4">
+          <div className="space-y-4">
             {/* Erinnerungs-Info */}
             <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
               <p className="font-medium text-gray-900 dark:text-white">{erinnerung.titel}</p>
@@ -144,19 +141,26 @@ export function ErinnerungAssignDialog({ isOpen, onClose, erinnerung, einsatzId 
 
             {/* Hinweis */}
             <p className="text-gray-500 text-xs dark:text-gray-400">Nach der Zuweisung erhaelt die ausgewaehlte Person eine Benachrichtigung und die Erinnerung erscheint in deren Liste.</p>
-
-            {/* Buttons */}
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={handleClose} disabled={isPending}>
-                Abbrechen
-              </Button>
-              <Button variant="primary" onClick={handleAssign} disabled={isPending || !selectedUserId} isLoading={isPending}>
-                Zuweisen
-              </Button>
-            </div>
           </div>
         )}
-      </Dialog.Panel>
+      </Dialog.Body>
+
+      <Dialog.Footer>
+        {!isAssignable ? (
+          <Button intent="secondary" appearance="ghost" onClick={handleClose}>
+            Schliessen
+          </Button>
+        ) : (
+          <>
+            <Button intent="secondary" appearance="ghost" onClick={handleClose} disabled={isPending}>
+              Abbrechen
+            </Button>
+            <Button intent="primary" onClick={handleAssign} disabled={isPending || !selectedUserId} loading={isPending}>
+              Zuweisen
+            </Button>
+          </>
+        )}
+      </Dialog.Footer>
     </Dialog>
   );
 }

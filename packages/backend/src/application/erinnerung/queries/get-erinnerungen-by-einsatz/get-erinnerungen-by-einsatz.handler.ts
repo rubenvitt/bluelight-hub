@@ -81,6 +81,9 @@ export class GetErinnerungenByEinsatzHandler {
       updatedAt: erinnerung.updatedAt.toISOString(),
       snoozeCount: erinnerung.snoozeCount,
       requiresNote: erinnerung.requiresNote,
+      assignedToId: erinnerung.assignedToId?.toString() ?? null,
+      // TODO(Story 3.3): assignedToName via User-Repository auflösen oder via JOIN in Repository laden
+      assignedToName: null,
     }));
 
     // ════════════════════════════════════════════════════════════════════════

@@ -681,6 +681,7 @@ export class EventSerializer {
       titel: event.titel, // Already primitive string
       faelligAm: event.faelligAm.toISOString(), // Date → ISO string
       erstelltVon: event.erstelltVon.toString(), // UserId → string
+      assignedToId: event.assignedToId?.toString() ?? null, // Story 3.3: UserId | null → string | null
     };
   }
 

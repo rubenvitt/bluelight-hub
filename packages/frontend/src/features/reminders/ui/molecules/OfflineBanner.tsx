@@ -77,7 +77,7 @@ function formatPendingCount(count: number): string {
  * />
  * ```
  */
-export function OfflineBanner({ isOffline, pendingCount, isSyncing, offlineSince, className }: OfflineBannerProps) {
+export function OfflineBanner({ isOffline, pendingCount, isSyncing, offlineSince: _offlineSince, className }: OfflineBannerProps) {
   const variant = getVariant(isOffline, pendingCount, isSyncing);
 
   // Hidden: Render nothing
@@ -104,11 +104,11 @@ export function OfflineBanner({ isOffline, pendingCount, isSyncing, offlineSince
         // Flex layout
         'flex items-center justify-center gap-2',
         // Typography
-        'text-sm font-medium',
+        'font-medium text-sm',
         // Variant: Offline (amber/yellow)
-        isOfflineVariant && 'bg-amber-100 text-amber-800 border-b border-amber-200',
+        isOfflineVariant && 'border-amber-200 border-b bg-amber-100 text-amber-800',
         // Variant: Syncing (blue)
-        isSyncingVariant && 'bg-blue-100 text-blue-800 border-b border-blue-200',
+        isSyncingVariant && 'border-blue-200 border-b bg-blue-100 text-blue-800',
         className,
       )}
     >

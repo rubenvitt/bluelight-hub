@@ -14,6 +14,7 @@ import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowled
 import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
 import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 import { ErinnerungErledigtEvent } from '@domain/events/erinnerung-erledigt.event';
+import { ErinnerungAssignedEvent } from '@domain/events/erinnerung-assigned.event';
 
 /**
  * Props für die Erstellung einer neuen Erinnerung.
@@ -81,6 +82,12 @@ export interface ReconstructErinnerungProps {
   erledigungsNotiz?: string | null;
   /** Pflicht-Notiz bei Erledigung erforderlich (Story 2.6) */
   requiresNote?: boolean;
+  /** Story 3.3: Zugewiesener User */
+  assignedToId?: UserId | null;
+  /** Story 3.3: User der zugewiesen hat */
+  assignedBy?: UserId | null;
+  /** Story 3.3: Zeitpunkt der Zuweisung */
+  assignedAt?: Date | null;
 }
 
 /**
@@ -160,6 +167,11 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
 
   // Pflicht-Notiz Flag (Story 2.6)
   private readonly _requiresNote: boolean;
+
+  // Zuweisung Felder (Story 3.3)
+  private _assignedToId: UserId | null;
+  private _assignedBy: UserId | null;
+  private _assignedAt: Date | null;
 
   // ============================================================
   // Readonly Getters
@@ -316,6 +328,32 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     return this._requiresNote;
   }
 
+  // Zuweisung Getters (Story 3.3)
+
+  /**
+   * Gibt die ID des zugewiesenen Users zurück.
+   * Null wenn nicht zugewiesen.
+   */
+  get assignedToId(): UserId | null {
+    return this._assignedToId;
+  }
+
+  /**
+   * Gibt den User zurück der die Zuweisung vorgenommen hat.
+   * Null wenn nicht zugewiesen.
+   */
+  get assignedBy(): UserId | null {
+    return this._assignedBy;
+  }
+
+  /**
+   * Gibt den Zeitpunkt der Zuweisung zurück.
+   * Null wenn nicht zugewiesen.
+   */
+  get assignedAt(): Date | null {
+    return this._assignedAt ? new Date(this._assignedAt.getTime()) : null;
+  }
+
   // ============================================================
   // Private Constructor (erzwingt Factory Methods)
   // ============================================================
@@ -344,6 +382,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     erledigtBy: UserId | null = null,
     erledigungsNotiz: string | null = null,
     requiresNote = Erinnerung.DEFAULT_REQUIRES_NOTE,
+    assignedToId: UserId | null = null,
+    assignedBy: UserId | null = null,
+    assignedAt: Date | null = null,
   ) {
     super(id, createdAt, updatedAt);
     this._einsatzId = einsatzId;
@@ -366,6 +407,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     this._erledigtBy = erledigtBy;
     this._erledigungsNotiz = erledigungsNotiz;
     this._requiresNote = requiresNote;
+    this._assignedToId = assignedToId;
+    this._assignedBy = assignedBy;
+    this._assignedAt = assignedAt;
   }
 
   // ============================================================
@@ -437,10 +481,13 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       null, // erledigtBy
       null, // erledigungsNotiz
       props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE, // Story 2.6
+      null, // assignedToId (Story 3.3)
+      null, // assignedBy (Story 3.3)
+      null, // assignedAt (Story 3.3)
     );
 
-    // Emit Domain Event
-    erinnerung.addDomainEvent(new ErinnerungErstelltEvent(idResult.value, props.einsatzId, titelResult.value.value, props.faelligAm, props.erstelltVon, idResult.value.toString()));
+    // Emit Domain Event (Story 3.3: null für assignedToId bei Erstellung ohne Zuweisung)
+    erinnerung.addDomainEvent(new ErinnerungErstelltEvent(idResult.value, props.einsatzId, titelResult.value.value, props.faelligAm, props.erstelltVon, null, idResult.value.toString()));
 
     return Result.ok<Erinnerung>(erinnerung);
   }
@@ -474,6 +521,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       props.erledigtBy ?? null,
       props.erledigungsNotiz ?? null,
       props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE,
+      props.assignedToId ?? null,
+      props.assignedBy ?? null,
+      props.assignedAt ?? null,
     );
   }
 
@@ -823,6 +873,44 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
 
     // Domain Event emittieren für ETB-Integration
     this.addDomainEvent(new ErinnerungErledigtEvent(this.id, this._einsatzId, this._erledigtAm, this._erledigtBy, this._titel.value, trimmedNotiz, this.id.toString()));
+
+    return Result.ok<void>(undefined);
+  }
+
+  /**
+   * Story 3.3: Weist die Erinnerung einem User zu.
+   *
+   * **Business Rules (Story 3.3/3.4):**
+   * - Nur Erinnerungen mit Status GEPLANT oder AUSGELOEST können zugewiesen werden
+   * - Bei anderen Status (ACKNOWLEDGED, ERLEDIGT, etc.) wird ein Fehler zurückgegeben
+   * - Überschreibt vorherige Zuweisung (Re-Assignment erlaubt)
+   * - Speichert assignedToId, assignedBy und assignedAt für Audit-Trail
+   *
+   * @param assignedToId - User dem die Erinnerung zugewiesen wird
+   * @param assignedById - User der die Zuweisung vornimmt
+   * @returns Result<void> - Success oder Failure mit Error Code
+   *
+   * @example
+   * ```typescript
+   * const assignResult = erinnerung.assignToUser(targetUserId, currentUserId);
+   * if (assignResult.isFailure) {
+   *   // Nur GEPLANT oder AUSGELOEST können zugewiesen werden
+   *   console.log(assignResult.error); // "ERINNERUNG_NOT_ASSIGNABLE"
+   * }
+   * ```
+   */
+  public assignToUser(assignedToId: UserId, assignedById: UserId): Result<void> {
+    // Invariante: Nur GEPLANT oder AUSGELOEST Erinnerungen können zugewiesen werden
+    if (!this._status.isGeplant() && !this._status.isAusgeloest()) {
+      return Result.fail<void>('ERINNERUNG_NOT_ASSIGNABLE');
+    }
+
+    this._assignedToId = assignedToId;
+    this._assignedBy = assignedById;
+    this._assignedAt = new Date();
+
+    // Domain Event emittieren für ETB-Integration und WebSocket
+    this.addDomainEvent(new ErinnerungAssignedEvent(this.id, this._einsatzId, assignedToId, assignedById, this._titel.value, this._assignedAt, this.id.toString()));
 
     return Result.ok<void>(undefined);
   }

@@ -116,9 +116,9 @@ export class UpdateErinnerungCommand {
     // ════════════════════════════════════════════════════════════════════════
     // Validiere FaelligAm (falls gesetzt)
     // ════════════════════════════════════════════════════════════════════════
-    if (hasFaelligAm) {
+    if (hasFaelligAm && props.faelligAm) {
       const now = new Date();
-      if (props.faelligAm! <= now) {
+      if (props.faelligAm <= now) {
         return Result.fail<UpdateErinnerungCommand>(ERINNERUNG_ERROR_CODES.FAELLIG_AM_IN_PAST);
       }
     }

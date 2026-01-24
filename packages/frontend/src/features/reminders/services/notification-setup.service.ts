@@ -167,9 +167,10 @@ class NotificationSetupService {
       logger.info('[NotificationSetup] Channel created with High Importance');
     } catch (error) {
       // Channel existiert bereits oder API nicht verfügbar - beides OK
+      // "not found" bedeutet das Command existiert nicht auf dieser Plattform (z.B. macOS)
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('already exists') || errorMessage.includes('not allowed')) {
-        logger.debug('[NotificationSetup] Channel already exists or API not available');
+      if (errorMessage.includes('already exists') || errorMessage.includes('not allowed') || errorMessage.includes('not found')) {
+        logger.debug('[NotificationSetup] Channel API not available on this platform (expected on macOS)');
         return;
       }
       logger.error('[NotificationSetup] Failed to create channel:', error);
@@ -202,8 +203,9 @@ class NotificationSetupService {
       logger.info('[NotificationSetup] Action types registered');
     } catch (error) {
       // API nicht auf allen Plattformen verfügbar (z.B. macOS)
+      // "not found" bedeutet das Command existiert nicht auf dieser Plattform
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('not allowed') || errorMessage.includes('not supported')) {
+      if (errorMessage.includes('not allowed') || errorMessage.includes('not supported') || errorMessage.includes('not found')) {
         logger.debug('[NotificationSetup] Action types API not available on this platform');
         return;
       }
@@ -261,8 +263,9 @@ class NotificationSetupService {
       logger.info('[NotificationSetup] Action handler registered');
     } catch (error) {
       // API nicht auf allen Plattformen verfügbar (z.B. macOS)
+      // "not found" bedeutet das Command existiert nicht auf dieser Plattform
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('not allowed') || errorMessage.includes('not supported')) {
+      if (errorMessage.includes('not allowed') || errorMessage.includes('not supported') || errorMessage.includes('not found')) {
         logger.debug('[NotificationSetup] Action handler API not available on this platform');
         return;
       }

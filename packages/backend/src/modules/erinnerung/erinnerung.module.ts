@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-// biome-ignore lint/style/useImportType: JwtModule needed for NestJS Module imports at runtime (AC1)
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaModule } from '@infrastructure/database/prisma.module';

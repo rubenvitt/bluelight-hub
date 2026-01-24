@@ -159,6 +159,8 @@ model User {
   acknowledgedErinnerungen Erinnerung[] @relation("ErinnerungAcknowledger") // Story 1.6: Acknowledge Audit Trail
   snoozedErinnerungen      Erinnerung[] @relation("ErinnerungSnoozer") // Story 2.1: Snooze Audit Trail
   erledigteErinnerungen    Erinnerung[] @relation("ErinnerungErledigter") // Story 2.5: Erledigt Audit Trail
+  assignedErinnerungen     Erinnerung[] @relation("ErinnerungAssignedTo") // Story 3.3/3.4: Zugewiesene Erinnerungen
+  assignedByErinnerungen   Erinnerung[] @relation("ErinnerungAssigner") // Story 3.3/3.4: Von mir zugewiesene Erinnerungen
 
   // Indexes
   @@index([username], map: "idx_user_username")
@@ -1326,6 +1328,12 @@ model Erinnerung {
   erledigungsNotiz String?          @map("erledigungs_notiz") @db.VarChar(500) // Story 2.5: Optionale Notiz
   requiresNote     Boolean          @default(false) @map("requires_note") // Story 2.6: Pflicht-Notiz bei Erledigung
   // NOTE: Kein Index auf requiresNote - bei Bedarf hinzufügen wenn Filter-Queries benötigt werden (YAGNI)
+
+  // Zuweisung (Story 3.3/3.4) - Optionale Zuweisung an einen User
+  assignedToId   String?          @map("assigned_to_id") @db.VarChar(100)
+  assignedBy     String?          @map("assigned_by") @db.VarChar(100)
+  assignedAt     DateTime?        @map("assigned_at")
+
   erstelltVon    String           @map("erstellt_von") @db.VarChar(100)
 
   // Audit Trail
@@ -1344,6 +1352,8 @@ model Erinnerung {
   acknowledger User?   @relation("ErinnerungAcknowledger", fields: [acknowledgedBy], references: [id], onDelete: Restrict) // Story 1.6
   snoozer      User?   @relation("ErinnerungSnoozer", fields: [snoozedBy], references: [id], onDelete: Restrict) // Story 2.1
   erledigter   User?   @relation("ErinnerungErledigter", fields: [erledigtBy], references: [id], onDelete: Restrict) // Story 2.5
+  assignedTo   User?   @relation("ErinnerungAssignedTo", fields: [assignedToId], references: [id], onDelete: Restrict) // Story 3.3/3.4: Zugewiesene Person
+  assigner     User?   @relation("ErinnerungAssigner", fields: [assignedBy], references: [id], onDelete: Restrict) // Story 3.3/3.4: Wer hat zugewiesen
 
   // Indexes
   @@index([einsatzId])

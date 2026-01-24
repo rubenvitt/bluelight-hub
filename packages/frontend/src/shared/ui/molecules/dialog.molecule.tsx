@@ -2,7 +2,7 @@ import { cn } from '@/shared/ui/cn';
 import { CloseButton } from '../atoms/close-button.atom';
 import { Button } from '../atoms/button.atom';
 import { InlineSpinner } from '../atoms/spinner.atom';
-import { Dialog as HeadlessDialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
+import { Dialog as HeadlessDialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import * as React from 'react';
 import { PiCheckCircle, PiInfo, PiWarning, PiXCircle } from 'react-icons/pi';
 
@@ -114,30 +114,26 @@ export const Dialog = ({ isOpen, onClose, children, className, size = 'md', clos
   }, [isOpen, closeOnEscape, onClose]);
 
   return (
-    <Transition appear show={isOpen} as={React.Fragment}>
-      {/* __demoMode verhindert dass Headless UI ESC selbst behandelt */}
-      <HeadlessDialog as="div" className="relative z-50" onClose={handleBackdropClose} initialFocus={initialFocus} __demoMode>
-        <TransitionChild as={React.Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
-          <div className="fixed inset-0 bg-black/25 backdrop-blur-sm" />
-        </TransitionChild>
+    // __demoMode verhindert dass Headless UI ESC selbst behandelt
+    <HeadlessDialog open={isOpen} as="div" className="relative z-50" onClose={handleBackdropClose} initialFocus={initialFocus} __demoMode>
+      <DialogBackdrop transition className="fixed inset-0 bg-black/25 backdrop-blur-sm duration-300 ease-out data-[closed]:opacity-0" />
 
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <TransitionChild
-              as={React.Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <DialogPanel className={cn('w-full transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all dark:bg-gray-800', sizeClasses[size], className)}>{children}</DialogPanel>
-            </TransitionChild>
-          </div>
+      <div className="fixed inset-0 overflow-y-auto">
+        <div className="flex min-h-full items-center justify-center p-4">
+          <DialogPanel
+            transition
+            className={cn(
+              'w-full transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-800',
+              'duration-300 ease-out data-[closed]:scale-95 data-[closed]:opacity-0',
+              sizeClasses[size],
+              className,
+            )}
+          >
+            {children}
+          </DialogPanel>
         </div>
-      </HeadlessDialog>
-    </Transition>
+      </div>
+    </HeadlessDialog>
   );
 };
 
@@ -359,52 +355,39 @@ Dialog.SlideIn = ({ isOpen, onClose, title, description, children, size = 'lg', 
     full: 'max-w-full',
   };
 
-  const slideFrom = position === 'right' ? 'translate-x-full' : '-translate-x-full';
   const positionClasses = position === 'right' ? 'right-0' : 'left-0';
+  // Fuer v2 API: data-[closed] Klassen fuer die Slide-Animation
+  const slideClosedClass = position === 'right' ? 'data-[closed]:translate-x-full' : 'data-[closed]:-translate-x-full';
 
   return (
-    <Transition show={isOpen} as={React.Fragment}>
-      <HeadlessDialog as="div" className="relative z-50" onClose={closeOnBackdropClick ? onClose : () => {}}>
-        {/* Backdrop */}
-        <TransitionChild as={React.Fragment} enter="ease-in-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in-out duration-300" leaveFrom="opacity-100" leaveTo="opacity-0">
-          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" />
-        </TransitionChild>
+    <HeadlessDialog open={isOpen} as="div" className="relative z-50" onClose={closeOnBackdropClick ? onClose : () => {}}>
+      {/* Backdrop */}
+      <DialogBackdrop transition className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm duration-300 ease-in-out data-[closed]:opacity-0" />
 
-        {/* Panel */}
-        <div className="fixed inset-0 overflow-hidden">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className={cn('pointer-events-none fixed inset-y-0 flex', positionClasses, sizeClasses[size])}>
-              <TransitionChild
-                as={React.Fragment}
-                enter="transform transition ease-in-out duration-300"
-                enterFrom={slideFrom}
-                enterTo="translate-x-0"
-                leave="transform transition ease-in-out duration-300"
-                leaveFrom="translate-x-0"
-                leaveTo={slideFrom}
-              >
-                <DialogPanel className={cn('pointer-events-auto relative w-screen', sizeClasses[size], className)}>
-                  <div className="flex h-full flex-col bg-white shadow-2xl dark:bg-gray-900">
-                    {/* Header */}
-                    <div className="border-gray-200 border-b px-6 py-4 dark:border-gray-700">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <DialogTitle className="font-semibold text-gray-900 text-xl leading-6 dark:text-white">{title}</DialogTitle>
-                          {description && <p className="mt-1 text-gray-500 text-sm dark:text-gray-400">{description}</p>}
-                        </div>
-                        {showCloseButton && <CloseButton onClick={onClose} size="lg" appearance="minimal" className="ml-4" />}
-                      </div>
+      {/* Panel */}
+      <div className="fixed inset-0 overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className={cn('pointer-events-none fixed inset-y-0 flex', positionClasses, sizeClasses[size])}>
+            <DialogPanel transition className={cn('pointer-events-auto relative w-screen transform', 'duration-300 ease-in-out', slideClosedClass, sizeClasses[size], className)}>
+              <div className="flex h-full flex-col bg-white shadow-2xl dark:bg-gray-900">
+                {/* Header */}
+                <div className="border-gray-200 border-b px-6 py-4 dark:border-gray-700">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <DialogTitle className="font-semibold text-gray-900 text-xl leading-6 dark:text-white">{title}</DialogTitle>
+                      {description && <p className="mt-1 text-gray-500 text-sm dark:text-gray-400">{description}</p>}
                     </div>
-
-                    {/* Content */}
-                    <div className="relative flex-1 overflow-y-auto px-6 py-6">{children}</div>
+                    {showCloseButton && <CloseButton onClick={onClose} size="lg" appearance="minimal" className="ml-4" />}
                   </div>
-                </DialogPanel>
-              </TransitionChild>
-            </div>
+                </div>
+
+                {/* Content */}
+                <div className="relative flex-1 overflow-y-auto px-6 py-6">{children}</div>
+              </div>
+            </DialogPanel>
           </div>
         </div>
-      </HeadlessDialog>
-    </Transition>
+      </div>
+    </HeadlessDialog>
   );
 };

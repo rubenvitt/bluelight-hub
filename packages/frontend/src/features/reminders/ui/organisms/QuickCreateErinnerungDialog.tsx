@@ -251,8 +251,11 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                         {/* Story 1.2 AC2: TimeInput erscheint bei Benutzerdefiniert */}
                         {timeModeField.state.value === 'custom' && (
                           <div className="mt-4">
-                            <label className="mb-1.5 block font-medium text-gray-700 text-sm dark:text-gray-300">Uhrzeit eingeben</label>
+                            <label htmlFor="custom-time-input" className="mb-1.5 block font-medium text-gray-700 text-sm dark:text-gray-300">
+                              Uhrzeit eingeben
+                            </label>
                             <TimeInput
+                              id="custom-time-input"
                               value={customTimeField.state.value ?? getDefaultCustomTime()}
                               onChange={(newTime) => customTimeField.handleChange(newTime)}
                               disabled={isPending}
@@ -351,12 +354,12 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                       'h-5 w-5 rounded border-2 text-amber-500',
                       'focus:ring-2 focus:ring-amber-500 focus:ring-offset-2',
                       'disabled:cursor-not-allowed disabled:opacity-50',
-                      'dark:bg-gray-800 dark:border-gray-600 dark:focus:ring-offset-gray-900',
+                      'dark:border-gray-600 dark:bg-gray-800 dark:focus:ring-offset-gray-900',
                     )}
                   />
                 </div>
                 <div className="flex-1">
-                  <label htmlFor="requiresNote" className="flex items-center gap-2 font-medium text-gray-700 text-sm dark:text-gray-300 cursor-pointer">
+                  <label htmlFor="requiresNote" className="flex cursor-pointer items-center gap-2 font-medium text-gray-700 text-sm dark:text-gray-300">
                     <PiNotepad className="h-4 w-4 text-amber-500" />
                     Pflicht-Notiz bei Erledigung
                   </label>

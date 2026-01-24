@@ -16,6 +16,7 @@ export {
   useAcknowledgeErinnerung,
   useSnoozeErinnerung,
   useMarkErledigtErinnerung,
+  useAssignErinnerung,
   type CreateErinnerungVariables,
   type UpdateErinnerungVariables,
   type DeleteErinnerungVariables,
@@ -23,5 +24,6 @@ export {
   type AcknowledgeErinnerungVariables,
   type SnoozeErinnerungVariables,
   type MarkErledigtErinnerungVariables,
+  type AssignErinnerungVariables,
   type SnoozeMinutes,
 } from './mutations';

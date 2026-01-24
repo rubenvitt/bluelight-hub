@@ -107,7 +107,7 @@ export function EinsatzBeitrittDialog({ einsatzId, isOpen, onClose }: EinsatzBei
                         placeholder="z.B. Florian Musterstadt 11/1"
                         maxLength={100}
                         disabled={isTeilnahmeLoading}
-                        className="block w-full rounded-lg border border-gray-300 bg-white py-2.5 pr-4 pl-10 text-gray-900 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-blue-400 dark:focus:ring-blue-400/20"
+                        className="block w-full rounded-lg border border-gray-300 bg-white py-2.5 pr-4 pl-10 text-gray-900 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400/20 dark:placeholder:text-gray-500"
                       />
                     </div>
                     {field.state.meta.errors?.[0]?.message && (

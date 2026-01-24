@@ -16,7 +16,7 @@ import type { PropsWithChildren } from 'react';
 import { useCreateErinnerung, useTriggerErinnerung, useAcknowledgeErinnerung, useSnoozeErinnerung } from '../mutations';
 import { offlineDetectionService } from '../../services/offline-detection.service';
 import { syncService } from '../../services/sync.service';
-import { offlineStore, resetOfflineStore } from '../../stores/offline.store';
+import { resetOfflineStore } from '../../stores/offline.store';
 
 // Mock the API
 vi.mock('@/shared', () => ({
@@ -183,7 +183,7 @@ describe('Offline Mutations', () => {
 
     it('should NOT call API when offline', async () => {
       // Given (Arrange)
-      const mockApi = vi.fn();
+      const _mockApi = vi.fn();
       vi.mocked(offlineDetectionService.isOffline).mockReturnValue(true);
       vi.mocked(syncService.generateTempId).mockReturnValue('temp_no-api');
 
@@ -519,7 +519,7 @@ describe('Offline Mutations', () => {
 
       expect(result.current.data?.status).toBe('SNOOZED');
       // faelligAm should be updated (snoozeMinutes in the future)
-      const newFaelligAm = new Date(result.current.data!.faelligAm);
+      const newFaelligAm = new Date(result.current.data?.faelligAm);
       const originalDate = new Date(originalFaelligAm);
       expect(newFaelligAm.getTime()).toBeGreaterThan(originalDate.getTime());
     });

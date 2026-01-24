@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useOfflineStatus } from '../use-offline-status';
 import { offlineDetectionService } from '../../services/offline-detection.service';
-import { offlineStore, resetOfflineStore, queueSyncAction } from '../../stores/offline.store';
+import { resetOfflineStore, queueSyncAction } from '../../stores/offline.store';
 
 // Mock the offline detection service
 vi.mock('../../services/offline-detection.service', () => {
@@ -91,7 +91,7 @@ describe('useOfflineStatus', () => {
       unmount();
 
       // Then (Assert) - subscribe returns unsubscribe function which should be called
-      const unsubscribeFn = vi.mocked(offlineDetectionService.subscribe).mock.results[0].value;
+      const _unsubscribeFn = vi.mocked(offlineDetectionService.subscribe).mock.results[0].value;
       // The unsubscribe function is called internally, we verify it was set up correctly
       expect(offlineDetectionService.subscribe).toHaveBeenCalled();
     });

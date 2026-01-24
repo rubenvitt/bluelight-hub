@@ -42,6 +42,10 @@ export const ERINNERUNG_ERROR_CODES = {
   GELOESCHT_VON_REQUIRED: 'ERINNERUNG_GELOESCHT_VON_REQUIRED', // Story 1.4
   INVALID_ASSIGNED_TO: 'ERINNERUNG_INVALID_ASSIGNED_TO', // Story 3.3: Ungültiger Teilnehmer
   UNAUTHORIZED_ACCESS: 'ERINNERUNG_UNAUTHORIZED_ACCESS', // Story 3.3: Ersteller ist kein Einsatz-Teilnehmer
+  ASSIGNED_TO_INVALID: 'ERINNERUNG_ASSIGNED_TO_INVALID', // Story 3.3: assignedToId ist keine gültige CUID2
+  ASSIGNED_TO_NOT_TEILNEHMER: 'ERINNERUNG_ASSIGNED_TO_NOT_TEILNEHMER', // Story 3.3: assignedToId ist kein aktiver Teilnehmer
+  ASSIGNMENT_FAILED: 'ERINNERUNG_ASSIGNMENT_FAILED', // Story 3.3: Zuweisung fehlgeschlagen
+  NOT_ASSIGNABLE: 'ERINNERUNG_NOT_ASSIGNABLE', // Story 3.4: Erinnerung kann nicht zugewiesen werden (falscher Status)
 
   // Query Errors
   QUERY_EINSATZ_ID_REQUIRED: 'ERINNERUNG_QUERY_EINSATZ_ID_REQUIRED',

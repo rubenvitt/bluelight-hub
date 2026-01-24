@@ -521,22 +521,41 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
   // Story 3.4: Zuweisungs-Dialog (wird immer gerendert, sichtbar nur wenn isAssignDialogOpen)
   const assignDialog = <ErinnerungAssignDialog isOpen={isAssignDialogOpen} onClose={() => setIsAssignDialogOpen(false)} erinnerung={erinnerung} einsatzId={einsatzId} />;
 
+  /**
+   * Click-Handler fuer den Card-Container.
+   * Triggert Acknowledge nur wenn direkt auf die Card geklickt wird,
+   * nicht wenn auf innere interaktive Elemente (Buttons) geklickt wird.
+   */
+  const handleCardClick = useCallback(
+    (e: React.MouseEvent) => {
+      // Ignoriere Clicks auf innere interaktive Elemente (Buttons, Links, etc.)
+      const target = e.target as HTMLElement;
+      if (target.closest('button, a, [role="button"]')) {
+        return;
+      }
+      handleAcknowledge();
+    },
+    [handleAcknowledge],
+  );
+
   // Render: Interaktiver Container fuer acknowledgeable Cards, sonst normaler div
-  // Biome a11y: Semantisches <button> Element statt div mit role="button"
+  // Fix: Kein <button> als Container, da innere Buttons enthalten sind (HTML Nesting Violation)
+  // Stattdessen: <div> mit tabIndex fuer Keyboard-Zugaenglichkeit
   if (isAcknowledgeable) {
     return (
       <>
-        <button
-          type="button"
+        {/* biome-ignore lint/a11y/useSemanticElements: div mit role="group" ist hier korrekt, da Container interaktive Elemente enthaelt */}
+        <div
+          role="group"
           onKeyDown={handleKeyDown}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          onClick={handleAcknowledge}
+          onClick={handleCardClick}
           aria-label={`Erinnerung "${erinnerung.titel}" - Enter: Bestätigen, Escape: 5 Min Snooze`}
           className={cn(cardBaseClasses, 'w-full cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-green-500')}
         >
           {cardContent}
-        </button>
+        </div>
         {assignDialog}
       </>
     );

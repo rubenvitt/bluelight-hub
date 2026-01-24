@@ -33,8 +33,8 @@ describe('Erinnerung Domain Events', () => {
       const titel = 'Lagebesprechung';
       const faelligAm = new Date('2026-01-20T15:00:00.000Z');
 
-      // When: Creating event
-      const event = new ErinnerungErstelltEvent(erinnerungId, einsatzId, titel, faelligAm, erstelltVon);
+      // When: Creating event (Story 3.3: mit null für assignedToId)
+      const event = new ErinnerungErstelltEvent(erinnerungId, einsatzId, titel, faelligAm, erstelltVon, null);
 
       // Then: Properties correct
       expect(event.erinnerungId).toBe(erinnerungId);
@@ -42,6 +42,7 @@ describe('Erinnerung Domain Events', () => {
       expect(event.titel).toBe(titel);
       expect(event.faelligAm).toBe(faelligAm);
       expect(event.erstelltVon).toBe(erstelltVon);
+      expect(event.assignedToId).toBeNull();
       expect(event.eventId.length).toBeGreaterThanOrEqual(20);
       expect(event.eventId.length).toBeLessThanOrEqual(30);
       expect(event.eventId).toMatch(/^[a-z][a-z0-9]+$/);
@@ -61,17 +62,17 @@ describe('Erinnerung Domain Events', () => {
       const erinnerungId = ErinnerungId.create().value!;
       const einsatzId = EinsatzId.create().value!;
       const userId = UserId.create().value!;
-      const event1 = new ErinnerungErstelltEvent(erinnerungId, einsatzId, 'Test', new Date(), userId);
-      const event2 = new ErinnerungErstelltEvent(erinnerungId, einsatzId, 'Test', new Date(), userId);
+      const event1 = new ErinnerungErstelltEvent(erinnerungId, einsatzId, 'Test', new Date(), userId, null);
+      const event2 = new ErinnerungErstelltEvent(erinnerungId, einsatzId, 'Test', new Date(), userId, null);
 
       // Then: Different IDs (uniqueness)
       expect(event1.eventId).not.toBe(event2.eventId);
     });
 
     it('should support optional aggregateId', () => {
-      // Given: aggregateId provided
+      // Given: aggregateId provided (Story 3.3: assignedToId vor aggregateId)
       const aggregateId = 'aggregate-123';
-      const event = new ErinnerungErstelltEvent(ErinnerungId.create().value!, EinsatzId.create().value!, 'Test', new Date(), UserId.create().value!, aggregateId);
+      const event = new ErinnerungErstelltEvent(ErinnerungId.create().value!, EinsatzId.create().value!, 'Test', new Date(), UserId.create().value!, null, aggregateId);
 
       // Then: aggregateId is stored
       expect(event.aggregateId).toBe(aggregateId);

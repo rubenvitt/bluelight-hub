@@ -27,59 +27,24 @@ import { useAktiveEinsatzTeilnehmer } from '@/features/einsatz/api';
 import { sanitizeName } from '@/shared/utils/sanitize';
 import { useErinnerungenByEinsatz } from '../../api';
 import { useAlarmTrigger, useErinnerungWebSocket, useOfflineStatus, useReconnectSync, useTrayBadge, useTrayClickNavigation } from '../../hooks';
-import { addAnimatedId, openQuickCreateDialog, resetTeamFilterStore, setAvailableTeilnehmer, setTeamFilter, useAvailableTeilnehmer, useTeamFilter, type TeamFilterType } from '../../stores';
-import { getUrgencyLevel } from '../../utils/countdown-utils';
-import { TeamFilterDropdown } from '../atoms/TeamFilterDropdown';
+import {
+  addAnimatedId,
+  openQuickCreateDialog,
+  resetTeamFilterStore,
+  setAvailableTeilnehmer,
+  setTeamFilter,
+  setTeamSort,
+  useAvailableTeilnehmer,
+  useTeamFilter,
+  useTeamSort,
+  type TeamFilterType,
+  type TeamSortType,
+} from '../../stores';
+import { compareErinnerungen } from '../../utils/sorting-utils';
+import { TeamFilterDropdown, TeamSortDropdown } from '../atoms';
 import { FloatingPillPortal } from '../organisms/FloatingPillPortal';
 import { ErinnerungCard } from './ErinnerungCard';
 import { OfflineBanner } from './OfflineBanner';
-
-/**
- * Story 1.7 AC5: Berechnet Sortierungs-Priorität basierend auf Status und Urgency
- *
- * Priorität (niedrigere Zahl = höhere Priorität):
- * - AUSGELOEST: 0 (höchste Priorität - sofortige Aufmerksamkeit)
- * - GEPLANT critical: 1
- * - GEPLANT urgent: 2
- * - GEPLANT warning: 3
- * - GEPLANT normal: 4
- * - ACKNOWLEDGED: 5
- * - SNOOZED: 6
- * - ERLEDIGT: 7 (niedrigste Priorität)
- */
-function getSortPriority(erinnerung: ErinnerungResponseDto): number {
-  const status = erinnerung.status;
-
-  // AUSGELOEST immer oben
-  if (status === 'AUSGELOEST') return 0;
-
-  // GEPLANT mit Urgency-basierter Sortierung
-  if (status === 'GEPLANT') {
-    const now = new Date();
-    const faelligAm = new Date(erinnerung.faelligAm);
-    const remainingMs = faelligAm.getTime() - now.getTime();
-    const urgency = getUrgencyLevel(remainingMs);
-
-    switch (urgency) {
-      case 'critical':
-        return 1;
-      case 'urgent':
-        return 2;
-      case 'warning':
-        return 3;
-      default:
-        return 4;
-    }
-  }
-
-  // Andere Status nach Priorität
-  if (status === 'ACKNOWLEDGED') return 5;
-  if (status === 'SNOOZED') return 6;
-  if (status === 'ERLEDIGT') return 7;
-
-  // Fallback für unbekannte Status
-  return 8;
-}
 
 interface ErinnerungenListProps {
   /** Einsatz-ID fuer die Erinnerungen */
@@ -93,12 +58,25 @@ interface ErinnerungenListProps {
 /**
  * Story 3.6 Issue #5: Helper zur Pruefung ob Erinnerung dem User gehoert.
  *
+ * **Story 3.4 AC2 Fix:** Nach Zuweisung an jemand anderen verschwindet
+ * die Erinnerung aus 'Meine Erinnerungen' des Erstellers.
+ *
  * Eine Erinnerung gehoert dem User wenn:
- * - Er sie erstellt hat (erstelltVon)
- * - Oder sie ihm zugewiesen wurde (assignedToId)
+ * - Sie ihm zugewiesen wurde (assignedToId === userId), ODER
+ * - Niemand zugewiesen ist UND er sie erstellt hat (assignedToId === null && erstelltVon === userId)
  */
 function isMyErinnerung(erinnerung: ErinnerungResponseDto, userId: string): boolean {
-  return erinnerung.erstelltVon === userId || erinnerung.assignedToId === userId;
+  const assignedTo = erinnerung.assignedToId as string | null | undefined;
+  // Wenn mir zugewiesen → meine Erinnerung
+  if (assignedTo === userId) {
+    return true;
+  }
+  // Wenn niemand zugewiesen UND ich Ersteller → meine Erinnerung
+  if (!assignedTo && erinnerung.erstelltVon === userId) {
+    return true;
+  }
+  // Sonst nicht meine Erinnerung
+  return false;
 }
 
 /**
@@ -146,6 +124,9 @@ function ErinnerungenListInner({ einsatzId, className, compact = false, currentU
   // Story 3.6 Task 3.1: Team-Filter Store Hooks
   const selectedFilter = useTeamFilter();
   const availableTeilnehmer = useAvailableTeilnehmer();
+
+  // Story 3.8: Sort Store Hooks
+  const selectedSort = useTeamSort();
 
   // Story 3.6 Task 3.4: Teilnehmer aus Einsatz laden
   const { data: einsatzTeilnehmer } = useAktiveEinsatzTeilnehmer(einsatzId);
@@ -196,11 +177,13 @@ function ErinnerungenListInner({ einsatzId, className, compact = false, currentU
       // Story 3.6 Task 4.4: Fallback - Teilnehmer aus Erinnerungen extrahieren
       const teilnehmerMap = new Map<string, string>();
       for (const e of erinnerungen) {
-        if (e.erstelltVon && e.erstellerName) {
-          teilnehmerMap.set(e.erstelltVon, sanitizeName(e.erstellerName));
+        // biome-ignore lint/suspicious/noExplicitAny: DTO missing fields
+        if (e.erstelltVon && (e as any).erstellerName) {
+          // biome-ignore lint/suspicious/noExplicitAny: DTO missing fields
+          teilnehmerMap.set(e.erstelltVon, sanitizeName((e as any).erstellerName));
         }
         if (e.assignedToId && e.assignedToName) {
-          teilnehmerMap.set(e.assignedToId, sanitizeName(e.assignedToName));
+          teilnehmerMap.set(e.assignedToId as unknown as string, sanitizeName(e.assignedToName));
         }
       }
       const fallbackList = Array.from(teilnehmerMap, ([id, name]) => ({ id, name }));
@@ -211,6 +194,11 @@ function ErinnerungenListInner({ einsatzId, className, compact = false, currentU
   // Story 3.6 Task 3.1: Filter-Change Handler
   const handleFilterChange = useCallback((filter: TeamFilterType) => {
     setTeamFilter(filter);
+  }, []);
+
+  // Story 3.8: Sort-Change Handler
+  const handleSortChange = useCallback((sort: TeamSortType) => {
+    setTeamSort(sort);
   }, []);
 
   // Story 1.8: Offline-Status und Sync-Handling
@@ -267,21 +255,17 @@ function ErinnerungenListInner({ einsatzId, className, compact = false, currentU
     openQuickCreateDialog(einsatzId);
   };
 
-  // Story 1.7 AC5: Sortiere nach Urgency Level und dann nach Fälligkeit
+  /**
+   * Story 1.7 AC5 / Story 3.8: Sortier-Logik
+   *
+   * Verarbeitet verschiedene Sortier-Modi:
+   * - faelligkeit (Standard): Urgency Priority, dann Faelligkeit aufsteigend
+   * - erstellt: Erstellungsdatum absteigend (neueste oben)
+   * - status: Status-Prioritaet (Acknowledge-Pflicht oben), dann Faelligkeit
+   */
   const sortedErinnerungen = useMemo(() => {
-    return [...(erinnerungen ?? [])].sort((a, b) => {
-      // Primär: Nach Priorität (AUSGELOEST > GEPLANT urgent > ... > ERLEDIGT)
-      const priorityA = getSortPriority(a);
-      const priorityB = getSortPriority(b);
-
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
-      }
-
-      // Sekundär: Innerhalb gleicher Priorität nach Fälligkeit aufsteigend
-      return new Date(a.faelligAm).getTime() - new Date(b.faelligAm).getTime();
-    });
-  }, [erinnerungen]);
+    return [...(erinnerungen ?? [])].sort((a, b) => compareErinnerungen(a, b, selectedSort));
+  }, [erinnerungen, selectedSort]);
 
   /**
    * Story 3.1 AC2: Filter-Logik fuer "Meine" Erinnerungen
@@ -318,7 +302,7 @@ function ErinnerungenListInner({ einsatzId, className, compact = false, currentU
         return base.filter((e) => !e.assignedToId);
       case 'user':
         // AC2: Filter by specific userId
-        return base.filter((e) => e.assignedToId === selectedFilter.userId);
+        return base.filter((e) => (e.assignedToId as string | null | undefined) === selectedFilter.userId);
     }
   }, [teamErinnerungen, selectedFilter, currentUserId]);
 
@@ -395,9 +379,12 @@ function ErinnerungenListInner({ einsatzId, className, compact = false, currentU
             label: `Team (${teamErinnerungen.length})`,
             content: (
               <div className="space-y-3">
-                {/* Story 3.6 Task 3.3: TeamFilterDropdown im Team-Tab Header */}
-                <div className="flex items-center justify-between gap-2">
-                  <TeamFilterDropdown selectedFilter={selectedFilter} onFilterChange={handleFilterChange} teilnehmer={availableTeilnehmer} currentUserId={currentUserId} className="w-44" />
+                {/* Story 3.6 / Story 3.8: Filter & Sort Dropdowns im Team-Tab Header */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <TeamFilterDropdown selectedFilter={selectedFilter} onFilterChange={handleFilterChange} teilnehmer={availableTeilnehmer} currentUserId={currentUserId} className="w-44" />
+                    <TeamSortDropdown selectedSort={selectedSort} onSortChange={handleSortChange} className="w-36" />
+                  </div>
                   {/* Story 3.6 AC2: Anzeige der gefilterten Anzahl */}
                   {selectedFilter.type !== 'all' && (
                     <span className="text-gray-500 text-xs dark:text-gray-400">

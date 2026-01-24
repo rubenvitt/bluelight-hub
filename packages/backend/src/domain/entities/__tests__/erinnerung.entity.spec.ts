@@ -694,16 +694,16 @@ describe('Erinnerung Entity', () => {
         expect(result.error).toBe('ERINNERUNG_NOT_ACKNOWLEDGEABLE');
       });
 
-      it('sollte Acknowledge verweigern wenn Status ESKALIERT ist', () => {
-        // Given
+      it('sollte Acknowledge erlauben wenn Status ESKALIERT ist', () => {
+        // Given: ESKALIERT Status
         const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ESKALIERT());
 
-        // When
+        // When: Acknowledge
         const result = erinnerung.acknowledge(testUserId);
 
-        // Then
-        expect(result.isFailure).toBe(true);
-        expect(result.error).toBe('ERINNERUNG_NOT_ACKNOWLEDGEABLE');
+        // Then: Success & Status ACKNOWLEDGED
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.status.isAcknowledged()).toBe(true);
       });
 
       it('sollte Acknowledge verweigern wenn Status ERLEDIGT ist', () => {

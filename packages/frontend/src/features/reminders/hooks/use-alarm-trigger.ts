@@ -242,19 +242,15 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
       }
 
       // Story 2.8 AC2: Toast und visuelle Verstaerkung bei totalem Audio-Ausfall
+      // WICHTIG: Dieser Block darf NICHT die Funktion beenden (kein return),
+      // da der API-Call danach noch passieren muss!
       if (soundResult.error) {
-        // Story 2.8 CR Fix: Validate erinnerung is still AUSGELOEST before setting flag
-        const currentErinnerung = erinnerungenRef.current.find((e) => e.id === erinnerung.id);
-        if (!currentErinnerung || currentErinnerung.status !== 'AUSGELOEST') {
-          logger.warn(`[AlarmTrigger] Erinnerung ${erinnerung.id} nicht mehr AUSGELOEST, überspringe audioFailed`);
-          return;
-        }
-
-        // AC2: audioFailed Flag setzen fuer visuelle Verstaerkung
+        // Story 2.8 CR Fix: audioFailed Flag nur setzen wenn Erinnerung bereits AUSGELOEST ist.
+        // Bei neuem Trigger (GEPLANT -> AUSGELOEST) wird das Flag nach dem API-Call gesetzt.
+        // Hinweis: Wir setzen das Flag jetzt immer, da der API-Call gleich kommt.
         setAudioFailed(erinnerung.id, true);
 
-        // AC2 (optional): FloatingPill sofort aktivieren (nicht erst bei urgent)
-        // Da kein Audio abgespielt werden kann, muss visuelle Aufmerksamkeit maximiert werden
+        // FloatingPill sofort aktivieren da kein Audio
         logger.info(`[AlarmTrigger] Story 2.8: Audio-Ausfall - Aktiviere FloatingPill sofort fuer: ${erinnerung.titel}`);
         showFloatingPill(erinnerung.id, {
           titel: erinnerung.titel,
@@ -309,6 +305,12 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         logger.error(`[AlarmTrigger] API trigger failed: ${erinnerung.id}`, error);
+
+        // Bug Fix: Bei API-Fehler die Erinnerung aus triggeredIds entfernen,
+        // damit sie beim naechsten Check erneut getriggert werden kann.
+        // Ohne diesen Reset bleibt die Erinnerung "stuck" im GEPLANT Status.
+        timerService.resetTriggered(erinnerung.id);
+
         callbacksRef.current.onTriggerError?.(erinnerung, err);
       }
     },
@@ -317,15 +319,21 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
 
   // Timer starten/stoppen basierend auf enabled und erinnerungen
   useEffect(() => {
+    console.info(`[useAlarmTrigger] Effect: enabled=${enabled}, erinnerungen.length=${erinnerungen.length}, einsatzId=${einsatzId}`);
+
     if (!enabled || !erinnerungen.length) {
+      console.warn(`[useAlarmTrigger] Timer NOT started: enabled=${enabled}, count=${erinnerungen.length}`);
       timerService.stop();
       // Story 2.3: Alle Intensification Timer stoppen
       intensificationService.stopAllTimers();
       return;
     }
 
+    console.info(`[useAlarmTrigger] Starting timer with ${erinnerungen.length} erinnerungen`);
+
     // C5 Fix: Timer starten mit Trigger-Callback und einsatzId
     timerService.start(erinnerungen, einsatzId, (erinnerung) => {
+      console.info(`[useAlarmTrigger] Timer callback for: ${erinnerung.titel}`);
       // Async in Callback starten (nicht blockierend)
       executeTriggerSequence(erinnerung);
     });
@@ -353,12 +361,15 @@ export function useAlarmTrigger({ erinnerungen, einsatzId, enabled = true, onTri
   // Story 2.3 AC5 + Story 2.4 AC5: Timer und FloatingPill stoppen wenn Status nicht mehr AUSGELOEST
   // Wenn eine Erinnerung per WebSocket den Status aendert (z.B. AUSGELOEST → ERLEDIGT),
   // muessen Intensification Timer und FloatingPill gestoppt werden.
+  // UPDATE: ESKALIERT Status soll Intensivierung/Pill NICHT stoppen (damit Acknowledge möglich bleibt)
   useEffect(() => {
     for (const erinnerung of erinnerungen) {
-      // Pruefe ob die Erinnerung NICHT mehr AUSGELOEST ist,
+      // Pruefe ob die Erinnerung NICHT mehr AUSGELOEST oder ESKALIERT ist,
       // aber noch einen aktiven Intensification Timer hat
-      if (erinnerung.status !== 'AUSGELOEST' && intensificationService.hasActiveTimer(erinnerung.id)) {
-        logger.info(`[AlarmTrigger] AC5: Status nicht mehr AUSGELOEST, stoppe Timer fuer: ${erinnerung.id}`);
+      const isActiveAlarm = erinnerung.status === 'AUSGELOEST' || erinnerung.status === 'ESKALIERT';
+
+      if (!isActiveAlarm && intensificationService.hasActiveTimer(erinnerung.id)) {
+        logger.info(`[AlarmTrigger] AC5: Status nicht mehr AUSGELOEST/ESKALIERT, stoppe Timer fuer: ${erinnerung.id}`);
         intensificationService.stopTimer(erinnerung.id);
 
         // Story 2.4 AC5: FloatingPill ebenfalls entfernen

@@ -745,8 +745,8 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
    * ```
    */
   public acknowledge(acknowledgedBy: UserId): Result<void> {
-    // Business Rule: Nur AUSGELOEST Status kann acknowledged werden (AC1)
-    if (!this._status.isAusgeloest()) {
+    // Business Rule: Nur AUSGELOEST oder ESKALIERT Status kann acknowledged werden
+    if (!this._status.isAusgeloest() && !this._status.isEskaliert()) {
       return Result.fail<void>('ERINNERUNG_NOT_ACKNOWLEDGEABLE');
     }
 

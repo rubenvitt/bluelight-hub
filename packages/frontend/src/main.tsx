@@ -12,6 +12,7 @@ import { cleanupExpiredTiles } from '@/shared/lib/storage/offline-cleanup';
 import { QueryProvider } from '@/provider/query-client.provider';
 import { logger } from '@/shared/lib/logger';
 import { initializeNotificationSetup, requestNotificationPermission } from '@/features/reminders/services';
+import { initSeenAssignmentsStore } from '@/features/reminders/stores';
 
 // Initialize offline tile cleanup on app startup
 cleanupExpiredTiles('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').catch((error) => {
@@ -32,6 +33,11 @@ initializeNotificationSetup()
   .catch((error) => {
     logger.error('[App-Startup] Notification Setup fehlgeschlagen', { error });
   });
+
+// Initialize seen assignments store (Story 3.7) - Loads persisted data from Tauri Store
+initSeenAssignmentsStore()
+  .then(() => logger.info('[App-Startup] Seen Assignments Store initialisiert'))
+  .catch((error) => logger.error('[App-Startup] Seen Assignments Store Init fehlgeschlagen', { error }));
 
 const router = createRouter({
   routeTree,

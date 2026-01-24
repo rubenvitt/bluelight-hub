@@ -352,13 +352,15 @@ export const useUpdateErinnerung = () => {
     // Success-Toast wird vom Aufrufer gesteuert (z.B. Dialog mit spezifischer Info)
     onSettled: async (_data, _error, { einsatzId, erinnerungId }) => {
       // Ensure consistency - invalidate Erinnerungen list and detail for this Einsatz
-      await queryClient.invalidateQueries({
-        queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
-      });
-      // Invalidate specific detail query if it exists
-      await queryClient.invalidateQueries({
-        queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+        }),
+        // Invalidate specific detail query if it exists
+        queryClient.invalidateQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
+        }),
+      ]);
     },
     retry: 3,
     retryDelay: calculateRetryDelay,
@@ -470,14 +472,16 @@ export const useDeleteErinnerung = () => {
       toast.error('Fehler', { description: message });
     },
     onSettled: async (_data, error, { einsatzId, erinnerungId }) => {
-      // Ensure consistency - invalidate Erinnerungen list and detail for this Einsatz
-      await queryClient.invalidateQueries({
-        queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
-      });
-      // Remove specific detail query from cache
-      queryClient.removeQueries({
-        queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
-      });
+      // Ensure consistency - invalidate list and remove detail from cache
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+        }),
+        // Remove specific detail query from cache
+        queryClient.removeQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
+        }),
+      ]);
       // H1: Toast erst nach Cache-Update anzeigen (Race Condition vermeiden)
       if (!error) {
         toast.success('Erinnerung gelöscht', {
@@ -636,13 +640,15 @@ export const useTriggerErinnerung = () => {
     },
     onSettled: async (_data, _error, { einsatzId, erinnerungId }) => {
       // Ensure consistency - invalidate Erinnerungen list and detail for this Einsatz
-      await queryClient.invalidateQueries({
-        queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
-      });
-      // Invalidate specific detail query if it exists
-      await queryClient.invalidateQueries({
-        queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+        }),
+        // Invalidate specific detail query if it exists
+        queryClient.invalidateQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
+        }),
+      ]);
     },
     // Kein Retry für Trigger - 409 ist erwartetes Verhalten bei bereits ausgelösten Erinnerungen
     retry: false,
@@ -799,13 +805,14 @@ export const useAcknowledgeErinnerung = () => {
     },
     onSettled: async (_data, error, { einsatzId, erinnerungId }) => {
       // Ensure consistency - invalidate Erinnerungen list and detail for this Einsatz
-      await queryClient.invalidateQueries({
-        queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
-      });
-      // Invalidate specific detail query if it exists
-      await queryClient.invalidateQueries({
-        queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.list(einsatzId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ERINNERUNG_QUERY_KEYS.detail(erinnerungId),
+        }),
+      ]);
 
       // H1 Fix: Success-Toast nach erfolgreichem Acknowledge (nur wenn kein Fehler)
       if (!error) {

@@ -248,6 +248,39 @@ class NotificationService {
     });
   }
 
+  /**
+   * Sendet eine Zuweisungs-Benachrichtigung (Story 3.7 AC1)
+   *
+   * Wird aufgerufen wenn dem aktuellen User eine Erinnerung zugewiesen wird.
+   * Zeigt "Neue Erinnerung von [ErstellerName]" als Titel.
+   * Klick auf Notification fokussiert die App und navigiert zur Erinnerung.
+   *
+   * @param erinnerungTitle - Titel der zugewiesenen Erinnerung
+   * @param assignedByName - Name des Users der die Erinnerung zugewiesen hat
+   * @param erinnerungId - ID der Erinnerung fuer Deep Link
+   * @param einsatzId - ID des Einsatzes fuer Deep Link
+   * @returns Promise mit Erfolgs-Status
+   *
+   * @example
+   * ```typescript
+   * // Bei Assignment via WebSocket
+   * await notificationService.sendAssignmentNotification(
+   *   'Funkgeraet pruefen',
+   *   'Max Mustermann',
+   *   'erinnerung-123',
+   *   'einsatz-456'
+   * );
+   * ```
+   */
+  async sendAssignmentNotification(erinnerungTitle: string, assignedByName: string, erinnerungId?: string, einsatzId?: string): Promise<NotificationResult> {
+    return this.send({
+      title: `Neue Erinnerung von ${assignedByName}`,
+      body: erinnerungTitle,
+      erinnerungId,
+      einsatzId,
+    });
+  }
+
   // ===================
   // Tauri Implementation
   // ===================
@@ -439,4 +472,6 @@ export const requestNotificationPermission = () => notificationService.requestPe
 export const sendNotification = (options: SendNotificationOptions) => notificationService.send(options);
 export const sendErinnerungNotification = (title: string, erinnerungId?: string, einsatzId?: string) => notificationService.sendErinnerungNotification(title, erinnerungId, einsatzId);
 export const sendIntensifiedNotification = (title: string, erinnerungId?: string, einsatzId?: string) => notificationService.sendIntensifiedNotification(title, erinnerungId, einsatzId);
+export const sendAssignmentNotification = (title: string, assignedByName: string, erinnerungId?: string, einsatzId?: string) =>
+  notificationService.sendAssignmentNotification(title, assignedByName, erinnerungId, einsatzId);
 export const isNotificationSupported = () => notificationService.isSupported();

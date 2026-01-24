@@ -48,6 +48,12 @@ vi.mock('@/features/reminders/stores', () => ({
   useAnimationEntry: vi.fn().mockReturnValue(undefined),
 }));
 
+// Mock Seen Assignments Store
+vi.mock('@/features/reminders/stores/seen-assignments.store', () => ({
+  useIsUnseen: vi.fn().mockReturnValue(false),
+  markAsSeen: vi.fn(),
+}));
+
 // Mock Countdown Hook
 vi.mock('@/features/reminders/hooks/use-countdown', () => ({
   useCountdown: () => ({ urgencyLevel: 'normal', remaining: 600000 }),
@@ -499,6 +505,105 @@ describe('ErinnerungCard', () => {
       const card = container.firstChild as HTMLElement;
       expect(card.className).not.toMatch(/animate-highlight/);
       expect(card.className).not.toMatch(/animate-slide-in-right/);
+    });
+  });
+
+  /**
+   * Story 3.7: Zuweisungs-Notification & "Neu" Badge
+   *
+   * AC3: "Neu" Markierung in der Liste wenn mir neu zugewiesen
+   * AC4: "Neu" Markierung entfernen bei Interaktion
+   */
+  describe('Zuweisungs-Notification Badge (Story 3.7 AC3/AC4)', () => {
+    it('should show "NEU" badge when reminder is unseen and assigned to current user', async () => {
+      // Given (Arrange)
+      const { useIsUnseen } = await import('@/features/reminders/stores/seen-assignments.store');
+      vi.mocked(useIsUnseen).mockReturnValue(true);
+
+      const erinnerung: ErinnerungResponseDto = {
+        ...baseErinnerung,
+        assignedToId: 'user-1',
+      };
+
+      // When (Act)
+      render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" currentUserId="user-1" />);
+
+      // Then (Assert)
+      expect(screen.getByText('NEU')).toBeInTheDocument();
+    });
+
+    it('should NOT show "NEU" badge when reminder is already seen', async () => {
+      // Given (Arrange)
+      const { useIsUnseen } = await import('@/features/reminders/stores/seen-assignments.store');
+      vi.mocked(useIsUnseen).mockReturnValue(false);
+
+      const erinnerung: ErinnerungResponseDto = {
+        ...baseErinnerung,
+        assignedToId: 'user-1',
+      };
+
+      // When (Act)
+      render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" currentUserId="user-1" />);
+
+      // Then (Assert)
+      expect(screen.queryByText('NEU')).not.toBeInTheDocument();
+    });
+
+    it('should NOT show "NEU" badge when reminder is assigned to someone else', async () => {
+      // Given (Arrange)
+      const { useIsUnseen } = await import('@/features/reminders/stores/seen-assignments.store');
+      vi.mocked(useIsUnseen).mockReturnValue(true); // Is theoretically unseen but not for me
+
+      const erinnerung: ErinnerungResponseDto = {
+        ...baseErinnerung,
+        assignedToId: 'user-2', // Other user
+      };
+
+      // When (Act)
+      render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" currentUserId="user-1" />);
+
+      // Then (Assert)
+      expect(screen.queryByText('NEU')).not.toBeInTheDocument();
+    });
+
+    it('should call markAsSeen when card is clicked', async () => {
+      // Given (Arrange)
+      const { useIsUnseen, markAsSeen } = await import('@/features/reminders/stores/seen-assignments.store');
+      vi.mocked(useIsUnseen).mockReturnValue(true);
+
+      const erinnerung: ErinnerungResponseDto = {
+        ...baseErinnerung,
+        assignedToId: 'user-1',
+      };
+
+      render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" currentUserId="user-1" />);
+
+      // When (Act) - Click anywhere on the card
+      const cardTitle = screen.getByText('Test Erinnerung'); // Click title to simulate card click
+      cardTitle.click();
+
+      // Then (Assert)
+      expect(markAsSeen).toHaveBeenCalledWith(erinnerung.id);
+    });
+
+    it('should have correct accessibility attributes for NEU badge', async () => {
+      // Given (Arrange)
+      const { useIsUnseen } = await import('@/features/reminders/stores/seen-assignments.store');
+      vi.mocked(useIsUnseen).mockReturnValue(true);
+
+      const erinnerung: ErinnerungResponseDto = {
+        ...baseErinnerung,
+        assignedToId: 'user-1',
+      };
+
+      // When (Act)
+      render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" currentUserId="user-1" />);
+
+      // Then (Assert)
+      const badge = screen.getByText('NEU');
+      expect(badge).toHaveAttribute('role', 'status');
+      expect(badge).toHaveAttribute('aria-label', 'Neue Zuweisung');
+      expect(badge).toHaveAttribute('title', 'Neu zugewiesen');
     });
   });
 });

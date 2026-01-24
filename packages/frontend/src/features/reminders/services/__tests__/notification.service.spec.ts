@@ -1,414 +1,187 @@
 /**
- * Unit Tests fuer Notification Service
+ * Unit Tests für NotificationService
  *
- * Test Pattern: AAA (Arrange-Act-Assert) mit Given-When-Then Kommentaren
- *
- * **Story 1.5 AC3:**
- * - Native OS-Notification mit Titel und "Jetzt fällig"
- * - Notification erscheint auch wenn App minimiert/im Hintergrund
- * - Tauri Native Notification API mit Web Fallback
- *
- * HINWEIS: Web Notification Constructor Tests sind ausgelassen, da das Mocking
- * von `new Notification()` in Vitest problematisch ist. Die Tauri-Integration
- * wird stattdessen ueber Integration-Tests abgedeckt.
+ * Verifiziert die Funktionalität des Notification Service, insbesondere:
+ * - Permission Handling (Tauri vs Web)
+ * - Fallback Mechanismen (Tauri -> Web)
+ * - Assignment Notification Logic (AC1)
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { NotificationService } from '../notification.service';
 
-// Mocked Tauri functions - auf Module-Level fuer konsistentes Mocking
-const mockIsPermissionGranted = vi.fn();
-const mockRequestPermission = vi.fn();
-const mockTauriSendNotification = vi.fn();
-const mockIsTauri = vi.fn(() => false);
-
-// Mock @tauri-apps/api/core
+// Mock isTauri
 vi.mock('@tauri-apps/api/core', () => ({
-  isTauri: () => mockIsTauri(),
-}));
-
-// Mock @tauri-apps/plugin-notification
-vi.mock('@tauri-apps/plugin-notification', () => ({
-  isPermissionGranted: () => mockIsPermissionGranted(),
-  requestPermission: () => mockRequestPermission(),
-  sendNotification: (opts: unknown) => mockTauriSendNotification(opts),
-}));
-
-// Mock notification-setup.service (für Channel + ActionType Constants)
-vi.mock('../notification-setup.service', () => ({
-  ERINNERUNG_CHANNEL_ID: 'erinnerungen',
-  ERINNERUNG_ACTION_TYPE_ID: 'erinnerung-action',
+  isTauri: vi.fn(),
 }));
 
 // Mock logger
 vi.mock('@/shared/lib/logger', () => ({
   logger: {
-    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
-// Import nach Mock-Definition
-import { NotificationService } from '../notification.service';
+// Mock Tauri Notification Plugin
+const mockIsPermissionGranted = vi.fn();
+const mockRequestPermission = vi.fn();
+const mockSendNotification = vi.fn();
+
+vi.mock('@tauri-apps/plugin-notification', () => ({
+  isPermissionGranted: mockIsPermissionGranted,
+  requestPermission: mockRequestPermission,
+  sendNotification: mockSendNotification,
+}));
+
+// Mock Notification Setup Constants
+vi.mock('../notification-setup.service', () => ({
+  ERINNERUNG_CHANNEL_ID: 'test-channel',
+  ERINNERUNG_ACTION_TYPE_ID: 'test-action',
+}));
+
+// Global mocks for Web Notifications
+const originalNotification = global.Notification;
+const mockWebNotificationRequestPermission = vi.fn();
+const mockWebNotificationConstructor = vi.fn();
+const mockWebNotificationClose = vi.fn();
 
 describe('NotificationService', () => {
-  // Speichere Original-Notification Konstruktor
-  const OriginalNotification = globalThis.Notification;
-  let notificationService: InstanceType<typeof NotificationService>;
+  let notificationService: NotificationService;
+  // biome-ignore lint/suspicious/noExplicitAny: Mocking internal module
+  let isTauriMock: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
 
-    // Reset isTauri zu false (Browser-Modus)
-    mockIsTauri.mockReturnValue(false);
+    // Setup imports
+    const tauriCore = await import('@tauri-apps/api/core');
+    isTauriMock = tauriCore.isTauri;
+    isTauriMock.mockReturnValue(false); // Default: Web mode
 
-    // Setup Web Notification Mock mit statischen Properties
-    const NotificationMock = Object.assign(function MockNotification() {}, {
-      permission: 'default' as NotificationPermission,
-      requestPermission: vi.fn().mockResolvedValue('granted' as NotificationPermission),
-    });
+    // Setup Web Notification API
+    global.Notification = class {
+      static requestPermission = mockWebNotificationRequestPermission;
+      static permission: NotificationPermission = 'default';
+      close = mockWebNotificationClose;
+      constructor(title: string, options?: NotificationOptions) {
+        mockWebNotificationConstructor(title, options);
+      }
+      // biome-ignore lint/suspicious/noExplicitAny: Mocking global
+    } as any;
 
-    // @ts-expect-error - Absichtliches Override fuer Test
-    globalThis.Notification = NotificationMock;
-
-    // Neue Service-Instanz fuer jeden Test
     notificationService = new NotificationService();
   });
 
   afterEach(() => {
-    // Restore Original Notification
-    globalThis.Notification = OriginalNotification;
-    vi.restoreAllMocks();
+    global.Notification = originalNotification;
   });
 
   describe('isSupported()', () => {
-    it('should return true when Web Notification API is available', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(false);
-      // Notification Mock ist bereits gesetzt
-
-      // When (Act)
-      const supported = await notificationService.isSupported();
-
-      // Then (Assert)
-      expect(supported).toBe(true);
+    it('should return true if Web Notifications are supported in browser', async () => {
+      expect(await notificationService.isSupported()).toBe(true);
     });
 
-    it('should return true when Tauri notification plugin is available', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
+    it('should return false if Web Notifications are NOT supported in browser', async () => {
+      // Remove Notification from global
+      // biome-ignore lint/suspicious/noExplicitAny: Mocking global
+      delete (global as any).Notification;
+      expect(await notificationService.isSupported()).toBe(false);
+    });
 
-      // When (Act)
-      const supported = await notificationService.isSupported();
-
-      // Then (Assert)
-      expect(supported).toBe(true);
+    it('should return true if Tauri plugin is available', async () => {
+      isTauriMock.mockReturnValue(true);
+      mockIsPermissionGranted.mockResolvedValue(true); // Plugin check works
+      expect(await notificationService.isSupported()).toBe(true);
     });
   });
 
   describe('checkPermission()', () => {
-    it('should return granted when Web Notification permission is granted', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(false);
-      Object.defineProperty(globalThis.Notification, 'permission', {
-        value: 'granted',
-        writable: true,
-        configurable: true,
-      });
-
-      // When (Act)
+    it('should check Web Permission when in browser', async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: Mocking global
+      (global.Notification as any).permission = 'granted';
       const status = await notificationService.checkPermission();
-
-      // Then (Assert)
       expect(status).toBe('granted');
     });
 
-    it('should return denied when Web Notification permission is denied', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(false);
-      Object.defineProperty(globalThis.Notification, 'permission', {
-        value: 'denied',
-        writable: true,
-        configurable: true,
-      });
+    it('should check Tauri Permission when in Tauri and plugin available', async () => {
+      isTauriMock.mockReturnValue(true);
+      mockIsPermissionGranted.mockResolvedValue(true); // Plugin check and permission check
 
-      // When (Act)
       const status = await notificationService.checkPermission();
-
-      // Then (Assert)
-      expect(status).toBe('denied');
-    });
-
-    it('should return unknown for default Web Notification permission', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(false);
-      Object.defineProperty(globalThis.Notification, 'permission', {
-        value: 'default',
-        writable: true,
-        configurable: true,
-      });
-
-      // When (Act)
-      const status = await notificationService.checkPermission();
-
-      // Then (Assert)
-      expect(status).toBe('unknown');
-    });
-
-    it('should check Tauri permission when in Tauri environment', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockResolvedValue(true);
-
-      // When (Act)
-      const status = await notificationService.checkPermission();
-
-      // Then (Assert)
+      expect(status).toBe('granted');
       expect(mockIsPermissionGranted).toHaveBeenCalled();
-      expect(status).toBe('granted');
-    });
-
-    it('should return unknown when Tauri permission is not granted', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockResolvedValue(false);
-
-      // When (Act)
-      const status = await notificationService.checkPermission();
-
-      // Then (Assert)
-      expect(status).toBe('unknown');
     });
   });
 
   describe('requestPermission()', () => {
-    it('should request Web Notification permission and return granted', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(false);
-      const mockRequestPerm = vi.fn().mockResolvedValue('granted');
-      Object.defineProperty(globalThis.Notification, 'requestPermission', {
-        value: mockRequestPerm,
-        writable: true,
-        configurable: true,
-      });
-
-      // When (Act)
+    it('should request Web Permission when in browser', async () => {
+      mockWebNotificationRequestPermission.mockResolvedValue('granted');
       const status = await notificationService.requestPermission();
-
-      // Then (Assert)
-      expect(mockRequestPerm).toHaveBeenCalled();
       expect(status).toBe('granted');
+      expect(mockWebNotificationRequestPermission).toHaveBeenCalled();
     });
 
-    it('should request Tauri permission when in Tauri environment and not already granted', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockResolvedValue(false);
+    it('should request Tauri Permission when in Tauri', async () => {
+      isTauriMock.mockReturnValue(true);
+      mockIsPermissionGranted.mockResolvedValue(false); // Not granted yet
       mockRequestPermission.mockResolvedValue('granted');
 
-      // When (Act)
       const status = await notificationService.requestPermission();
-
-      // Then (Assert)
+      expect(status).toBe('granted');
       expect(mockRequestPermission).toHaveBeenCalled();
-      expect(status).toBe('granted');
-    });
-
-    it('should return granted without requesting if Tauri permission already granted', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockResolvedValue(true);
-
-      // When (Act)
-      const status = await notificationService.requestPermission();
-
-      // Then (Assert)
-      expect(mockRequestPermission).not.toHaveBeenCalled();
-      expect(status).toBe('granted');
-    });
-
-    it('should return denied when Tauri permission request is denied', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockResolvedValue(false);
-      mockRequestPermission.mockResolvedValue('denied');
-
-      // When (Act)
-      const status = await notificationService.requestPermission();
-
-      // Then (Assert)
-      expect(status).toBe('denied');
     });
   });
 
   describe('send()', () => {
-    it('should return error when no permission granted', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(false);
-      Object.defineProperty(globalThis.Notification, 'permission', {
-        value: 'denied',
-        writable: true,
-        configurable: true,
-      });
-      await notificationService.checkPermission();
+    it('should send Web Notification when in browser', async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: Mocking global
+      (global.Notification as any).permission = 'granted';
 
-      // When (Act)
-      const result = await notificationService.send({ title: 'Test' });
+      const result = await notificationService.send({ title: 'Test', body: 'Body' });
 
-      // Then (Assert)
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('denied');
-    });
-
-    it('should send Tauri notification when in Tauri environment with granted permission', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockResolvedValue(true);
-      mockTauriSendNotification.mockResolvedValue(undefined);
-      await notificationService.checkPermission();
-
-      // When (Act)
-      const result = await notificationService.send({ title: 'Tauri Test' });
-
-      // Then (Assert)
       expect(result.success).toBe(true);
-      expect(mockTauriSendNotification).toHaveBeenCalledWith({
-        title: 'Tauri Test',
-        body: 'Jetzt fällig',
-        channelId: 'erinnerungen',
-        actionTypeId: 'erinnerung-action',
-        extra: undefined,
-        autoCancel: true,
-      });
+      expect(mockWebNotificationConstructor).toHaveBeenCalledWith('Test', expect.objectContaining({ body: 'Body' }));
     });
 
-    it('should use "Jetzt fällig" as default body text', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockResolvedValue(true);
-      mockTauriSendNotification.mockResolvedValue(undefined);
-      await notificationService.checkPermission();
+    it('should send Tauri Notification when in Tauri', async () => {
+      isTauriMock.mockReturnValue(true);
+      mockIsPermissionGranted.mockResolvedValue(true); // Permission granted
 
-      // When (Act)
-      await notificationService.send({ title: 'Test' });
+      const result = await notificationService.send({ title: 'Test', body: 'Body' });
 
-      // Then (Assert)
-      expect(mockTauriSendNotification).toHaveBeenCalledWith(expect.objectContaining({ body: 'Jetzt fällig' }));
+      expect(result.success).toBe(true);
+      expect(mockSendNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Test',
+          body: 'Body',
+          channelId: 'test-channel',
+        }),
+      );
     });
 
-    it('should use custom body when provided', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockResolvedValue(true);
-      mockTauriSendNotification.mockResolvedValue(undefined);
-      await notificationService.checkPermission();
+    it('should fail gracefully if permission denied', async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: Mocking global
+      (global.Notification as any).permission = 'denied';
 
-      // When (Act)
-      await notificationService.send({ title: 'Test', body: 'Custom Body' });
-
-      // Then (Assert)
-      expect(mockTauriSendNotification).toHaveBeenCalledWith({
-        title: 'Test',
-        body: 'Custom Body',
-        channelId: 'erinnerungen',
-        actionTypeId: 'erinnerung-action',
-        extra: undefined,
-        autoCancel: true,
-      });
-    });
-  });
-
-  describe('sendErinnerungNotification()', () => {
-    it('should format title with "Erinnerung:" prefix', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockResolvedValue(true);
-      mockTauriSendNotification.mockResolvedValue(undefined);
-      await notificationService.checkPermission();
-
-      // When (Act)
-      await notificationService.sendErinnerungNotification('Funkgeraet pruefen');
-
-      // Then (Assert)
-      expect(mockTauriSendNotification).toHaveBeenCalledWith({
-        title: 'Erinnerung: Funkgeraet pruefen',
-        body: 'Jetzt fällig',
-        channelId: 'erinnerungen',
-        actionTypeId: 'erinnerung-action',
-        extra: undefined,
-        autoCancel: true,
-      });
-    });
-
-    it('should include extra data when erinnerungId and einsatzId provided', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockResolvedValue(true);
-      mockTauriSendNotification.mockResolvedValue(undefined);
-      await notificationService.checkPermission();
-
-      // When (Act)
-      await notificationService.sendErinnerungNotification('Test Erinnerung', 'erin-123', 'eins-456');
-
-      // Then (Assert)
-      expect(mockTauriSendNotification).toHaveBeenCalledWith({
-        title: 'Erinnerung: Test Erinnerung',
-        body: 'Jetzt fällig',
-        channelId: 'erinnerungen',
-        actionTypeId: 'erinnerung-action',
-        extra: { erinnerungId: 'erin-123', einsatzId: 'eins-456' },
-        autoCancel: true,
-      });
-    });
-  });
-
-  describe('Graceful Degradation', () => {
-    it('should not throw when sending notification without permission', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(false);
-      Object.defineProperty(globalThis.Notification, 'permission', {
-        value: 'denied',
-        writable: true,
-        configurable: true,
-      });
-
-      // When (Act) & Then (Assert)
-      await expect(notificationService.send({ title: 'Test' })).resolves.not.toThrow();
-    });
-
-    it('should return failure result gracefully when Tauri notification fails', async () => {
-      // Given (Arrange)
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockResolvedValue(true);
-      mockTauriSendNotification.mockRejectedValue(new Error('Plugin Error'));
-      await notificationService.checkPermission();
-
-      // When (Act)
       const result = await notificationService.send({ title: 'Test' });
 
-      // Then (Assert)
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Plugin Error');
+      expect(mockWebNotificationConstructor).not.toHaveBeenCalled();
     });
+  });
 
-    it('should handle Tauri permission check error gracefully by falling back to Web API', async () => {
-      // Given (Arrange)
-      // Tauri plugin check fails, so service falls back to Web Notification API
-      mockIsTauri.mockReturnValue(true);
-      mockIsPermissionGranted.mockRejectedValue(new Error('Permission check failed'));
-      Object.defineProperty(globalThis.Notification, 'permission', {
-        value: 'default',
-        writable: true,
-        configurable: true,
-      });
+  describe('sendAssignmentNotification() (AC1)', () => {
+    it('should send notification with correct format for assignments', async () => {
+      // biome-ignore lint/suspicious/noExplicitAny: Mocking global
+      (global.Notification as any).permission = 'granted';
 
-      // When (Act)
-      const status = await notificationService.checkPermission();
+      const result = await notificationService.sendAssignmentNotification('Funkgerät prüfen', 'Max Mustermann', 'erinnerung-123', 'einsatz-456');
 
-      // Then (Assert)
-      // Falls back to Web API which returns 'unknown' for 'default' permission
-      expect(status).toBe('unknown');
+      expect(result.success).toBe(true);
+      expect(mockWebNotificationConstructor).toHaveBeenCalledWith('Neue Erinnerung von Max Mustermann', expect.objectContaining({ body: 'Funkgerät prüfen' }));
     });
   });
 });

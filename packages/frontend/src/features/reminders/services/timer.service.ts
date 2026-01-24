@@ -212,10 +212,16 @@ export class TimerService {
    */
   private checkErinnerungen(): void {
     if (!this.onTriggerCallback) {
+      console.debug('[TimerService] No callback registered');
       return;
     }
 
     const now = Date.now();
+
+    // Debug: Log einmal pro Sekunde (nicht bei jedem 500ms Check)
+    if (now % 2000 < 500 && this.currentErinnerungen.length > 0) {
+      console.debug(`[TimerService] Checking ${this.currentErinnerungen.length} erinnerungen, triggeredIds: ${this.triggeredIds.size}`);
+    }
 
     for (const erinnerung of this.currentErinnerungen) {
       // GEPLANT und SNOOZED Status beruecksichtigen (Story 2.2)
@@ -233,11 +239,18 @@ export class TimerService {
       // Fuer SNOOZED: faelligAm === snoozedUntil (Backend setzt dies beim Snooze)
       const faelligAmTimestamp = new Date(erinnerung.faelligAm).getTime();
       if (faelligAmTimestamp <= now) {
+        console.info(`[TimerService] TRIGGERING: ${erinnerung.titel} (${erinnerung.id}), faelligAm: ${erinnerung.faelligAm}`);
         // Als getriggert markieren (Deduplizierung)
         this.triggeredIds.add(erinnerung.id);
 
         // Callback ausfuehren
         this.onTriggerCallback(erinnerung);
+      } else {
+        // Debug: Zeige warum nicht getriggert (nur wenn fast fällig)
+        const msUntilDue = faelligAmTimestamp - now;
+        if (msUntilDue < 5000) {
+          console.debug(`[TimerService] ${erinnerung.titel}: ${msUntilDue}ms until due`);
+        }
       }
     }
   }

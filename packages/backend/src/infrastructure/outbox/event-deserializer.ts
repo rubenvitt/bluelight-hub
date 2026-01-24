@@ -62,6 +62,7 @@ import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowled
 import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event';
 import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 import { ErinnerungErledigtEvent } from '@domain/events/erinnerung-erledigt.event';
+import { ErinnerungAssignedEvent } from '@domain/events/erinnerung-assigned.event';
 
 // Fahrzeugtyp Events
 import { FahrzeugtypCreatedEvent } from '@domain/kraefte/events/fahrzeugtyp-created.event';
@@ -210,6 +211,7 @@ export class EventDeserializer {
       ['erinnerung.snoozed', this.deserializeErinnerungSnoozed.bind(this)],
       ['erinnerung.retriggered', this.deserializeErinnerungRetriggered.bind(this)],
       ['erinnerung.erledigt', this.deserializeErinnerungErledigt.bind(this)],
+      ['erinnerung.assigned', this.deserializeErinnerungAssigned.bind(this)],
     ]);
   }
 
@@ -1173,6 +1175,45 @@ export class EventDeserializer {
       erledigtByResult.value!,
       payload.titel as string,
       payload.erledigungsNotiz as string | null,
+      aggregateId,
+    );
+
+    return Result.ok<DomainEvent>(event);
+  }
+
+  /**
+   * Deserialisiert ErinnerungAssignedEvent (Story 3.4).
+   */
+  private deserializeErinnerungAssigned(payload: Record<string, unknown>, aggregateId?: string): Result<DomainEvent> {
+    const erinnerungIdResult = ErinnerungId.create(payload.erinnerungId as string);
+    if (erinnerungIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid erinnerungId: ${erinnerungIdResult.error}`);
+    }
+
+    const einsatzIdResult = EinsatzId.create(payload.einsatzId as string);
+    if (einsatzIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid einsatzId: ${einsatzIdResult.error}`);
+    }
+
+    const assignedToIdResult = UserId.create(payload.assignedToId as string);
+    if (assignedToIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid assignedToId: ${assignedToIdResult.error}`);
+    }
+
+    const assignedByIdResult = UserId.create(payload.assignedById as string);
+    if (assignedByIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid assignedById: ${assignedByIdResult.error}`);
+    }
+
+    const assignedAt = new Date(payload.assignedAt as string);
+
+    const event = new ErinnerungAssignedEvent(
+      erinnerungIdResult.value!,
+      einsatzIdResult.value!,
+      assignedToIdResult.value!,
+      assignedByIdResult.value!,
+      payload.titel as string,
+      assignedAt,
       aggregateId,
     );
 

@@ -48,6 +48,7 @@ vi.mock('@/features/reminders/hooks', () => ({
 }));
 
 // Mock Stores - Story 3.6: Team-Filter Store (Tagged Union Format)
+// Story 3.8: Team-Sort Store
 vi.mock('@/features/reminders/stores', () => ({
   addAnimatedId: vi.fn(),
   openQuickCreateDialog: vi.fn(),
@@ -57,6 +58,9 @@ vi.mock('@/features/reminders/stores', () => ({
   resetTeamFilterStore: vi.fn(),
   useTeamFilter: vi.fn().mockReturnValue({ type: 'all' }),
   useAvailableTeilnehmer: vi.fn().mockReturnValue([]),
+  // Story 3.8 Team-Sort Store
+  setTeamSort: vi.fn(),
+  useTeamSort: vi.fn().mockReturnValue('faelligkeit'),
 }));
 
 // Mock Einsatz API - Story 3.6 Task 3.4
@@ -86,6 +90,15 @@ vi.mock('../../atoms/TeamFilterDropdown', () => ({
   TeamFilterDropdown: ({ selectedFilter, onFilterChange }: { selectedFilter: { type: string; userId?: string }; onFilterChange: (f: { type: string }) => void }) => (
     <button type="button" data-testid="team-filter-dropdown" onClick={() => onFilterChange({ type: 'mine' })}>
       Filter: {selectedFilter.type}
+    </button>
+  ),
+}));
+
+// Mock TeamSortDropdown - Story 3.8
+vi.mock('../../atoms/TeamSortDropdown', () => ({
+  TeamSortDropdown: ({ selectedSort }: { selectedSort: string }) => (
+    <button type="button" data-testid="team-sort-dropdown">
+      Sort: {selectedSort}
     </button>
   ),
 }));
@@ -410,7 +423,7 @@ describe('ErinnerungenList', () => {
       expect(cards[0]).toHaveTextContent('Erinnerung von User 1 fuer User 2');
     });
 
-    it('should filter "Meine" correctly - shows own created AND assigned (AC3)', async () => {
+    it('should filter "Meine" correctly - shows assigned OR unassigned+created (Story 3.4 AC2)', async () => {
       // Given: currentUser ist user-1, Filter "mine" (Tagged Union)
       useCurrentUserMock.mockReturnValue({ user: { id: 'user-1', name: 'Test User 1' } });
       useTeamFilterMock.mockReturnValue({ type: 'mine' });
@@ -418,21 +431,23 @@ describe('ErinnerungenList', () => {
       // When: Component rendert mit "mine" Filter
       renderWithQueryClient(<ErinnerungenList einsatzId="einsatz-123" />);
 
-      // Then: Im Team-Tab Erinnerungen wo user-1 Ersteller ODER Zugewiesener ist
-      // erinnerung-1: erstelltVon === 'user-1' -> SICHTBAR
-      // erinnerung-2: assignedToId === 'user-1' -> SICHTBAR
-      // erinnerung-3: erstelltVon === 'user-1' -> SICHTBAR
+      // Then: Im Team-Tab Erinnerungen wo user-1 Zugewiesener ist ODER (Ersteller UND unzugewiesen)
+      // Story 3.4 AC2: Nach Zuweisung an jemand anderen verliert Ersteller Ownership
+      // erinnerung-1: erstelltVon === 'user-1' ABER assignedToId === 'user-2' -> NICHT meine (zugewiesen an anderen)
+      // erinnerung-2: assignedToId === 'user-1' -> MEINE (mir zugewiesen)
+      // erinnerung-3: erstelltVon === 'user-1' UND assignedToId === null -> MEINE (erstellt und unzugewiesen)
       // erinnerung-4: kein Bezug zu user-1 -> NICHT sichtbar
       // erinnerung-5: ERLEDIGT -> im Team-Tab nicht (gefiltert vorab)
       const teamTab = screen.getByTestId('tab-1');
       const cards = within(teamTab).getAllByTestId('erinnerung-card');
-      expect(cards).toHaveLength(3);
+      expect(cards).toHaveLength(2);
 
       // Verifiziere dass die richtigen Erinnerungen angezeigt werden
       const cardTexts = cards.map((card) => card.textContent);
-      expect(cardTexts).toContain('Erinnerung von User 1 fuer User 2');
-      expect(cardTexts).toContain('Erinnerung von User 2 fuer User 1');
-      expect(cardTexts).toContain('Unzugewiesene Erinnerung von User 1');
+      expect(cardTexts).toContain('Erinnerung von User 2 fuer User 1'); // mir zugewiesen
+      expect(cardTexts).toContain('Unzugewiesene Erinnerung von User 1'); // erstellt und unzugewiesen
+      // erinnerung-1 sollte NICHT enthalten sein (Story 3.4 AC2)
+      expect(cardTexts).not.toContain('Erinnerung von User 1 fuer User 2');
     });
 
     it('should filter "Unzugewiesen" correctly (AC4)', async () => {

@@ -207,7 +207,7 @@ describe('AcknowledgeErinnerungHandler', () => {
         expect(result.error).toBe(ERINNERUNG_ERROR_CODES.NOT_ACKNOWLEDGEABLE);
       });
 
-      it('sollte fehlschlagen wenn Status ESKALIERT ist', async () => {
+      it('sollte erfolgreich sein wenn Status ESKALIERT ist', async () => {
         // Given (Arrange)
         const erinnerung = createTestErinnerung({ status: ErinnerungStatus.ESKALIERT() });
         mockRepository.findById.mockResolvedValue(Result.ok(erinnerung));
@@ -221,8 +221,9 @@ describe('AcknowledgeErinnerungHandler', () => {
         const result = await handler.execute(command);
 
         // Then (Assert)
-        expect(result.isFailure).toBe(true);
-        expect(result.error).toBe(ERINNERUNG_ERROR_CODES.NOT_ACKNOWLEDGEABLE);
+        expect(result.isSuccess).toBe(true);
+        expect(result.value!.status).toBe('ACKNOWLEDGED');
+        expect(mockRepository.save).toHaveBeenCalledTimes(1);
       });
 
       it('sollte fehlschlagen wenn Status ERLEDIGT ist', async () => {

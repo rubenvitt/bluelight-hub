@@ -103,6 +103,12 @@ export class PrismaErinnerungRepository implements IErinnerungRepository {
           faelligAm: data.faelligAm,
           status: data.status,
           erstelltVon: data.erstelltVon,
+          // Zuweisungsfelder (Story 3.4) - werden bei create mit assignedToId gesetzt
+          assignedToId: data.assignedToId,
+          assignedBy: data.assignedBy,
+          assignedAt: data.assignedAt,
+          // Pflichtfeld-Flag (Story 2.x) - wird bei Erstellung gesetzt
+          requiresNote: data.requiresNote,
         },
         update: {
           titel: data.titel,
@@ -127,6 +133,10 @@ export class PrismaErinnerungRepository implements IErinnerungRepository {
           erledigtAm: data.erledigtAm,
           erledigtBy: data.erledigtBy,
           erledigungsNotiz: data.erledigungsNotiz,
+          // Zuweisung Felder (Story 3.3/3.4) - werden bei assignToUser() gesetzt
+          assignedToId: data.assignedToId,
+          assignedBy: data.assignedBy,
+          assignedAt: data.assignedAt,
           // einsatzId und erstelltVon sind immutable nach Erstellung
         },
       });

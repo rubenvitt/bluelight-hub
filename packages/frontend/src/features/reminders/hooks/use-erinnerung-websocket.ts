@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { ERINNERUNG_QUERY_KEYS } from '../api/queries';
+import { sendAssignmentNotification } from '../services/notification.service';
 
 /** WebSocket Server URL (Backend Port) */
 const WS_URL = import.meta.env.VITE_API_URL || 'http://localhost:3091';
@@ -145,6 +146,10 @@ export function useErinnerungWebSocket({
   const currentEinsatzIdRef = useRef(einsatzId);
   currentEinsatzIdRef.current = einsatzId;
 
+  // Issue #2 Fix: Ref für aktuelle userId um stale Closures in Event Handlers zu vermeiden
+  const currentUserIdRef = useRef(currentUserId);
+  currentUserIdRef.current = currentUserId;
+
   // C4 Fix: Track previous einsatzId for room cleanup
   const previousEinsatzIdRef = useRef<string | null>(null);
 
@@ -170,8 +175,10 @@ export function useErinnerungWebSocket({
     (event: ErinnerungWebSocketEvent) => {
       logger.info('WebSocket: Erinnerung triggered', event);
 
+      // Issue #2 Fix: Nutze Ref statt Closure für aktuelle userId
+      const userId = currentUserIdRef.current;
       // Issue 7 Fix: Prüfe ob Event vom aktuellen User stammt
-      const isOwnEvent = currentUserId && event.userId === currentUserId;
+      const isOwnEvent = userId && event.userId === userId;
 
       // C7 Fix: Check if mutation is pending for this erinnerung
       const mutationCache = queryClient.getMutationCache();
@@ -202,7 +209,7 @@ export function useErinnerungWebSocket({
 
       onTriggered?.(event);
     },
-    [invalidateCache, showTeamToasts, onTriggered, queryClient, currentUserId],
+    [invalidateCache, showTeamToasts, onTriggered, queryClient],
   );
 
   /**
@@ -215,8 +222,10 @@ export function useErinnerungWebSocket({
       logger.info('WebSocket: Erinnerung created', event);
       invalidateCache();
 
+      // Issue #2 Fix: Nutze Ref statt Closure für aktuelle userId
+      const userId = currentUserIdRef.current;
       // Issue 7 Fix: Prüfe ob Event vom aktuellen User stammt
-      const isOwnEvent = currentUserId && event.userId === currentUserId;
+      const isOwnEvent = userId && event.userId === userId;
 
       // Issue 7 Fix: Toast nur bei Team-Events (nicht eigene Actions)
       if (showTeamToasts && !isOwnEvent && event.titel) {
@@ -227,7 +236,7 @@ export function useErinnerungWebSocket({
 
       onCreated?.(event);
     },
-    [invalidateCache, showTeamToasts, onCreated, currentUserId],
+    [invalidateCache, showTeamToasts, onCreated],
   );
 
   /**
@@ -253,8 +262,10 @@ export function useErinnerungWebSocket({
       logger.info('WebSocket: Erinnerung deleted', event);
       invalidateCache();
 
+      // Issue #2 Fix: Nutze Ref statt Closure für aktuelle userId
+      const userId = currentUserIdRef.current;
       // Issue 7 Fix: Prüfe ob Event vom aktuellen User stammt
-      const isOwnEvent = currentUserId && event.userId === currentUserId;
+      const isOwnEvent = userId && event.userId === userId;
 
       // Issue 7 Fix: Toast nur bei Team-Events (nicht eigene Actions)
       if (showTeamToasts && !isOwnEvent && event.titel) {
@@ -265,7 +276,7 @@ export function useErinnerungWebSocket({
 
       onDeleted?.(event);
     },
-    [invalidateCache, showTeamToasts, onDeleted, currentUserId],
+    [invalidateCache, showTeamToasts, onDeleted],
   );
 
   /**
@@ -280,8 +291,10 @@ export function useErinnerungWebSocket({
     (event: ErinnerungWebSocketEvent) => {
       logger.info('WebSocket: Erinnerung acknowledged', event);
 
+      // Issue #2 Fix: Nutze Ref statt Closure für aktuelle userId
+      const userId = currentUserIdRef.current;
       // Issue 7 Fix: Prüfe ob Event vom aktuellen User stammt
-      const isOwnEvent = currentUserId && event.userId === currentUserId;
+      const isOwnEvent = userId && event.userId === userId;
 
       // C7 Fix: Check if mutation is pending for this erinnerung
       const mutationCache = queryClient.getMutationCache();
@@ -312,7 +325,7 @@ export function useErinnerungWebSocket({
 
       onAcknowledged?.(event);
     },
-    [invalidateCache, showTeamToasts, onAcknowledged, queryClient, currentUserId],
+    [invalidateCache, showTeamToasts, onAcknowledged, queryClient],
   );
 
   /**
@@ -322,13 +335,56 @@ export function useErinnerungWebSocket({
    * einem Teammitglied zugewiesen wurde.
    *
    * Issue 7 Fix: Toast nur bei Events von anderen Usern anzeigen (nicht bei eigenen Actions)
+   *
+   * Story 3.7 AC1: OS Notification bei Zuweisung an mich
+   * Story 3.7 AC2: Toast mit 5 Sekunden Dauer
    */
   const handleAssigned = useCallback(
     (event: ErinnerungAssignedWebSocketEvent) => {
       logger.info('WebSocket: Erinnerung assigned', event);
 
+      // Issue #2 Fix: Nutze Ref statt Closure für aktuelle userId
+      const userId = currentUserIdRef.current;
       // Issue 7 Fix: Prüfe ob Event vom aktuellen User stammt
-      const isOwnEvent = currentUserId && event.assignedById === currentUserId;
+      const isOwnEvent = userId && event.assignedById === userId;
+      const isAssignedToMe = userId && event.assignedToId === userId;
+
+      // Story 3.7 AC2: Toast-Dauer 5 Sekunden
+      const TOAST_DURATION_MS = 5000;
+
+      /**
+       * Story 3.7: Zeigt Notification + Toast bei Zuweisung an mich
+       */
+      const showAssignmentNotifications = async () => {
+        // Issue #3: Keine Notification bei eigenen Assignment-Actions (inkl. Self-Assignment).
+        // Self-Assignment: User weist sich selbst zu → isOwnEvent=true → kein Notify (gewollt)
+        if (!showTeamToasts || isOwnEvent) return;
+
+        try {
+          if (isAssignedToMe) {
+            // Story 3.7 AC1: OS Notification bei Zuweisung an mich
+            await sendAssignmentNotification(event.titel ?? 'Neue Erinnerung', event.assignedByName, event.erinnerungId, event.einsatzId);
+
+            // Issue #5: Check ob noch verbunden bevor Toast angezeigt wird (Cleanup-Safety)
+            if (socketRef.current?.connected) {
+              // Story 3.7 AC2: In-App Toast mit 5 Sekunden Dauer
+              toast.info(`${event.assignedByName} hat dir eine Erinnerung zugewiesen`, {
+                description: event.titel,
+                duration: TOAST_DURATION_MS,
+              });
+            }
+          } else if (socketRef.current?.connected) {
+            // Issue #5: Check ob noch verbunden bevor Toast angezeigt wird (Cleanup-Safety)
+            // Toast für Team-Mitglieder (andere Zuweisung)
+            toast.info('Erinnerung zugewiesen', {
+              description: `${event.assignedByName} hat eine Erinnerung an ${event.assignedToName} zugewiesen`,
+              duration: TOAST_DURATION_MS,
+            });
+          }
+        } catch (error) {
+          logger.error('Failed to send assignment notification', error);
+        }
+      };
 
       // C7 Fix: Check if mutation is pending for this erinnerung
       const mutationCache = queryClient.getMutationCache();
@@ -338,42 +394,17 @@ export function useErinnerungWebSocket({
 
       if (pendingMutation) {
         logger.debug('WebSocket: Skipping cache invalidation - assign mutation pending', { erinnerungId: event.erinnerungId });
-        // Skip cache invalidation but still show toast (nur bei Team-Events) and call callback for team sync
-        if (showTeamToasts && !isOwnEvent) {
-          const isAssignedToMe = currentUserId && event.assignedToId === currentUserId;
-          if (isAssignedToMe) {
-            toast.info(`Dir wurde eine Erinnerung zugewiesen: "${event.titel}"`, {
-              description: `Zugewiesen von ${event.assignedByName}`,
-            });
-          } else {
-            toast.info('Erinnerung zugewiesen', {
-              description: `${event.assignedByName} hat eine Erinnerung an ${event.assignedToName} zugewiesen`,
-            });
-          }
-        }
+        // Skip cache invalidation but still show notifications and call callback for team sync
+        showAssignmentNotifications();
         onAssigned?.(event);
         return;
       }
 
       invalidateCache();
-
-      // Issue 7 Fix: Toast nur bei Team-Events (nicht eigene Actions)
-      if (showTeamToasts && !isOwnEvent) {
-        const isAssignedToMe = currentUserId && event.assignedToId === currentUserId;
-        if (isAssignedToMe) {
-          toast.info(`Dir wurde eine Erinnerung zugewiesen: "${event.titel}"`, {
-            description: `Zugewiesen von ${event.assignedByName}`,
-          });
-        } else {
-          toast.info('Erinnerung zugewiesen', {
-            description: `${event.assignedByName} hat eine Erinnerung an ${event.assignedToName} zugewiesen`,
-          });
-        }
-      }
-
+      showAssignmentNotifications();
       onAssigned?.(event);
     },
-    [invalidateCache, showTeamToasts, onAssigned, queryClient, currentUserId],
+    [invalidateCache, showTeamToasts, onAssigned, queryClient],
   );
 
   /**

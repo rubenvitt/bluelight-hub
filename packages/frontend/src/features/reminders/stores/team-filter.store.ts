@@ -9,6 +9,10 @@
  * - Filter-Types: 'all' | 'mine' | 'unassigned' | string (userId)
  * - Actions: setTeamFilter, setAvailableTeilnehmer, resetTeamFilter
  * - Hooks: useTeamFilter, useAvailableTeilnehmer
+ *
+ * **Story 3.8:**
+ * - State: { selectedSort }
+ * - Sort-Types: 'faelligkeit' | 'erstellt' | 'status'
  */
 
 import { Store, useStore } from '@tanstack/react-store';
@@ -27,6 +31,15 @@ import { Store, useStore } from '@tanstack/react-store';
 export type TeamFilterType = { type: 'all' } | { type: 'mine' } | { type: 'unassigned' } | { type: 'user'; userId: string };
 
 /**
+ * Team-Sort Type (Story 3.8)
+ *
+ * - 'faelligkeit': Standard-Sortierung nach Faelligkeit (überfällige zuerst)
+ * - 'erstellt': Sortierung nach Erstellungsdatum (neueste zuerst)
+ * - 'status': Gruppierung nach Status (Acknowledge-Pflicht zuerst)
+ */
+export type TeamSortType = 'faelligkeit' | 'erstellt' | 'status';
+
+/**
  * Teilnehmer-Typ fuer die Dropdown-Auswahl (AC1)
  */
 export interface Teilnehmer {
@@ -42,6 +55,8 @@ export interface Teilnehmer {
 export interface TeamFilterStoreState {
   /** Aktuell ausgewaehlter Filter */
   selectedFilter: TeamFilterType;
+  /** Aktuell ausgewaehlte Sortierung (Story 3.8) */
+  selectedSort: TeamSortType;
   /** Liste der verfuegbaren Einsatz-Teilnehmer fuer das Dropdown */
   availableTeilnehmer: Teilnehmer[];
 }
@@ -51,6 +66,7 @@ export interface TeamFilterStoreState {
  */
 const initialState: TeamFilterStoreState = {
   selectedFilter: { type: 'all' },
+  selectedSort: 'faelligkeit',
   availableTeilnehmer: [],
 };
 
@@ -74,6 +90,18 @@ export const setTeamFilter = (filter: TeamFilterType): void => {
   teamFilterStore.setState((state) => ({
     ...state,
     selectedFilter: filter,
+  }));
+};
+
+/**
+ * Setzt die Team-Sortierung (Story 3.8)
+ *
+ * @param sort - Neuer Sortier-Modus
+ */
+export const setTeamSort = (sort: TeamSortType): void => {
+  teamFilterStore.setState((state) => ({
+    ...state,
+    selectedSort: sort,
   }));
 };
 
@@ -117,6 +145,15 @@ export const getTeamFilter = (): TeamFilterType => {
 };
 
 /**
+ * Holt den aktuellen Sortier-Wert (Story 3.8)
+ *
+ * @returns Aktueller Sortier-Modus
+ */
+export const getTeamSort = (): TeamSortType => {
+  return teamFilterStore.state.selectedSort;
+};
+
+/**
  * Holt die verfuegbaren Teilnehmer
  *
  * @returns Array von Teilnehmern
@@ -136,6 +173,15 @@ export const getAvailableTeilnehmer = (): Teilnehmer[] => {
  */
 export const useTeamFilter = (): TeamFilterType => {
   return useStore(teamFilterStore, (state) => state.selectedFilter);
+};
+
+/**
+ * Hook fuer die aktuelle Team-Sortierung (Story 3.8)
+ *
+ * @returns Aktueller Sortier-Modus
+ */
+export const useTeamSort = (): TeamSortType => {
+  return useStore(teamFilterStore, (state) => state.selectedSort);
 };
 
 /**

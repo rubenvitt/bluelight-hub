@@ -102,12 +102,8 @@ export function ErinnerungMarkErledigtDialog({ isOpen, onClose, erinnerung, eins
     },
   });
 
-  // Story 2.6 Issue 1: Button disabled wenn requiresNote=true und Notiz leer
-  const canSubmit = useMemo(() => {
-    if (!requiresNote) return true;
-    const notiz = form.state.values.erledigungsNotiz?.trim();
-    return notiz !== undefined && notiz.length > 0;
-  }, [requiresNote, form.state.values.erledigungsNotiz]);
+  // Story 2.6 Issue 1: canSubmit wird inline im Subscribe-Block berechnet
+  // (siehe Button unten für reaktive Berechnung)
 
   const handleClose = useCallback(() => {
     if (!isPending) {
@@ -225,18 +221,25 @@ export function ErinnerungMarkErledigtDialog({ isOpen, onClose, erinnerung, eins
         <Button intent="secondary" appearance="ghost" onClick={handleClose} disabled={isPending}>
           Abbrechen
         </Button>
-        <Button
-          intent="success"
-          onClick={() => {
-            form.handleSubmit();
+        {/* Story 2.6 Issue 1: form.Subscribe für reaktive canSubmit Berechnung */}
+        <form.Subscribe selector={(state) => state.values.erledigungsNotiz}>
+          {(notizValue) => {
+            const canSubmit = !requiresNote || (notizValue?.trim()?.length ?? 0) > 0;
+            return (
+              <Button
+                intent="success"
+                onClick={() => {
+                  form.handleSubmit();
+                }}
+                loading={isPending}
+                disabled={isPending || !canSubmit}
+              >
+                <PiCheckCircle className="mr-1.5 h-4 w-4" />
+                Als erledigt markieren
+              </Button>
+            );
           }}
-          loading={isPending}
-          // Story 2.6 Issue 1: Button disabled wenn Pflicht-Notiz fehlt
-          disabled={isPending || !canSubmit}
-        >
-          <PiCheckCircle className="mr-1.5 h-4 w-4" />
-          Als erledigt markieren
-        </Button>
+        </form.Subscribe>
       </Dialog.Footer>
     </Dialog>
   );

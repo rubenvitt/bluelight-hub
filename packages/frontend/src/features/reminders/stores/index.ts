@@ -160,13 +160,16 @@ export {
   teamFilterStore,
   // Team-Filter Actions
   setTeamFilter,
+  setTeamSort,
   setAvailableTeilnehmer,
   resetTeamFilterStore,
   // Team-Filter Selectors
   getTeamFilter,
+  getTeamSort,
   getAvailableTeilnehmer,
   // Team-Filter Hooks
   useTeamFilter,
+  useTeamSort,
   useAvailableTeilnehmer,
   useTeamFilterStoreState,
   useIsFilterActive,
@@ -177,6 +180,29 @@ export {
   teamFilterToValue,
   // Types
   type TeamFilterType,
+  type TeamSortType,
   type Teilnehmer,
   type TeamFilterStoreState,
 } from './team-filter.store';
+
+export {
+  // Seen Assignments Store (Story 3.7 Task 1)
+  seenAssignmentsStore,
+  SEEN_ASSIGNMENTS_STORE_KEYS,
+  // Seen Assignments Actions
+  initSeenAssignmentsStore,
+  markAsSeen,
+  clearSeenAssignment,
+  clearSeenAssignmentsBatch,
+  resetSeenAssignmentsStore,
+  // Seen Assignments Selectors
+  isUnseen,
+  getSeenTimestamp,
+  // Seen Assignments Hooks
+  useIsUnseen,
+  useSeenCount,
+  useSeenAssignmentsInitialized,
+  useSeenAssignmentsState,
+  // Types
+  type SeenAssignmentsStoreState,
+} from './seen-assignments.store';

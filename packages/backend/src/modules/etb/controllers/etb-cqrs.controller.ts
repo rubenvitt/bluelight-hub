@@ -1,4 +1,3 @@
-import type { EtbKategorie } from '@/generated/prisma/client';
 import { AddEintragCommand, DeleteEintragCommand, LockEtbCommand, UpdateEintragCommand } from '@/application/etb/commands';
 import { AddEintragHandler } from '@/application/etb/commands/add-eintrag/add-eintrag.handler';
 import { DeleteEintragHandler } from '@/application/etb/commands/delete-eintrag/delete-eintrag.handler';
@@ -6,19 +5,20 @@ import { LockEtbHandler } from '@/application/etb/commands/lock-etb/lock-etb.han
 import { UpdateEintragHandler } from '@/application/etb/commands/update-eintrag/update-eintrag.handler';
 import { AddEintragDto, EintragDto, EtbDto, EtbSnapshotDto, TextbausteinListResponse, UpdateEintragDto } from '@/application/etb/dto';
 import { EtbQueryMapper, type EtbSnapshotDto as EtbSnapshotDtoFromMapper } from '@/application/etb/mappers';
-import { GetEtbHistoryQuery, GetEtbHistoryQueryHandler, GetEtbQuery, GetEtbQueryHandler, GetTextbausteineQuery, GetTextbausteineHandler } from '@/application/etb/queries';
+import { GetEtbHistoryQuery, GetEtbHistoryQueryHandler, GetEtbQuery, GetEtbQueryHandler, GetTextbausteineHandler, GetTextbausteineQuery } from '@/application/etb/queries';
+import type { EtbKategorie } from '@/generated/prisma/client';
+import { ETB_REPOSITORY, LOGGER } from '@/infrastructure/di-tokens';
 import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { Roles } from '@/modules/auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/modules/auth/guards/roles.guard';
 import type { ValidatedUser } from '@/modules/auth/strategies/jwt.strategy';
+import { ApiWrappedCreatedResponse, ApiWrappedResponse } from '@/modules/common/decorators/api-wrapped-response.decorator';
+import type { ILogger } from '@domain/ports/i-logger.port';
 import { IEtbRepository } from '@domain/repositories/i-etb.repository';
 import { EtbId } from '@domain/value-objects/etb-id';
-import { ETB_REPOSITORY, LOGGER } from '@/infrastructure/di-tokens';
-import type { ILogger } from '@domain/ports/i-logger.port';
 import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, HttpCode, Inject, NotFoundException, Param, Post, Put, Query, UseGuards, ValidationPipe } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNotFoundResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
-import { ApiWrappedResponse, ApiWrappedCreatedResponse } from '@/modules/common/decorators/api-wrapped-response.decorator';
 
 /**
  * CQRS Controller für ETB (Einsatztagebuch) Management.
@@ -168,7 +168,7 @@ export class EtbCqrsController {
         throw new NotFoundException(`ETB für Einsatz ${einsatzId} nicht gefunden`);
       }
 
-      this.logger.log(`ETB ${result.value.id} returned for Einsatz ${einsatzId}`, result.value);
+      this.logger.log(`ETB ${result.value.id} returned for Einsatz ${einsatzId}`);
       return result.value;
     } catch (error) {
       // Query constructor throws Error on validation failure

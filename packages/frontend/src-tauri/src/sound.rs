@@ -18,31 +18,34 @@ use tauri::{AppHandle, Manager};
 /// Verfügbare Sound-Typen für Erinnerungen
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SoundType {
-    /// Standard Erinnerungs-Sound (mittlere Frequenz, 2 kurze Töne)
-    Reminder,
-    /// Dringender Alarm-Sound (hohe Frequenz, schnelle Wiederholung)
+    /// Info-Level (ehemals Reminder/Gentle)
+    Info,
+    /// Warnung-Level
+    Warning,
+    /// Dringender Alarm-Level
     Urgent,
-    /// Sanfter Hinweis-Sound (niedrige Frequenz, 1 langer Ton)
-    Gentle,
 }
 
 impl SoundType {
     /// Parst den Sound-Typ aus einem String
     fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
-            "reminder" => Some(Self::Reminder),
+            "info" => Some(Self::Info),
+            "warning" => Some(Self::Warning),
             "urgent" => Some(Self::Urgent),
-            "gentle" => Some(Self::Gentle),
+            // Legacy Mappings
+            "reminder" => Some(Self::Info),
+            "gentle" => Some(Self::Info),
             _ => None,
         }
     }
 
-    /// Gibt den Dateinamen für diesen Sound-Typ zurück
-    fn filename(&self) -> &'static str {
+    /// Gibt den Standard-Dateinamen für diesen Sound-Typ zurück
+    fn default_filename(&self) -> &'static str {
         match self {
-            Self::Reminder => "reminder.wav",
-            Self::Urgent => "urgent.wav",
-            Self::Gentle => "gentle.wav",
+            Self::Info => "alarm-info-default.mp3",
+            Self::Warning => "alarm-warning-default.mp3",
+            Self::Urgent => "alarm-urgent-default.mp3",
         }
     }
 
@@ -50,28 +53,46 @@ impl SoundType {
     fn beep_params(&self) -> (f32, u64, u32) {
         // (Frequenz in Hz, Dauer pro Ton in ms, Anzahl Wiederholungen)
         match self {
-            Self::Reminder => (800.0, 200, 2), // Mittel, 2x kurz
-            Self::Urgent => (1200.0, 100, 4),  // Hoch, 4x sehr kurz
-            Self::Gentle => (440.0, 500, 1),   // Niedrig, 1x lang
+            Self::Info => (440.0, 500, 1),    // Niedrig, 1x lang
+            Self::Warning => (800.0, 200, 2), // Mittel, 2x kurz
+            Self::Urgent => (1200.0, 100, 4), // Hoch, 4x sehr kurz
         }
     }
 }
 
-/// Versucht die Sound-Datei aus dem resources-Verzeichnis zu laden
-fn try_load_sound_file(app_handle: &AppHandle, sound_type: SoundType) -> Option<PathBuf> {
+/// Versucht die Sound-Datei zu laden
+///
+/// `custom_file`: Optionaler Pfad (z.B. "/sounds/alarm-info-chime.mp3")
+fn try_resolve_sound_file(
+    app_handle: &AppHandle,
+    sound_type: SoundType,
+    custom_file: Option<String>,
+) -> Option<PathBuf> {
+    let filename = if let Some(file_path) = custom_file {
+        // Wenn Pfad "/sounds/..." ist, extrahieren wir den Dateinamen
+        if let Some(name) = PathBuf::from(&file_path).file_name() {
+            name.to_string_lossy().to_string()
+        } else {
+            file_path
+        }
+    } else {
+        sound_type.default_filename().to_string()
+    };
+
     let resource_path = app_handle
         .path()
         .resource_dir()
         .ok()?
         .join("sounds")
-        .join(sound_type.filename());
+        .join(&filename);
 
     if resource_path.exists() {
         Some(resource_path)
     } else {
         log::warn!(
-            "Sound-Datei nicht gefunden: {:?}, nutze Fallback-Beep",
-            resource_path
+            "Sound-Datei nicht gefunden: {:?} (Basis: {:?}), nutze Fallback-Beep",
+            resource_path,
+            filename
         );
         None
     }
@@ -108,8 +129,8 @@ fn play_beep(sound_type: SoundType, stream_handle: &rodio::OutputStreamHandle) {
     sink.sleep_until_end();
 }
 
-/// Spielt eine WAV-Datei ab
-fn play_wav_file(path: PathBuf, stream_handle: &rodio::OutputStreamHandle) -> Result<(), String> {
+/// Spielt eine Audio-Datei (WAV/MP3) ab
+fn play_audio_file(path: PathBuf, stream_handle: &rodio::OutputStreamHandle) -> Result<(), String> {
     let file = File::open(&path).map_err(|e| format!("Konnte Datei nicht öffnen: {}", e))?;
     let reader = BufReader::new(file);
 
@@ -126,8 +147,12 @@ fn play_wav_file(path: PathBuf, stream_handle: &rodio::OutputStreamHandle) -> Re
 }
 
 /// Spielt einen Sound ab (blockiert nicht den Aufrufer)
-fn play_sound_internal(app_handle: AppHandle, sound_type: SoundType) -> Result<(), String> {
-    let sound_file = try_load_sound_file(&app_handle, sound_type);
+fn play_sound_internal(
+    app_handle: AppHandle,
+    sound_type: SoundType,
+    custom_file: Option<String>,
+) -> Result<(), String> {
+    let sound_path = try_resolve_sound_file(&app_handle, sound_type, custom_file);
 
     // Sound in separatem Thread abspielen um nicht zu blockieren
     thread::spawn(move || {
@@ -140,9 +165,9 @@ fn play_sound_internal(app_handle: AppHandle, sound_type: SoundType) -> Result<(
             }
         };
 
-        match sound_file {
+        match sound_path {
             Some(path) => {
-                if let Err(e) = play_wav_file(path, &stream_handle) {
+                if let Err(e) = play_audio_file(path, &stream_handle) {
                     log::warn!(
                         "Fehler beim Abspielen der Sound-Datei: {}, nutze Fallback",
                         e
@@ -164,28 +189,32 @@ fn play_sound_internal(app_handle: AppHandle, sound_type: SoundType) -> Result<(
 /// Tauri Command: Spielt einen Sound basierend auf dem Typ ab
 ///
 /// # Parameter
-/// - `sound_type`: String der den Sound-Typ identifiziert ("reminder", "urgent", "gentle")
+/// - `sound_type`: "info", "warning", "urgent"
+/// - `sound_file`: Optionaler Pfad zur Sound-Datei (z.B. "/sounds/alarm-info-chime.mp3")
 ///
 /// # Rückgabe
 /// - `Ok(())` wenn der Sound erfolgreich gestartet wurde
 /// - `Err(String)` bei unbekanntem Sound-Typ oder Fehler
-///
-/// # Beispiel (TypeScript)
-/// ```typescript
-/// await invoke('play_sound', { soundType: 'reminder' });
-/// ```
 #[tauri::command]
-pub fn play_sound(app_handle: AppHandle, sound_type: String) -> Result<(), String> {
-    log::info!("play_sound aufgerufen mit Typ: {}", sound_type);
+pub fn play_sound(
+    app_handle: AppHandle,
+    sound_type: String,
+    sound_file: Option<String>,
+) -> Result<(), String> {
+    log::info!(
+        "play_sound aufgerufen mit Typ: {}, File: {:?}",
+        sound_type,
+        sound_file
+    );
 
     let parsed_type = SoundType::from_str(&sound_type).ok_or_else(|| {
         format!(
-            "Unbekannter Sound-Typ: '{}'. Erlaubt: reminder, urgent, gentle",
+            "Unbekannter Sound-Typ: '{}'. Erlaubt: info, warning, urgent",
             sound_type
         )
     })?;
 
-    play_sound_internal(app_handle, parsed_type)
+    play_sound_internal(app_handle, parsed_type, sound_file)
 }
 
 /// Tauri Command: Testet ob Audio-Wiedergabe funktioniert
@@ -214,10 +243,13 @@ mod tests {
 
     #[test]
     fn test_sound_type_parsing() {
-        assert_eq!(SoundType::from_str("reminder"), Some(SoundType::Reminder));
-        assert_eq!(SoundType::from_str("REMINDER"), Some(SoundType::Reminder));
+        assert_eq!(SoundType::from_str("info"), Some(SoundType::Info));
+        assert_eq!(SoundType::from_str("INFO"), Some(SoundType::Info));
+        assert_eq!(SoundType::from_str("warning"), Some(SoundType::Warning));
         assert_eq!(SoundType::from_str("urgent"), Some(SoundType::Urgent));
-        assert_eq!(SoundType::from_str("gentle"), Some(SoundType::Gentle));
+        // Legacy Mappings
+        assert_eq!(SoundType::from_str("reminder"), Some(SoundType::Info));
+        assert_eq!(SoundType::from_str("gentle"), Some(SoundType::Info));
         assert_eq!(SoundType::from_str("unknown"), None);
     }
 }

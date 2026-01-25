@@ -964,7 +964,25 @@ export class EventDeserializer {
       }
     }
 
-    const event = new ErinnerungErstelltEvent(erinnerungIdResult.value!, einsatzIdResult.value!, payload.titel as string, faelligAm, erstelltVonResult.value!, assignedToId, aggregateId);
+    // Story 4.1: Optional eskalationsPersonId aus Payload deserialisieren
+    let eskalationsPersonId: UserId | null = null;
+    if (payload.eskalationsPersonId) {
+      const eskalationsPersonIdResult = UserId.create(payload.eskalationsPersonId as string);
+      if (eskalationsPersonIdResult.isSuccess && eskalationsPersonIdResult.value) {
+        eskalationsPersonId = eskalationsPersonIdResult.value;
+      }
+    }
+
+    const event = new ErinnerungErstelltEvent(
+      erinnerungIdResult.value!,
+      einsatzIdResult.value!,
+      payload.titel as string,
+      faelligAm,
+      erstelltVonResult.value!,
+      assignedToId,
+      eskalationsPersonId,
+      aggregateId,
+    );
 
     return Result.ok<DomainEvent>(event);
   }
@@ -997,6 +1015,17 @@ export class EventDeserializer {
     }
     if (rawAenderungen.faelligAm !== undefined) {
       aenderungen.faelligAm = new Date(rawAenderungen.faelligAm as string);
+    }
+    if (rawAenderungen.eskalationsPersonId !== undefined) {
+      // payload.eskalationsPersonId can be null or string
+      if (rawAenderungen.eskalationsPersonId === null) {
+        aenderungen.eskalationsPersonId = null;
+      } else {
+        const result = UserId.create(rawAenderungen.eskalationsPersonId as string);
+        if (result.isSuccess) {
+          aenderungen.eskalationsPersonId = result.value;
+        }
+      }
     }
 
     const event = new ErinnerungAktualisiertEvent(erinnerungIdResult.value!, einsatzIdResult.value!, aenderungen, aktualisierVonResult.value!, payload.titel as string, aggregateId);

@@ -12,6 +12,7 @@ import { TransactionalCommandHandler } from '@/application/common/handlers/trans
 // biome-ignore lint/style/useImportType: PrismaService is an Injectable class, not just a type - needed for DI at runtime
 import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { ERINNERUNG_REPOSITORY, LOGGER, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
+import type { ErinnerungResponseFactory } from '../../dto/erinnerung-response.factory';
 import type { CreateErinnerungCommand } from './create-erinnerung.command';
 import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
 import type { ErinnerungResponseDto } from '../../dto/erinnerung-response.dto';
@@ -45,6 +46,7 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
     @Inject(ERINNERUNG_REPOSITORY)
     private readonly erinnerungRepository: IErinnerungRepository,
     @Inject(LOGGER) private readonly logger: ILogger,
+    private readonly responseFactory: ErinnerungResponseFactory,
   ) {
     super(prisma, outboxRepository);
   }
@@ -87,6 +89,7 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
       faelligAm: command.faelligAm,
       erstelltVon: userIdResult.value,
       requiresNote: command.requiresNote,
+      eskalationsPersonId: command.eskalationsPersonId ? UserId.create(command.eskalationsPersonId).value : undefined,
     });
 
     if (erinnerungResult.isFailure || !erinnerungResult.value) {
@@ -154,29 +157,16 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
     );
 
     // ════════════════════════════════════════════════════════════════════════
-    // 5. Domain Events sammeln
+    // ════════════════════════════════════════════════════════════════════════
+    // 6. Domain Events sammeln
     // ════════════════════════════════════════════════════════════════════════
     const events = erinnerung.getDomainEvents();
     erinnerung.clearDomainEvents();
 
     // ════════════════════════════════════════════════════════════════════════
-    // 6. Response DTO erstellen und zurückgeben
+    // 7. Response DTO erstellen und zurückgeben
     // ════════════════════════════════════════════════════════════════════════
-    const responseDto: ErinnerungResponseDto = {
-      id: erinnerung.id.toString(),
-      einsatzId: erinnerung.einsatzId.toString(),
-      titel: erinnerung.titel.value,
-      beschreibung: erinnerung.beschreibung ?? null,
-      faelligAm: erinnerung.faelligAm.toISOString(),
-      status: erinnerung.status.value,
-      erstelltVon: erinnerung.erstelltVon.toString(),
-      createdAt: erinnerung.createdAt.toISOString(),
-      updatedAt: erinnerung.updatedAt.toISOString(),
-      snoozeCount: erinnerung.snoozeCount,
-      requiresNote: erinnerung.requiresNote,
-      assignedToId: erinnerung.assignedToId?.toString() ?? null,
-      assignedToName: assignedToName,
-    };
+    const responseDto = await this.responseFactory.create(erinnerung);
 
     return {
       result: responseDto,

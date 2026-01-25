@@ -49,6 +49,7 @@ export class ErinnerungErstelltEvent extends DomainEvent {
     public readonly faelligAm: Date,
     public readonly erstelltVon: UserId,
     public readonly assignedToId: UserId | null = null,
+    public readonly eskalationsPersonId: UserId | null = null, // Story 4.1
     aggregateId?: string,
   ) {
     super(aggregateId);

@@ -81,8 +81,11 @@ pnpm --filter @bluelight-hub/backend check:arch  # Circular Dependencies
 ```
 <emoji>(<context>): <title>
 
-✨ Feature | 🐛 Fix | ♻️ Refactor | 📝 Docs | 🧪 Test | 💥 Breaking
+- <description point 1>
+- <description point 2> 
+- ...
 ```
+✨ Feature | 🐛 Fix | ♻️ Refactor | 📝 Docs | 🧪 Test | 💥 Breaking
 **NIEMALS** `--no-verify`!
 
 ## Architektur-Layers (Backend)

@@ -142,6 +142,24 @@ export function useErinnerungWebSocket({
   const socketRef = useRef<Socket | null>(null);
   const [status, setStatus] = useState<WebSocketStatus>('disconnected');
 
+  // C8 Fix: Use refs for callbacks to ensure stable dependencies for useEffect
+  const onTriggeredRef = useRef(onTriggered);
+  const onCreatedRef = useRef(onCreated);
+  const onUpdatedRef = useRef(onUpdated);
+  const onDeletedRef = useRef(onDeleted);
+  const onAcknowledgedRef = useRef(onAcknowledged);
+  const onAssignedRef = useRef(onAssigned);
+
+  // Update refs on every render
+  useEffect(() => {
+    onTriggeredRef.current = onTriggered;
+    onCreatedRef.current = onCreated;
+    onUpdatedRef.current = onUpdated;
+    onDeletedRef.current = onDeleted;
+    onAcknowledgedRef.current = onAcknowledged;
+    onAssignedRef.current = onAssigned;
+  });
+
   // H5 Fix: Ref für aktuelle einsatzId um stale Closures im connect Handler zu vermeiden
   const currentEinsatzIdRef = useRef(einsatzId);
   currentEinsatzIdRef.current = einsatzId;
@@ -183,7 +201,7 @@ export function useErinnerungWebSocket({
       // C7 Fix: Check if mutation is pending for this erinnerung
       const mutationCache = queryClient.getMutationCache();
       const pendingMutation = mutationCache.find({
-        predicate: (mutation) => mutation.state.status === 'pending' && mutation.options.mutationKey?.some((key) => typeof key === 'string' && key.includes(event.erinnerungId)),
+        predicate: (mutation) => mutation.state.status === 'pending' && (mutation.options.mutationKey?.some((key) => typeof key === 'string' && key.includes(event.erinnerungId)) ?? false),
       });
 
       if (pendingMutation) {
@@ -194,7 +212,7 @@ export function useErinnerungWebSocket({
             description: 'Ein Teammitglied hat diese Erinnerung ausgelöst',
           });
         }
-        onTriggered?.(event);
+        onTriggeredRef.current?.(event);
         return;
       }
 
@@ -207,9 +225,9 @@ export function useErinnerungWebSocket({
         });
       }
 
-      onTriggered?.(event);
+      onTriggeredRef.current?.(event);
     },
-    [invalidateCache, showTeamToasts, onTriggered, queryClient],
+    [invalidateCache, showTeamToasts, queryClient],
   );
 
   /**
@@ -234,9 +252,9 @@ export function useErinnerungWebSocket({
         });
       }
 
-      onCreated?.(event);
+      onCreatedRef.current?.(event);
     },
-    [invalidateCache, showTeamToasts, onCreated],
+    [invalidateCache, showTeamToasts],
   );
 
   /**
@@ -247,9 +265,9 @@ export function useErinnerungWebSocket({
       logger.info('WebSocket: Erinnerung updated', event);
       invalidateCache();
 
-      onUpdated?.(event);
+      onUpdatedRef.current?.(event);
     },
-    [invalidateCache, onUpdated],
+    [invalidateCache],
   );
 
   /**
@@ -274,9 +292,9 @@ export function useErinnerungWebSocket({
         });
       }
 
-      onDeleted?.(event);
+      onDeletedRef.current?.(event);
     },
-    [invalidateCache, showTeamToasts, onDeleted],
+    [invalidateCache, showTeamToasts],
   );
 
   /**
@@ -299,7 +317,7 @@ export function useErinnerungWebSocket({
       // C7 Fix: Check if mutation is pending for this erinnerung
       const mutationCache = queryClient.getMutationCache();
       const pendingMutation = mutationCache.find({
-        predicate: (mutation) => mutation.state.status === 'pending' && mutation.options.mutationKey?.some((key) => typeof key === 'string' && key.includes(event.erinnerungId)),
+        predicate: (mutation) => mutation.state.status === 'pending' && (mutation.options.mutationKey?.some((key) => typeof key === 'string' && key.includes(event.erinnerungId)) ?? false),
       });
 
       if (pendingMutation) {
@@ -310,7 +328,7 @@ export function useErinnerungWebSocket({
             description: 'Ein Teammitglied hat eine Erinnerung bestätigt',
           });
         }
-        onAcknowledged?.(event);
+        onAcknowledgedRef.current?.(event);
         return;
       }
 
@@ -323,9 +341,9 @@ export function useErinnerungWebSocket({
         });
       }
 
-      onAcknowledged?.(event);
+      onAcknowledgedRef.current?.(event);
     },
-    [invalidateCache, showTeamToasts, onAcknowledged, queryClient],
+    [invalidateCache, showTeamToasts, queryClient],
   );
 
   /**
@@ -389,22 +407,22 @@ export function useErinnerungWebSocket({
       // C7 Fix: Check if mutation is pending for this erinnerung
       const mutationCache = queryClient.getMutationCache();
       const pendingMutation = mutationCache.find({
-        predicate: (mutation) => mutation.state.status === 'pending' && mutation.options.mutationKey?.some((key) => typeof key === 'string' && key.includes(event.erinnerungId)),
+        predicate: (mutation) => mutation.state.status === 'pending' && (mutation.options.mutationKey?.some((key) => typeof key === 'string' && key.includes(event.erinnerungId)) ?? false),
       });
 
       if (pendingMutation) {
         logger.debug('WebSocket: Skipping cache invalidation - assign mutation pending', { erinnerungId: event.erinnerungId });
         // Skip cache invalidation but still show notifications and call callback for team sync
         showAssignmentNotifications();
-        onAssigned?.(event);
+        onAssignedRef.current?.(event);
         return;
       }
 
       invalidateCache();
       showAssignmentNotifications();
-      onAssigned?.(event);
+      onAssignedRef.current?.(event);
     },
-    [invalidateCache, showTeamToasts, onAssigned, queryClient],
+    [invalidateCache, showTeamToasts, queryClient],
   );
 
   /**
@@ -430,6 +448,7 @@ export function useErinnerungWebSocket({
       reconnectionDelay: RECONNECT_DELAY_MS,
       reconnectionDelayMax: RECONNECT_DELAY_MAX_MS,
       reconnectionAttempts: 10,
+      withCredentials: true,
     });
 
     socket.on('connect', () => {

@@ -78,7 +78,26 @@ export class WsJwtAuthGuard implements CanActivate {
    */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const client: Socket = context.switchToWs().getClient();
-    const token = client.handshake.auth?.token;
+    let token = client.handshake.auth?.token;
+
+    // Fallback: Token aus Cookie lesen (wenn kein expliziter Auth-Token)
+    if (!token && client.handshake.headers.cookie) {
+      const cookies = client.handshake.headers.cookie.split(';').reduce(
+        (acc, cookie) => {
+          const parts = cookie.trim().split('=');
+          const key = parts.shift();
+          const value = parts.join('=');
+
+          if (key && value) {
+            acc[key] = value;
+          }
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
+
+      token = cookies['accessToken'];
+    }
 
     if (!token) {
       client.disconnect();
@@ -99,7 +118,8 @@ export class WsJwtAuthGuard implements CanActivate {
       client.data.role = payload.role;
 
       return true;
-    } catch (_error) {
+    } catch (error) {
+      console.error('WsJwtAuthGuard: Token validation failed', error);
       client.disconnect();
       throw new UnauthorizedException('Invalid token');
     }

@@ -112,7 +112,15 @@ export class PrismaErinnerungMapper {
       assignedBy = assignedByResult.value;
     }
 
-    // 12. Entity via reconstruct() rekonstruieren (keine Events, keine Validierung)
+    // 13. Eskalation: eskalationsPersonId rekonstruieren (optional) (Story 4.1)
+    let eskalationsPersonId: UserId | null = null;
+    if (prisma.eskalationsPersonId) {
+      const eskalationsPersonIdResult = UserId.create(prisma.eskalationsPersonId);
+      if (eskalationsPersonIdResult.isFailure || !eskalationsPersonIdResult.value) {
+        throw new Error(`Invalid eskalationsPersonId UserId from DB: ${prisma.eskalationsPersonId}`);
+      }
+      eskalationsPersonId = eskalationsPersonIdResult.value;
+    }
     return Erinnerung.reconstruct({
       id: idResult.value,
       einsatzId: einsatzIdResult.value,
@@ -147,6 +155,7 @@ export class PrismaErinnerungMapper {
       assignedToId,
       assignedBy,
       assignedAt: prisma.assignedAt,
+      eskalationsPersonId,
     });
   }
 
@@ -187,6 +196,7 @@ export class PrismaErinnerungMapper {
     assignedToId: string | null;
     assignedBy: string | null;
     assignedAt: Date | null;
+    eskalationsPersonId: string | null;
   } {
     return {
       id: entity.id.toString(),
@@ -220,6 +230,7 @@ export class PrismaErinnerungMapper {
       assignedToId: entity.assignedToId?.toString() ?? null,
       assignedBy: entity.assignedBy?.toString() ?? null,
       assignedAt: entity.assignedAt,
+      eskalationsPersonId: entity.eskalationsPersonId?.toString() ?? null,
     };
   }
 

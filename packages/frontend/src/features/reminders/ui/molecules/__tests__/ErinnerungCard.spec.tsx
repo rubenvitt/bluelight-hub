@@ -606,4 +606,37 @@ describe('ErinnerungCard', () => {
       expect(badge).toHaveAttribute('title', 'Neu zugewiesen');
     });
   });
+
+  describe('Eskalationsperson (Story 4.1)', () => {
+    it('should show "Eskalation: Name" badge when eskalationsPersonName is present', () => {
+      // Given (Arrange)
+      const erinnerung: ErinnerungResponseDto = {
+        ...baseErinnerung,
+        eskalationsPersonId: 'clw3h8x9y0005znopqrstuvw',
+        eskalationsPersonName: 'Chief Wiggum',
+      } as any;
+
+      // When (Act)
+      render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" />);
+
+      // Then (Assert)
+      const badge = screen.getByText('Chief Wiggum');
+      expect(badge).toBeInTheDocument();
+      expect(badge.parentElement).toHaveTextContent('Eskalation: Chief Wiggum');
+    });
+
+    it('should NOT show escalation badge when eskalationsPersonName is missing', () => {
+      // Given (Arrange)
+      const erinnerung: ErinnerungResponseDto = {
+        ...baseErinnerung,
+        eskalationsPersonId: null,
+      } as any;
+
+      // When (Act)
+      render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" />);
+
+      // Then (Assert)
+      expect(screen.queryByText(/Eskalation:/)).not.toBeInTheDocument();
+    });
+  });
 });

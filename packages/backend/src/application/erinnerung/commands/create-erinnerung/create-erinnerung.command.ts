@@ -15,6 +15,8 @@ export interface CreateErinnerungCommandProps {
   requiresNote?: boolean;
   /** Story 3.3: Optionale initiale Zuweisung an einen User */
   assignedToId?: string;
+  /** Story 4.1: Optionale Eskalationsperson */
+  eskalationsPersonId?: string;
 }
 
 /**
@@ -64,6 +66,7 @@ export class CreateErinnerungCommand {
     public readonly erstelltVon: string,
     public readonly requiresNote: boolean,
     public readonly assignedToId: string | undefined,
+    public readonly eskalationsPersonId: string | undefined,
   ) {}
 
   /**
@@ -138,6 +141,7 @@ export class CreateErinnerungCommand {
         trimmedErstelltVon,
         props.requiresNote ?? Erinnerung.DEFAULT_REQUIRES_NOTE,
         props.assignedToId?.trim() || undefined,
+        props.eskalationsPersonId?.trim() || undefined,
       ),
     );
   }

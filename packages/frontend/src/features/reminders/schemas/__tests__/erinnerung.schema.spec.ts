@@ -463,3 +463,30 @@ describe('createErinnerungSchema - requiresNote (Story 2.6)', () => {
     });
   });
 });
+
+describe('Story 4.1: Eskalationsperson', () => {
+  it('should accept optional eskalationsPersonId', () => {
+    const input = {
+      titel: 'Eskalation Test',
+      timeMode: 'preset' as const,
+      minuten: 30,
+      eskalationsPersonId: 'clw3h8x9y0005znopqrstuvw',
+    };
+    const result = createErinnerungSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.eskalationsPersonId).toBe('clw3h8x9y0005znopqrstuvw');
+    }
+  });
+
+  it('should accept null eskalationsPersonId', () => {
+    const input = {
+      titel: 'Eskalation Null',
+      timeMode: 'preset' as const,
+      minuten: 30,
+      eskalationsPersonId: null,
+    };
+    const result = createErinnerungSchema.safeParse(input);
+    expect(result.success).toBe(true);
+  });
+});

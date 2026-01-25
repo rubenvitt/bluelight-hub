@@ -49,6 +49,12 @@ export interface CreateErinnerungDto {
    * @memberof CreateErinnerungDto
    */
   assignedToId?: string;
+  /**
+   * Optionale Eskalationsperson (Story 4.1)
+   * @type {string}
+   * @memberof CreateErinnerungDto
+   */
+  eskalationsPersonId?: string;
 }
 
 /**
@@ -74,6 +80,7 @@ export function CreateErinnerungDtoFromJSONTyped(json: any, ignoreDiscriminator:
     beschreibung: json['beschreibung'] == null ? undefined : json['beschreibung'],
     requiresNote: json['requiresNote'] == null ? undefined : json['requiresNote'],
     assignedToId: json['assignedToId'] == null ? undefined : json['assignedToId'],
+    eskalationsPersonId: json['eskalationsPersonId'] == null ? undefined : json['eskalationsPersonId'],
   };
 }
 
@@ -92,5 +99,6 @@ export function CreateErinnerungDtoToJSONTyped(value?: CreateErinnerungDto | nul
     beschreibung: value['beschreibung'],
     requiresNote: value['requiresNote'],
     assignedToId: value['assignedToId'],
+    eskalationsPersonId: value['eskalationsPersonId'],
   };
 }

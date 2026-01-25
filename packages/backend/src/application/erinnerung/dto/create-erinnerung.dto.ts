@@ -107,4 +107,19 @@ export class CreateErinnerungDto {
   @IsOptional()
   @IsString({ message: 'assignedToId muss ein String sein' })
   assignedToId?: string;
+
+  /**
+   * Optionale Eskalationsperson (Story 4.1).
+   * Wenn gesetzt, ist diese Person für Eskalationen zuständig.
+   *
+   * @example "clw3h8x9y0005znopqrstuvw"
+   */
+  @ApiProperty({
+    description: 'Optionale Eskalationsperson (Story 4.1)',
+    example: 'clw3h8x9y0005znopqrstuvw',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'eskalationsPersonId muss ein String sein' })
+  eskalationsPersonId?: string;
 }

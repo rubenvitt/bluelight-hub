@@ -31,6 +31,8 @@ interface AssigneeSelectorProps {
   error?: string;
   /** Zusaetzliche CSS-Klassen */
   className?: string;
+  /** Platzhalter Text für leere Auswahl */
+  placeholder?: string;
 }
 
 /**
@@ -54,7 +56,7 @@ interface AssigneeSelectorProps {
  * />
  * ```
  */
-export function AssigneeSelector({ einsatzId, value, onChange, onBlur, disabled = false, error, className }: AssigneeSelectorProps) {
+export function AssigneeSelector({ einsatzId, value, onChange, onBlur, disabled = false, error, className, placeholder }: AssigneeSelectorProps) {
   const { data: teilnehmer, isLoading, isError } = useAktiveEinsatzTeilnehmer(einsatzId);
 
   // AC2: Formatiere Teilnehmer fuer Combobox (Username + Funkrufname)
@@ -102,7 +104,7 @@ export function AssigneeSelector({ einsatzId, value, onChange, onBlur, disabled 
         value={value ?? ''}
         onChange={handleChange}
         onBlur={onBlur}
-        placeholder="Fuer alle (keine Zuweisung)"
+        placeholder={placeholder ?? 'Fuer alle (keine Zuweisung)'}
         disabled={disabled || comboboxItems.length === 0}
         leadingIcon={<PiUser className="h-5 w-5" />}
         error={error}

@@ -56,7 +56,7 @@ import type { ErinnerungResponseDto } from '@/shared';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PiCheckCircle, PiCheckSquareOffset, PiCloudSlash, PiNotepad, PiPencil, PiTrash, PiUserPlus } from 'react-icons/pi';
+import { PiCheckCircle, PiCheckSquareOffset, PiCloudSlash, PiNotepad, PiPencil, PiTrash, PiUserPlus, PiWarning } from 'react-icons/pi';
 import { useAcknowledgeErinnerung, useSnoozeErinnerung, type SnoozeMinutes } from '../../api';
 import { soundService, timerService, intensificationService } from '../../services';
 import { useCountdown } from '../../hooks/use-countdown';
@@ -427,6 +427,17 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
                   className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-1.5 py-0.5 font-medium text-blue-700 text-xs dark:bg-blue-900/40 dark:text-blue-300"
                 >
                   Team
+                </output>
+              )}
+              {/* Story 4.1: Eskalationsperson */}
+              {erinnerung.eskalationsPersonName && (
+                <output
+                  aria-label={`Eskalation an: ${erinnerung.eskalationsPersonName}`}
+                  className="inline-flex items-center gap-1 rounded-full bg-red-50 px-1.5 py-0.5 font-medium text-red-700 text-xs dark:bg-red-900/40 dark:text-red-300"
+                  title={`Im Eskalationsfall benachrichtigt: ${erinnerung.eskalationsPersonName}`}
+                >
+                  <PiWarning className="h-3 w-3" aria-hidden="true" />
+                  {erinnerung.eskalationsPersonName}
                 </output>
               )}
             </div>

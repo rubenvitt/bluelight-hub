@@ -132,14 +132,13 @@ export interface ErinnerungAssignedPayload {
  * - `erinnerung.updated`: Erinnerung aktualisiert
  * - `erinnerung.deleted`: Erinnerung geloescht
  */
+import { corsConfig } from '@/infrastructure/config/security.config';
+
 @Injectable()
 @UseGuards(WsJwtAuthGuard)
 @WebSocketGateway({
   namespace: '/erinnerungen',
-  cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3090',
-    credentials: true,
-  },
+  cors: process.env.NODE_ENV === 'production' ? corsConfig.production : corsConfig.development,
 })
 export class ErinnerungGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

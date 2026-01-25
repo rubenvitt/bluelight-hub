@@ -84,4 +84,22 @@ export class UpdateErinnerungDto {
   @IsString({ message: 'Beschreibung muss ein String sein' })
   @MaxLength(500, { message: 'Beschreibung darf maximal 500 Zeichen lang sein' })
   beschreibung?: string | null;
+
+  /**
+   * Neue Eskalationsperson.
+   * Optional - wird nur aktualisiert wenn vorhanden.
+   * Kann auf null gesetzt werden um die Eskalationsperson zu entfernen.
+   *
+   * @example "clw3h8x9y0005znopqrstuvw"
+   */
+  @ApiProperty({
+    description: 'Neue Eskalationsperson (Story 4.1). null um zu löschen.',
+    example: 'clw3h8x9y0005znopqrstuvw',
+    type: String,
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString({ message: 'eskalationsPersonId muss ein String sein' })
+  eskalationsPersonId?: string | null;
 }

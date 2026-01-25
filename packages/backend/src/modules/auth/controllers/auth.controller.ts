@@ -245,7 +245,7 @@ export class AuthController {
     response.cookie('accessToken', token, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 24h
     });
 

@@ -24,6 +24,7 @@ import { useUpdateErinnerung } from '../../api';
 import { type CustomTime, TIME_PRESETS, type UpdateErinnerungFormData, updateErinnerungSchema } from '../../schemas/erinnerung.schema';
 import { calculateCustomFaelligAm, formatTimeForToast } from '../../utils/time-calculation';
 import { TimeInput } from '../molecules/TimeInput';
+import { AssigneeSelector } from '../molecules/AssigneeSelector';
 
 /**
  * Extrahiert Fehlermeldungen aus TanStack Form Errors.
@@ -81,14 +82,15 @@ export function ErinnerungEditDialog({ isOpen, onClose, erinnerung, einsatzId }:
     return getTimeFromDate(erinnerung.faelligAm);
   }, [erinnerung?.faelligAm]);
 
-  const form = useForm<UpdateErinnerungFormData>({
+  const form = useForm({
     defaultValues: {
       titel: erinnerung?.titel ?? '',
       timeMode: 'unchanged', // Story 1.3: Default ist "unveraendert"
       minuten: undefined,
       customTime: initialCustomTime,
       beschreibung: erinnerung?.beschreibung ?? '',
-    },
+      eskalationsPersonId: (erinnerung as any)?.eskalationsPersonId ?? null,
+    } as UpdateErinnerungFormData,
     validatorAdapter: zodValidator(),
     validators: {
       onSubmit: updateErinnerungSchema,
@@ -118,10 +120,17 @@ export function ErinnerungEditDialog({ isOpen, onClose, erinnerung, einsatzId }:
         hasChanges = true;
       }
 
+      // Story 4.1: Eskalationsperson pruefen
+      const newEskalation = value.eskalationsPersonId ?? null;
+      const oldEskalation = (erinnerung as any)?.eskalationsPersonId ?? null;
+      if (newEskalation !== oldEskalation) {
+        updateData.eskalationsPersonId = newEskalation || null;
+        hasChanges = true;
+      }
+
       // Zeit pruefen basierend auf Modus
       if (value.timeMode !== 'unchanged') {
         let faelligAm: Date;
-
         if (value.timeMode === 'preset') {
           const minuten = value.minuten !== undefined ? value.minuten : 30;
           faelligAm = new Date(Date.now() + minuten * 60 * 1000);
@@ -347,6 +356,27 @@ export function ErinnerungEditDialog({ isOpen, onClose, erinnerung, einsatzId }:
                   </form.Field>
                 )}
               </form.Field>
+            )}
+          </form.Field>
+
+          {/* Story 4.1: Eskalationsperson */}
+          <form.Field name="eskalationsPersonId">
+            {(field) => (
+              <div>
+                <label htmlFor="edit-eskalationsPersonId" className="mb-1.5 block font-medium text-gray-700 text-sm dark:text-gray-300">
+                  Eskalation an <span className="text-gray-400 text-xs">(optional)</span>
+                </label>
+                <AssigneeSelector
+                  einsatzId={einsatzId}
+                  value={field.state.value}
+                  onChange={(userId) => field.handleChange(userId)}
+                  onBlur={field.handleBlur}
+                  disabled={isPending}
+                  error={field.state.meta.errors.length > 0 ? formatErrors(field.state.meta.errors) : undefined}
+                  placeholder="Keine Eskalation"
+                />
+                <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">Wird benachrichtigt, wenn Zuweisungsempfänger nicht reagiert</p>
+              </div>
             )}
           </form.Field>
 

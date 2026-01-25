@@ -27,6 +27,8 @@ export interface CreateErinnerungProps {
   erstelltVon: UserId;
   /** Story 2.6: Pflicht-Notiz bei Erledigung erforderlich (default: false) */
   requiresNote?: boolean;
+  /** Story 4.1: Optionale Eskalationsperson */
+  eskalationsPersonId?: UserId | null;
 }
 
 /**
@@ -39,6 +41,7 @@ export interface UpdateErinnerungProps {
   beschreibung?: string | null;
   faelligAm?: Date;
   aktualisierVon: UserId;
+  eskalationsPersonId?: UserId | null;
 }
 
 /**
@@ -88,6 +91,8 @@ export interface ReconstructErinnerungProps {
   assignedBy?: UserId | null;
   /** Story 3.3: Zeitpunkt der Zuweisung */
   assignedAt?: Date | null;
+  /** Story 4.1: Eskalationsperson */
+  eskalationsPersonId?: UserId | null;
 }
 
 /**
@@ -172,6 +177,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
   private _assignedToId: UserId | null;
   private _assignedBy: UserId | null;
   private _assignedAt: Date | null;
+
+  // Eskalation (Story 4.1)
+  private _eskalationsPersonId: UserId | null;
 
   // ============================================================
   // Readonly Getters
@@ -354,6 +362,14 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     return this._assignedAt ? new Date(this._assignedAt.getTime()) : null;
   }
 
+  /**
+   * Gibt die ID der Eskalationsperson zurück.
+   * Null wenn keine Eskalationsperson gesetzt.
+   */
+  get eskalationsPersonId(): UserId | null {
+    return this._eskalationsPersonId;
+  }
+
   // ============================================================
   // Private Constructor (erzwingt Factory Methods)
   // ============================================================
@@ -385,6 +401,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     assignedToId: UserId | null = null,
     assignedBy: UserId | null = null,
     assignedAt: Date | null = null,
+    eskalationsPersonId: UserId | null = null, // Story 4.1
   ) {
     super(id, createdAt, updatedAt);
     this._einsatzId = einsatzId;
@@ -410,6 +427,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     this._assignedToId = assignedToId;
     this._assignedBy = assignedBy;
     this._assignedAt = assignedAt;
+    this._eskalationsPersonId = eskalationsPersonId;
   }
 
   // ============================================================
@@ -484,10 +502,22 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       null, // assignedToId (Story 3.3)
       null, // assignedBy (Story 3.3)
       null, // assignedAt (Story 3.3)
+      props.eskalationsPersonId ?? null, // Story 4.1
     );
 
     // Emit Domain Event (Story 3.3: null für assignedToId bei Erstellung ohne Zuweisung)
-    erinnerung.addDomainEvent(new ErinnerungErstelltEvent(idResult.value, props.einsatzId, titelResult.value.value, props.faelligAm, props.erstelltVon, null, idResult.value.toString()));
+    erinnerung.addDomainEvent(
+      new ErinnerungErstelltEvent(
+        idResult.value,
+        props.einsatzId,
+        titelResult.value.value,
+        props.faelligAm,
+        props.erstelltVon,
+        null,
+        props.eskalationsPersonId ?? null, // Story 4.1
+        idResult.value.toString(),
+      ),
+    );
 
     return Result.ok<Erinnerung>(erinnerung);
   }
@@ -524,6 +554,7 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       props.assignedToId ?? null,
       props.assignedBy ?? null,
       props.assignedAt ?? null,
+      props.eskalationsPersonId ?? null,
     );
   }
 
@@ -578,7 +609,8 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     }
 
     // Mindestens ein Feld muss geändert werden
-    if (props.titel === undefined && props.beschreibung === undefined && props.faelligAm === undefined) {
+    // Mindestens ein Feld muss geändert werden
+    if (props.titel === undefined && props.beschreibung === undefined && props.faelligAm === undefined && props.eskalationsPersonId === undefined) {
       return Result.fail<void>('ERINNERUNG_NO_CHANGES');
     }
 
@@ -616,6 +648,12 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       }
       this._faelligAm = props.faelligAm;
       aenderungen.faelligAm = props.faelligAm;
+    }
+
+    // Update eskalationsPersonId (Story 4.1)
+    if (props.eskalationsPersonId !== undefined) {
+      this._eskalationsPersonId = props.eskalationsPersonId;
+      aenderungen.eskalationsPersonId = props.eskalationsPersonId;
     }
 
     // Emit Domain Event mit allen Änderungen

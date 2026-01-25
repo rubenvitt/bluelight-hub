@@ -53,6 +53,8 @@ export const createErinnerungSchema = z
     requiresNote: z.boolean().optional(),
     /** Story 3.3: Zuweisung an einen aktiven Einsatz-Teilnehmer (optional) */
     assignedToId: z.string().optional().nullable(),
+    /** Story 4.1: Eskalationsperson (optional) */
+    eskalationsPersonId: z.string().optional().nullable(),
   })
   .superRefine((data, ctx) => {
     if (data.timeMode === 'preset' && data.minuten === undefined) {
@@ -116,6 +118,8 @@ export const updateErinnerungSchema = z
     minuten: z.number().int('Minuten muss eine ganze Zahl sein').min(1, 'Minuten muss mindestens 1 sein').max(1440, 'Minuten darf maximal 1440 (24h) sein').optional(),
     customTime: customTimeSchema.optional(),
     beschreibung: z.string().max(500, 'Beschreibung darf maximal 500 Zeichen lang sein').optional().nullable(),
+    /** Story 4.1: Eskalationsperson (optional) */
+    eskalationsPersonId: z.string().optional().nullable(),
   })
   .superRefine((data, ctx) => {
     // Wenn timeMode='preset', muss minuten gesetzt sein

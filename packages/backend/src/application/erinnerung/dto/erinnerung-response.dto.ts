@@ -139,6 +139,33 @@ export class ErinnerungResponseDto {
     example: 'Max Mustermann',
     nullable: true,
     required: false,
+    type: String,
   })
   assignedToName?: string | null;
+
+  @ApiProperty({
+    description: 'Name des Erstellers (Story 3.1 AC3)',
+    example: 'Max Mustermann',
+    nullable: true,
+    required: false,
+    type: String,
+  })
+  erstellerName?: string | null;
+
+  @ApiProperty({
+    description: 'ID der Eskalationsperson (Story 4.1)',
+    example: 'clw3h8x9y0005znopqrstuvw',
+    nullable: true,
+    required: false,
+  })
+  eskalationsPersonId?: string | null;
+
+  @ApiProperty({
+    description: 'Name der Eskalationsperson (Story 4.1)',
+    example: 'Max Mustermann',
+    nullable: true,
+    required: false,
+    type: String,
+  })
+  eskalationsPersonName?: string | null;
 }

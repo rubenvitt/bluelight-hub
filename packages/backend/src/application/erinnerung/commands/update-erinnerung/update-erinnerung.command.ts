@@ -12,6 +12,7 @@ export interface UpdateErinnerungCommandProps {
   titel?: string;
   beschreibung?: string | null;
   faelligAm?: Date;
+  eskalationsPersonId?: string | null;
 }
 
 /**
@@ -58,6 +59,7 @@ export class UpdateErinnerungCommand {
     public readonly titel: string | undefined,
     public readonly beschreibung: string | null | undefined,
     public readonly faelligAm: Date | undefined,
+    public readonly eskalationsPersonId: string | null | undefined,
   ) {}
 
   /**
@@ -92,8 +94,9 @@ export class UpdateErinnerungCommand {
     const hasTitel = props.titel !== undefined;
     const hasBeschreibung = props.beschreibung !== undefined;
     const hasFaelligAm = props.faelligAm !== undefined;
+    const hasEskalationsPersonId = props.eskalationsPersonId !== undefined;
 
-    if (!hasTitel && !hasBeschreibung && !hasFaelligAm) {
+    if (!hasTitel && !hasBeschreibung && !hasFaelligAm && !hasEskalationsPersonId) {
       return Result.fail<UpdateErinnerungCommand>(ERINNERUNG_ERROR_CODES.NO_CHANGES);
     }
 
@@ -134,8 +137,16 @@ export class UpdateErinnerungCommand {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // Validierung und Trimmen von eskalationsPersonId
+    // ════════════════════════════════════════════════════════════════════════
+    let eskalationsPersonId: string | null | undefined;
+    if (hasEskalationsPersonId) {
+      eskalationsPersonId = props.eskalationsPersonId === null ? null : props.eskalationsPersonId?.trim() || null;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // Command erstellen
     // ════════════════════════════════════════════════════════════════════════
-    return Result.ok(new UpdateErinnerungCommand(trimmedId, props.aktualisierVon, trimmedTitel, beschreibung, props.faelligAm));
+    return Result.ok(new UpdateErinnerungCommand(trimmedId, props.aktualisierVon, trimmedTitel, beschreibung, props.faelligAm, eskalationsPersonId));
   }
 }

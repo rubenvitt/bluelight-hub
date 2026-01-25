@@ -161,6 +161,7 @@ model User {
   erledigteErinnerungen    Erinnerung[] @relation("ErinnerungErledigter") // Story 2.5: Erledigt Audit Trail
   assignedErinnerungen     Erinnerung[] @relation("ErinnerungAssignedTo") // Story 3.3/3.4: Zugewiesene Erinnerungen
   assignedByErinnerungen   Erinnerung[] @relation("ErinnerungAssigner") // Story 3.3/3.4: Von mir zugewiesene Erinnerungen
+  beauftragteEskalationen  Erinnerung[] @relation("ErinnerungEskalationsPerson") // Story 4.1: Mir zugewiesene Eskalationen
 
   // Indexes
   @@index([username], map: "idx_user_username")
@@ -1334,6 +1335,10 @@ model Erinnerung {
   assignedBy     String?          @map("assigned_by") @db.VarChar(100)
   assignedAt     DateTime?        @map("assigned_at")
 
+  // Eskalation (Story 4.1) - Optionale Eskalationsperson
+  eskalationsPersonId String?     @map("eskalations_person_id") @db.VarChar(100)
+
+
   erstelltVon    String           @map("erstellt_von") @db.VarChar(100)
 
   // Audit Trail
@@ -1354,6 +1359,7 @@ model Erinnerung {
   erledigter   User?   @relation("ErinnerungErledigter", fields: [erledigtBy], references: [id], onDelete: Restrict) // Story 2.5
   assignedTo   User?   @relation("ErinnerungAssignedTo", fields: [assignedToId], references: [id], onDelete: Restrict) // Story 3.3/3.4: Zugewiesene Person
   assigner     User?   @relation("ErinnerungAssigner", fields: [assignedBy], references: [id], onDelete: Restrict) // Story 3.3/3.4: Wer hat zugewiesen
+  eskalationsPerson User? @relation("ErinnerungEskalationsPerson", fields: [eskalationsPersonId], references: [id], onDelete: Restrict) // Story 4.1
 
   // Indexes
   @@index([einsatzId])

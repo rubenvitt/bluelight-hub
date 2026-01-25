@@ -67,7 +67,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
 
   const { mutate: createErinnerung, isPending } = useCreateErinnerung();
 
-  const form = useForm<CreateErinnerungFormData>({
+  const form = useForm({
     defaultValues: {
       titel: '',
       timeMode: 'preset', // Story 1.2: Default ist Preset-Modus
@@ -76,7 +76,8 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
       beschreibung: undefined,
       requiresNote: false, // Story 2.6: Pflicht-Notiz default aus
       assignedToId: null, // Story 3.3: Keine Zuweisung = fuer alle
-    },
+      eskalationsPersonId: null, // Story 4.1 AC1: Optional
+    } as CreateErinnerungFormData,
     validatorAdapter: zodValidator(),
     validators: {
       onSubmit: createErinnerungSchema,
@@ -110,6 +111,7 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
             beschreibung: value.beschreibung?.trim() || undefined,
             requiresNote: value.requiresNote, // Story 2.6: Pflicht-Notiz Flag
             assignedToId: value.assignedToId ?? undefined, // Story 3.3: Zuweisung an Person
+            eskalationsPersonId: value.eskalationsPersonId ?? undefined, // Story 4.1: Eskalationsperson
           },
         },
         {
@@ -291,8 +293,30 @@ export function QuickCreateErinnerungDialog({ isOpen, onClose, einsatzId }: Quic
                   onBlur={field.handleBlur}
                   disabled={isPending}
                   error={field.state.meta.errors.length > 0 ? formatErrors(field.state.meta.errors) : undefined}
+                  placeholder="Für alle (keine Zuweisung)"
                 />
                 <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">Leer lassen für alle Teilnehmer</p>
+              </div>
+            )}
+          </form.Field>
+
+          {/* Story 4.1: Eskalationsperson */}
+          <form.Field name="eskalationsPersonId">
+            {(field) => (
+              <div>
+                <label htmlFor="eskalationsPersonId" className="mb-1.5 block font-medium text-gray-700 text-sm dark:text-gray-300">
+                  Eskalation an <span className="text-gray-400 text-xs">(optional)</span>
+                </label>
+                <AssigneeSelector
+                  einsatzId={einsatzId}
+                  value={field.state.value}
+                  onChange={(userId) => field.handleChange(userId)}
+                  onBlur={field.handleBlur}
+                  disabled={isPending}
+                  error={field.state.meta.errors.length > 0 ? formatErrors(field.state.meta.errors) : undefined}
+                  placeholder="Keine Eskalation"
+                />
+                <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">Wird benachrichtigt, wenn Zuweisungsempfänger nicht reagiert</p>
               </div>
             )}
           </form.Field>

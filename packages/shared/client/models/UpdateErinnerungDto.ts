@@ -37,6 +37,12 @@ export interface UpdateErinnerungDto {
    * @memberof UpdateErinnerungDto
    */
   beschreibung?: string | null;
+  /**
+   * Neue Eskalationsperson (Story 4.1). null um zu löschen.
+   * @type {string}
+   * @memberof UpdateErinnerungDto
+   */
+  eskalationsPersonId?: string | null;
 }
 
 /**
@@ -58,6 +64,7 @@ export function UpdateErinnerungDtoFromJSONTyped(json: any, ignoreDiscriminator:
     titel: json['titel'] == null ? undefined : json['titel'],
     faelligAm: json['faelligAm'] == null ? undefined : json['faelligAm'],
     beschreibung: json['beschreibung'] == null ? undefined : json['beschreibung'],
+    eskalationsPersonId: json['eskalationsPersonId'] == null ? undefined : json['eskalationsPersonId'],
   };
 }
 
@@ -74,5 +81,6 @@ export function UpdateErinnerungDtoToJSONTyped(value?: UpdateErinnerungDto | nul
     titel: value['titel'],
     faelligAm: value['faelligAm'],
     beschreibung: value['beschreibung'],
+    eskalationsPersonId: value['eskalationsPersonId'],
   };
 }

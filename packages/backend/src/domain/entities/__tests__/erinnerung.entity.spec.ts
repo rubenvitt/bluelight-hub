@@ -1750,4 +1750,153 @@ describe('Erinnerung Entity', () => {
       expect(result.value!.requiresNote).toBe(false);
     });
   });
+  // ============================================================
+  // eskalationsPersonId (Story 4.1)
+  // ============================================================
+
+  describe('eskalationsPersonId (Story 4.1)', () => {
+    it('sollte Erinnerung mit eskalationsPersonId erstellen', () => {
+      // Given
+      const eskalationsPersonId = UserId.create().value!;
+
+      // When
+      const result = Erinnerung.create({
+        einsatzId: testEinsatzId,
+        titel: 'Eskalation Test',
+        faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+        erstelltVon: testUserId,
+        // @ts-expect-error - Property does not exist yet
+        eskalationsPersonId,
+      });
+
+      // Then
+      expect(result.isSuccess).toBe(true);
+      const erinnerung = result.value!;
+      // @ts-expect-error - Property does not exist yet
+      expect(erinnerung.eskalationsPersonId).toBe(eskalationsPersonId);
+    });
+
+    it('sollte ErinnerungErstelltEvent mit eskalationsPersonId emittieren', () => {
+      // Given
+      const eskalationsPersonId = UserId.create().value!;
+
+      // When
+      const result = Erinnerung.create({
+        einsatzId: testEinsatzId,
+        titel: 'Eskalation Event Test',
+        faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+        erstelltVon: testUserId,
+        // @ts-expect-error - Property does not exist yet
+        eskalationsPersonId,
+      });
+
+      // Then
+      const event = result.value!.getDomainEvents()[0] as any; // Cast to any because prop missing
+      expect(event.eskalationsPersonId).toBe(eskalationsPersonId);
+    });
+
+    it('sollte eskalationsPersonId aktualisieren (Status GEPLANT)', () => {
+      // Given
+      const erinnerung = createGeplantErinnerung();
+      const newEskalationsPersonId = UserId.create().value!;
+
+      // When
+      // @ts-expect-error - Property does not exist yet
+      const result = erinnerung.update({
+        aktualisierVon: testUserId,
+        eskalationsPersonId: newEskalationsPersonId,
+      });
+
+      // Then
+      expect(result.isSuccess).toBe(true);
+      // @ts-expect-error - Property does not exist yet
+      expect(erinnerung.eskalationsPersonId).toBe(newEskalationsPersonId);
+    });
+
+    it('sollte eskalationsPersonId entfernen (null setzen)', () => {
+      // Given
+      const eskalationsPersonId = UserId.create().value!;
+      const result = Erinnerung.create({
+        einsatzId: testEinsatzId,
+        titel: 'Eskalation Remove Test',
+        faelligAm: new Date(Date.now() + 60 * 60 * 1000),
+        erstelltVon: testUserId,
+        // @ts-expect-error
+        eskalationsPersonId,
+      });
+      const erinnerung = result.value!;
+
+      // When
+      // @ts-expect-error
+      const updateResult = erinnerung.update({
+        aktualisierVon: testUserId,
+        eskalationsPersonId: null,
+      });
+
+      // Then
+      expect(updateResult.isSuccess).toBe(true);
+      // @ts-expect-error
+      expect(erinnerung.eskalationsPersonId).toBeNull();
+    });
+
+    it('sollte ErinnerungAktualisiertEvent mit eskalationsPersonId emittieren', () => {
+      // Given
+      const erinnerung = createGeplantErinnerung();
+      erinnerung.clearDomainEvents();
+      const newEskalationsPersonId = UserId.create().value!;
+
+      // When
+      // @ts-expect-error
+      erinnerung.update({
+        aktualisierVon: testUserId,
+        eskalationsPersonId: newEskalationsPersonId,
+      });
+
+      // Then
+      const event = erinnerung.getDomainEvents()[0] as ErinnerungAktualisiertEvent;
+      // @ts-expect-error
+      expect(event.aenderungen.eskalationsPersonId).toBe(newEskalationsPersonId);
+    });
+
+    it('sollte Update verweigern wenn Status nicht GEPLANT', () => {
+      // Given
+      const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+      const eskalationsPersonId = UserId.create().value!;
+
+      // When
+      // @ts-expect-error
+      const result = erinnerung.update({
+        aktualisierVon: testUserId,
+        eskalationsPersonId,
+      });
+
+      // Then
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('ERINNERUNG_NOT_EDITABLE');
+    });
+
+    it('sollte reconstruct mit eskalationsPersonId unterstützen', () => {
+      // Given
+      const eskalationsPersonId = UserId.create().value!;
+
+      // When
+      const erinnerung = Erinnerung.reconstruct({
+        id: ErinnerungId.create().value!,
+        einsatzId: testEinsatzId,
+        titel: ErinnerungTitel.create('Reconstruct Test').value!,
+        beschreibung: null,
+        faelligAm: new Date(),
+        status: ErinnerungStatus.GEPLANT(),
+        erstelltVon: testUserId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        // @ts-expect-error
+        eskalationsPersonId,
+      });
+
+      // Then
+      // @ts-expect-error
+      expect(erinnerung.eskalationsPersonId).toBe(eskalationsPersonId);
+    });
+  });
 });

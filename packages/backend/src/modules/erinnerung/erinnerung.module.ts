@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaModule } from '@infrastructure/database/prisma.module';
 import { InfrastructureCommonModule } from '@infrastructure/common.module';
 import { OutboxModule } from '@infrastructure/outbox/outbox.module';
+import { UserInfrastructureModule } from '@infrastructure/user/user-infrastructure.module';
 import { ERINNERUNG_REPOSITORY } from '@infrastructure/di-tokens';
 import { PrismaErinnerungRepository } from '@infrastructure/repositories/prisma-erinnerung.repository';
 import { CreateErinnerungHandler } from '@/application/erinnerung/commands/create-erinnerung/create-erinnerung.handler';
@@ -15,6 +16,7 @@ import { SnoozeErinnerungHandler } from '@/application/erinnerung/commands/snooz
 import { MarkErledigtErinnerungHandler } from '@/application/erinnerung/commands/mark-erledigt-erinnerung/mark-erledigt-erinnerung.handler';
 import { AssignErinnerungHandler } from '@/application/erinnerung/commands/assign-erinnerung/assign-erinnerung.handler';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
+import { ErinnerungResponseFactory } from '@/application/erinnerung/dto/erinnerung-response.factory';
 import { ErinnerungController } from './controllers/erinnerung.controller';
 import { ErinnerungGateway } from './gateways/erinnerung.gateway';
 import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
@@ -43,6 +45,7 @@ import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
     PrismaModule,
     InfrastructureCommonModule,
     OutboxModule,
+    UserInfrastructureModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -70,6 +73,8 @@ import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
     // WebSocket (Story 1.5 AC4 + Security C1, C2, C3)
     ErinnerungGateway,
     WsJwtAuthGuard,
+    // Utilities
+    ErinnerungResponseFactory,
   ],
   exports: [
     ERINNERUNG_REPOSITORY,
@@ -83,6 +88,7 @@ import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
     AssignErinnerungHandler,
     GetErinnerungenByEinsatzHandler,
     ErinnerungGateway, // Export for WebSocket Event Adapter
+    ErinnerungResponseFactory,
   ],
 })
 export class ErinnerungModule {}

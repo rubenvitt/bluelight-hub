@@ -12,6 +12,7 @@ export interface ErinnerungAenderungen {
   titel?: string;
   beschreibung?: string | null;
   faelligAm?: Date;
+  eskalationsPersonId?: UserId | null; // Story 4.1
 }
 
 /**

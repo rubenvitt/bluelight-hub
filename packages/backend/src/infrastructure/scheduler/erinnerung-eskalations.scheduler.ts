@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Cron, CronExpression, type SchedulerRegistry } from '@nestjs/schedule';
-import type { CommandBus, QueryBus } from '@nestjs/cqrs';
+import { Cron, CronExpression, SchedulerRegistry } from '@nestjs/schedule';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { IErinnerungRepository } from '@domain/repositories/i-erinnerung.repository';
 import type { ILogger } from '@domain/ports/i-logger.port';
 import { ERINNERUNG_REPOSITORY, LOGGER } from '@infrastructure/di-tokens';
@@ -34,7 +34,7 @@ export class ErinnerungEskalationsScheduler {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
     private readonly schedulerRegistry: SchedulerRegistry,
-  ) {}
+  ) { }
 
   onApplicationBootstrap() {
     try {

@@ -1,11 +1,85 @@
 import { Store } from '@tauri-apps/plugin-store';
+import { isTauri } from '@tauri-apps/api/core';
 
 /**
  * Tauri Store Service mit Encryption und Error Handling
  * Wrapper um das @tauri-apps/plugin-store für sichere Datenverwaltung.
  */
 
-let storeInstance: Store | null = null;
+// Interface defining the shape we need from the Store
+// This allows us to use both the real Store and our BrowserStore
+// Note: load() is not part of this interface because for Tauri Store it is a static method
+interface IStore {
+  save(): Promise<void>;
+  set(key: string, value: unknown): Promise<void>;
+  get<T>(key: string): Promise<T | undefined | null>; // Tauri returns undefined, we might return null/undefined
+  has(key: string): Promise<boolean>;
+  delete(key: string): Promise<boolean>;
+  clear(): Promise<void>;
+  keys(): Promise<string[]>;
+}
+
+// Browser implementation using localStorage
+class BrowserStore implements IStore {
+  private path: string;
+  private data: Map<string, unknown> = new Map();
+
+  constructor(path: string) {
+    this.path = path;
+  }
+
+  // Specific to BrowserStore, called manually during init
+  async load(): Promise<void> {
+    console.log(`[Store] Loading from localStorage: ${this.path}`);
+    const stored = localStorage.getItem(this.path);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        this.data = new Map(Object.entries(parsed));
+      } catch (e) {
+        console.error('[Store] Failed to parse localStorage', e);
+      }
+    }
+  }
+
+  async save(): Promise<void> {
+    console.log(`[Store] Saving to localStorage: ${this.path}`);
+    const obj = Object.fromEntries(this.data);
+    localStorage.setItem(this.path, JSON.stringify(obj));
+  }
+
+  async set(key: string, value: unknown): Promise<void> {
+    this.data.set(key, value);
+    // Auto-save in browser to mimic persistence
+    await this.save();
+  }
+
+  async get<T>(key: string): Promise<T | undefined> {
+    const val = this.data.get(key);
+    return val === undefined ? undefined : (val as T);
+  }
+
+  async has(key: string): Promise<boolean> {
+    return this.data.has(key);
+  }
+
+  async delete(key: string): Promise<boolean> {
+    const result = this.data.delete(key);
+    await this.save();
+    return result;
+  }
+
+  async clear(): Promise<void> {
+    this.data.clear();
+    await this.save();
+  }
+
+  async keys(): Promise<string[]> {
+    return Array.from(this.data.keys());
+  }
+}
+
+let storeInstance: Store | BrowserStore | null = null;
 
 /**
  * Initialisiert den globalen Store mit Encryption
@@ -14,14 +88,23 @@ let storeInstance: Store | null = null;
  */
 export async function initializeStore(storePath = 'app-store.json'): Promise<Store> {
   if (storeInstance) {
-    return storeInstance;
+    return storeInstance as Store;
   }
 
   try {
-    storeInstance = new Store(storePath);
-    await storeInstance.load();
+    if (isTauri()) {
+      // Tauri v2 Store: load is a static method that returns a Promise<Store>
+      console.log('[Store] Initializing Tauri Store...');
+      storeInstance = await Store.load(storePath);
+    } else {
+      console.warn('[Store] Running in browser - using localStorage fallback');
+      const browserStore = new BrowserStore(storePath);
+      await browserStore.load();
+      storeInstance = browserStore;
+    }
+
     console.log('[Store] Initialized successfully');
-    return storeInstance;
+    return storeInstance as Store;
   } catch (error) {
     console.error('[Store] Initialization failed:', error);
     throw error;
@@ -35,7 +118,7 @@ export async function getStore(): Promise<Store> {
   if (!storeInstance) {
     return initializeStore();
   }
-  return storeInstance;
+  return storeInstance as Store;
 }
 
 /**

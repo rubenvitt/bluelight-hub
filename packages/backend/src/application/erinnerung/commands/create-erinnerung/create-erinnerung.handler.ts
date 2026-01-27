@@ -12,7 +12,8 @@ import { TransactionalCommandHandler } from '@/application/common/handlers/trans
 // biome-ignore lint/style/useImportType: PrismaService is an Injectable class, not just a type - needed for DI at runtime
 import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { ERINNERUNG_REPOSITORY, LOGGER, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
-import type { ErinnerungResponseFactory } from '../../dto/erinnerung-response.factory';
+// biome-ignore lint/style/useImportType: Factory is an Injectable class, not just a type - needed for DI at runtime
+import { ErinnerungResponseFactory } from '../../dto/erinnerung-response.factory';
 import type { CreateErinnerungCommand } from './create-erinnerung.command';
 import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
 import type { ErinnerungResponseDto } from '../../dto/erinnerung-response.dto';
@@ -101,7 +102,7 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
     // ════════════════════════════════════════════════════════════════════════
     // 2a. Story 3.3: Optionale initiale Zuweisung
     // ════════════════════════════════════════════════════════════════════════
-    let assignedToName: string | null = null;
+    let _assignedToName: string | null = null;
     if (command.assignedToId) {
       // Validiere assignedToId als CUID2
       const assignedToIdResult = UserId.create(command.assignedToId);
@@ -136,7 +137,7 @@ export class CreateErinnerungHandler extends TransactionalCommandHandler<CreateE
         return Result.fail<ErinnerungResponseDto>(assignResult.error ?? ERINNERUNG_ERROR_CODES.ASSIGNMENT_FAILED);
       }
 
-      assignedToName = teilnehmer.user.username;
+      _assignedToName = teilnehmer.user.username;
     }
 
     // ════════════════════════════════════════════════════════════════════════

@@ -24,6 +24,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTokensRouteImport } from './routes/admin/tokens'
 import { Route as AdminSetupRouteImport } from './routes/admin/setup'
 import { Route as AdminInvitesRouteImport } from './routes/admin/invites'
+import { Route as AdminErinnerungenRouteImport } from './routes/admin/erinnerungen'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 import { Route as AppEinsaetzeIndexRouteImport } from './routes/app/einsaetze/index'
 import { Route as AppSettingsAudioRouteImport } from './routes/app/settings/audio'
@@ -139,6 +140,11 @@ const AdminSetupRoute = AdminSetupRouteImport.update({
 const AdminInvitesRoute = AdminInvitesRouteImport.update({
   id: '/invites',
   path: '/invites',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminErinnerungenRoute = AdminErinnerungenRouteImport.update({
+  id: '/erinnerungen',
+  path: '/erinnerungen',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
@@ -388,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/erinnerungen': typeof AdminErinnerungenRoute
   '/admin/invites': typeof AdminInvitesRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/tokens': typeof AdminTokensRoute
@@ -445,6 +452,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/erinnerungen': typeof AdminErinnerungenRoute
   '/admin/invites': typeof AdminInvitesRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/tokens': typeof AdminTokensRoute
@@ -501,6 +509,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/erinnerungen': typeof AdminErinnerungenRoute
   '/admin/invites': typeof AdminInvitesRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/tokens': typeof AdminTokensRoute
@@ -561,6 +570,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/auth'
     | '/admin/dashboard'
+    | '/admin/erinnerungen'
     | '/admin/invites'
     | '/admin/setup'
     | '/admin/tokens'
@@ -618,6 +628,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/auth'
     | '/admin/dashboard'
+    | '/admin/erinnerungen'
     | '/admin/invites'
     | '/admin/setup'
     | '/admin/tokens'
@@ -673,6 +684,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/auth'
     | '/admin/dashboard'
+    | '/admin/erinnerungen'
     | '/admin/invites'
     | '/admin/setup'
     | '/admin/tokens'
@@ -840,6 +852,13 @@ declare module '@tanstack/react-router' {
       path: '/invites'
       fullPath: '/admin/invites'
       preLoaderRoute: typeof AdminInvitesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/erinnerungen': {
+      id: '/admin/erinnerungen'
+      path: '/erinnerungen'
+      fullPath: '/admin/erinnerungen'
+      preLoaderRoute: typeof AdminErinnerungenRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/dashboard': {
@@ -1134,6 +1153,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminErinnerungenRoute: typeof AdminErinnerungenRoute
   AdminInvitesRoute: typeof AdminInvitesRoute
   AdminSetupRoute: typeof AdminSetupRoute
   AdminTokensRoute: typeof AdminTokensRoute
@@ -1148,6 +1168,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminErinnerungenRoute: AdminErinnerungenRoute,
   AdminInvitesRoute: AdminInvitesRoute,
   AdminSetupRoute: AdminSetupRoute,
   AdminTokensRoute: AdminTokensRoute,

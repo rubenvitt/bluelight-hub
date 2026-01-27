@@ -34,6 +34,13 @@ export class AppConfigService {
   }
 
   /**
+   * Prüft ob HTTPS aktiviert ist (via Environment Variable)
+   */
+  isHttpsEnabled(): boolean {
+    return this.configService.get<string>('HTTPS_ENABLED') === 'true';
+  }
+
+  /**
    * Proxy-Methode für ConfigService.get
    * Ermöglicht es anderen Services, Konfigurationswerte abzurufen
    */

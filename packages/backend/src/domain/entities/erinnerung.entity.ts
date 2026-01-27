@@ -15,6 +15,8 @@ import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event'
 import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 import { ErinnerungErledigtEvent } from '@domain/events/erinnerung-erledigt.event';
 import { ErinnerungAssignedEvent } from '@domain/events/erinnerung-assigned.event';
+import { ErinnerungEskaliertEvent } from '@domain/events/erinnerung-eskaliert.event';
+import { ErinnerungIntensiviertEvent } from '@domain/events/erinnerung-intensiviert.event';
 
 /**
  * Props für die Erstellung einer neuen Erinnerung.
@@ -93,6 +95,12 @@ export interface ReconstructErinnerungProps {
   assignedAt?: Date | null;
   /** Story 4.1: Eskalationsperson */
   eskalationsPersonId?: UserId | null;
+  /** Story 4.5: Zeitpunkt der Eskalation */
+  escalatedAt?: Date | null;
+  /** Story 4.5: Vorheriger Assignee */
+  previousAssigneeId?: UserId | null;
+  /** Hotfix: Anzahl der Intensivierungen (um Endlos-Loop zu verhindern) */
+  intensivierungsCount?: number;
 }
 
 /**
@@ -140,6 +148,13 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
    */
   public static readonly DEFAULT_REQUIRES_NOTE = false;
 
+  /**
+   * Maximale Anzahl der Intensivierungen bevor der Scheduler aufhört.
+   * Nach Erreichen des Limits bleibt die Erinnerung im Status AUSGELOEST
+   * und wird nicht mehr vom Scheduler erfasst.
+   */
+  public static readonly MAX_INTENSIVIERUNGEN = 5;
+
   private readonly _einsatzId: EinsatzId;
   private _titel: ErinnerungTitel;
   private _beschreibung: string | null;
@@ -178,8 +193,15 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
   private _assignedBy: UserId | null;
   private _assignedAt: Date | null;
 
-  // Eskalation (Story 4.1)
+  // Escalation (Story 4.1)
   private _eskalationsPersonId: UserId | null;
+
+  // Escalation Tracking (Story 4.5)
+  private _escalatedAt: Date | null;
+  private _previousAssigneeId: UserId | null;
+
+  // Intensivierungs-Counter (Hotfix: Endlos-Loop verhindern)
+  private _intensivierungsCount: number;
 
   // ============================================================
   // Readonly Getters
@@ -370,6 +392,29 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     return this._eskalationsPersonId;
   }
 
+  // Escalation Tracking Getters (Story 4.5)
+
+  /**
+   * Gibt den Zeitpunkt der Eskalation zurück.
+   */
+  get escalatedAt(): Date | null {
+    return this._escalatedAt ? new Date(this._escalatedAt.getTime()) : null;
+  }
+
+  /**
+   * Gibt die UserID des Users zurück, dem die Erinnerung VOR der Eskalation zugewiesen war.
+   */
+  get previousAssigneeId(): UserId | null {
+    return this._previousAssigneeId;
+  }
+
+  /**
+   * Gibt die Anzahl der bisherigen Intensivierungen zurück.
+   */
+  get intensivierungsCount(): number {
+    return this._intensivierungsCount;
+  }
+
   // ============================================================
   // Private Constructor (erzwingt Factory Methods)
   // ============================================================
@@ -402,6 +447,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     assignedBy: UserId | null = null,
     assignedAt: Date | null = null,
     eskalationsPersonId: UserId | null = null, // Story 4.1
+    escalatedAt: Date | null = null, // Story 4.5
+    previousAssigneeId: UserId | null = null, // Story 4.5
+    intensivierungsCount = 0, // Hotfix: Endlos-Loop verhindern
   ) {
     super(id, createdAt, updatedAt);
     this._einsatzId = einsatzId;
@@ -428,6 +476,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
     this._assignedBy = assignedBy;
     this._assignedAt = assignedAt;
     this._eskalationsPersonId = eskalationsPersonId;
+    this._escalatedAt = escalatedAt;
+    this._previousAssigneeId = previousAssigneeId;
+    this._intensivierungsCount = intensivierungsCount;
   }
 
   // ============================================================
@@ -503,6 +554,8 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       null, // assignedBy (Story 3.3)
       null, // assignedAt (Story 3.3)
       props.eskalationsPersonId ?? null, // Story 4.1
+      null, // escalatedAt (Story 4.5)
+      null, // previousAssigneeId (Story 4.5)
     );
 
     // Emit Domain Event (Story 3.3: null für assignedToId bei Erstellung ohne Zuweisung)
@@ -555,6 +608,9 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       props.assignedBy ?? null,
       props.assignedAt ?? null,
       props.eskalationsPersonId ?? null,
+      props.escalatedAt ?? null, // Story 4.5
+      props.previousAssigneeId ?? null, // Story 4.5
+      props.intensivierungsCount ?? 0, // Hotfix: Endlos-Loop
     );
   }
 
@@ -788,6 +844,23 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       return Result.fail<void>('ERINNERUNG_NOT_ACKNOWLEDGEABLE');
     }
 
+    // Story 4.6: Bei Eskalation Zuweisung übernehmen und History schreiben
+    if (this._status.isEskaliert()) {
+      // Story 4.7 AC2: Ursprünglicher Assignee darf nach Eskalation nicht mehr acknowledgen
+      if (this._previousAssigneeId?.equals(acknowledgedBy)) {
+        return Result.fail<void>('ALREADY_ESCALATED');
+      }
+
+      if (this._assignedToId) {
+        this._previousAssigneeId = this._assignedToId;
+      }
+      this._assignedToId = acknowledgedBy;
+      this._assignedAt = new Date();
+
+      // Story 4.6: Emittiere AssignedEvent für Realtime-Sync und Notifications
+      this.addDomainEvent(new ErinnerungAssignedEvent(this.id, this._einsatzId, acknowledgedBy, acknowledgedBy, this._titel.value, this._assignedAt, this.id.toString()));
+    }
+
     // Status-Wechsel durchführen
     this._status = ErinnerungStatus.ACKNOWLEDGED();
     this._acknowledgedAm = new Date();
@@ -795,6 +868,74 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
 
     // Domain Event emittieren für ETB-Integration und WebSocket
     this.addDomainEvent(new ErinnerungAcknowledgedEvent(this.id, this._einsatzId, this._acknowledgedAm, this._acknowledgedBy, this._titel.value, this.id.toString()));
+
+    return Result.ok<void>(undefined);
+  }
+
+  /**
+   * Eskaliert die Erinnerung ODER intensiviert den Alarm.
+   *
+   * **Business Rules (Story 4.4):**
+   * - Nur Erinnerungen mit Status AUSGELOEST oder SNOOZED können eskaliert werden
+   * - Wenn `eskalationsPersonId` gesetzt ist:
+   *    - Status -> ESKALIERT
+   *    - Emit `ErinnerungEskaliertEvent`
+   *    - Story 4.5: Zuweisung wird auf Eskalationsperson übertragen, alter Assignee wird in previousAssigneeId gespeichert
+   * 3. Wenn KEINE `eskalationsPersonId` gesetzt ist:
+   *    - Status bleibt AUSGELOEST (AC2: "kein Statuswechsel")
+   *    - Emit `ErinnerungIntensiviertEvent`
+   *
+   * @param eskaliertVon - UserId (manuell) oder 'SYSTEM' (Scheduler)
+   */
+  public eskalieren(eskaliertVon: UserId | 'SYSTEM'): Result<void> {
+    // AC1: Given eine Erinnerung ist AUSGELOEST
+    if (!this._status.isAusgeloest()) {
+      return Result.fail<void>('ERINNERUNG_NOT_ESCALATABLE');
+    }
+
+    const now = new Date();
+
+    if (this._eskalationsPersonId) {
+      // Case 1: Eskalation an Person
+      this._status = ErinnerungStatus.ESKALIERT();
+
+      // Story 4.5: Escalation Tracking & Assignment Transfer
+      // Speichere aktuellen Assignee als "Previous"
+      if (this._assignedToId) {
+        this._previousAssigneeId = this._assignedToId;
+      }
+
+      this._escalatedAt = now;
+
+      // Transfer Assignment to Escalation Person
+      // "Die Erinnerung erscheint nun in der Liste der Eskalationsperson"
+      this._assignedToId = this._eskalationsPersonId;
+      // Update Zuweisungs-Audit
+      // Wenn SYSTEM eskaliert hat, setzen wir assignedBy auf null (System)
+      // Wenn ein User manuell eskaliert hat, ist er der Assigner
+      this._assignedBy = eskaliertVon === 'SYSTEM' ? null : eskaliertVon;
+      this._assignedAt = now;
+
+      this.addDomainEvent(new ErinnerungEskaliertEvent(this.id, this._einsatzId, now, this._titel.value, this._erstelltVon, this._eskalationsPersonId, this.id.toString()));
+
+      // Sollen wir auch ein ErinnerungAssignedEvent emittieren?
+      // AC sagt "Eskaliert von X". Dashboard der Eskalationsperson.
+      // Das ErinnerungEskaliertEvent reicht evt für die UI, aber der Read-Status "assignedTo" muss aktualisiert sein.
+      // Und Client braucht evt ein Update.
+      // Wir emittieren KEIN separates AssignedEvent, da das EskaliertEvent den Kontext besser beschreibt.
+      // Der Client updated sich basierend auf dem geänderten DTO im WebSocket/Polling.
+    } else {
+      // Case 2: Intensivierung (AC2)
+      // Hotfix: Limit prüfen um Endlos-Loop zu verhindern
+      if (this._intensivierungsCount >= Erinnerung.MAX_INTENSIVIERUNGEN) {
+        return Result.fail<void>('INTENSIVIERUNG_LIMIT_ERREICHT');
+      }
+
+      // Counter erhöhen und Timer resetten
+      this._intensivierungsCount++;
+      this._ausgeloestAm = now;
+      this.addDomainEvent(new ErinnerungIntensiviertEvent(this.id, this._einsatzId, now, this._titel.value, this._erstelltVon, this.id.toString()));
+    }
 
     return Result.ok<void>(undefined);
   }
@@ -938,8 +1079,8 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
    * ```
    */
   public assignToUser(assignedToId: UserId, assignedById: UserId): Result<void> {
-    // Invariante: Nur GEPLANT oder AUSGELOEST Erinnerungen können zugewiesen werden
-    if (!this._status.isGeplant() && !this._status.isAusgeloest()) {
+    // Invariante: Nur GEPLANT, AUSGELOEST oder SNOOZED Erinnerungen können zugewiesen werden
+    if (!this._status.isGeplant() && !this._status.isAusgeloest() && !this._status.isSnoozed()) {
       return Result.fail<void>('ERINNERUNG_NOT_ASSIGNABLE');
     }
 

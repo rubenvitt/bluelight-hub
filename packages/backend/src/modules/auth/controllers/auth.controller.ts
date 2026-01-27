@@ -137,7 +137,8 @@ export class AuthController {
 
       // Tokens extrahieren und als HTTP-Only Cookies setzen
       const isProduction = this.appConfig.isProduction();
-      setAuthCookies(res, accessToken, refreshToken, isProduction);
+      const isHttps = this.appConfig.isHttpsEnabled();
+      setAuthCookies(res, accessToken, refreshToken, isProduction, isHttps);
 
       // Audit-Log für erfolgreiche Authentifizierung
       this.logger.log('Authentication successful', {
@@ -242,10 +243,14 @@ export class AuthController {
     }
 
     const isProduction = this.appConfig.isProduction();
+    const isHttps = this.appConfig.isHttpsEnabled();
+    const isSecure = isProduction || isHttps;
+    const sameSite = isSecure ? 'none' : 'lax';
+
     response.cookie('accessToken', token, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
+      secure: isSecure,
+      sameSite: sameSite,
       maxAge: 24 * 60 * 60 * 1000, // 24h
     });
 
@@ -296,7 +301,8 @@ export class AuthController {
 
     const token = this.authService.signAdminToken(user);
     const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
-    setAdminCookie(res, token, isProduction);
+    const isHttps = this.appConfig.isHttpsEnabled();
+    setAdminCookie(res, token, isProduction, isHttps);
 
     return toAdminLoginResponseDto(user);
   }
@@ -339,7 +345,8 @@ export class AuthController {
 
     // Tokens als HTTP-Only Cookies setzen
     const isProduction = this.appConfig.isProduction();
-    setAuthCookies(res, accessToken, refreshToken, isProduction);
+    const isHttps = this.appConfig.isHttpsEnabled();
+    setAuthCookies(res, accessToken, refreshToken, isProduction, isHttps);
 
     return toRefreshResponseDto();
   }
@@ -395,7 +402,8 @@ export class AuthController {
     }
 
     // 4. Cookies löschen
-    clearAuthCookies(response, this.appConfig.isProduction());
+    const isHttps = this.appConfig.isHttpsEnabled();
+    clearAuthCookies(response, this.appConfig.isProduction(), isHttps);
 
     this.logger.log('Logout successful (MVP: Token bleibt gültig bis Expiration)');
     // No return - HTTP 204 No Content
@@ -418,7 +426,8 @@ export class AuthController {
   })
   async adminLogout(@Res({ passthrough: true }) res: Response): Promise<LogoutResponseDto> {
     // Nur Admin-Cookies löschen, normale Auth-Cookies behalten
-    clearAdminCookie(res, this.appConfig.isProduction());
+    const isHttps = this.appConfig.isHttpsEnabled();
+    clearAdminCookie(res, this.appConfig.isProduction(), isHttps);
     return toLogoutResponseDto();
   }
 
@@ -452,7 +461,8 @@ export class AuthController {
     const result = await this.authService.adminSetup(dto, user);
 
     const isProduction = this.appConfig.isProduction();
-    setAdminCookie(res, result.token, isProduction);
+    const isHttps = this.appConfig.isHttpsEnabled();
+    setAdminCookie(res, result.token, isProduction, isHttps);
     return toAdminSetupResponseDto(result.user);
   }
 
@@ -511,7 +521,8 @@ export class AuthController {
 
         // Setze neue Cookies
         const isProduction = this.appConfig.isProduction();
-        setAuthCookies(res, refreshResult.accessToken, refreshResult.refreshToken, isProduction);
+        const isHttps = this.appConfig.isHttpsEnabled();
+        setAuthCookies(res, refreshResult.accessToken, refreshResult.refreshToken, isProduction, isHttps);
 
         // Audit-Log für erfolgreichen Token-Refresh
         this.logger.log('Token-Refresh successful', {

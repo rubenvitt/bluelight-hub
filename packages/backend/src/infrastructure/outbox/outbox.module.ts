@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
+// NOTE: ScheduleModule.forRoot() wird nur einmal in app.module.ts aufgerufen
 import { EventSerializer } from './event-serializer';
 import { EventDeserializer } from './event-deserializer';
 import { PrismaOutboxRepository } from './prisma-outbox.repository';
@@ -74,7 +74,7 @@ import { NestLoggerAdapter } from '../common/adapters/nest-logger.adapter';
  * Epic 4 Story 4.4 - Transactional Outbox Pattern Infrastructure
  */
 @Module({
-  imports: [ScheduleModule.forRoot(), AlertModule, EventInfrastructureModule],
+  imports: [AlertModule, EventInfrastructureModule],
   providers: [
     // Logger für Outbox Services
     {

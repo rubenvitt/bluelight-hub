@@ -110,6 +110,33 @@ export interface ErinnerungAssignedPayload {
 }
 
 /**
+ * WebSocket Payload fuer erinnerung.escalated Event (Story 4.1).
+ */
+export interface ErinnerungEscalatedPayload {
+  erinnerungId: string;
+  einsatzId: string;
+  eskalationsPersonId: string | null;
+  eskalationsPersonName: string | null;
+  titel: string;
+  /** ID des ursprünglichen Erstellers (für Frontend-Logik) */
+  erstelltVon: string;
+  /** Zeitpunkt der Eskalation (ISO-String) */
+  eskaliertAm: string;
+  /** @deprecated Nutze `eskaliertAm` stattdessen */
+  timestamp: string;
+}
+
+/**
+ * WebSocket Payload fuer erinnerung.intensified Event (Story 4.1 AC2).
+ */
+export interface ErinnerungIntensifiedPayload {
+  erinnerungId: string;
+  einsatzId: string;
+  titel: string;
+  timestamp: string;
+}
+
+/**
  * WebSocket Gateway fuer Erinnerungen.
  *
  * **Story 1.5 AC4: WebSocket Event fuer Team-Sync**
@@ -315,6 +342,32 @@ export class ErinnerungGateway implements OnGatewayConnection, OnGatewayDisconne
     const roomName = this.getRoomName(payload.einsatzId);
     this.server.to(roomName).emit('erinnerung.assigned', payload);
     this.logger.log(`Emitted erinnerung.assigned to room ${roomName}: erinnerungId=${payload.erinnerungId}, assignedTo=${payload.assignedToId}`, 'ErinnerungGateway');
+  }
+
+  /**
+   * Emittiert `erinnerung.escalated` Event an alle Clients im Einsatz-Room.
+   *
+   * **Story 4.1:** WebSocket Event bei Eskalation
+   *
+   * @param payload - Event-Payload
+   */
+  emitErinnerungEscalated(payload: ErinnerungEscalatedPayload): void {
+    const roomName = this.getRoomName(payload.einsatzId);
+    this.server.to(roomName).emit('erinnerung.escalated', payload);
+    this.logger.log(`Emitted erinnerung.escalated to room ${roomName}: erinnerungId=${payload.erinnerungId}, eskalationsPerson=${payload.eskalationsPersonId}`, 'ErinnerungGateway');
+  }
+
+  /**
+   * Emittiert `erinnerung.intensified` Event an alle Clients im Einsatz-Room.
+   *
+   * **Story 4.1 AC2:** WebSocket Event bei Intensivierung
+   *
+   * @param payload - Event-Payload
+   */
+  emitErinnerungIntensified(payload: ErinnerungIntensifiedPayload): void {
+    const roomName = this.getRoomName(payload.einsatzId);
+    this.server.to(roomName).emit('erinnerung.intensified', payload);
+    this.logger.log(`Emitted erinnerung.intensified to room ${roomName}: erinnerungId=${payload.erinnerungId}`, 'ErinnerungGateway');
   }
 
   /**

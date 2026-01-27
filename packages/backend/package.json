@@ -7,7 +7,7 @@
     "docs:build": "compodoc -c .compodocrc.json -d docs",
     "docs:serve": "compodoc -c .compodocrc.json -d docs --serve",
     "docs:cov": "pnpm compodoc --coverageTest 85 -t -c .compodocrc.json",
-    "build": "prisma generate && nest build",
+    "build": "prisma generate && nest build -p tsconfig.build.json",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",

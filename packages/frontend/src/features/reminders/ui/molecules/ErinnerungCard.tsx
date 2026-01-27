@@ -53,13 +53,15 @@
  */
 
 import type { ErinnerungResponseDto } from '@/shared';
+
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { cn } from '@/shared/ui/cn';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PiCheckCircle, PiCheckSquareOffset, PiCloudSlash, PiNotepad, PiPencil, PiTrash, PiUserPlus, PiWarning } from 'react-icons/pi';
+import { PiCheckCircle, PiCheckSquareOffset, PiClockCounterClockwise, PiCloudSlash, PiNotepad, PiPencil, PiTrash, PiUserPlus, PiWarning } from 'react-icons/pi';
 import { useAcknowledgeErinnerung, useSnoozeErinnerung, type SnoozeMinutes } from '../../api';
 import { soundService, timerService, intensificationService } from '../../services';
 import { useCountdown } from '../../hooks/use-countdown';
+import { useErinnerungKonfiguration } from '../../hooks/use-erinnerung-konfiguration';
 import { syncService } from '../../services/sync.service';
 import { openDeleteDialog, openEditDialog, openMarkErledigtDialog, useAnimationEntry, useIntensityLevel, useAudioFailed } from '../../stores';
 import { markAsSeen, useIsUnseen } from '../../stores/seen-assignments.store';
@@ -69,6 +71,18 @@ import { CountdownDisplay } from '../atoms/CountdownDisplay';
 import { NewBadge } from '../atoms';
 import { SnoozeButtonGroup } from './SnoozeButtonGroup';
 import { ErinnerungAssignDialog } from '../organisms/ErinnerungAssignDialog';
+import { ErinnerungHistoryDialog } from '../organisms/ErinnerungHistoryDialog';
+
+// Helper für relative Zeit (TODO: In shared/utils verschieben wenn öfter benötigt)
+const calculateRelativeTime = (dateStr: string) => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'gerade eben';
+  if (minutes < 60) return `vor ${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `vor ${hours}h`;
+  return 'vor >24h';
+};
 
 /**
  * Hook zur Erkennung der Benutzer-Praeferenz fuer reduzierte Bewegung.
@@ -150,8 +164,29 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
   // Story 2.1: Snooze Mutation Hook
   const snoozeErinnerung = useSnoozeErinnerung();
 
+  // Story 4.7: Escalation Timeout Config & Countdown
+  const { config: erinnerungConfig } = useErinnerungKonfiguration();
+
+  const escalationDeadline = useMemo(() => {
+    if (erinnerung.status === 'AUSGELOEST' && erinnerung.ausgeloestAm) {
+      // Story 4.3: Konfiguration nutzen, Fallback auf 300s (5 Min) Server-Default
+      const timeoutSeconds = erinnerungConfig?.eskalationsTimeoutSeconds ?? 300;
+
+      const triggered = new Date(erinnerung.ausgeloestAm as unknown as string).getTime();
+      return new Date(triggered + timeoutSeconds * 1000).toISOString();
+    }
+    return undefined;
+  }, [erinnerung.status, erinnerung.ausgeloestAm, erinnerungConfig]);
+
+  // Nutzen wir useCountdown auch für Escalation Deadline (wenn gesetzt)
+  const { remaining: msUntilEscalation } = useCountdown(escalationDeadline || '');
+
+  // Warnung anzeigen wenn < 60s bis Eskalation ODER bereits überfällig (da Backend evtl. verzögert)
+  const isEscalationImminent = !!escalationDeadline && msUntilEscalation < 60000;
+
   const isEditable = erinnerung.status === 'GEPLANT';
   const isTriggered = erinnerung.status === 'AUSGELOEST';
+  const isEskaliert = erinnerung.status === 'ESKALIERT';
   const isAcknowledged = erinnerung.status === 'ACKNOWLEDGED';
   const isErledigt = erinnerung.status === 'ERLEDIGT';
   // Story 1.4 AC1: Nur GEPLANT oder AUSGELOEST Status loeschbar
@@ -168,15 +203,25 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
   const isRetrigger = isTriggered && (erinnerung.snoozeCount ?? 0) > 0;
   const retriggerNumber = (erinnerung.snoozeCount ?? 0) + 1; // 1. Auslösung = 0 Snoozes + 1
   // Story 3.4 AC1: Nur aktive Erinnerungen (nicht ERLEDIGT/ESKALIERT) können zugewiesen werden
-  const isAssignable = ['GEPLANT', 'AUSGELOEST'].includes(erinnerung.status);
+  // Story 4.2: Delegation nur erlaubt wenn mir zugewiesen oder noch niemandem zugewiesen
+  // Generator Issue: assignedToId is typed as object | null, but it is string | null
+  const assignedToId = erinnerung.assignedToId as unknown as string | null;
+  const isAssignedToMe = currentUserId && assignedToId === currentUserId;
+  const isUnassigned = !assignedToId;
+
+  const hasAssignableStatus = ['GEPLANT', 'AUSGELOEST', 'SNOOZED'].includes(erinnerung.status);
+  const isAssignable = hasAssignableStatus && (isUnassigned || isAssignedToMe);
+
+  const assignActionLabel = isAssignedToMe ? 'Weiterdelegieren' : 'Zuweisen';
 
   // Story 3.4: State fuer Zuweisungs-Dialog
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  // Story 4.5: State fuer History-Dialog
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
 
   // Story 3.1 AC5/AC8: Eigene vs. fremde Erinnerung erkennen
   // Eine Erinnerung ist "meine" wenn ich sie erstellt habe ODER mir zugewiesen wurde
-  // biome-ignore lint/suspicious/noExplicitAny: DTO missing fields
-  const isOwnReminder = currentUserId ? (erinnerung as any).erstelltVon === currentUserId || (erinnerung as any).assignedToId === currentUserId : true;
+  const isOwnReminder = currentUserId ? erinnerung.erstelltVon === currentUserId || assignedToId === currentUserId : true;
   const isTeamReminder = currentUserId && !isOwnReminder;
 
   // Story 3.7 AC3: "Neu" Badge Logik
@@ -298,7 +343,11 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
   // Story 2.8 AC2: Intensivere Farben bei Audio-Ausfall
   const getBorderClasses = () => {
     // AUSGELOEST: Roter Border mit Animation
-    if (isTriggered) {
+    if (isTriggered || isEskaliert) {
+      // Story 4.7: Drohende Eskalation -> Dringendste Warnstufe
+      if (isEscalationImminent) {
+        return 'border-red-600 dark:border-red-500 ring-4 ring-red-500 dark:ring-red-600 animate-pulse bg-red-100 dark:bg-red-900/40';
+      }
       // Story 2.8 AC2: Bei Audio-Ausfall intensivere visuelle Darstellung
       if (audioFailed) {
         return 'border-red-600 dark:border-red-500 ring-4 ring-red-400 dark:ring-red-700 animate-border-glow-urgent';
@@ -366,8 +415,8 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
   const cardBaseClasses = cn(
     'rounded-lg border bg-white p-4 shadow-sm transition-all dark:bg-gray-800',
     getBorderClasses(),
-    // Background für AUSGELOEST
-    isTriggered && 'bg-red-50 dark:bg-red-900/20',
+    // Background für AUSGELOEST oder ESKALIERT
+    (isTriggered || isEskaliert) && 'bg-red-50 dark:bg-red-900/20',
     // Story 3.2 AC2: Animation bei WebSocket-Updates
     getAnimationClasses(),
     className,
@@ -440,24 +489,42 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
                   {erinnerung.eskalationsPersonName}
                 </output>
               )}
+              {/* Story 4.5: Eskaliert von Info */}
+              {/* Story 4.5: Eskaliert von Info */}
+              {erinnerung.previousAssigneeName && (
+                <output
+                  aria-label={`Eskaliert von: ${erinnerung.previousAssigneeName}`}
+                  className="inline-flex items-center gap-1 rounded-full bg-red-100 px-1.5 py-0.5 font-medium text-red-700 text-xs dark:bg-red-900/40 dark:text-red-300"
+                  title={`Eskaliert von ${erinnerung.previousAssigneeName} am ${erinnerung.escalatedAt ? new Date(erinnerung.escalatedAt as unknown as string).toLocaleTimeString() : ''}`}
+                >
+                  <PiWarning className="h-3 w-3" aria-hidden="true" />
+                  Von {erinnerung.previousAssigneeName}
+                  {erinnerung.escalatedAt && <span className="opacity-75"> ({calculateRelativeTime(erinnerung.escalatedAt as unknown as string)})</span>}
+                </output>
+              )}
             </div>
-            {/* biome-ignore lint/suspicious/noExplicitAny: DTO missing fields */}
-            {(erinnerung as any).beschreibung && <p className="mt-0.5 text-gray-500 text-xs dark:text-gray-400">{(erinnerung as any).beschreibung as any}</p>}
+            {erinnerung.beschreibung && <p className="mt-0.5 text-gray-500 text-xs dark:text-gray-400">{erinnerung.beschreibung as unknown as string}</p>}
 
-            {/* biome-ignore lint/suspicious/noExplicitAny: DTO missing fields */}
-            {(showCreator || isTeamReminder || ((erinnerung as any).assignedToId && (erinnerung as any).assignedToId === currentUserId)) && (erinnerung as any).erstellerName && (
+            {(showCreator || isTeamReminder || (assignedToId && assignedToId === currentUserId)) && erinnerung.erstellerName && (
               <div className="mt-0.5 flex items-center gap-1.5">
-                {/* biome-ignore lint/suspicious/noExplicitAny: DTO missing fields */}
-                <AvatarInitials name={(erinnerung as any).erstellerName} size="sm" />
+                <AvatarInitials name={erinnerung.erstellerName as unknown as string} size="sm" />
                 <p className="text-gray-400 text-xs dark:text-gray-500">
-                  {/* biome-ignore lint/suspicious/noExplicitAny: DTO missing fields */}
-                  <span className="text-gray-500 dark:text-gray-400">{(erinnerung as any).assignedToId === currentUserId ? 'Erstellt von' : 'von'}</span> {(erinnerung as any).erstellerName}
+                  <span className="text-gray-500 dark:text-gray-400">{assignedToId === currentUserId ? 'Erstellt von' : 'von'}</span> {erinnerung.erstellerName as unknown as string}
                 </p>
               </div>
             )}
 
             <div className="mt-1 flex items-center gap-2">
               {erinnerung.status === 'GEPLANT' && <CountdownDisplay faelligAm={erinnerung.faelligAm} className="text-sm" />}
+
+              {/* Story 4.7: Escalation Countdown */}
+              {isEscalationImminent && (
+                <span className="flex animate-pulse items-center gap-1 font-bold text-red-600 text-xs dark:text-red-400">
+                  <PiWarning className="h-3 w-3" />
+                  {msUntilEscalation > 0 ? `Eskaliert in ${Math.ceil(msUntilEscalation / 1000)}s` : 'Eskalation wird ausgeführt...'}
+                </span>
+              )}
+
               <span className="text-gray-400 text-xs">{new Date(erinnerung.faelligAm).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           </div>
@@ -476,8 +543,8 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
               appearance="ghost"
               size="sm"
               onClick={handleOpenAssignDialog}
-              aria-label="Erinnerung zuweisen"
-              title="Erinnerung zuweisen"
+              aria-label={`Erinnerung ${assignActionLabel}`}
+              title={`Erinnerung ${assignActionLabel}`}
               className="h-10 w-10 p-0 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
             >
               <PiUserPlus className="h-5 w-5" />
@@ -496,6 +563,21 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
               <PiTrash className="h-5 w-5" />
             </Button>
           )}
+
+          {/* Story 4.5 AC2: Verlauf anzeigen */}
+          <Button
+            appearance="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsHistoryDialogOpen(true);
+            }}
+            aria-label="Verlauf anzeigen"
+            title="Verlauf anzeigen"
+            className="h-10 w-10 p-0 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+          >
+            <PiClockCounterClockwise className="h-5 w-5" />
+          </Button>
         </div>
       </div>
 
@@ -580,6 +662,7 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
           {cardContent}
         </div>
         {assignDialog}
+        {<ErinnerungHistoryDialog isOpen={isHistoryDialogOpen} onClose={() => setIsHistoryDialogOpen(false)} erinnerung={erinnerung} />}
       </>
     );
   }
@@ -599,6 +682,7 @@ export function ErinnerungCard({ erinnerung, einsatzId, className, showCreator =
         {cardContent}
       </div>
       {assignDialog}
+      {<ErinnerungHistoryDialog isOpen={isHistoryDialogOpen} onClose={() => setIsHistoryDialogOpen(false)} erinnerung={erinnerung} />}
     </>
   );
 }

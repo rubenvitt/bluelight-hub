@@ -58,6 +58,16 @@ export interface ErinnerungAssignedWebSocketEvent extends ErinnerungWebSocketEve
 }
 
 /**
+ * WebSocket Event Payload für Escalated Events (Story 4.5)
+ */
+export interface ErinnerungEscalatedWebSocketEvent extends ErinnerungWebSocketEvent {
+  eskalationsPersonId: string | null;
+  eskalationsPersonName: string | null;
+  erstelltVon: string;
+  eskaliertAm: string;
+}
+
+/**
  * WebSocket Connection Status
  */
 export type WebSocketStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -149,6 +159,7 @@ export function useErinnerungWebSocket({
   const onDeletedRef = useRef(onDeleted);
   const onAcknowledgedRef = useRef(onAcknowledged);
   const onAssignedRef = useRef(onAssigned);
+  const onEscalatedRef = useRef<(event: ErinnerungEscalatedWebSocketEvent) => void>(undefined);
 
   // Update refs on every render
   useEffect(() => {
@@ -426,6 +437,60 @@ export function useErinnerungWebSocket({
   );
 
   /**
+   * Handler für 'erinnerung.escalated' Event (Story 4.5)
+   *
+   * Zeigt Notification + Toast wenn eine Erinnerung eskaliert wird.
+   */
+  const handleEscalated = useCallback(
+    (event: ErinnerungEscalatedWebSocketEvent) => {
+      logger.info('WebSocket: Erinnerung escalated', event);
+
+      // Issue #2 Fix: Nutze Ref statt Closure für aktuelle userId
+      const userId = currentUserIdRef.current;
+      const isEscalatedToMe = userId && event.eskalationsPersonId === userId;
+      const isMyReminder = userId && event.erstelltVon === userId;
+
+      // Story 3.7 AC2: Toast-Dauer 5 Sekunden (auch für Eskalation sinnvoll)
+      const TOAST_DURATION_MS = 5000; // Urgent
+
+      const showEscalationNotifications = async () => {
+        if (!showTeamToasts) return;
+
+        try {
+          if (isEscalatedToMe) {
+            // Eskalation an MICH -> WICHTIG!
+            await sendAssignmentNotification(`ESKALATION: ${event.titel}`, 'System', event.erinnerungId, event.einsatzId);
+
+            if (socketRef.current?.connected) {
+              toast.error(`ESKALATION: ${event.titel}`, {
+                description: 'Diese Erinnerung wurde an dich eskaliert!',
+                duration: TOAST_DURATION_MS,
+              });
+            }
+          } else if (isMyReminder && socketRef.current?.connected) {
+            // Meine Erinnerung wurde eskaliert
+            toast.warning(`Deine Erinnerung wurde eskaliert: ${event.titel}`, {
+              description: 'Zeitüberschreitung - an Vorgesetzten eskaliert',
+            });
+          } else if (socketRef.current?.connected) {
+            // Team Notification
+            toast.warning(`Erinnerung eskaliert: ${event.titel}`, {
+              description: 'Zeitüberschreitung',
+            });
+          }
+        } catch (error) {
+          logger.error('Failed to send escalation notification', error);
+        }
+      };
+
+      invalidateCache();
+      showEscalationNotifications();
+      onEscalatedRef.current?.(event);
+    },
+    [invalidateCache, showTeamToasts],
+  );
+
+  /**
    * Verbindung herstellen
    */
   const connect = useCallback(() => {
@@ -480,9 +545,14 @@ export function useErinnerungWebSocket({
     socket.on('erinnerung.deleted', handleDeleted);
     socket.on('erinnerung.acknowledged', handleAcknowledged);
     socket.on('erinnerung.assigned', handleAssigned);
+    socket.on('erinnerung.escalated', handleEscalated);
+    socket.on('erinnerung.intensified', (event) => {
+      logger.info('WebSocket: Erinnerung intensified', event);
+      invalidateCache();
+    });
 
     socketRef.current = socket;
-  }, [enabled, einsatzId, roomName, handleTriggered, handleCreated, handleUpdated, handleDeleted, handleAcknowledged, handleAssigned]);
+  }, [enabled, einsatzId, roomName, handleTriggered, handleCreated, handleUpdated, handleDeleted, handleAcknowledged, handleAssigned, handleEscalated, invalidateCache]);
 
   /**
    * Verbindung trennen

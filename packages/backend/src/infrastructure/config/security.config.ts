@@ -66,11 +66,18 @@ export const helmetConfig: HelmetOptions = {
  * @constant
  */
 /**
- * Dynamische Origin-Validierung für Tauri und Development
+ * Dynamische Origin-Validierung für Tauri, Development und konfigurierbare Patterns
+ *
+ * Unterstützte Umgebungsvariablen:
+ * - ALLOWED_ORIGINS: Komma-separierte Liste expliziter Origins
+ *   Beispiel: "https://example.com,https://app.example.com"
+ * - ALLOWED_ORIGIN_PATTERNS: Komma-separierte Liste von Regex-Patterns
+ *   Beispiel: "[\w-]+\.bluelight-hub-app\.pages\.dev$,[\w-]+\.vercel\.app$"
+ * - Wildcard "*" in ALLOWED_ORIGINS erlaubt alle Origins (NUR für Entwicklung!)
  */
 const corsOriginHandler = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-  // Erlaubte Patterns für Tauri und Development
-  const allowedPatterns = [
+  // Standard-Patterns für Tauri und Development
+  const builtInPatterns = [
     /^https?:\/\/localhost(:\d+)?$/, // localhost mit beliebigem Port
     /^https?:\/\/127\.0\.0\.1(:\d+)?$/, // 127.0.0.1 mit beliebigem Port
     /^tauri:\/\/localhost/, // Tauri v1
@@ -78,11 +85,37 @@ const corsOriginHandler = (origin: string | undefined, callback: (err: Error | n
     /^https?:\/\/\[::1\](:\d+)?$/, // IPv6 localhost
   ];
 
-  // Zusätzliche Origins aus Umgebungsvariablen
-  const envOrigins = process.env.ALLOWED_ORIGINS?.split(',').filter(Boolean) || [];
+  // Zusätzliche explizite Origins aus Umgebungsvariablen
+  const envOrigins =
+    process.env.ALLOWED_ORIGINS?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) || [];
+
+  // Wildcard-Check: "*" erlaubt alle Origins
+  if (envOrigins.includes('*')) {
+    callback(null, true);
+    return;
+  }
+
+  // Zusätzliche Patterns aus Umgebungsvariablen (Regex-Strings)
+  const envPatternStrings =
+    process.env.ALLOWED_ORIGIN_PATTERNS?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) || [];
+  const envPatterns: RegExp[] = [];
+  for (const patternStr of envPatternStrings) {
+    try {
+      envPatterns.push(new RegExp(patternStr));
+    } catch {
+      console.warn(`[CORS] Ungültiges Pattern ignoriert: ${patternStr}`);
+    }
+  }
+
+  // Alle Patterns kombinieren
+  const allPatterns = [...builtInPatterns, ...envPatterns];
 
   // Prüfe ob Origin erlaubt ist
-  const isAllowed = !origin || envOrigins.includes(origin) || allowedPatterns.some((pattern) => pattern.test(origin));
+  const isAllowed = !origin || envOrigins.includes(origin) || allPatterns.some((pattern) => pattern.test(origin));
 
   callback(null, isAllowed);
 };

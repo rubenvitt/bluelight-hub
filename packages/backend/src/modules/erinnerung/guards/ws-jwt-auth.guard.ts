@@ -96,7 +96,7 @@ export class WsJwtAuthGuard implements CanActivate {
         {} as Record<string, string>,
       );
 
-      token = cookies['accessToken'];
+      token = cookies.accessToken;
     }
 
     if (!token) {

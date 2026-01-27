@@ -119,6 +119,13 @@ export class AssignErinnerungHandler extends TransactionalCommandHandler<AssignE
       return Result.fail<ErinnerungResponseDto>(assignedByIdResult.error ?? ERINNERUNG_ERROR_CODES.USER_ID_INVALID);
     }
 
+    // Story 4.2 AC: Only current assignee can delegate (if already assigned)
+    if (erinnerung.assignedToId && erinnerung.assignedToId.toString() !== command.assignedById) {
+      this.logger.warn(`User ${command.assignedById} tried to delegate reminder assigned to ${erinnerung.assignedToId}`, 'AssignErinnerungHandler');
+      // Using generic unauthorized if explicit code not available, but prefer specific
+      return Result.fail<ErinnerungResponseDto>(ERINNERUNG_ERROR_CODES.NOT_AUTHORIZED);
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     // 4. Domain Operation: assignToUser aufrufen
     // ════════════════════════════════════════════════════════════════════════

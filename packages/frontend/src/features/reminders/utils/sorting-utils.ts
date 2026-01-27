@@ -36,8 +36,8 @@ const DEFAULT_PRIORITY = 8;
 export function getSortPriority(erinnerung: ErinnerungResponseDto): number {
   const status = erinnerung.status;
 
-  // AUSGELOEST immer oben
-  if (status === 'AUSGELOEST') return 0;
+  // AUSGELOEST oder ESKALIERT immer oben
+  if (status === 'AUSGELOEST' || status === 'ESKALIERT') return 0;
 
   // GEPLANT mit Urgency-basierter Sortierung
   if (status === 'GEPLANT') {

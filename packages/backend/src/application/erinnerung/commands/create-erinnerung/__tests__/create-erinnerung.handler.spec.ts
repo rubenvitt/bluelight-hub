@@ -11,6 +11,7 @@ import { ERINNERUNG_ERROR_CODES } from '../../../errors/erinnerung-error.codes';
 import type { IErinnerungRepository } from '@domain/repositories/i-erinnerung.repository';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import type { ILogger } from '@domain/ports/i-logger.port';
+import { ErinnerungResponseFactory } from '../../../dto/erinnerung-response.factory';
 
 /**
  * Unit Tests für CreateErinnerungHandler.
@@ -99,6 +100,22 @@ describe('CreateErinnerungHandler', () => {
         { provide: OUTBOX_REPOSITORY, useValue: mockOutboxRepository },
         { provide: ERINNERUNG_REPOSITORY, useValue: mockErinnerungRepository },
         { provide: LOGGER, useValue: mockLogger },
+        {
+          provide: ErinnerungResponseFactory,
+          useValue: {
+            create: jest.fn().mockImplementation((erinnerung) => ({
+              id: erinnerung.id.toString(),
+              einsatzId: erinnerung.einsatzId.toString(),
+              titel: erinnerung.titel.value,
+              beschreibung: erinnerung.beschreibung,
+              faelligAm: erinnerung.faelligAm.toISOString(),
+              status: erinnerung.status.value,
+              erstelltVon: erinnerung.erstelltVon.toString(),
+              createdAt: erinnerung.createdAt,
+              updatedAt: erinnerung.updatedAt,
+            })),
+          },
+        },
       ],
     }).compile();
 
@@ -129,6 +146,27 @@ describe('CreateErinnerungHandler', () => {
       expect(mockErinnerungRepository.save).toHaveBeenCalledTimes(1);
       expect(mockOutboxRepository.save).toHaveBeenCalledTimes(1);
       expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('should pass eskalationsPersonId to repository when provided', async () => {
+      // Given
+      const commandResult = CreateErinnerungCommand.create({
+        einsatzId: generateValidEinsatzId(),
+        titel: 'Eskalation Test',
+        faelligAm: new Date(Date.now() + 30 * 60 * 1000),
+        erstelltVon: generateValidUserId(),
+        eskalationsPersonId: generateValidUserId(),
+      });
+      const command = commandResult.value!;
+
+      // When
+      await handler.execute(command);
+
+      // Then
+      expect(mockErinnerungRepository.save).toHaveBeenCalledTimes(1);
+      const savedEntity = mockErinnerungRepository.save.mock.calls[0][0];
+      expect(savedEntity.eskalationsPersonId).toBeDefined();
+      expect(savedEntity.eskalationsPersonId!.toString()).toBe(command.eskalationsPersonId!);
     });
 
     it('should fail when einsatzId is invalid', async () => {

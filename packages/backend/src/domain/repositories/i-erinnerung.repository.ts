@@ -132,4 +132,16 @@ export interface IErinnerungRepository {
    * ```
    */
   exists(id: ErinnerungId): Promise<Result<boolean>>;
+
+  /**
+   * Findet alle überfälligen Erinnerungen für die Eskalation.
+   *
+   * **Scope (Story 4.1):**
+   * - Status: AUSGELOEST oder SNOOZED (triggerable)
+   * - ausgeloestAm <= threshold
+   *
+   * @param threshold - Zeitgrenze ab der eine Erinnerung als überfällig gilt (now - timeout)
+   * @param tx - Optional: Transaction Context
+   */
+  findOverdue(threshold: Date, tx?: TransactionContext): Promise<Result<Erinnerung[]>>;
 }

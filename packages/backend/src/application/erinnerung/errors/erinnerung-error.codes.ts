@@ -46,6 +46,7 @@ export const ERINNERUNG_ERROR_CODES = {
   ASSIGNED_TO_NOT_TEILNEHMER: 'ERINNERUNG_ASSIGNED_TO_NOT_TEILNEHMER', // Story 3.3: assignedToId ist kein aktiver Teilnehmer
   ASSIGNMENT_FAILED: 'ERINNERUNG_ASSIGNMENT_FAILED', // Story 3.3: Zuweisung fehlgeschlagen
   NOT_ASSIGNABLE: 'ERINNERUNG_NOT_ASSIGNABLE', // Story 3.4: Erinnerung kann nicht zugewiesen werden (falscher Status)
+  NOT_AUTHORIZED: 'ERINNERUNG_NOT_AUTHORIZED', // Story 4.2: Nur der aktuelle Bearbeiter darf delegieren
 
   // Query Errors
   QUERY_EINSATZ_ID_REQUIRED: 'ERINNERUNG_QUERY_EINSATZ_ID_REQUIRED',

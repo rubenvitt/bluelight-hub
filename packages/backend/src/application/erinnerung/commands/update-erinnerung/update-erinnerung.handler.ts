@@ -11,7 +11,8 @@ import { TransactionalCommandHandler } from '@/application/common/handlers/trans
 // biome-ignore lint/style/useImportType: PrismaService is an Injectable class, not just a type - needed for DI at runtime
 import { PrismaService } from '@/infrastructure/database/prisma.service';
 import { ERINNERUNG_REPOSITORY, LOGGER, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
-import type { ErinnerungResponseFactory } from '../../dto/erinnerung-response.factory';
+// biome-ignore lint/style/useImportType: Factory is an Injectable class, not just a type - needed for DI at runtime
+import { ErinnerungResponseFactory } from '../../dto/erinnerung-response.factory';
 import type { UpdateErinnerungCommand } from './update-erinnerung.command';
 import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
 import type { ErinnerungResponseDto } from '../../dto/erinnerung-response.dto';

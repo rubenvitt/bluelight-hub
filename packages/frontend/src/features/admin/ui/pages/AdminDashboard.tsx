@@ -9,7 +9,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { AdminDashboardLayout } from '@/shared/ui/templates/AdminDashboardLayout';
 import { useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { PiCertificate, PiIdentificationBadge, PiSignOut, PiUsers, PiTruck, PiUserList, PiPlugsConnected, PiTicket, PiKey, PiCaretRight } from 'react-icons/pi';
+import { PiCertificate, PiIdentificationBadge, PiSignOut, PiUsers, PiTruck, PiUserList, PiPlugsConnected, PiTicket, PiKey, PiCaretRight, PiBell } from 'react-icons/pi';
 
 /**
  * Navigation-Card für Admin-Dashboard
@@ -149,6 +149,13 @@ export function AdminDashboard() {
           />
           <NavCard icon={<PiTicket className="h-6 w-6" />} title="Invite-Codes" description="Einladungen verwalten" onClick={() => navigate({ to: '/admin/invites' })} accentColor="blue" />
           <NavCard icon={<PiKey className="h-6 w-6" />} title="Access-Tokens" description="API-Zugriff verwalten" onClick={() => navigate({ to: '/admin/tokens' })} accentColor="blue" />
+          <NavCard
+            icon={<PiBell className="h-6 w-6" />}
+            title="Erinnerungen"
+            description="Timeouts & globale Einstellungen"
+            onClick={() => navigate({ to: '/admin/erinnerungen' })}
+            accentColor="blue"
+          />
         </div>
       </section>
 

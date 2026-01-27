@@ -1,10 +1,10 @@
 import { cn } from '@/shared/ui/cn';
-import { PiBellRinging, PiCheck, PiCheckCircle, PiClock, PiMoon } from 'react-icons/pi';
+import { PiBellRinging, PiCheck, PiCheckCircle, PiClock, PiMoon, PiTrendUp } from 'react-icons/pi';
 
 /**
  * Erinnerung Status Typen (API generiert)
  */
-type ErinnerungStatus = 'GEPLANT' | 'AUSGELOEST' | 'ACKNOWLEDGED' | 'SNOOZED' | 'ERLEDIGT';
+type ErinnerungStatus = 'GEPLANT' | 'AUSGELOEST' | 'ACKNOWLEDGED' | 'SNOOZED' | 'ERLEDIGT' | 'ESKALIERT';
 
 /**
  * Urgency Level für progressive Farbwechsel bei GEPLANT Status
@@ -55,6 +55,7 @@ const STATUS_LABELS: Record<ErinnerungStatus, string> = {
   ACKNOWLEDGED: 'Bestätigt',
   SNOOZED: 'Verschoben',
   ERLEDIGT: 'Erledigt',
+  ESKALIERT: 'Eskaliert',
 };
 
 /**
@@ -66,6 +67,7 @@ const STATUS_ICONS: Record<ErinnerungStatus, React.ComponentType<{ className?: s
   ACKNOWLEDGED: PiCheck,
   SNOOZED: PiMoon,
   ERLEDIGT: PiCheckCircle,
+  ESKALIERT: PiTrendUp,
 };
 
 /**
@@ -96,6 +98,11 @@ const STATUS_COLORS: Record<ErinnerungStatus, { bg: string; text: string; dark: 
     bg: 'bg-gray-100',
     text: 'text-gray-500',
     dark: 'dark:bg-gray-800 dark:text-gray-400',
+  },
+  ESKALIERT: {
+    bg: 'bg-indigo-100',
+    text: 'text-indigo-700',
+    dark: 'dark:bg-indigo-900/40 dark:text-indigo-300',
   },
 };
 

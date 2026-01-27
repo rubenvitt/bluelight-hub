@@ -14,6 +14,7 @@ apis/EinsatzApi.ts
 apis/EinsatzFahrzeugeApi.ts
 apis/EinsatzPersonenApi.ts
 apis/EinsatzTeilnehmerApi.ts
+apis/ErinnerungApi.ts
 apis/ErinnerungenApi.ts
 apis/GeocodingApi.ts
 apis/HealthApi.ts
@@ -154,6 +155,8 @@ models/ErfasseTemporalesFahrzeugDto.ts
 models/ErforderlicheQualifikationDto.ts
 models/ErinnerungControllerCreateVAlpha201Response.ts
 models/ErinnerungControllerGetByEinsatzVAlpha200Response.ts
+models/ErinnerungKonfigurationControllerGetConfigVAlpha200Response.ts
+models/ErinnerungKonfigurationDto.ts
 models/ErinnerungResponseDto.ts
 models/EtbCqrsControllerAddEintragVAlpha201Response.ts
 models/EtbCqrsControllerGetEtbByEinsatzIdVAlpha200Response.ts
@@ -251,6 +254,7 @@ models/TokenListItemDto.ts
 models/UpdateEinsatzDto.ts
 models/UpdateEintragDto.ts
 models/UpdateErinnerungDto.ts
+models/UpdateEskalationsTimeoutDto.ts
 models/UpdateFahrzeugtypDto.ts
 models/UpdateFmsStatusDto.ts
 models/UpdateFunkStatusConfigDto.ts

@@ -138,6 +138,7 @@ export class ErinnerungController {
       erstelltVon: user.userId,
       requiresNote: dto.requiresNote,
       assignedToId: dto.assignedToId, // Story 3.3: Zuweisung bei Erstellung
+      eskalationsPersonId: dto.eskalationsPersonId, // Story 4.1: Eskalationsperson
     });
 
     if (commandResult.isFailure || !commandResult.value) {
@@ -201,6 +202,7 @@ export class ErinnerungController {
       titel: dto.titel,
       beschreibung: dto.beschreibung,
       faelligAm: dto.faelligAm ? new Date(dto.faelligAm) : undefined,
+      eskalationsPersonId: dto.eskalationsPersonId, // Story 4.1: Eskalationsperson aktualisieren
     });
 
     if (commandResult.isFailure || !commandResult.value) {

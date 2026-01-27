@@ -339,6 +339,133 @@ describe('AssignErinnerungHandler', () => {
       expect(result.error).toBe(ERINNERUNG_ERROR_CODES.NOT_FOUND);
       expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
     });
+
+    it('should fail when delegation attempt by non-owner (AC: Only Assignee can delegate)', async () => {
+      // Given (Arrange)
+      const einsatzId = generateValidEinsatzId();
+      const erinnerungId = generateValidErinnerungId();
+      const currentAssigneeId = generateValidUserId();
+      const otherUserId = generateValidUserId(); // The hacker/unauthorized user
+      const newTargetUserId = generateValidUserId();
+
+      // Command: Other User tries to assign (delegate)
+      const commandResult = createValidCommand({
+        erinnerungId,
+        einsatzId,
+        assignedById: otherUserId,
+        assignedToId: newTargetUserId,
+      });
+      const command = commandResult.value!;
+
+      // Erinnerung is already assigned to 'currentAssigneeId'
+      const mockErinnerung = createMockErinnerung({ id: erinnerungId, einsatzId, status: 'GEPLANT' });
+      // Manually set assignedToId on the mock (since createMockErinnerung defaults to null)
+      Object.defineProperty(mockErinnerung, 'assignedToId', { get: () => ({ toString: () => currentAssigneeId }) });
+
+      mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
+
+      // When (Act)
+      const result = await handler.execute(command);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(false);
+      // We expect a permission error -> Using NOT_AUTHORIZED or forbidden
+      // Since specific error code might strictly be NOT_FOUND for security or specific ID_INVALID,
+      // but here we likely want a specific 'Not Allowed' error.
+      // Using generic domain error or creating a new one. For now assuming we reuse an existing or standard error.
+      // Let's use a string check or assume we'll add ERINNERUNG_ERROR_CODES.NOT_AUTHORIZED
+      expect(result.error).toMatch(/NOT_AUTHORIZED|PERMISSION_DENIED/);
+      expect(mockErinnerungRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should succeed when delegation by current owner', async () => {
+      // Given (Arrange)
+      const einsatzId = generateValidEinsatzId();
+      const erinnerungId = generateValidErinnerungId();
+      const currentAssigneeId = generateValidUserId();
+      const newTargetUserId = generateValidUserId();
+
+      // Command: Current Owner delegates
+      const commandResult = createValidCommand({
+        erinnerungId,
+        einsatzId,
+        assignedById: currentAssigneeId,
+        assignedToId: newTargetUserId,
+      });
+      const command = commandResult.value!;
+
+      const mockErinnerung = createMockErinnerung({ id: erinnerungId, einsatzId, status: 'GEPLANT' });
+      Object.defineProperty(mockErinnerung, 'assignedToId', { get: () => ({ toString: () => currentAssigneeId }) });
+
+      mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
+
+      // When (Act)
+      const result = await handler.execute(command);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+      expect(result.value!.assignedToId).toBe(newTargetUserId);
+    });
+
+    it('should emit correct event data when delegating (assignedBy is preserved)', async () => {
+      // Given (Arrange)
+      const einsatzId = generateValidEinsatzId();
+      const erinnerungId = generateValidErinnerungId();
+      const currentAssigneeId = generateValidUserId();
+      const newTargetUserId = generateValidUserId();
+
+      const commandResult = createValidCommand({
+        erinnerungId,
+        einsatzId,
+        assignedById: currentAssigneeId,
+        assignedToId: newTargetUserId,
+      });
+      const command = commandResult.value!;
+
+      const mockErinnerung = createMockErinnerung({ id: erinnerungId, einsatzId, status: 'GEPLANT' });
+      Object.defineProperty(mockErinnerung, 'assignedToId', { get: () => ({ toString: () => currentAssigneeId }) });
+
+      mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
+
+      // When (Act)
+      const result = await handler.execute(command);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+      expect(mockOutboxRepository.save).toHaveBeenCalled();
+
+      const savedEvents = mockOutboxRepository.save.mock.calls[0][0];
+      const assignedEvent = savedEvents[0] as ErinnerungAssignedEvent;
+
+      expect(assignedEvent).toBeInstanceOf(ErinnerungAssignedEvent);
+      expect(assignedEvent.assignedToId.toString()).toBe(newTargetUserId);
+      expect(assignedEvent.assignedById.toString()).toBe(currentAssigneeId);
+    });
+
+    it('should succeed when initial assignment (not assigned yet) by anyone', async () => {
+      // Given (Arrange)
+      const einsatzId = generateValidEinsatzId();
+      const erinnerungId = generateValidErinnerungId();
+      const anyUserId = generateValidUserId();
+
+      const commandResult = createValidCommand({
+        erinnerungId,
+        einsatzId,
+        assignedById: anyUserId,
+      });
+      const command = commandResult.value!;
+
+      const mockErinnerung = createMockErinnerung({ id: erinnerungId, einsatzId, status: 'GEPLANT' });
+      // assignedToId is null by default in createMockErinnerung
+
+      mockErinnerungRepository.findById.mockResolvedValue(Result.ok(mockErinnerung as Erinnerung));
+
+      // When (Act)
+      const result = await handler.execute(command);
+
+      // Then (Assert)
+      expect(result.isSuccess).toBe(true);
+    });
   });
 
   describe('Command Validation', () => {

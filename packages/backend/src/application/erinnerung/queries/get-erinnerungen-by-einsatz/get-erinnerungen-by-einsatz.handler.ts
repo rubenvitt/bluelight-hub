@@ -79,6 +79,8 @@ export class GetErinnerungenByEinsatzHandler {
       userIdsToLoad.add(erinnerung.erstelltVon.value);
       if (erinnerung.assignedToId) userIdsToLoad.add(erinnerung.assignedToId.value);
       if (erinnerung.eskalationsPersonId) userIdsToLoad.add(erinnerung.eskalationsPersonId.value);
+      // Story 4.5: previousAssigneeId für Eskalations-Anzeige
+      if (erinnerung.previousAssigneeId) userIdsToLoad.add(erinnerung.previousAssigneeId.value);
     }
 
     const uniqueUserIds = Array.from(userIdsToLoad);
@@ -109,6 +111,8 @@ export class GetErinnerungenByEinsatzHandler {
       beschreibung: erinnerung.beschreibung ?? null,
       faelligAm: erinnerung.faelligAm.toISOString(),
       status: erinnerung.status.value,
+      // Story 4.1: Zeitpunkt der Auslösung/Intensivierung
+      ausgeloestAm: erinnerung.ausgeloestAm?.toISOString() ?? null,
       erstelltVon: erinnerung.erstelltVon.toString(),
       erstellerName: userMap.get(erinnerung.erstelltVon.toString()) ?? null,
       createdAt: erinnerung.createdAt.toISOString(),
@@ -119,6 +123,10 @@ export class GetErinnerungenByEinsatzHandler {
       assignedToName: erinnerung.assignedToId ? (userMap.get(erinnerung.assignedToId.toString()) ?? null) : null,
       eskalationsPersonId: erinnerung.eskalationsPersonId?.toString() ?? null,
       eskalationsPersonName: erinnerung.eskalationsPersonId ? (userMap.get(erinnerung.eskalationsPersonId.toString()) ?? null) : null,
+      // Story 4.5: Eskalations-Tracking Felder
+      escalatedAt: erinnerung.escalatedAt?.toISOString() ?? null,
+      previousAssigneeId: erinnerung.previousAssigneeId?.toString() ?? null,
+      previousAssigneeName: erinnerung.previousAssigneeId ? (userMap.get(erinnerung.previousAssigneeId.toString()) ?? null) : null,
     }));
 
     // ════════════════════════════════════════════════════════════════════════

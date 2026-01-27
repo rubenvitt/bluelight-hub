@@ -121,7 +121,7 @@ export class PrismaUserMapper {
 
     const usernameResult = Username.create(prismaData.username);
     if (usernameResult.isFailure) {
-      throw new Error(`Invalid Username: ${usernameResult.error}`);
+      throw new Error(`Invalid Username '${prismaData.username}': ${usernameResult.error}`);
     }
     const username = usernameResult.value as Username;
 

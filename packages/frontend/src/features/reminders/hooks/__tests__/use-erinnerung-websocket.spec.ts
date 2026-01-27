@@ -75,6 +75,7 @@ vi.mock('sonner', () => ({
     success: vi.fn(),
     info: vi.fn(),
     warning: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
@@ -234,6 +235,98 @@ describe('useErinnerungWebSocket', () => {
         expect.objectContaining({
           description: expect.stringMatching(/Third User hat eine Erinnerung an Other User zugewiesen/),
           duration: 5000,
+        }),
+      );
+    });
+  });
+
+  describe('handleEscalated (Story 4.5)', () => {
+    it('should show error toast and notification when escalated to current user', async () => {
+      renderHook(() => useErinnerungWebSocket({ einsatzId: 'einsatz-1' }));
+      const connectCallback = mockSocket.on.mock.calls.find((call) => call[0] === 'connect')?.[1];
+      act(() => connectCallback?.());
+      mockSocket.connected = true;
+
+      const escalatedHandler = mockSocket.on.mock.calls.find((call) => call[0] === 'erinnerung.escalated')?.[1];
+      const event = {
+        erinnerungId: 'erinnerung-1',
+        einsatzId: 'einsatz-1',
+        titel: 'Escalated Task',
+        timestamp: new Date().toISOString(),
+        eskalationsPersonId: 'current-user-id',
+        erstelltVon: 'other-user-id',
+        eskaliertAm: new Date().toISOString(),
+      };
+
+      await act(async () => {
+        await escalatedHandler(event);
+      });
+
+      const { sendAssignmentNotification } = await import('../../services/notification.service');
+      expect(sendAssignmentNotification).toHaveBeenCalledWith('ESKALATION: Escalated Task', 'System', 'erinnerung-1', 'einsatz-1');
+      expect(toast.error).toHaveBeenCalledWith(
+        'ESKALATION: Escalated Task',
+        expect.objectContaining({
+          description: 'Diese Erinnerung wurde an dich eskaliert!',
+          duration: 5000,
+        }),
+      );
+    });
+
+    it('should show warning toast when own reminder is escalated', async () => {
+      renderHook(() => useErinnerungWebSocket({ einsatzId: 'einsatz-1' }));
+      const connectCallback = mockSocket.on.mock.calls.find((call) => call[0] === 'connect')?.[1];
+      act(() => connectCallback?.());
+      mockSocket.connected = true;
+
+      const escalatedHandler = mockSocket.on.mock.calls.find((call) => call[0] === 'erinnerung.escalated')?.[1];
+      const event = {
+        erinnerungId: 'erinnerung-1',
+        einsatzId: 'einsatz-1',
+        titel: 'My Task',
+        timestamp: new Date().toISOString(),
+        eskalationsPersonId: 'boss-id',
+        erstelltVon: 'current-user-id', // ME
+        eskaliertAm: new Date().toISOString(),
+      };
+
+      await act(async () => {
+        await escalatedHandler(event);
+      });
+
+      expect(toast.warning).toHaveBeenCalledWith(
+        'Deine Erinnerung wurde eskaliert: My Task',
+        expect.objectContaining({
+          description: 'Zeitüberschreitung - an Vorgesetzten eskaliert',
+        }),
+      );
+    });
+
+    it('should show generic warning toast for other escalations', async () => {
+      renderHook(() => useErinnerungWebSocket({ einsatzId: 'einsatz-1' }));
+      const connectCallback = mockSocket.on.mock.calls.find((call) => call[0] === 'connect')?.[1];
+      act(() => connectCallback?.());
+      mockSocket.connected = true;
+
+      const escalatedHandler = mockSocket.on.mock.calls.find((call) => call[0] === 'erinnerung.escalated')?.[1];
+      const event = {
+        erinnerungId: 'erinnerung-1',
+        einsatzId: 'einsatz-1',
+        titel: 'Other Task',
+        timestamp: new Date().toISOString(),
+        eskalationsPersonId: 'boss-id',
+        erstelltVon: 'other-user-id',
+        eskaliertAm: new Date().toISOString(),
+      };
+
+      await act(async () => {
+        await escalatedHandler(event);
+      });
+
+      expect(toast.warning).toHaveBeenCalledWith(
+        'Erinnerung eskaliert: Other Task',
+        expect.objectContaining({
+          description: 'Zeitüberschreitung',
         }),
       );
     });

@@ -3,6 +3,7 @@ import type { HttpsOptions } from '@nestjs/common/interfaces/external/https-opti
 import { ConfigService } from '@nestjs/config';
 import { NestFactory, Reflector } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import type { Request, Response, NextFunction } from 'express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -65,6 +66,38 @@ async function bootstrap() {
   });
 
   app.set('trust proxy', trustProxy);
+
+  // PNA (Private Network Access) Header for Cloudflare Pages -> Localhost connection
+  // Robust implementation handling Preflight (OPTIONS) manually to satisfy strict browser PNA policies
+  // PLATZIERUNG: MUSS zwingend vor BodyParser und anderer Middleware stehen!
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const origin = req.headers.origin;
+
+    // 1. Erlaube den spezifischen Origin (WICHTIG: Kein '*' erlaubt bei PNA!)
+    // Wir reflektieren hier den Origin, wenn vorhanden.
+    // Sicherheit: In Produktion sollte hier idealerweise gegen eine Whitelist geprüft werden (siehe corsConfig),
+    // aber für den PNA-Fix (Dev/Preview -> Localhost) ist Reflected Origin oft notwendig.
+    if (origin) {
+      res.header('Access-Control-Allow-Origin', origin);
+    }
+
+    // 2. PNA Header setzen - das Kernstück für Localhost-Zugriff von Public
+    res.header('Access-Control-Allow-Private-Network', 'true');
+
+    // 3. Credentials erlauben (Cookies, Auth Header etc.)
+    res.header('Access-Control-Allow-Credentials', 'true');
+
+    // 4. Preflight (OPTIONS) direkt behandeln und beenden
+    if (req.method === 'OPTIONS') {
+      res.header('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, PATCH, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Server-Access-Token');
+      // Wichtig: Den Preflight hier direkt mit 204 beenden, damit keine weitere Logik stört
+      res.status(204).send();
+      return;
+    }
+
+    next();
+  });
 
   app.enableVersioning({
     type: VersioningType.URI,
@@ -150,6 +183,7 @@ X-Server-Access-Token: <plaintext_token>
   app.useBodyParser('urlencoded', { limit: '10mb', extended: true });
 
   // Configure CORS based on environment
+
   const corsOptions = isProduction ? corsConfig.production : corsConfig.development;
   app.enableCors(corsOptions);
 

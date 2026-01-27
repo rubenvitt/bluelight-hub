@@ -62,7 +62,8 @@ export class UserId extends ValueObject<UserIdProps> {
     const actualId = id ?? createId();
 
     // Validation via Regex für cuid-Format (21 Zeichen, alphanumeric mit Gross-/Kleinbuchstaben)
-    if (!isCuid(actualId)) {
+    // ODER 'SYSTEM' für den speziellen System-User
+    if (actualId !== 'SYSTEM' && !isCuid(actualId)) {
       return Result.fail<UserId>(`Invalid Cuid format for UserId ${id}`);
     }
 

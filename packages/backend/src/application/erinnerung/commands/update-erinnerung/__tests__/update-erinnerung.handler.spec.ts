@@ -15,6 +15,7 @@ import { ERINNERUNG_ERROR_CODES } from '../../../errors/erinnerung-error.codes';
 import type { IErinnerungRepository } from '@domain/repositories/i-erinnerung.repository';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import type { ILogger } from '@domain/ports/i-logger.port';
+import { ErinnerungResponseFactory } from '../../../dto/erinnerung-response.factory';
 
 /**
  * Unit Tests für UpdateErinnerungHandler.
@@ -116,6 +117,22 @@ describe('UpdateErinnerungHandler', () => {
         { provide: OUTBOX_REPOSITORY, useValue: mockOutboxRepository },
         { provide: ERINNERUNG_REPOSITORY, useValue: mockErinnerungRepository },
         { provide: LOGGER, useValue: mockLogger },
+        {
+          provide: ErinnerungResponseFactory,
+          useValue: {
+            create: jest.fn().mockImplementation((erinnerung) => ({
+              id: erinnerung.id.toString(),
+              einsatzId: erinnerung.einsatzId.toString(),
+              titel: erinnerung.titel.value,
+              beschreibung: erinnerung.beschreibung,
+              faelligAm: erinnerung.faelligAm.toISOString(),
+              status: erinnerung.status.value,
+              erstelltVon: erinnerung.erstelltVon.toString(),
+              createdAt: erinnerung.createdAt,
+              updatedAt: erinnerung.updatedAt,
+            })),
+          },
+        },
       ],
     }).compile();
 

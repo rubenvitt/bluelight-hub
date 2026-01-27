@@ -37,6 +37,7 @@ export class ErinnerungResponseFactory {
       beschreibung: erinnerung.beschreibung ?? null,
       faelligAm: erinnerung.faelligAm.toISOString(),
       status: erinnerung.status.value,
+      ausgeloestAm: erinnerung.ausgeloestAm?.toISOString() ?? null,
       erstelltVon: erinnerung.erstelltVon.toString(),
       erstellerName,
       createdAt: erinnerung.createdAt.toISOString(),
@@ -49,9 +50,13 @@ export class ErinnerungResponseFactory {
       eskalationsPersonName,
 
       // Weitere Felder
-      erledigtAm: erinnerung.erledigtAm?.toISOString() ?? null,
       erledigtBy: erinnerung.erledigtBy?.toString() ?? null,
       erledigungsNotiz: erinnerung.erledigungsNotiz ?? null,
+
+      // Story 4.5
+      escalatedAt: erinnerung.escalatedAt?.toISOString() ?? null,
+      previousAssigneeId: erinnerung.previousAssigneeId?.toString() ?? null,
+      previousAssigneeName: erinnerung.previousAssigneeId ? await this.resolveUserName(erinnerung.previousAssigneeId) : null,
     };
   }
 

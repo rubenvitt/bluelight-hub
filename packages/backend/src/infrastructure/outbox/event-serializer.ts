@@ -49,6 +49,8 @@ import type { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.e
 import type { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 import type { ErinnerungErledigtEvent } from '@domain/events/erinnerung-erledigt.event';
 import type { ErinnerungAssignedEvent } from '@domain/events/erinnerung-assigned.event';
+import type { ErinnerungEskaliertEvent } from '@domain/events/erinnerung-eskaliert.event';
+import type { ErinnerungIntensiviertEvent } from '@domain/events/erinnerung-intensiviert.event';
 
 /**
  * Serialisiertes Event-Payload für Outbox-Persistierung.
@@ -277,9 +279,44 @@ export class EventSerializer {
       case 'erinnerung.assigned':
         return this.serializeErinnerungAssigned(event as unknown as ErinnerungAssignedEvent);
 
+      // ===== ESKALATION/INTENSIVIERUNG EVENTS (Story 4.4/4.5) =====
+      case 'erinnerung.eskaliert':
+        return this.serializeErinnerungEskaliert(event as unknown as ErinnerungEskaliertEvent);
+      case 'erinnerung.intensiviert':
+        return this.serializeErinnerungIntensiviert(event as unknown as ErinnerungIntensiviertEvent);
+
       default:
         throw new Error(`Unknown event type: ${eventName}. EventSerializer needs to be updated.`);
     }
+  }
+
+  // ... (previous serializers) ...
+
+  /**
+   * Serialisiert ErinnerungEskaliertEvent (Story 4.4).
+   */
+  private serializeErinnerungEskaliert(event: ErinnerungEskaliertEvent): Record<string, unknown> {
+    return {
+      erinnerungId: event.erinnerungId.toString(),
+      einsatzId: event.einsatzId.toString(),
+      eskaliertAm: event.eskaliertAm.toISOString(),
+      titel: event.titel,
+      erstelltVon: event.erstelltVon.toString(),
+      eskalationsPersonId: event.eskalationsPersonId?.toString() ?? null,
+    };
+  }
+
+  /**
+   * Serialisiert ErinnerungIntensiviertEvent (Story 4.4).
+   */
+  private serializeErinnerungIntensiviert(event: ErinnerungIntensiviertEvent): Record<string, unknown> {
+    return {
+      erinnerungId: event.erinnerungId.toString(),
+      einsatzId: event.einsatzId.toString(),
+      intensiviertAm: event.intensiviertAm.toISOString(),
+      titel: event.titel,
+      erstelltVon: event.erstelltVon.toString(),
+    };
   }
 
   // ===== EINSATZ SERIALIZERS =====

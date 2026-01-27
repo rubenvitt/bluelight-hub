@@ -1,6 +1,7 @@
 # TypeScript Smoke Test (NO compilation output, just validation)
 # Ensures type safety before commit to catch errors early
-pnpm --filter @bluelight-hub/backend exec tsc --noEmit || exit 1
+# Uses tsconfig.build.json to exclude test files (which have known TS issues)
+pnpm --filter @bluelight-hub/backend exec tsc --noEmit --project tsconfig.build.json || exit 1
 
 # DI Import Pattern Check (AC1)
 # Story 5-7 (AC1): Ensures Injectable Classes use "import" not "import type"

@@ -71,6 +71,10 @@ function isMyErinnerung(erinnerung: ErinnerungResponseDto, userId: string): bool
   if (assignedTo === userId) {
     return true;
   }
+  // Story 4.5: Wenn an mich eskaliert → meine Erinnerung (Priorität vor Ersteller)
+  if (erinnerung.status === 'ESKALIERT' && erinnerung.eskalationsPersonId === userId) {
+    return true;
+  }
   // Wenn niemand zugewiesen UND ich Ersteller → meine Erinnerung
   if (!assignedTo && erinnerung.erstelltVon === userId) {
     return true;

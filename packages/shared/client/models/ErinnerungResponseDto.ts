@@ -39,10 +39,10 @@ export interface ErinnerungResponseDto {
   titel: string;
   /**
    * Optionale Beschreibung
-   * @type {object}
+   * @type {string}
    * @memberof ErinnerungResponseDto
    */
-  beschreibung: object | null;
+  beschreibung: string | null;
   /**
    * Fälligkeitszeitpunkt (ISO-8601)
    * @type {string}
@@ -55,6 +55,12 @@ export interface ErinnerungResponseDto {
    * @memberof ErinnerungResponseDto
    */
   status: ErinnerungResponseDtoStatusEnum;
+  /**
+   * Zeitpunkt der letzten Auslösung/Intensivierung (Story 4.1 AC2)
+   * @type {object}
+   * @memberof ErinnerungResponseDto
+   */
+  ausgeloestAm?: object | null;
   /**
    * User-ID des Erstellers
    * @type {string}
@@ -87,16 +93,16 @@ export interface ErinnerungResponseDto {
   erledigtAm?: object | null;
   /**
    * User-ID der Person die erledigt hat (Story 2.5)
-   * @type {object}
+   * @type {string}
    * @memberof ErinnerungResponseDto
    */
-  erledigtBy?: object | null;
+  erledigtBy?: string | null;
   /**
    * Optionale Notiz zur Erledigung (max 500 Zeichen) (Story 2.5)
-   * @type {object}
+   * @type {string}
    * @memberof ErinnerungResponseDto
    */
-  erledigungsNotiz?: object | null;
+  erledigungsNotiz?: string | null;
   /**
    * Pflicht-Notiz bei Erledigung erforderlich (Story 2.6)
    * @type {boolean}
@@ -105,10 +111,10 @@ export interface ErinnerungResponseDto {
   requiresNote: boolean;
   /**
    * ID des zugewiesenen Users (Story 3.3/3.4)
-   * @type {object}
+   * @type {string}
    * @memberof ErinnerungResponseDto
    */
-  assignedToId?: object | null;
+  assignedToId?: string | null;
   /**
    * Name des zugewiesenen Users (Story 3.3/3.4)
    * @type {string}
@@ -123,16 +129,34 @@ export interface ErinnerungResponseDto {
   erstellerName?: string | null;
   /**
    * ID der Eskalationsperson (Story 4.1)
-   * @type {object}
+   * @type {string}
    * @memberof ErinnerungResponseDto
    */
-  eskalationsPersonId?: object | null;
+  eskalationsPersonId?: string | null;
   /**
    * Name der Eskalationsperson (Story 4.1)
    * @type {string}
    * @memberof ErinnerungResponseDto
    */
   eskalationsPersonName?: string | null;
+  /**
+   * Zeitpunkt der Eskalation (Story 4.5)
+   * @type {object}
+   * @memberof ErinnerungResponseDto
+   */
+  escalatedAt?: object | null;
+  /**
+   * ID des vorherigen Assignees (Story 4.5)
+   * @type {string}
+   * @memberof ErinnerungResponseDto
+   */
+  previousAssigneeId?: string | null;
+  /**
+   * Name des vorherigen Assignees (Story 4.5)
+   * @type {string}
+   * @memberof ErinnerungResponseDto
+   */
+  previousAssigneeName?: string | null;
 }
 
 /**
@@ -181,6 +205,7 @@ export function ErinnerungResponseDtoFromJSONTyped(json: any, ignoreDiscriminato
     beschreibung: json['beschreibung'],
     faelligAm: json['faelligAm'],
     status: json['status'],
+    ausgeloestAm: json['ausgeloestAm'] == null ? undefined : json['ausgeloestAm'],
     erstelltVon: json['erstelltVon'],
     createdAt: json['createdAt'],
     updatedAt: json['updatedAt'],
@@ -194,6 +219,9 @@ export function ErinnerungResponseDtoFromJSONTyped(json: any, ignoreDiscriminato
     erstellerName: json['erstellerName'] == null ? undefined : json['erstellerName'],
     eskalationsPersonId: json['eskalationsPersonId'] == null ? undefined : json['eskalationsPersonId'],
     eskalationsPersonName: json['eskalationsPersonName'] == null ? undefined : json['eskalationsPersonName'],
+    escalatedAt: json['escalatedAt'] == null ? undefined : json['escalatedAt'],
+    previousAssigneeId: json['previousAssigneeId'] == null ? undefined : json['previousAssigneeId'],
+    previousAssigneeName: json['previousAssigneeName'] == null ? undefined : json['previousAssigneeName'],
   };
 }
 
@@ -213,6 +241,7 @@ export function ErinnerungResponseDtoToJSONTyped(value?: ErinnerungResponseDto |
     beschreibung: value['beschreibung'],
     faelligAm: value['faelligAm'],
     status: value['status'],
+    ausgeloestAm: value['ausgeloestAm'],
     erstelltVon: value['erstelltVon'],
     createdAt: value['createdAt'],
     updatedAt: value['updatedAt'],
@@ -226,5 +255,8 @@ export function ErinnerungResponseDtoToJSONTyped(value?: ErinnerungResponseDto |
     erstellerName: value['erstellerName'],
     eskalationsPersonId: value['eskalationsPersonId'],
     eskalationsPersonName: value['eskalationsPersonName'],
+    escalatedAt: value['escalatedAt'],
+    previousAssigneeId: value['previousAssigneeId'],
+    previousAssigneeName: value['previousAssigneeName'],
   };
 }

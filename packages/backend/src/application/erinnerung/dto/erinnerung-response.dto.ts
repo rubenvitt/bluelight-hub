@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+// Trigger rebuild
 /**
  * Response DTO für Erinnerung API Responses.
  *
@@ -54,6 +55,7 @@ export class ErinnerungResponseDto {
     description: 'Optionale Beschreibung',
     example: 'Im ELW 1 mit Einsatzleitung',
     nullable: true,
+    type: String,
   })
   beschreibung!: string | null;
 
@@ -69,6 +71,14 @@ export class ErinnerungResponseDto {
     enum: ['GEPLANT', 'AUSGELOEST', 'ACKNOWLEDGED', 'SNOOZED', 'ESKALIERT', 'ERLEDIGT'],
   })
   status!: string;
+
+  @ApiProperty({
+    description: 'Zeitpunkt der letzten Auslösung/Intensivierung (Story 4.1 AC2)',
+    example: '2026-01-19T15:30:00.000Z',
+    nullable: true,
+    required: false,
+  })
+  ausgeloestAm?: string | null;
 
   @ApiProperty({
     description: 'User-ID des Erstellers',
@@ -108,6 +118,7 @@ export class ErinnerungResponseDto {
     example: 'clw3h8x9y0003yzabcdefghij',
     nullable: true,
     required: false,
+    type: String,
   })
   erledigtBy?: string | null;
 
@@ -117,6 +128,7 @@ export class ErinnerungResponseDto {
     nullable: true,
     required: false,
     maxLength: 500,
+    type: String,
   })
   erledigungsNotiz?: string | null;
 
@@ -131,6 +143,7 @@ export class ErinnerungResponseDto {
     example: 'clw3h8x9y0004abcdefghijkl',
     nullable: true,
     required: false,
+    type: String,
   })
   assignedToId?: string | null;
 
@@ -157,6 +170,7 @@ export class ErinnerungResponseDto {
     example: 'clw3h8x9y0005znopqrstuvw',
     nullable: true,
     required: false,
+    type: String,
   })
   eskalationsPersonId?: string | null;
 
@@ -168,4 +182,30 @@ export class ErinnerungResponseDto {
     type: String,
   })
   eskalationsPersonName?: string | null;
+
+  @ApiProperty({
+    description: 'Zeitpunkt der Eskalation (Story 4.5)',
+    example: '2026-01-19T15:45:00.000Z',
+    nullable: true,
+    required: false,
+  })
+  escalatedAt?: string | null;
+
+  @ApiProperty({
+    description: 'ID des vorherigen Assignees (Story 4.5)',
+    example: 'clw3h8x9y0004abcdefghijkl',
+    nullable: true,
+    required: false,
+    type: String,
+  })
+  previousAssigneeId?: string | null;
+
+  @ApiProperty({
+    description: 'Name des vorherigen Assignees (Story 4.5)',
+    example: 'Max Mustermann',
+    nullable: true,
+    required: false,
+    type: String,
+  })
+  previousAssigneeName?: string | null;
 }

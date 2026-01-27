@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CqrsModule } from '@nestjs/cqrs';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaModule } from '@infrastructure/database/prisma.module';
@@ -16,36 +17,25 @@ import { SnoozeErinnerungHandler } from '@/application/erinnerung/commands/snooz
 import { MarkErledigtErinnerungHandler } from '@/application/erinnerung/commands/mark-erledigt-erinnerung/mark-erledigt-erinnerung.handler';
 import { AssignErinnerungHandler } from '@/application/erinnerung/commands/assign-erinnerung/assign-erinnerung.handler';
 import { GetErinnerungenByEinsatzHandler } from '@/application/erinnerung/queries/get-erinnerungen-by-einsatz/get-erinnerungen-by-einsatz.handler';
-import { ErinnerungResponseFactory } from '@/application/erinnerung/dto/erinnerung-response.factory';
+import { GetErinnerungKonfigurationHandler } from '@application/erinnerung-konfiguration/queries/get-erinnerung-konfiguration.query';
+import { UpdateEskalationsTimeoutHandler } from '@application/erinnerung-konfiguration/commands/update-eskalations-timeout.command';
+import { ErinnerungKonfigurationController } from './controllers/erinnerung-konfiguration.controller';
+import { IErinnerungKonfigurationRepository } from '@domain/erinnerung-konfiguration/repositories/erinnerung-konfiguration.repository.interface';
+import { PrismaErinnerungKonfigurationRepository } from '@infrastructure/repositories/prisma-erinnerung-konfiguration.repository';
 import { ErinnerungController } from './controllers/erinnerung.controller';
 import { ErinnerungGateway } from './gateways/erinnerung.gateway';
 import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
+import { ErinnerungResponseFactory } from '@/application/erinnerung/dto/erinnerung-response.factory';
+import { EskaliereErinnerungHandler } from '@/application/erinnerung/commands/eskaliere-erinnerung/eskaliere-erinnerung.handler';
+import { ErinnerungWebSocketEventAdapter } from '@infrastructure/events/adapters/erinnerung-websocket-event.adapter';
 
-/**
- * Module für Erinnerungen/Wecker innerhalb von Einsätzen.
- *
- * **Story 1.1: Erinnerung mit Quick-Create anlegen**
- * - Erstellen von Erinnerungen mit Titel und Zeitpunkt
- * - Zeit-Presets (5, 10, 15, 30, 60 Min)
- * - Abrufen aller Erinnerungen eines Einsatzes
- *
- * **Security (C1, C2, C3):**
- * - JwtModule für WebSocket-Token-Validation
- * - WsJwtAuthGuard für Gateway-Authentication
- * - Input Validation via DTOs
- *
- * **Architektur:**
- * - Controller: HTTP-Adapter für REST API
- * - Gateway: WebSocket-Adapter für Real-time Events
- * - Handlers: CQRS Command/Query Handler
- * - Repository: Prisma Implementation injiziert via DI Token
- */
 @Module({
   imports: [
     PrismaModule,
     InfrastructureCommonModule,
     OutboxModule,
     UserInfrastructureModule,
+    CqrsModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -53,12 +43,16 @@ import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
       }),
     }),
   ],
-  controllers: [ErinnerungController],
+  controllers: [ErinnerungController, ErinnerungKonfigurationController],
   providers: [
     // Repository
     {
       provide: ERINNERUNG_REPOSITORY,
       useClass: PrismaErinnerungRepository,
+    },
+    {
+      provide: IErinnerungKonfigurationRepository,
+      useClass: PrismaErinnerungKonfigurationRepository,
     },
     // Handlers
     CreateErinnerungHandler,
@@ -70,9 +64,15 @@ import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
     MarkErledigtErinnerungHandler,
     AssignErinnerungHandler,
     GetErinnerungenByEinsatzHandler,
+    // Configuration Handlers (Story 4.3)
+    GetErinnerungKonfigurationHandler,
+    UpdateEskalationsTimeoutHandler,
+    // Escalation (Story 4.1)
+    EskaliereErinnerungHandler,
     // WebSocket (Story 1.5 AC4 + Security C1, C2, C3)
     ErinnerungGateway,
     WsJwtAuthGuard,
+    ErinnerungWebSocketEventAdapter,
     // Utilities
     ErinnerungResponseFactory,
   ],

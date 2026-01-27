@@ -22,7 +22,7 @@
   "scripts": {
     "lint": "biome check --write",
     "lint:check": "biome check",
-    "generate-api": "rimraf client && openapi-generator-cli generate -g=typescript-fetch -i http://localhost:3091/api-json -o ./client --skip-validate-spec && pnpm lint",
+    "generate-api": "rimraf client && openapi-generator-cli generate -g=typescript-fetch -i https://localhost:3091/api-json -o ./client --skip-validate-spec && pnpm lint",
     "build:tsc": "tsc -p tsconfig.build.json",
     "build": "pnpm build:tsc",
     "build:with-api": "pnpm generate-api && pnpm build:tsc",

@@ -30,6 +30,7 @@ import { ErinnerungStatus } from '@domain/value-objects/erinnerung-status';
 import { UserId } from '@domain/value-objects/user-id';
 import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
 import { ERINNERUNG_ERROR_CODES } from '../../../errors/erinnerung-error.codes';
+import { ErinnerungResponseFactory } from '../../../dto/erinnerung-response.factory';
 
 /**
  * Deterministic Test Fixtures (R2-TEST3: No Math.random())
@@ -79,6 +80,9 @@ describe('AcknowledgeErinnerungHandler', () => {
     getRetryCount: jest.Mock;
   };
   let mockLogger: jest.Mocked<ILogger>;
+  let mockResponseFactory: {
+    create: jest.Mock;
+  };
 
   beforeEach(async () => {
     mockRepository = {
@@ -103,6 +107,21 @@ describe('AcknowledgeErinnerungHandler', () => {
       debug: jest.fn(),
     } as unknown as jest.Mocked<ILogger>;
 
+    mockResponseFactory = {
+      create: jest.fn().mockImplementation(async (erinnerung) => ({
+        id: erinnerung.id.toString(),
+        einsatzId: erinnerung.einsatzId.toString(),
+        titel: erinnerung.titel.value,
+        status: 'ACKNOWLEDGED',
+        faelligAm: erinnerung.faelligAm.toISOString(),
+        erstelltVon: erinnerung.erstelltVon.toString(),
+        createdAt: erinnerung.createdAt.toISOString(),
+        updatedAt: erinnerung.updatedAt.toISOString(),
+        snoozeCount: erinnerung.snoozeCount,
+        requiresNote: erinnerung.requiresNote,
+      })),
+    };
+
     // WICHTIG: $transaction muss die Callback-Funktion ausführen und den Mock Transaction Client übergeben
     mockPrismaService = {
       $transaction: jest.fn().mockImplementation(async (callback) => {
@@ -118,6 +137,7 @@ describe('AcknowledgeErinnerungHandler', () => {
         { provide: OUTBOX_REPOSITORY, useValue: mockOutboxRepository },
         { provide: ERINNERUNG_REPOSITORY, useValue: mockRepository },
         { provide: LOGGER, useValue: mockLogger },
+        { provide: ErinnerungResponseFactory, useValue: mockResponseFactory },
       ],
     }).compile();
 

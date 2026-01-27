@@ -66,9 +66,12 @@ describe('ErinnerungCard', () => {
     titel: 'Test Erinnerung',
     faelligAm: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 Min in Zukunft
     erstelltVon: 'user-1',
-    erstelltAm: new Date().toISOString(),
     status: 'GEPLANT',
     snoozeCount: 0,
+    beschreibung: null,
+    requiresNote: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 
   beforeEach(() => {
@@ -126,7 +129,7 @@ describe('ErinnerungCard', () => {
       const erinnerung: ErinnerungResponseDto = {
         ...baseErinnerung,
         status: 'AUSGELOEST',
-        snoozeCount: undefined,
+        snoozeCount: 0,
       };
 
       // When (Act)
@@ -614,7 +617,7 @@ describe('ErinnerungCard', () => {
         ...baseErinnerung,
         eskalationsPersonId: 'clw3h8x9y0005znopqrstuvw',
         eskalationsPersonName: 'Chief Wiggum',
-      } as any;
+      } as unknown as ErinnerungResponseDto;
 
       // When (Act)
       render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" />);
@@ -630,7 +633,7 @@ describe('ErinnerungCard', () => {
       const erinnerung: ErinnerungResponseDto = {
         ...baseErinnerung,
         eskalationsPersonId: null,
-      } as any;
+      } as unknown as ErinnerungResponseDto;
 
       // When (Act)
       render(<ErinnerungCard erinnerung={erinnerung} einsatzId="einsatz-1" />);

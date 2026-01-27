@@ -89,8 +89,9 @@ export function ErinnerungEditDialog({ isOpen, onClose, erinnerung, einsatzId }:
       minuten: undefined,
       customTime: initialCustomTime,
       beschreibung: erinnerung?.beschreibung ?? '',
-      eskalationsPersonId: (erinnerung as any)?.eskalationsPersonId ?? null,
+      eskalationsPersonId: (erinnerung as unknown as { eskalationsPersonId: string | null })?.eskalationsPersonId ?? null,
     } as UpdateErinnerungFormData,
+    // @ts-expect-error: validatorAdapter type definition mismatch in current version
     validatorAdapter: zodValidator(),
     validators: {
       onSubmit: updateErinnerungSchema,
@@ -120,9 +121,8 @@ export function ErinnerungEditDialog({ isOpen, onClose, erinnerung, einsatzId }:
         hasChanges = true;
       }
 
-      // Story 4.1: Eskalationsperson pruefen
       const newEskalation = value.eskalationsPersonId ?? null;
-      const oldEskalation = (erinnerung as any)?.eskalationsPersonId ?? null;
+      const oldEskalation = (erinnerung as unknown as { eskalationsPersonId: string | null })?.eskalationsPersonId ?? null;
       if (newEskalation !== oldEskalation) {
         updateData.eskalationsPersonId = newEskalation || null;
         hasChanges = true;

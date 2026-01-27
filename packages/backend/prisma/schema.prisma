@@ -162,6 +162,8 @@ model User {
   assignedErinnerungen     Erinnerung[] @relation("ErinnerungAssignedTo") // Story 3.3/3.4: Zugewiesene Erinnerungen
   assignedByErinnerungen   Erinnerung[] @relation("ErinnerungAssigner") // Story 3.3/3.4: Von mir zugewiesene Erinnerungen
   beauftragteEskalationen  Erinnerung[] @relation("ErinnerungEskalationsPerson") // Story 4.1: Mir zugewiesene Eskalationen
+  previouslyAssignedErinnerungen Erinnerung[] @relation("ErinnerungPreviousAssignee") // Story 4.5
+  updatedErinnerungKonfiguration ErinnerungKonfiguration[] @relation("ErinnerungKonfigurationUpdater") // Story 4.3: Konfigurations-Update Audit Trail
 
   // Indexes
   @@index([username], map: "idx_user_username")
@@ -1335,9 +1337,13 @@ model Erinnerung {
   assignedBy     String?          @map("assigned_by") @db.VarChar(100)
   assignedAt     DateTime?        @map("assigned_at")
 
-  // Eskalation (Story 4.1) - Optionale Eskalationsperson
+  // Escalation (Story 4.1) - Optionale Eskalationsperson
   eskalationsPersonId String?     @map("eskalations_person_id") @db.VarChar(100)
-
+  // Story 4.5: Eskalations-Tracking
+  escalatedAt         DateTime?   @map("escalated_at")
+  previousAssigneeId  String?     @map("previous_assignee_id") @db.VarChar(100)
+  // Hotfix: Intensivierungs-Counter um Endlos-Loop zu verhindern
+  intensivierungsCount Int        @default(0) @map("intensivierungs_count")
 
   erstelltVon    String           @map("erstellt_von") @db.VarChar(100)
 
@@ -1351,15 +1357,16 @@ model Erinnerung {
   deletedBy String?   @map("deleted_by") @db.VarChar(100)
 
   // Relations
-  einsatz     Einsatz @relation(fields: [einsatzId], references: [id], onDelete: Cascade)
-  ersteller   User    @relation("ErinnerungCreator", fields: [erstelltVon], references: [id], onDelete: Restrict)
-  loescher    User?   @relation("ErinnerungDeleter", fields: [deletedBy], references: [id], onDelete: Restrict)
-  acknowledger User?   @relation("ErinnerungAcknowledger", fields: [acknowledgedBy], references: [id], onDelete: Restrict) // Story 1.6
-  snoozer      User?   @relation("ErinnerungSnoozer", fields: [snoozedBy], references: [id], onDelete: Restrict) // Story 2.1
-  erledigter   User?   @relation("ErinnerungErledigter", fields: [erledigtBy], references: [id], onDelete: Restrict) // Story 2.5
-  assignedTo   User?   @relation("ErinnerungAssignedTo", fields: [assignedToId], references: [id], onDelete: Restrict) // Story 3.3/3.4: Zugewiesene Person
-  assigner     User?   @relation("ErinnerungAssigner", fields: [assignedBy], references: [id], onDelete: Restrict) // Story 3.3/3.4: Wer hat zugewiesen
-  eskalationsPerson User? @relation("ErinnerungEskalationsPerson", fields: [eskalationsPersonId], references: [id], onDelete: Restrict) // Story 4.1
+  einsatz          Einsatz @relation(fields: [einsatzId], references: [id], onDelete: Cascade)
+  ersteller        User    @relation("ErinnerungCreator", fields: [erstelltVon], references: [id], onDelete: Restrict)
+  loescher         User?   @relation("ErinnerungDeleter", fields: [deletedBy], references: [id], onDelete: Restrict)
+  acknowledger     User?   @relation("ErinnerungAcknowledger", fields: [acknowledgedBy], references: [id], onDelete: Restrict) // Story 1.6
+  snoozer          User?   @relation("ErinnerungSnoozer", fields: [snoozedBy], references: [id], onDelete: Restrict) // Story 2.1
+  erledigter       User?   @relation("ErinnerungErledigter", fields: [erledigtBy], references: [id], onDelete: Restrict) // Story 2.5
+  assignedTo       User?   @relation("ErinnerungAssignedTo", fields: [assignedToId], references: [id], onDelete: Restrict) // Story 3.3/3.4: Zugewiesene Person
+  assigner         User?   @relation("ErinnerungAssigner", fields: [assignedBy], references: [id], onDelete: Restrict) // Story 3.3/3.4: Wer hat zugewiesen
+  eskalationsPerson User?  @relation("ErinnerungEskalationsPerson", fields: [eskalationsPersonId], references: [id], onDelete: Restrict) // Story 4.1
+  previousAssignee  User?  @relation("ErinnerungPreviousAssignee", fields: [previousAssigneeId], references: [id], onDelete: Restrict) // Story 4.5
 
   // Indexes
   @@index([einsatzId])
@@ -1370,4 +1377,23 @@ model Erinnerung {
   @@index([isDeleted]) // Effiziente Filterung für Soft-Delete Boolean (Story 1.4)
   @@index([deletedAt]) // Effiziente Filterung für Soft-Delete Timestamp (Story 1.4)
   @@map("erinnerungen")
+}
+
+// ========================================
+// Erinnerung Konfiguration (Story 4.3)
+// ========================================
+
+// Globale Konfiguration für Erinnerungen (Singleton Pattern)
+model ErinnerungKonfiguration {
+  id                      String   @id @default(cuid())
+  eskalationsTimeoutSeconds Int    @default(300) // 5 Minuten Default
+  
+  // Audit-Trail
+  updatedAt               DateTime @updatedAt
+  updatedBy               String   @db.VarChar(100)
+
+  // Relations
+  updater User @relation("ErinnerungKonfigurationUpdater", fields: [updatedBy], references: [id], onDelete: Restrict)
+
+  @@map("erinnerung_konfiguration")
 }

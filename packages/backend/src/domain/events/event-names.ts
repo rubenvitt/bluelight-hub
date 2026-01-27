@@ -160,6 +160,8 @@ export const EVENT_NAMES = {
     GELOESCHT: 'erinnerung.geloescht',
     /** Event: Erinnerung wurde einem User zugewiesen (Story 3.1 Vorbereitung für 3.3) */
     ASSIGNED: 'erinnerung.assigned',
+    /** Event: Erinnerung wurde intensiviert (Dauerton nach Timeout ohne Eskalationsperson) (Story 4.4) */
+    INTENSIVIERT: 'erinnerung.intensiviert',
   },
 } as const;
 

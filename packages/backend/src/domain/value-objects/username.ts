@@ -55,7 +55,7 @@ export class Username extends ValueObject<UsernameProps> {
    * @returns true wenn valid, false wenn invalid
    */
   private static isValid(username: string): boolean {
-    return /^[a-zA-Z0-9_]{3,50}$/.test(username);
+    return /^[a-zA-Z0-9._@-]{3,50}$/.test(username);
   }
 
   /**
@@ -79,7 +79,7 @@ export class Username extends ValueObject<UsernameProps> {
    */
   static create(username: string): Result<Username> {
     if (!Username.isValid(username)) {
-      return Result.fail<Username>('Username ungültig: Muss 3-50 Zeichen sein (alphanumerisch oder Underscore)');
+      return Result.fail<Username>('Username ungültig: Muss 3-50 Zeichen sein (alphanumerisch oder . _ @ -)');
     }
 
     // Normalisierung zu lowercase für case-insensitive uniqueness

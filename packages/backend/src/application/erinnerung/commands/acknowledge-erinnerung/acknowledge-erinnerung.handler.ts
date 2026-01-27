@@ -14,6 +14,7 @@ import { ERINNERUNG_REPOSITORY, LOGGER, OUTBOX_REPOSITORY } from '@infrastructur
 import type { AcknowledgeErinnerungCommand } from './acknowledge-erinnerung.command';
 import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
 import type { ErinnerungResponseDto } from '../../dto/erinnerung-response.dto';
+import type { ErinnerungResponseFactory } from '../../dto/erinnerung-response.factory';
 
 /**
  * Handler zum Bestaetigen einer ausgeloesten Erinnerung (1-Tap Acknowledge).
@@ -47,6 +48,7 @@ export class AcknowledgeErinnerungHandler extends TransactionalCommandHandler<Ac
     @Inject(ERINNERUNG_REPOSITORY)
     private readonly erinnerungRepository: IErinnerungRepository,
     @Inject(LOGGER) private readonly logger: ILogger,
+    private readonly erinnerungResponseFactory: ErinnerungResponseFactory,
   ) {
     super(prisma, outboxRepository);
   }
@@ -136,19 +138,7 @@ export class AcknowledgeErinnerungHandler extends TransactionalCommandHandler<Ac
     // ════════════════════════════════════════════════════════════════════════
     // 7. Response DTO erstellen und zurueckgeben
     // ════════════════════════════════════════════════════════════════════════
-    const responseDto: ErinnerungResponseDto = {
-      id: erinnerung.id.toString(),
-      einsatzId: erinnerung.einsatzId.toString(),
-      titel: erinnerung.titel.value,
-      beschreibung: erinnerung.beschreibung ?? null,
-      faelligAm: erinnerung.faelligAm.toISOString(),
-      status: erinnerung.status.value,
-      erstelltVon: erinnerung.erstelltVon.toString(),
-      createdAt: erinnerung.createdAt.toISOString(),
-      updatedAt: erinnerung.updatedAt.toISOString(),
-      snoozeCount: erinnerung.snoozeCount,
-      requiresNote: erinnerung.requiresNote,
-    };
+    const responseDto = await this.erinnerungResponseFactory.create(erinnerung);
 
     return {
       result: responseDto,

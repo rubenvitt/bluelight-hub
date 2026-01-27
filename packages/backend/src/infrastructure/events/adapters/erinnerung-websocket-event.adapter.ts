@@ -8,6 +8,8 @@ import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event'
 import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 import { ErinnerungErstelltEvent } from '@domain/events/erinnerung-erstellt.event';
 import { ErinnerungAssignedEvent } from '@domain/events/erinnerung-assigned.event';
+import { ErinnerungEskaliertEvent } from '@domain/events/erinnerung-eskaliert.event';
+import { ErinnerungIntensiviertEvent } from '@domain/events/erinnerung-intensiviert.event';
 import { LOGGER } from '@infrastructure/di-tokens';
 // biome-ignore lint/style/useImportType: ErinnerungGateway needed for DI at runtime
 import { ErinnerungGateway } from '@/modules/erinnerung/gateways/erinnerung.gateway';
@@ -378,6 +380,85 @@ export class ErinnerungWebSocketEventAdapter {
       // Fire-and-Forget: Fehler loggen, aber nicht propagieren
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to emit WebSocket event for ErinnerungAssigned: erinnerungId=${event.erinnerungId}, error=${errorMessage}`, 'ErinnerungWebSocketEventAdapter');
+    }
+  }
+
+  /**
+   * Empfaengt ErinnerungEskaliertEvent und emittiert WebSocket Event.
+   *
+   * **Story 4.1:** WebSocket Event bei Eskalation
+   *
+   * @param event - Das empfangene Domain Event
+   */
+  @OnEvent(ErinnerungEskaliertEvent.eventName())
+  async onErinnerungEskaliert(event: ErinnerungEskaliertEvent): Promise<void> {
+    this.logger.log(
+      `Processing ErinnerungEskaliert for WebSocket: erinnerungId=${event.erinnerungId}, einsatzId=${event.einsatzId}, eskalationsPerson=${event.eskalationsPersonId}`,
+      'ErinnerungWebSocketEventAdapter',
+    );
+
+    if (!this.gateway) {
+      this.logger.error('ErinnerungGateway not available', 'ErinnerungWebSocketEventAdapter');
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    try {
+      // User-Namen laden
+      const eskalationsPersonUser = event.eskalationsPersonId
+        ? await this.prisma.user.findUnique({
+            where: { id: event.eskalationsPersonId.toString() },
+            select: { username: true },
+          })
+        : null;
+
+      this.gateway.emitErinnerungEscalated({
+        erinnerungId: event.erinnerungId.toString(),
+        einsatzId: event.einsatzId.toString(),
+        eskalationsPersonId: event.eskalationsPersonId?.toString() ?? null,
+        eskalationsPersonName: eskalationsPersonUser?.username ?? null,
+        titel: event.titel,
+        erstelltVon: event.erstelltVon.toString(),
+        eskaliertAm: event.eskaliertAm.toISOString(),
+        timestamp: event.eskaliertAm.toISOString(),
+      });
+      this.logger.log(`WebSocket event emitted for ErinnerungEskaliert: ${event.erinnerungId}`, 'ErinnerungWebSocketEventAdapter');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to emit WebSocket event for ErinnerungEskaliert: ${errorMessage}`, 'ErinnerungWebSocketEventAdapter');
+    }
+  }
+
+  /**
+   * Empfaengt ErinnerungIntensiviertEvent und emittiert WebSocket Event.
+   *
+   * **Story 4.1 AC2:** WebSocket Event bei Intensivierung
+   *
+   * @param event - Das empfangene Domain Event
+   */
+  @OnEvent(ErinnerungIntensiviertEvent.eventName())
+  async onErinnerungIntensiviert(event: ErinnerungIntensiviertEvent): Promise<void> {
+    this.logger.log(`Processing ErinnerungIntensiviert for WebSocket: erinnerungId=${event.erinnerungId}`, 'ErinnerungWebSocketEventAdapter');
+
+    if (!this.gateway) {
+      this.logger.error('ErinnerungGateway not available', 'ErinnerungWebSocketEventAdapter');
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    try {
+      this.gateway.emitErinnerungIntensified({
+        erinnerungId: event.erinnerungId.toString(),
+        einsatzId: event.einsatzId.toString(),
+        titel: event.titel,
+        timestamp: event.intensiviertAm.toISOString(),
+      });
+      this.logger.log(`WebSocket event emitted for ErinnerungIntensiviert: ${event.erinnerungId}`, 'ErinnerungWebSocketEventAdapter');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to emit WebSocket event for ErinnerungIntensiviert: ${errorMessage}`, 'ErinnerungWebSocketEventAdapter');
     }
   }
 }

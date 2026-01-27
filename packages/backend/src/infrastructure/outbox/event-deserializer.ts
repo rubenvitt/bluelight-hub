@@ -63,6 +63,8 @@ import { ErinnerungSnoozedEvent } from '@domain/events/erinnerung-snoozed.event'
 import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 import { ErinnerungErledigtEvent } from '@domain/events/erinnerung-erledigt.event';
 import { ErinnerungAssignedEvent } from '@domain/events/erinnerung-assigned.event';
+import { ErinnerungEskaliertEvent } from '@domain/events/erinnerung-eskaliert.event';
+import { ErinnerungIntensiviertEvent } from '@domain/events/erinnerung-intensiviert.event';
 
 // Fahrzeugtyp Events
 import { FahrzeugtypCreatedEvent } from '@domain/kraefte/events/fahrzeugtyp-created.event';
@@ -212,6 +214,11 @@ export class EventDeserializer {
       ['erinnerung.retriggered', this.deserializeErinnerungRetriggered.bind(this)],
       ['erinnerung.erledigt', this.deserializeErinnerungErledigt.bind(this)],
       ['erinnerung.assigned', this.deserializeErinnerungAssigned.bind(this)],
+      ['erinnerung.eskaliert', this.deserializeErinnerungEskaliert.bind(this)],
+      ['erinnerung.intensiviert', this.deserializeErinnerungIntensiviert.bind(this)],
+      // Compatibility aliases for events created before correct naming
+      ['ErinnerungEskaliert', this.deserializeErinnerungEskaliert.bind(this)],
+      ['ErinnerungIntensiviert', this.deserializeErinnerungIntensiviert.bind(this)],
     ]);
   }
 
@@ -1245,6 +1252,74 @@ export class EventDeserializer {
       assignedAt,
       aggregateId,
     );
+
+    return Result.ok<DomainEvent>(event);
+  }
+  /**
+   * Deserialisiert ErinnerungEskaliertEvent (Story 4.1).
+   */
+  private deserializeErinnerungEskaliert(payload: Record<string, unknown>, aggregateId?: string): Result<DomainEvent> {
+    const erinnerungIdResult = ErinnerungId.create(payload.erinnerungId as string);
+    if (erinnerungIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid erinnerungId: ${erinnerungIdResult.error}`);
+    }
+
+    const einsatzIdResult = EinsatzId.create(payload.einsatzId as string);
+    if (einsatzIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid einsatzId: ${einsatzIdResult.error}`);
+    }
+
+    const erstelltVonResult = UserId.create(payload.erstelltVon as string);
+    if (erstelltVonResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid erstelltVon: ${erstelltVonResult.error}`);
+    }
+
+    let eskalationsPersonId: UserId | null = null;
+    if (payload.eskalationsPersonId) {
+      const eskalationsPersonIdResult = UserId.create(payload.eskalationsPersonId as string);
+      if (eskalationsPersonIdResult.isFailure) {
+        return Result.fail<DomainEvent>(`Invalid eskalationsPersonId: ${eskalationsPersonIdResult.error}`);
+      }
+      eskalationsPersonId = eskalationsPersonIdResult.value ?? null;
+    }
+
+    const eskaliertAm = new Date(payload.eskaliertAm as string);
+
+    const event = new ErinnerungEskaliertEvent(
+      erinnerungIdResult.value!,
+      einsatzIdResult.value!,
+      eskaliertAm,
+      payload.titel as string,
+      erstelltVonResult.value!,
+      eskalationsPersonId,
+      aggregateId ?? '',
+    );
+
+    return Result.ok<DomainEvent>(event);
+  }
+
+  /**
+   * Deserialisiert ErinnerungIntensiviertEvent (Story 4.1 AC2).
+   */
+  private deserializeErinnerungIntensiviert(payload: Record<string, unknown>, aggregateId?: string): Result<DomainEvent> {
+    const erinnerungIdResult = ErinnerungId.create(payload.erinnerungId as string);
+    if (erinnerungIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid erinnerungId: ${erinnerungIdResult.error}`);
+    }
+
+    const einsatzIdResult = EinsatzId.create(payload.einsatzId as string);
+    if (einsatzIdResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid einsatzId: ${einsatzIdResult.error}`);
+    }
+
+    const erstelltVonResult = UserId.create(payload.erstelltVon as string);
+    if (erstelltVonResult.isFailure) {
+      return Result.fail<DomainEvent>(`Invalid erstelltVon: ${erstelltVonResult.error}`);
+    }
+
+    const intensiviertAm = new Date(payload.intensiviertAm as string);
+
+    const event = new ErinnerungIntensiviertEvent(erinnerungIdResult.value!, einsatzIdResult.value!, intensiviertAm, payload.titel as string, erstelltVonResult.value!, aggregateId ?? '');
 
     return Result.ok<DomainEvent>(event);
   }

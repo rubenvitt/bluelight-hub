@@ -109,6 +109,10 @@ export class PrismaErinnerungRepository implements IErinnerungRepository {
           assignedAt: data.assignedAt,
           // Pflichtfeld-Flag (Story 2.x) - wird bei Erstellung gesetzt
           requiresNote: data.requiresNote,
+          // Eskalation (Story 4.1)
+          eskalationsPersonId: data.eskalationsPersonId,
+          // Intensivierungs-Counter (Hotfix für Endlos-Loop)
+          intensivierungsCount: data.intensivierungsCount,
         },
         update: {
           titel: data.titel,
@@ -137,6 +141,12 @@ export class PrismaErinnerungRepository implements IErinnerungRepository {
           assignedToId: data.assignedToId,
           assignedBy: data.assignedBy,
           assignedAt: data.assignedAt,
+          // Eskalation Felder (Story 4.1/4.5) - werden bei eskalieren() gesetzt
+          eskalationsPersonId: data.eskalationsPersonId,
+          escalatedAt: data.escalatedAt,
+          previousAssigneeId: data.previousAssigneeId,
+          // Hotfix: Intensivierungs-Counter
+          intensivierungsCount: data.intensivierungsCount,
           // einsatzId und erstelltVon sind immutable nach Erstellung
         },
       });
@@ -212,6 +222,48 @@ export class PrismaErinnerungRepository implements IErinnerungRepository {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown database error';
       return Result.fail(`Failed to find Erinnerungen by EinsatzId: ${message}`);
+    }
+  }
+
+  /**
+   * Findet alle überfälligen Erinnerungen für die Eskalation.
+   *
+   * **Scope (Story 4.1/4.4):**
+   * - Status: AUSGELOEST
+   * - ausgeloestAm <= threshold
+   * - Hotfix: Filtert Erinnerungen aus, die das Intensivierungs-Limit erreicht haben
+   *   UND keine Eskalationsperson haben (diese würden nur Fehlermeldungen produzieren)
+   *
+   * @param threshold - Zeitgrenze ab der eine Erinnerung als überfällig gilt (now - timeout)
+   * @param tx - Optional: Transaction Context
+   */
+  async findOverdue(threshold: Date, tx?: TransactionContext): Promise<Result<Erinnerung[]>> {
+    try {
+      const client = (tx as PrismaClient | undefined) ?? this.prisma;
+
+      // MAX_INTENSIVIERUNGEN aus der Entity referenzieren (zentrale Definition)
+      const MAX_INTENSIVIERUNGEN = Erinnerung.MAX_INTENSIVIERUNGEN;
+
+      const data = await client.erinnerung.findMany({
+        where: {
+          status: 'AUSGELOEST',
+          ausgeloestAm: {
+            lte: threshold,
+          },
+          // Soft-Delete Check
+          isDeleted: false,
+          // Nur Erinnerungen, die noch eskalierbar sind:
+          // - ENTWEDER hat sie eine Eskalationsperson (→ echte Eskalation möglich)
+          // - ODER sie hat das Intensivierungs-Limit noch nicht erreicht (→ Intensivierung möglich)
+          OR: [{ eskalationsPersonId: { not: null } }, { intensivierungsCount: { lt: MAX_INTENSIVIERUNGEN } }],
+        },
+      });
+
+      const erinnerungen = data.map((item) => PrismaErinnerungMapper.toDomain(item));
+      return Result.ok(erinnerungen);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown database error';
+      return Result.fail(`Failed to find overdue Erinnerungen: ${message}`);
     }
   }
 

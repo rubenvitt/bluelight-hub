@@ -12,7 +12,6 @@ import {
   ErinnerungGeloeschtEventAdapter,
   ErinnerungAusgeloestEventAdapter,
   ErinnerungAcknowledgedEventAdapter,
-  ErinnerungWebSocketEventAdapter,
   ErinnerungSnoozedEventAdapter,
   ErinnerungRetriggeredEventAdapter,
   ErinnerungErledigtEventAdapter,
@@ -21,9 +20,11 @@ import { EtbApplicationModule } from '@application/etb/etb-application.module';
 import { LagekarteApplicationModule } from '@application/lagekarte/lagekarte-application.module';
 import { LagekarteEventLoggerHandler } from './handlers/lagekarte-event-logger.handler';
 import { EinsatzEventLoggerHandler } from './handlers/einsatz-event-logger.handler';
+import { EventConsumerValidatorService } from './event-consumer-validator.service';
 import { LOGGER } from '@infrastructure/di-tokens';
 import { NestLoggerAdapter } from '@infrastructure/common/adapters/nest-logger.adapter';
 import { ErinnerungModule } from '@/modules/erinnerung/erinnerung.module';
+import { OutboxModule } from '@infrastructure/outbox/outbox.module';
 
 /**
  * NestJS Module für Event Adapters (Framework-zu-Application Delegation).
@@ -79,6 +80,8 @@ import { ErinnerungModule } from '@/modules/erinnerung/erinnerung.module';
     LagekarteApplicationModule,
     // Erinnerung Module für WebSocket Gateway (Story 1.5 AC4)
     ErinnerungModule,
+    // OutboxModule für EventDeserializer (Event Consumer Validation)
+    OutboxModule,
   ],
   providers: [
     // Logger für Event Adapters (Infrastructure Logging)
@@ -102,10 +105,11 @@ import { ErinnerungModule } from '@/modules/erinnerung/erinnerung.module';
     ErinnerungSnoozedEventAdapter, // Story 2.1: ErinnerungSnoozed ETB-Eintrag
     ErinnerungRetriggeredEventAdapter, // Story 2.2 AC2: ErinnerungRetriggered ETB-Eintrag
     ErinnerungErledigtEventAdapter, // Story 2.5 AC4: ErinnerungErledigt ETB-Eintrag
-    ErinnerungWebSocketEventAdapter, // Story 1.5 AC4 + 2.1 AC2: WebSocket Event für Team-Sync
     // Event Logging Handler (Infrastructure-specific)
     LagekarteEventLoggerHandler,
     EinsatzEventLoggerHandler,
+    // Event Consumer Validation - prüft beim Start ob alle Events Handler haben
+    EventConsumerValidatorService,
   ],
 })
 export class EventAdaptersModule {}

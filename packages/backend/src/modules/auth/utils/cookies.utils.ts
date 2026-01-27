@@ -16,13 +16,19 @@ export interface AuthCookieOptions {
  * Gibt die Standard-Cookie-Optionen für Access-Tokens zurück
  *
  * @param isProduction - Ob die Anwendung in Produktion läuft
+ * @param isHttps - Ob HTTPS aktiviert ist (z.B. auch in Dev)
  * @returns Cookie-Optionen für Access-Tokens
  */
-export function getAccessTokenCookieOptions(isProduction: boolean): AuthCookieOptions {
+export function getAccessTokenCookieOptions(isProduction: boolean, isHttps: boolean): AuthCookieOptions {
+  const isSecure = isProduction || isHttps;
+  // Wenn secure (HTTPS), dann 'none' um Cross-Site (z.B. Tauri/Localhost-Ports) zu erlauben.
+  // Sonst 'lax' (Standard für HTTP).
+  const sameSite = isSecure ? 'none' : 'lax';
+
   return {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax', // 'lax' erlaubt Cross-Origin Requests (unterschiedliche Ports in Dev)
+    secure: isSecure,
+    sameSite: sameSite,
     maxAge: milliseconds({ minutes: 15 }),
     path: '/',
   };
@@ -32,13 +38,17 @@ export function getAccessTokenCookieOptions(isProduction: boolean): AuthCookieOp
  * Gibt die Standard-Cookie-Optionen für Refresh-Tokens zurück
  *
  * @param isProduction - Ob die Anwendung in Produktion läuft
+ * @param isHttps - Ob HTTPS aktiviert ist (z.B. auch in Dev)
  * @returns Cookie-Optionen für Refresh-Tokens
  */
-export function getRefreshTokenCookieOptions(isProduction: boolean): AuthCookieOptions {
+export function getRefreshTokenCookieOptions(isProduction: boolean, isHttps: boolean): AuthCookieOptions {
+  const isSecure = isProduction || isHttps;
+  const sameSite = isSecure ? 'none' : 'lax';
+
   return {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax', // 'lax' erlaubt Cross-Origin Requests (unterschiedliche Ports in Dev)
+    secure: isSecure,
+    sameSite: sameSite,
     maxAge: milliseconds({ days: 7 }),
     path: '/',
   };
@@ -51,10 +61,11 @@ export function getRefreshTokenCookieOptions(isProduction: boolean): AuthCookieO
  * @param accessToken - Das Access-Token
  * @param refreshToken - Das Refresh-Token
  * @param isProduction - Ob die Anwendung in Produktion läuft
+ * @param isHttps - Ob HTTPS aktiviert ist
  */
-export function setAuthCookies(res: Response, accessToken: string, refreshToken: string, isProduction: boolean = false): void {
-  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions(isProduction));
-  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions(isProduction));
+export function setAuthCookies(res: Response, accessToken: string, refreshToken: string, isProduction: boolean = false, isHttps: boolean = false): void {
+  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions(isProduction, isHttps));
+  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions(isProduction, isHttps));
 }
 
 /**
@@ -62,16 +73,17 @@ export function setAuthCookies(res: Response, accessToken: string, refreshToken:
  *
  * @param res - Express Response-Objekt
  * @param isProduction - Ob die Anwendung in Produktion läuft
+ * @param isHttps - Ob HTTPS aktiviert ist
  */
-export function clearAuthCookies(res: Response, isProduction: boolean = false): void {
+export function clearAuthCookies(res: Response, isProduction: boolean = false, isHttps: boolean = false): void {
   res.clearCookie('accessToken', {
-    ...getAccessTokenCookieOptions(isProduction),
+    ...getAccessTokenCookieOptions(isProduction, isHttps),
   });
   res.clearCookie('refreshToken', {
-    ...getRefreshTokenCookieOptions(isProduction),
+    ...getRefreshTokenCookieOptions(isProduction, isHttps),
   });
   res.clearCookie('adminToken', {
-    ...getAdminTokenCookieOptions(isProduction),
+    ...getAdminTokenCookieOptions(isProduction, isHttps),
   });
 }
 
@@ -79,13 +91,17 @@ export function clearAuthCookies(res: Response, isProduction: boolean = false): 
  * Gibt die Standard-Cookie-Optionen für Admin-Tokens zurück
  *
  * @param isProduction - Ob die Anwendung in Produktion läuft
+ * @param isHttps - Ob HTTPS aktiviert ist
  * @returns Cookie-Optionen für Admin-Tokens
  */
-function getAdminTokenCookieOptions(isProduction: boolean): AuthCookieOptions {
+function getAdminTokenCookieOptions(isProduction: boolean, isHttps: boolean): AuthCookieOptions {
+  const isSecure = isProduction || isHttps;
+  const sameSite = isSecure ? 'none' : 'lax';
+
   return {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
+    secure: isSecure,
+    sameSite: sameSite,
     maxAge: milliseconds({ minutes: 15 }), // 15 Minuten - Sicherheitsfeature
     path: '/',
   };
@@ -97,9 +113,10 @@ function getAdminTokenCookieOptions(isProduction: boolean): AuthCookieOptions {
  * @param res - Express Response-Objekt
  * @param adminToken - Das Admin-Token
  * @param isProduction - Ob die Anwendung in Produktion läuft
+ * @param isHttps - Ob HTTPS aktiviert ist
  */
-export function setAdminCookie(res: Response, adminToken: string, isProduction: boolean = false): void {
-  res.cookie('adminToken', adminToken, getAdminTokenCookieOptions(isProduction));
+export function setAdminCookie(res: Response, adminToken: string, isProduction: boolean = false, isHttps: boolean = false): void {
+  res.cookie('adminToken', adminToken, getAdminTokenCookieOptions(isProduction, isHttps));
 }
 
 /**
@@ -107,9 +124,10 @@ export function setAdminCookie(res: Response, adminToken: string, isProduction: 
  *
  * @param res - Express Response-Objekt
  * @param isProduction - Ob die Anwendung in Produktion läuft
+ * @param isHttps - Ob HTTPS aktiviert ist
  */
-export function clearAdminCookie(res: Response, isProduction: boolean = false): void {
+export function clearAdminCookie(res: Response, isProduction: boolean = false, isHttps: boolean = false): void {
   res.clearCookie('adminToken', {
-    ...getAdminTokenCookieOptions(isProduction),
+    ...getAdminTokenCookieOptions(isProduction, isHttps),
   });
 }

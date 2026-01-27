@@ -24,6 +24,7 @@ import { UserId } from '@domain/value-objects/user-id';
 import { ErinnerungAktualisiertEvent } from '@domain/events/erinnerung-aktualisiert.event';
 import { ErinnerungGeloeschtEvent } from '@domain/events/erinnerung-geloescht.event';
 import { ErinnerungAcknowledgedEvent } from '@domain/events/erinnerung-acknowledged.event';
+import { ErinnerungAssignedEvent } from '@domain/events/erinnerung-assigned.event';
 import { ErinnerungAusgeloestEvent } from '@domain/events/erinnerung-ausgeloest.event';
 import { ErinnerungRetriggeredEvent } from '@domain/events/erinnerung-retriggered.event';
 import { ErinnerungErledigtEvent } from '@domain/events/erinnerung-erledigt.event';
@@ -53,7 +54,7 @@ describe('Erinnerung Entity', () => {
   }
 
   // Helper: Create Erinnerung with specific status
-  function createErinnerungWithStatus(status: ErinnerungStatus, overrides?: { requiresNote?: boolean }): Erinnerung {
+  function createErinnerungWithStatus(status: ErinnerungStatus, overrides?: { requiresNote?: boolean; assignedToId?: UserId }): Erinnerung {
     const id = ErinnerungId.create().value!;
     const titel = ErinnerungTitel.create('Test').value!;
     return Erinnerung.reconstruct({
@@ -67,6 +68,7 @@ describe('Erinnerung Entity', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       requiresNote: overrides?.requiresNote ?? false,
+      assignedToId: overrides?.assignedToId ?? null,
     });
   }
 
@@ -77,7 +79,7 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createGeplantErinnerung();
 
         // When
-        const result = erinnerung.update({ titel: 'Neuer Titel' });
+        const result = erinnerung.update({ titel: 'Neuer Titel', aktualisierVon: testUserId });
 
         // Then
         expect(result.isSuccess).toBe(true);
@@ -89,7 +91,7 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
 
         // When
-        const result = erinnerung.update({ titel: 'Neuer Titel' });
+        const result = erinnerung.update({ titel: 'Neuer Titel', aktualisierVon: testUserId });
 
         // Then
         expect(result.isFailure).toBe(true);
@@ -101,7 +103,7 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
 
         // When
-        const result = erinnerung.update({ titel: 'Neuer Titel' });
+        const result = erinnerung.update({ titel: 'Neuer Titel', aktualisierVon: testUserId });
 
         // Then
         expect(result.isFailure).toBe(true);
@@ -113,7 +115,7 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createErinnerungWithStatus(ErinnerungStatus.SNOOZED());
 
         // When
-        const result = erinnerung.update({ titel: 'Neuer Titel' });
+        const result = erinnerung.update({ titel: 'Neuer Titel', aktualisierVon: testUserId });
 
         // Then
         expect(result.isFailure).toBe(true);
@@ -125,7 +127,7 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ESKALIERT());
 
         // When
-        const result = erinnerung.update({ titel: 'Neuer Titel' });
+        const result = erinnerung.update({ titel: 'Neuer Titel', aktualisierVon: testUserId });
 
         // Then
         expect(result.isFailure).toBe(true);
@@ -137,7 +139,7 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ERLEDIGT());
 
         // When
-        const result = erinnerung.update({ titel: 'Neuer Titel' });
+        const result = erinnerung.update({ titel: 'Neuer Titel', aktualisierVon: testUserId });
 
         // Then
         expect(result.isFailure).toBe(true);
@@ -151,7 +153,7 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createGeplantErinnerung({ titel: 'Alter Titel' });
 
         // When
-        const result = erinnerung.update({ titel: 'Neuer Titel' });
+        const result = erinnerung.update({ titel: 'Neuer Titel', aktualisierVon: testUserId });
 
         // Then
         expect(result.isSuccess).toBe(true);
@@ -163,7 +165,7 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createGeplantErinnerung();
 
         // When
-        const result = erinnerung.update({ titel: '' });
+        const result = erinnerung.update({ titel: '', aktualisierVon: testUserId });
 
         // Then
         expect(result.isFailure).toBe(true);
@@ -176,7 +178,7 @@ describe('Erinnerung Entity', () => {
         const tooLongTitle = 'A'.repeat(101);
 
         // When
-        const result = erinnerung.update({ titel: tooLongTitle });
+        const result = erinnerung.update({ titel: tooLongTitle, aktualisierVon: testUserId });
 
         // Then
         expect(result.isFailure).toBe(true);
@@ -191,7 +193,7 @@ describe('Erinnerung Entity', () => {
         expect(erinnerung.beschreibung).toBeNull();
 
         // When
-        const result = erinnerung.update({ beschreibung: 'Neue Beschreibung' });
+        const result = erinnerung.update({ beschreibung: 'Neue Beschreibung', aktualisierVon: testUserId });
 
         // Then
         expect(result.isSuccess).toBe(true);
@@ -203,7 +205,7 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createGeplantErinnerung({ beschreibung: 'Existierende Beschreibung' });
 
         // When
-        const result = erinnerung.update({ beschreibung: null });
+        const result = erinnerung.update({ beschreibung: null, aktualisierVon: testUserId });
 
         // Then
         expect(result.isSuccess).toBe(true);
@@ -215,7 +217,7 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createGeplantErinnerung({ beschreibung: 'Existierend' });
 
         // When
-        const result = erinnerung.update({ beschreibung: '   ' }); // Whitespace only
+        const result = erinnerung.update({ beschreibung: '   ', aktualisierVon: testUserId }); // Whitespace only
 
         // Then
         expect(result.isSuccess).toBe(true);
@@ -228,7 +230,7 @@ describe('Erinnerung Entity', () => {
         const tooLong = 'B'.repeat(501);
 
         // When
-        const result = erinnerung.update({ beschreibung: tooLong });
+        const result = erinnerung.update({ beschreibung: tooLong, aktualisierVon: testUserId });
 
         // Then
         expect(result.isFailure).toBe(true);
@@ -240,7 +242,7 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createGeplantErinnerung();
 
         // When
-        const result = erinnerung.update({ beschreibung: '  Getrimmt  ' });
+        const result = erinnerung.update({ beschreibung: '  Getrimmt  ', aktualisierVon: testUserId });
 
         // Then
         expect(result.isSuccess).toBe(true);
@@ -255,7 +257,7 @@ describe('Erinnerung Entity', () => {
         const newDate = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours from now
 
         // When
-        const result = erinnerung.update({ faelligAm: newDate });
+        const result = erinnerung.update({ faelligAm: newDate, aktualisierVon: testUserId });
 
         // Then
         expect(result.isSuccess).toBe(true);
@@ -268,7 +270,7 @@ describe('Erinnerung Entity', () => {
         const pastDate = new Date(Date.now() - 1000); // 1 second ago
 
         // When
-        const result = erinnerung.update({ faelligAm: pastDate });
+        const result = erinnerung.update({ faelligAm: pastDate, aktualisierVon: testUserId });
 
         // Then
         expect(result.isFailure).toBe(true);
@@ -284,6 +286,7 @@ describe('Erinnerung Entity', () => {
 
         // When
         const result = erinnerung.update({
+          aktualisierVon: testUserId,
           titel: 'Neuer Titel',
           beschreibung: 'Neue Beschreibung',
           faelligAm: newDate,
@@ -301,7 +304,9 @@ describe('Erinnerung Entity', () => {
         const erinnerung = createGeplantErinnerung();
 
         // When
-        const result = erinnerung.update({});
+        const result = erinnerung.update({
+          aktualisierVon: testUserId,
+        });
 
         // Then
         expect(result.isFailure).toBe(true);
@@ -316,7 +321,7 @@ describe('Erinnerung Entity', () => {
         erinnerung.clearDomainEvents(); // Clear creation event
 
         // When
-        erinnerung.update({ titel: 'Neuer Titel' });
+        erinnerung.update({ titel: 'Neuer Titel', aktualisierVon: testUserId });
 
         // Then
         const events = erinnerung.getDomainEvents();
@@ -332,6 +337,7 @@ describe('Erinnerung Entity', () => {
 
         // When
         erinnerung.update({
+          aktualisierVon: testUserId,
           titel: 'Geaenderter Titel',
           beschreibung: 'Neue Beschreibung',
           faelligAm: newDate,
@@ -350,7 +356,7 @@ describe('Erinnerung Entity', () => {
         erinnerung.clearDomainEvents();
 
         // When: Nur Titel ändern
-        erinnerung.update({ titel: 'Nur Titel geaendert' });
+        erinnerung.update({ titel: 'Nur Titel geaendert', aktualisierVon: testUserId });
 
         // Then: Nur titel im Event
         const event = erinnerung.getDomainEvents()[0] as ErinnerungAktualisiertEvent;
@@ -365,7 +371,7 @@ describe('Erinnerung Entity', () => {
         erinnerung.clearDomainEvents();
 
         // When: Ungültige Änderung
-        erinnerung.update({ titel: '' }); // Leerer Titel
+        erinnerung.update({ titel: '', aktualisierVon: testUserId }); // Leerer Titel
 
         // Then: Kein Event
         const events = erinnerung.getDomainEvents();
@@ -770,6 +776,32 @@ describe('Erinnerung Entity', () => {
         // Then: Verschiedene Objekte, gleicher Wert
         expect(acknowledgedAm1).not.toBe(acknowledgedAm2);
         expect(acknowledgedAm1!.getTime()).toBe(acknowledgedAm2!.getTime());
+      });
+
+      it('sollte bei Eskalation die Zuweisung auf den Acknowledger uebertragen (Story 4.6)', () => {
+        // Given: Eine eskalierte Erinnerung, zugewiesen an jemand anderen
+        const escalatedUser = UserId.create().value!;
+        const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ESKALIERT(), { assignedToId: escalatedUser });
+        const acknowledgingUser = UserId.create().value!;
+
+        // When: Acknowledge durch neuen User
+        const result = erinnerung.acknowledge(acknowledgingUser);
+
+        // Then: Success
+        expect(result.isSuccess).toBe(true);
+        expect(erinnerung.status.isAcknowledged()).toBe(true);
+
+        // Then: Zuweisung aktualisiert
+        expect(erinnerung.assignedToId).toBe(acknowledgingUser);
+
+        // Then: Previous Assignee gespeichert
+        expect(erinnerung.previousAssigneeId).toBe(escalatedUser);
+
+        // Then: Events emittiert (Assigned + Acknowledged)
+        const events = erinnerung.getDomainEvents();
+        expect(events).toHaveLength(2);
+        expect(events[0]).toBeInstanceOf(ErinnerungAssignedEvent);
+        expect(events[1]).toBeInstanceOf(ErinnerungAcknowledgedEvent);
       });
     });
 
@@ -1701,7 +1733,7 @@ describe('Erinnerung Entity', () => {
       const result = Erinnerung.create({
         einsatzId: testEinsatzId,
         titel: 'Pflicht-Notiz Erinnerung',
-        beschreibung: null,
+        beschreibung: undefined,
         faelligAm: futureDate,
         erstelltVon: testUserId,
         requiresNote: true,
@@ -1720,7 +1752,7 @@ describe('Erinnerung Entity', () => {
       const result = Erinnerung.create({
         einsatzId: testEinsatzId,
         titel: 'Normale Erinnerung',
-        beschreibung: null,
+        beschreibung: undefined,
         faelligAm: futureDate,
         erstelltVon: testUserId,
         requiresNote: false,
@@ -1739,7 +1771,7 @@ describe('Erinnerung Entity', () => {
       const result = Erinnerung.create({
         einsatzId: testEinsatzId,
         titel: 'Erinnerung ohne requiresNote',
-        beschreibung: null,
+        beschreibung: undefined,
         faelligAm: futureDate,
         erstelltVon: testUserId,
         // requiresNote nicht angegeben - default false
@@ -1765,14 +1797,14 @@ describe('Erinnerung Entity', () => {
         titel: 'Eskalation Test',
         faelligAm: new Date(Date.now() + 60 * 60 * 1000),
         erstelltVon: testUserId,
-        // @ts-expect-error - Property does not exist yet
+
         eskalationsPersonId,
       });
 
       // Then
       expect(result.isSuccess).toBe(true);
       const erinnerung = result.value!;
-      // @ts-expect-error - Property does not exist yet
+
       expect(erinnerung.eskalationsPersonId).toBe(eskalationsPersonId);
     });
 
@@ -1786,12 +1818,12 @@ describe('Erinnerung Entity', () => {
         titel: 'Eskalation Event Test',
         faelligAm: new Date(Date.now() + 60 * 60 * 1000),
         erstelltVon: testUserId,
-        // @ts-expect-error - Property does not exist yet
+
         eskalationsPersonId,
       });
 
       // Then
-      const event = result.value!.getDomainEvents()[0] as any; // Cast to any because prop missing
+      const event = result.value!.getDomainEvents()[0] as unknown as { eskalationsPersonId: UserId }; // Cast due to potential type mismatch in older event definitions
       expect(event.eskalationsPersonId).toBe(eskalationsPersonId);
     });
 
@@ -1801,7 +1833,6 @@ describe('Erinnerung Entity', () => {
       const newEskalationsPersonId = UserId.create().value!;
 
       // When
-      // @ts-expect-error - Property does not exist yet
       const result = erinnerung.update({
         aktualisierVon: testUserId,
         eskalationsPersonId: newEskalationsPersonId,
@@ -1809,7 +1840,7 @@ describe('Erinnerung Entity', () => {
 
       // Then
       expect(result.isSuccess).toBe(true);
-      // @ts-expect-error - Property does not exist yet
+
       expect(erinnerung.eskalationsPersonId).toBe(newEskalationsPersonId);
     });
 
@@ -1821,13 +1852,12 @@ describe('Erinnerung Entity', () => {
         titel: 'Eskalation Remove Test',
         faelligAm: new Date(Date.now() + 60 * 60 * 1000),
         erstelltVon: testUserId,
-        // @ts-expect-error
         eskalationsPersonId,
       });
       const erinnerung = result.value!;
 
       // When
-      // @ts-expect-error
+
       const updateResult = erinnerung.update({
         aktualisierVon: testUserId,
         eskalationsPersonId: null,
@@ -1835,7 +1865,7 @@ describe('Erinnerung Entity', () => {
 
       // Then
       expect(updateResult.isSuccess).toBe(true);
-      // @ts-expect-error
+
       expect(erinnerung.eskalationsPersonId).toBeNull();
     });
 
@@ -1846,7 +1876,7 @@ describe('Erinnerung Entity', () => {
       const newEskalationsPersonId = UserId.create().value!;
 
       // When
-      // @ts-expect-error
+
       erinnerung.update({
         aktualisierVon: testUserId,
         eskalationsPersonId: newEskalationsPersonId,
@@ -1854,7 +1884,7 @@ describe('Erinnerung Entity', () => {
 
       // Then
       const event = erinnerung.getDomainEvents()[0] as ErinnerungAktualisiertEvent;
-      // @ts-expect-error
+
       expect(event.aenderungen.eskalationsPersonId).toBe(newEskalationsPersonId);
     });
 
@@ -1864,7 +1894,7 @@ describe('Erinnerung Entity', () => {
       const eskalationsPersonId = UserId.create().value!;
 
       // When
-      // @ts-expect-error
+
       const result = erinnerung.update({
         aktualisierVon: testUserId,
         eskalationsPersonId,
@@ -1890,13 +1920,108 @@ describe('Erinnerung Entity', () => {
         erstelltVon: testUserId,
         createdAt: new Date(),
         updatedAt: new Date(),
-        // @ts-expect-error
         eskalationsPersonId,
       });
 
       // Then
-      // @ts-expect-error
       expect(erinnerung.eskalationsPersonId).toBe(eskalationsPersonId);
+    });
+  });
+
+  // ============================================================
+  // Story 4.7: Eskalationskette verhindern
+  // ============================================================
+
+  describe('Story 4.7: Eskalationskette verhindern', () => {
+    it('sollte Eskalation verhindern wenn Erinnerung bereits acknowledged ist', () => {
+      // Given: Eine ausgelöste Erinnerung
+      const erinnerung = createErinnerungWithStatus(ErinnerungStatus.AUSGELOEST());
+      const user = UserId.create().value!;
+
+      // When: User acknowledged die Erinnerung (simuliert: kurz vor Timeout)
+      const ackResult = erinnerung.acknowledge(user);
+      expect(ackResult.isSuccess).toBe(true);
+      expect(erinnerung.status.isAcknowledged()).toBe(true);
+
+      // When: Scheduler versucht danach zu eskalieren (Race Condition)
+      const escalateResult = erinnerung.eskalieren('SYSTEM');
+
+      // Then: Eskalation schlägt fehl
+      expect(escalateResult.isFailure).toBe(true);
+      expect(escalateResult.error).toBe('ERINNERUNG_NOT_ESCALATABLE');
+
+      // And: Status bleibt ACKNOWLEDGED
+      expect(erinnerung.status.isAcknowledged()).toBe(true);
+    });
+
+    it('sollte Eskalation verhindern wenn Erinnerung bereits erledigt ist', () => {
+      // Given: Eine erledigte Erinnerung (via Acknowledged)
+      const erinnerung = createErinnerungWithStatus(ErinnerungStatus.ACKNOWLEDGED());
+      erinnerung.markErledigt(testUserId);
+      expect(erinnerung.status.isErledigt()).toBe(true);
+
+      // When: Scheduler versucht zu eskalieren
+      const escalateResult = erinnerung.eskalieren('SYSTEM');
+
+      // Then
+      expect(escalateResult.isFailure).toBe(true);
+      expect(escalateResult.error).toBe('ERINNERUNG_NOT_ESCALATABLE');
+    });
+
+    it('sollte Acknowledge durch ursprünglichen Assignee verweigern wenn bereits ESKALIERT (AC2)', () => {
+      // Given: Eine Erinnerung, die eskaliert wurde
+      const originalAssignee = UserId.create().value!;
+      const eskalationsPerson = UserId.create().value!;
+
+      const _erinnerung = Erinnerung.reconstruct({
+        id: ErinnerungId.create().value!,
+        einsatzId: testEinsatzId,
+        titel: ErinnerungTitel.create('Eskalations Test').value!,
+        beschreibung: null,
+        faelligAm: new Date(),
+        status: ErinnerungStatus.AUSGELOEST(),
+        erstelltVon: testUserId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        assignedToId: originalAssignee,
+      });
+
+      // Simulate Escalation
+      // We explicitly set escalation person via internal state or ensure create accepts it if we access private props,
+      // but eskalieren() uses this._eskalationsPersonId.
+      // Since we can't easily set private props on created entity without a setter or reconstruct,
+      // let's use reconstruct to simulating the state just before escalation or use update if allowed.
+      // Actually, eskalieren() requires _eskalationsPersonId to be present.
+      // Let's assume we can set it via update or create.
+      // Based on previous tests, create accepts extra props? No, that was creating with status.
+
+      // We will assume 'update' works or use 'reconstruct' to setup the "Before Escalation" state perfectly
+      // where we have eskalationsPersonId set.
+
+      const preEscalationErinnerung = Erinnerung.reconstruct({
+        id: ErinnerungId.create().value!,
+        einsatzId: testEinsatzId,
+        titel: ErinnerungTitel.create('Pre-Esc').value!,
+        beschreibung: null,
+        faelligAm: new Date(),
+        status: ErinnerungStatus.AUSGELOEST(),
+        erstelltVon: testUserId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        assignedToId: originalAssignee,
+        eskalationsPersonId: eskalationsPerson,
+      });
+
+      // Perform Escalation
+      preEscalationErinnerung.eskalieren('SYSTEM');
+      expect(preEscalationErinnerung.status.isEskaliert()).toBe(true);
+
+      // When: Original Assignee tries to acknowledge
+      const result = preEscalationErinnerung.acknowledge(originalAssignee);
+
+      // Then: Failure
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('ALREADY_ESCALATED');
     });
   });
 });

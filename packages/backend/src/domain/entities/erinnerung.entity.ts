@@ -886,16 +886,39 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
    *    - Emit `ErinnerungIntensiviertEvent`
    *
    * @param eskaliertVon - UserId (manuell) oder 'SYSTEM' (Scheduler)
+   * @param nextTargetId - Story 4.8: Nächste Eskalationsstufe (optional)
    */
-  public eskalieren(eskaliertVon: UserId | 'SYSTEM'): Result<void> {
-    // AC1: Given eine Erinnerung ist AUSGELOEST
-    if (!this._status.isAusgeloest()) {
+  public eskalieren(eskaliertVon: UserId | 'SYSTEM', nextTargetId?: UserId | null): Result<void> {
+    // AC1: Given eine Erinnerung ist AUSGELOEST oder ESKALIERT (Story 4.8)
+    if (!this._status.isAusgeloest() && !this._status.isEskaliert()) {
       return Result.fail<void>('ERINNERUNG_NOT_ESCALATABLE');
     }
 
     const now = new Date();
 
+    // Story 4.8: Multi-Level Escalation
+    // Wenn nextTargetId übergeben wurde, aktualisieren wir das Ziel
+    if (nextTargetId) {
+      // Loop Detection: Verhindere Zirkelbezug A -> B -> A
+      if (this._assignedToId && nextTargetId.equals(this._assignedToId)) {
+        // Fallback zu Intensivierung wenn Ziel == Aktueller Assignee (sollte nicht passieren durch Handler Check)
+        return this.intensivieren(now, eskaliertVon);
+      }
+      if (this._previousAssigneeId && nextTargetId.equals(this._previousAssigneeId)) {
+        // Fallback wenn Ziel == Vorheriger Assignee (Ping-Pong)
+        return this.intensivieren(now, eskaliertVon);
+      }
+
+      this._eskalationsPersonId = nextTargetId;
+    }
+
     if (this._eskalationsPersonId) {
+      // Check: Wenn bereits eskaliert und KEIN neues Ziel (nextTargetId), dann intensivieren
+      // (Außer Status ist AUSGELOEST, dann ist es die erste Eskalation)
+      if (this._status.isEskaliert() && !nextTargetId) {
+        return this.intensivieren(now, eskaliertVon);
+      }
+
       // Case 1: Eskalation an Person
       this._status = ErinnerungStatus.ESKALIERT();
 
@@ -926,17 +949,25 @@ export class Erinnerung extends AggregateRoot<ErinnerungId> {
       // Der Client updated sich basierend auf dem geänderten DTO im WebSocket/Polling.
     } else {
       // Case 2: Intensivierung (AC2)
-      // Hotfix: Limit prüfen um Endlos-Loop zu verhindern
-      if (this._intensivierungsCount >= Erinnerung.MAX_INTENSIVIERUNGEN) {
-        return Result.fail<void>('INTENSIVIERUNG_LIMIT_ERREICHT');
-      }
-
-      // Counter erhöhen und Timer resetten
-      this._intensivierungsCount++;
-      this._ausgeloestAm = now;
-      this.addDomainEvent(new ErinnerungIntensiviertEvent(this.id, this._einsatzId, now, this._titel.value, this._erstelltVon, this.id.toString()));
+      return this.intensivieren(now, eskaliertVon);
     }
 
+    return Result.ok<void>(undefined);
+  }
+
+  /**
+   * Helper für Intensivierung logik (DRY).
+   */
+  private intensivieren(now: Date, eskaliertVon: UserId | 'SYSTEM'): Result<void> {
+    // Hotfix: Limit prüfen um Endlos-Loop zu verhindern
+    if (this._intensivierungsCount >= Erinnerung.MAX_INTENSIVIERUNGEN) {
+      return Result.fail<void>('INTENSIVIERUNG_LIMIT_ERREICHT');
+    }
+
+    // Counter erhöhen und Timer resetten
+    this._intensivierungsCount++;
+    this._ausgeloestAm = now;
+    this.addDomainEvent(new ErinnerungIntensiviertEvent(this.id, this._einsatzId, now, this._titel.value, this._erstelltVon, this.id.toString()));
     return Result.ok<void>(undefined);
   }
 

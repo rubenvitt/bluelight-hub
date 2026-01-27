@@ -20,3 +20,7 @@ export { LockUserHandler } from './lock-user/lock-user.handler';
 // Unlock User
 export { UnlockUserCommand } from './unlock-user/unlock-user.command';
 export { UnlockUserHandler } from './unlock-user/unlock-user.handler';
+
+// Update Profile (Self-Service)
+export { UpdateProfileCommand } from './update-profile/update-profile.command';
+export { UpdateProfileHandler } from './update-profile/update-profile.handler';

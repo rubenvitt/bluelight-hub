@@ -112,15 +112,17 @@ export class UserAggregate extends AggregateRoot<UserId> {
    * @param role - UserRole Value Object
    * @param permissions - Custom Permissions Array
    * @param isLocked - Account-Sperr-Status
+   * @param defaultEscalationTargetId - Optional: Nächste Eskalationsstufe (User ID) (Story 4.8)
    * @param createdAt - Optional: Creation timestamp (für Rekonstruktion aus DB)
    * @param updatedAt - Optional: Update timestamp (für Rekonstruktion aus DB)
    */
-  private constructor(id: UserId, username: Username, role: UserRole, permissions: Permission[], isLocked: boolean, createdAt?: Date, updatedAt?: Date) {
+  private constructor(id: UserId, username: Username, role: UserRole, permissions: Permission[], isLocked: boolean, defaultEscalationTargetId: UserId | null, createdAt?: Date, updatedAt?: Date) {
     super(id, createdAt, updatedAt);
     this._username = username;
     this._role = role;
     this._permissions = permissions;
     this._isLocked = isLocked;
+    this._defaultEscalationTargetId = defaultEscalationTargetId;
   }
 
   /**
@@ -179,6 +181,19 @@ export class UserAggregate extends AggregateRoot<UserId> {
   }
 
   /**
+   * Nächste Eskalationsstufe für Erinnerungen (Story 4.8).
+   * Wenn null, werden Erinnerungen nicht weiter eskaliert (Ende der Kette).
+   */
+  private _defaultEscalationTargetId: UserId | null;
+
+  /**
+   * Readonly getter für Default Escalation Target.
+   */
+  get defaultEscalationTargetId(): UserId | null {
+    return this._defaultEscalationTargetId;
+  }
+
+  /**
    * Factory Method zur Erstellung eines User Aggregates mit Business Validation.
    * Verwendet Result<T> Pattern zur expliziten Fehlerbehandlung.
    *
@@ -233,6 +248,7 @@ export class UserAggregate extends AggregateRoot<UserId> {
       role,
       permissions ?? [], // Default: keine Custom-Permissions
       false, // Default: Account ist aktiv (nicht gesperrt)
+      null, // Default: Keine Eskalationsperson
     );
 
     // Emit UserCreatedEvent
@@ -708,5 +724,15 @@ export class UserAggregate extends AggregateRoot<UserId> {
 
     // Check custom granted permissions
     return this._permissions.some((p) => p.equals(permission));
+  }
+
+  /**
+   * Aktualisiert den Default Escalation Target User.
+   *
+   * @param targetId - Nächste Eskalationsstufe (oder null zum Entfernen)
+   */
+  public updateDefaultEscalationTarget(targetId: UserId | null): void {
+    this._defaultEscalationTargetId = targetId;
+    // Potenziell: Domain Event emittieren? Fürs erste reicht State Update.
   }
 }

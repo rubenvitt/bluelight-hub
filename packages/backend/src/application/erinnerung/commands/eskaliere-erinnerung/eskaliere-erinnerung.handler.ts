@@ -5,13 +5,14 @@ import { Result } from '@domain/common/result';
 import type { TransactionContext } from '@domain/common/transaction';
 import type { ILogger } from '@domain/ports/i-logger.port';
 import type { IErinnerungRepository } from '@domain/repositories/i-erinnerung.repository';
+import type { IUserRepository } from '@domain/repositories/i-user.repository';
 import type { IOutboxRepository } from '@domain/repositories/i-outbox.repository';
 import { UserId } from '@domain/value-objects/user-id';
 import { ErinnerungId } from '@domain/value-objects/erinnerung-id';
 import { TransactionalCommandHandler } from '@/application/common/handlers/transactional-command.handler';
 // biome-ignore lint/style/useImportType: PrismaService is an Injectable class, not just a type needed for runtime DI
 import { PrismaService } from '@/infrastructure/database/prisma.service';
-import { ERINNERUNG_REPOSITORY, LOGGER, OUTBOX_REPOSITORY } from '@infrastructure/di-tokens';
+import { ERINNERUNG_REPOSITORY, LOGGER, OUTBOX_REPOSITORY, USER_REPOSITORY } from '@infrastructure/di-tokens';
 import { EskaliereErinnerungCommand } from './eskaliere-erinnerung.command';
 import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
 import type { ErinnerungResponseDto } from '../../dto/erinnerung-response.dto';
@@ -36,6 +37,7 @@ export class EskaliereErinnerungHandler extends TransactionalCommandHandler<Eska
     @Inject(OUTBOX_REPOSITORY) outboxRepository: IOutboxRepository,
     @Inject(ERINNERUNG_REPOSITORY)
     private readonly erinnerungRepository: IErinnerungRepository,
+    @Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository,
     @Inject(LOGGER) private readonly logger: ILogger,
     private readonly responseFactory: ErinnerungResponseFactory,
   ) {
@@ -71,7 +73,22 @@ export class EskaliereErinnerungHandler extends TransactionalCommandHandler<Eska
     }
 
     // 3. Domain Logic: eskalieren()
-    const eskalierenResult = erinnerung.eskalieren(eskaliertVon);
+
+    // Story 4.8: Multi-Level Escalation Resolution
+    let nextTargetId: UserId | null = null;
+
+    // Wenn bereits eskaliert, suchen wir nach der nächsten Stufe
+    if (erinnerung.status.isEskaliert() && erinnerung.assignedToId) {
+      const assigneeResult = await this.userRepository.findById(erinnerung.assignedToId);
+      if (assigneeResult.isSuccess && assigneeResult.value) {
+        nextTargetId = assigneeResult.value.defaultEscalationTargetId;
+        if (nextTargetId) {
+          this.logger.debug(`Multi-Level Escalation: Found next target ${nextTargetId.toString()} for user ${erinnerung.assignedToId.toString()}`, 'EskaliereErinnerungHandler');
+        }
+      }
+    }
+
+    const eskalierenResult = erinnerung.eskalieren(eskaliertVon, nextTargetId);
     if (eskalierenResult.isFailure) {
       const errorCode = eskalierenResult.error as string;
 

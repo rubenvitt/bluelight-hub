@@ -5,6 +5,7 @@ import { UserManagementApplicationModule } from '@application/user-management';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { UserController } from './controllers/user.controller';
 import { UserManagementController } from './controllers/user-management.controller';
+import { ProfileController } from './controllers/profile.controller';
 
 /**
  * NestJS Module für User Management Infrastructure Layer.
@@ -63,6 +64,8 @@ import { UserManagementController } from './controllers/user-management.controll
     UserController,
     // Admin User Management Endpoints (/admin/users)
     UserManagementController,
+    // Self-Service Profile Endpoints (/users/profile)
+    ProfileController,
   ],
   providers: [
     // Logger für UserManagementModule Guards/Services

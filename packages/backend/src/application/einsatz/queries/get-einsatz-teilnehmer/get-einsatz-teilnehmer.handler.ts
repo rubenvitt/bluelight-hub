@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Result } from '@domain/common/result';
 import type { ILogger } from '@domain/ports/i-logger.port';
 import { LOGGER } from '@infrastructure/di-tokens';
-import type { PrismaService } from '@infrastructure/database/prisma.service';
+import { PrismaService } from '@infrastructure/database/prisma.service';
 
 import type { AktiveTeilnehmerResponseDto } from '../../dto/aktive-teilnehmer-response.dto';
 import type { GetEinsatzTeilnehmerQuery } from './get-einsatz-teilnehmer.query';

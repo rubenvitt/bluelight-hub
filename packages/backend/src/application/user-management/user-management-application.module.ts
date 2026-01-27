@@ -73,6 +73,7 @@ import { GetAllUsersQueryHandler, GetUserByIdQueryHandler } from './queries';
     DeleteUserHandler,
     LockUserHandler,
     UnlockUserHandler,
+    UpdateProfileHandler,
     // Query Handlers
     GetAllUsersQueryHandler,
     GetUserByIdQueryHandler,
@@ -85,6 +86,7 @@ import { GetAllUsersQueryHandler, GetUserByIdQueryHandler } from './queries';
     DeleteUserHandler,
     LockUserHandler,
     UnlockUserHandler,
+    UpdateProfileHandler,
     // Query Handlers
     GetAllUsersQueryHandler,
     GetUserByIdQueryHandler,

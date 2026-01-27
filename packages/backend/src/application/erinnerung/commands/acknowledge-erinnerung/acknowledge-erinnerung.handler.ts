@@ -14,7 +14,8 @@ import { ERINNERUNG_REPOSITORY, LOGGER, OUTBOX_REPOSITORY } from '@infrastructur
 import type { AcknowledgeErinnerungCommand } from './acknowledge-erinnerung.command';
 import { ERINNERUNG_ERROR_CODES } from '../../errors/erinnerung-error.codes';
 import type { ErinnerungResponseDto } from '../../dto/erinnerung-response.dto';
-import type { ErinnerungResponseFactory } from '../../dto/erinnerung-response.factory';
+// biome-ignore lint/style/useImportType: ErinnerungResponseFactory is an Injectable class, needed for DI
+import { ErinnerungResponseFactory } from '../../dto/erinnerung-response.factory';
 
 /**
  * Handler zum Bestaetigen einer ausgeloesten Erinnerung (1-Tap Acknowledge).

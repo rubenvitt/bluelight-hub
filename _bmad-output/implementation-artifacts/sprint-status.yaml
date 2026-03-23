@@ -35,7 +35,7 @@
 # - Dev moves story to "review", then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-15T11:37:19+01:00
-last_updated: 2026-03-23T18:00:00+0100
+last_updated: 2026-03-23T23:30:00+0100
 project: bluelight-hub
 project_key: NOKEY
 tracking_system: file-system
@@ -77,8 +77,8 @@ development_status:
   4-3-relevante-befehls-und-weitergabeinformationen-wieder-aufrufen: done
   epic-4-retrospective: optional
 
-  epic-5: backlog
-  5-1-rollen-und-flachenzugang-konsistent-steuern: backlog
+  epic-5: in-progress
+  5-1-rollen-und-flachenzugang-konsistent-steuern: done
   5-2-stammdaten-und-berechtigungen-verwalten: backlog
   5-3-integrations-und-verbindungszustande-externer-services-uberwachen: backlog
   5-4-externe-authentifizierung-prufen-erneuern-und-neu-verbinden: backlog

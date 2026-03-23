@@ -23,7 +23,10 @@ export {
   GetAllUsersQueryHandler,
   GetUserByIdQuery,
   GetUserByIdQueryHandler,
+  GetNavigationPermissionsQuery,
+  GetNavigationPermissionsQueryHandler,
 } from './queries';
+export type { NavigationUserRole } from './queries';
 
 // DTOs
 export {
@@ -39,6 +42,7 @@ export {
   ManagedUsersListResponse,
   ManagedUserResponse,
   DeleteManagedUserResponse,
+  NavigationPermissionDto,
 } from './dto';
 
 // Mappers

@@ -9,6 +9,9 @@
 // API Hooks
 export * from './api';
 
+// Permission Hooks
+export * from './hooks';
+
 // Guards
 export { AuthGuard, AdminGuard } from './guards/auth-guard';
 export { AppGuard } from './guards/app-guard';

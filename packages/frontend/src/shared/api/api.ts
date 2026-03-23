@@ -34,6 +34,7 @@ import {
   KraefteStammPersonenApi,
   LagekarteApi,
   LagekarteCQRSApi,
+  NavigationApi,
   RollenBesetzungApi,
   UserManagementApi,
   UsersApi,
@@ -144,6 +145,7 @@ class BackendApi {
   private readonly einsatzFuehrungsrhythmusTemplatesApi: EinsatzFuehrungsrhythmusTemplatesApi;
   private readonly notizenApi: NotizenApi;
   private readonly kategorienApi: KategorienApi;
+  private readonly navigationApi: NavigationApi;
 
   /**
    * Erstellt eine neue Instanz der BackendApi-Klasse
@@ -195,6 +197,7 @@ class BackendApi {
     this.einsatzFuehrungsrhythmusTemplatesApi = new EinsatzFuehrungsrhythmusTemplatesApi(this.configuration);
     this.notizenApi = new NotizenApi(this.configuration);
     this.kategorienApi = new KategorienApi(this.configuration);
+    this.navigationApi = new NavigationApi(this.configuration);
   }
 
   /**
@@ -505,6 +508,15 @@ class BackendApi {
    */
   kategorien(): KategorienApi {
     return this.kategorienApi;
+  }
+
+  /**
+   * Gibt die gecachte Navigation-API-Instanz zurueck
+   *
+   * @returns Die Navigation-API-Instanz fuer Navigations-Berechtigungen
+   */
+  navigation(): NavigationApi {
+    return this.navigationApi;
   }
 }
 

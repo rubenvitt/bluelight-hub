@@ -411,6 +411,7 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
       <WorkspaceShell
         className={className}
         contextBar={{
+          ariaLabel: einsatz ? `Einsatzkontext: ${einsatz.name}${user?.role ? `, Rolle: ${user.role}` : ''}` : 'Einsatzkontext',
           icon: einsatz ? PiSiren : undefined,
           title: einsatz ? (
             <span className="truncate">

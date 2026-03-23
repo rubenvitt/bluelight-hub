@@ -3,3 +3,4 @@
 
 export { UserController } from './user.controller';
 export { UserManagementController } from './user-management.controller';
+export { NavigationPermissionsController } from './navigation-permissions.controller';

@@ -267,6 +267,8 @@ export * from './MigrateLegacyRuntimeConfigResultDto';
 export * from './MigrateLegacyRuntimeConfigResultSummaryDto';
 export * from './MigrateToSecureModeRequestDto';
 export * from './MigrateToSecureModeResponseDto';
+export * from './NavigationPermissionDto';
+export * from './NavigationPermissionsControllerGetPermissionsVAlpha200Response';
 export * from './NavigationResponseDto';
 export * from './NotizControllerCreateVAlpha201Response';
 export * from './NotizControllerGetByEinsatzVAlpha200Response';

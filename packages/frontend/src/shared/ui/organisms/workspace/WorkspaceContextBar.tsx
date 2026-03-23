@@ -18,13 +18,15 @@ export interface WorkspaceContextBarProps {
   endSlot?: ReactNode;
   className?: string;
   routeParams?: Record<string, string>;
+  /** Screenreader-Label fuer den Kontextbalken (z.B. mit Rollenstatus) */
+  ariaLabel?: string;
 }
 
-export function WorkspaceContextBar({ title, subtitle, icon: ContextIcon, backAction, endSlot, className, routeParams }: WorkspaceContextBarProps) {
+export function WorkspaceContextBar({ title, subtitle, icon: ContextIcon, backAction, endSlot, className, routeParams, ariaLabel }: WorkspaceContextBarProps) {
   const BackIcon = backAction?.icon ?? PiArrowLeft;
 
   return (
-    <header className={cn('sticky top-0 z-30 border-border-subtle border-b bg-surface-panel shadow-raised', className)}>
+    <header role="banner" aria-label={ariaLabel} className={cn('sticky top-0 z-30 border-border-subtle border-b bg-surface-panel shadow-raised', className)}>
       <Container maxWidth="full">
         <div className="py-2">
           <div className="flex min-h-12 items-center justify-between gap-3">

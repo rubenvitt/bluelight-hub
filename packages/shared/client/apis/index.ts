@@ -33,6 +33,7 @@ export * from './KraefteStammFahrzeugeApi';
 export * from './KraefteStammPersonenApi';
 export * from './LagekarteApi';
 export * from './LagekarteCQRSApi';
+export * from './NavigationApi';
 export * from './NotizenApi';
 export * from './POIDEPRECATEDApi';
 export * from './RollenBesetzungApi';

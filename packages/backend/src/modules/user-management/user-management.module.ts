@@ -5,6 +5,7 @@ import { UserManagementApplicationModule } from '@application/user-management';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { UserController } from './controllers/user.controller';
 import { UserManagementController } from '@/modules/user-management/controllers';
+import { NavigationPermissionsController } from './controllers/navigation-permissions.controller';
 import { ProfileController } from './controllers/profile.controller';
 
 /**
@@ -33,9 +34,16 @@ import { ProfileController } from './controllers/profile.controller';
  *   - PUT /admin/users/:id/unlock - Benutzer entsperren
  *   - Benötigt: AdminJwtAuthGuard (SUPER_ADMIN)
  *
+ * - NavigationPermissionsController: Navigations-Berechtigungen (/navigation/permissions)
+ *   - GET /navigation/permissions - Zugängliche Navigationsbereiche des aktuellen Benutzers
+ *   - Benötigt: JwtAuthGuard (authentifizierter Benutzer)
+ *
+ * - ProfileController: Self-Service Profil-Endpunkte (/users/profile)
+ *   - Benötigt: JwtAuthGuard (authentifizierter Benutzer)
+ *
  * **CQRS Handlers (aus UserManagementApplicationModule):**
  * - Commands: CreateUser, UpdateUser, DeleteUser, LockUser, UnlockUser
- * - Queries: GetAllUsers, GetUserById
+ * - Queries: GetAllUsers, GetUserById, GetNavigationPermissions
  *
  * **Guards (aus AuthModule):**
  * - JwtAuthGuard: Validiert Access Token aus HTTP-Only Cookie
@@ -64,6 +72,8 @@ import { ProfileController } from './controllers/profile.controller';
     UserController,
     // Admin User Management Endpoints (/admin/users)
     UserManagementController,
+    // Navigation Permissions (/navigation/permissions)
+    NavigationPermissionsController,
     // Self-Service Profile Endpoints (/users/profile)
     ProfileController,
   ],

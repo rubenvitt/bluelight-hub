@@ -32,6 +32,7 @@ apis/KraefteStammFahrzeugeApi.ts
 apis/KraefteStammPersonenApi.ts
 apis/LagekarteApi.ts
 apis/LagekarteCQRSApi.ts
+apis/NavigationApi.ts
 apis/NotizenApi.ts
 apis/POIDEPRECATEDApi.ts
 apis/RollenBesetzungApi.ts
@@ -306,6 +307,8 @@ models/MigrateLegacyRuntimeConfigResultDto.ts
 models/MigrateLegacyRuntimeConfigResultSummaryDto.ts
 models/MigrateToSecureModeRequestDto.ts
 models/MigrateToSecureModeResponseDto.ts
+models/NavigationPermissionDto.ts
+models/NavigationPermissionsControllerGetPermissionsVAlpha200Response.ts
 models/NavigationResponseDto.ts
 models/NotizControllerCreateVAlpha201Response.ts
 models/NotizControllerGetByEinsatzVAlpha200Response.ts

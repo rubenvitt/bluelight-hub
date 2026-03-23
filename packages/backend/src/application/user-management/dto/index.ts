@@ -9,6 +9,9 @@ export { UpdateUserDto } from './update-user.dto';
 export { DeleteUserDto } from './delete-user.dto';
 export { LockUserDto } from './lock-user.dto';
 
+// Navigation DTOs
+export { NavigationPermissionDto } from './navigation-permission.dto';
+
 // Response DTOs
 export { DeleteUserResponseDto } from './delete-user-response.dto';
 export { UserBasicDto, UserBasicListResponse } from './user-basic-response.dto';

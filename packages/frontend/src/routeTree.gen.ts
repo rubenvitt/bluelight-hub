@@ -19,6 +19,7 @@ import { Route as ServerSetupRouteImport } from './routes/server/setup'
 import { Route as ServerManageRouteImport } from './routes/server/manage'
 import { Route as ServerAufbewahrungRouteImport } from './routes/server/aufbewahrung'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
+import { Route as AppForbiddenRouteImport } from './routes/app/forbidden'
 import { Route as AppEinsatzRouteImport } from './routes/app/einsatz'
 import { Route as AppEinsaetzeRouteImport } from './routes/app/einsaetze'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
@@ -125,6 +126,11 @@ const ServerAufbewahrungRoute = ServerAufbewahrungRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppForbiddenRoute = AppForbiddenRouteImport.update({
+  id: '/forbidden',
+  path: '/forbidden',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEinsatzRoute = AppEinsatzRouteImport.update({
@@ -473,6 +479,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/app/einsaetze': typeof AppEinsaetzeRouteWithChildren
   '/app/einsatz': typeof AppEinsatzRouteWithChildren
+  '/app/forbidden': typeof AppForbiddenRoute
   '/app/settings': typeof AppSettingsRoute
   '/server/aufbewahrung': typeof ServerAufbewahrungRoute
   '/server/manage': typeof ServerManageRoute
@@ -540,6 +547,7 @@ export interface FileRoutesByTo {
   '/admin/tokens': typeof AdminTokensRoute
   '/admin/users': typeof AdminUsersRoute
   '/app/einsatz': typeof AppEinsatzRouteWithChildren
+  '/app/forbidden': typeof AppForbiddenRoute
   '/app/settings': typeof AppSettingsRoute
   '/server/aufbewahrung': typeof ServerAufbewahrungRoute
   '/server/manage': typeof ServerManageRoute
@@ -608,6 +616,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/app/einsaetze': typeof AppEinsaetzeRouteWithChildren
   '/app/einsatz': typeof AppEinsatzRouteWithChildren
+  '/app/forbidden': typeof AppForbiddenRoute
   '/app/settings': typeof AppSettingsRoute
   '/server/aufbewahrung': typeof ServerAufbewahrungRoute
   '/server/manage': typeof ServerManageRoute
@@ -679,6 +688,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/app/einsaetze'
     | '/app/einsatz'
+    | '/app/forbidden'
     | '/app/settings'
     | '/server/aufbewahrung'
     | '/server/manage'
@@ -746,6 +756,7 @@ export interface FileRouteTypes {
     | '/admin/tokens'
     | '/admin/users'
     | '/app/einsatz'
+    | '/app/forbidden'
     | '/app/settings'
     | '/server/aufbewahrung'
     | '/server/manage'
@@ -813,6 +824,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/app/einsaetze'
     | '/app/einsatz'
+    | '/app/forbidden'
     | '/app/settings'
     | '/server/aufbewahrung'
     | '/server/manage'
@@ -947,6 +959,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/app/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/forbidden': {
+      id: '/app/forbidden'
+      path: '/forbidden'
+      fullPath: '/app/forbidden'
+      preLoaderRoute: typeof AppForbiddenRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/einsatz': {
@@ -1549,12 +1568,14 @@ const AppEinsatzRouteWithChildren = AppEinsatzRoute._addFileChildren(
 interface AppRouteChildren {
   AppEinsaetzeRoute: typeof AppEinsaetzeRouteWithChildren
   AppEinsatzRoute: typeof AppEinsatzRouteWithChildren
+  AppForbiddenRoute: typeof AppForbiddenRoute
   AppSettingsRoute: typeof AppSettingsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppEinsaetzeRoute: AppEinsaetzeRouteWithChildren,
   AppEinsatzRoute: AppEinsatzRouteWithChildren,
+  AppForbiddenRoute: AppForbiddenRoute,
   AppSettingsRoute: AppSettingsRoute,
 }
 

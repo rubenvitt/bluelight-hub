@@ -1,2 +1,1 @@
-// SetupPage removed - use /server/setup route instead
-export {};
+export { ForbiddenPage } from './ForbiddenPage';

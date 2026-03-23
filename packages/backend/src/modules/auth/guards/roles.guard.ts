@@ -67,7 +67,12 @@ export class RolesGuard implements CanActivate {
 
     if (!hasRequiredRole) {
       this.logger.warn(`RolesGuard: User ${user.userId} with role ${user.role} denied access (required: ${requiredRoles.join(', ')})`);
-      throw new ForbiddenException(`Zugriff verweigert - erforderliche Rolle: ${requiredRoles.join(' oder ')}`);
+      throw new ForbiddenException({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: `Dieser Bereich ist für Ihre Rolle nicht freigegeben`,
+        suggestedAction: 'Zurück zum Überblick',
+      });
     }
 
     return true;

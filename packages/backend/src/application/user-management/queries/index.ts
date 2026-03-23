@@ -8,3 +8,8 @@ export { GetAllUsersQueryHandler } from './get-all-users/get-all-users.handler';
 // Get User By ID
 export { GetUserByIdQuery } from './get-user-by-id/get-user-by-id.query';
 export { GetUserByIdQueryHandler } from './get-user-by-id/get-user-by-id.handler';
+
+// Get Navigation Permissions
+export { GetNavigationPermissionsQuery } from './get-navigation-permissions/get-navigation-permissions.query';
+export type { NavigationUserRole } from './get-navigation-permissions/get-navigation-permissions.query';
+export { GetNavigationPermissionsQueryHandler } from './get-navigation-permissions/get-navigation-permissions.handler';

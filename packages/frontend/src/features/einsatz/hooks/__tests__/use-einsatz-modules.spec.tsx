@@ -1,6 +1,11 @@
 import { renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { useEinsatzModules } from '../use-einsatz-modules';
+
+vi.mock('@/features/auth/hooks', () => ({
+  useNavigationPermissions: () => ({ data: undefined, isLoading: false }),
+  NAVIGATION_PERMISSIONS_KEY: ['navigation', 'permissions'],
+}));
 
 describe('useEinsatzModules', () => {
   it('returns the full workspace contract instead of a legacy parallel shape', () => {

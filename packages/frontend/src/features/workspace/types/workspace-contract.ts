@@ -64,6 +64,7 @@ export interface WorkspaceContextBarModel {
   icon?: ComponentType<{ className?: string }>;
   backAction?: WorkspaceContextBarBackAction;
   endSlot?: ReactNode;
+  ariaLabel?: string;
 }
 
 export interface WorkspaceStatusItem {

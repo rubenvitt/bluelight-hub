@@ -9,7 +9,7 @@ import { NestLoggerAdapter } from '@infrastructure/common/adapters/nest-logger.a
 import { CreateUserHandler, UpdateUserHandler, DeleteUserHandler, LockUserHandler, UnlockUserHandler, UpdateProfileHandler } from './commands';
 
 // Query Handlers
-import { GetAllUsersQueryHandler, GetUserByIdQueryHandler } from './queries';
+import { GetAllUsersQueryHandler, GetUserByIdQueryHandler, GetNavigationPermissionsQueryHandler } from './queries';
 
 /**
  * NestJS-Modul für Application Layer - User Management Bounded Context.
@@ -77,6 +77,7 @@ import { GetAllUsersQueryHandler, GetUserByIdQueryHandler } from './queries';
     // Query Handlers
     GetAllUsersQueryHandler,
     GetUserByIdQueryHandler,
+    GetNavigationPermissionsQueryHandler,
   ],
   exports: [
     // Export handlers for use in Infrastructure Layer (Controllers)
@@ -90,6 +91,7 @@ import { GetAllUsersQueryHandler, GetUserByIdQueryHandler } from './queries';
     // Query Handlers
     GetAllUsersQueryHandler,
     GetUserByIdQueryHandler,
+    GetNavigationPermissionsQueryHandler,
   ],
 })
 export class UserManagementApplicationModule {}

@@ -111,6 +111,28 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
     enabled: !workspaceIsBlocked,
   });
 
+  // Story 4.1: Ctrl+B navigiert zum Befehlsarbeitsraum
+  useEffect(() => {
+    if (workspaceIsBlocked) return;
+
+    function handleCtrlB(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
+      const isInput = event.target instanceof HTMLElement && (event.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName));
+      if (isInput) return;
+
+      if ((event.ctrlKey || event.metaKey) && event.key === 'b' && !event.altKey && !event.shiftKey) {
+        event.preventDefault();
+        void navigate({
+          to: '/app/einsatz/$einsatzId/führung/befehle',
+          params: { einsatzId },
+        });
+      }
+    }
+
+    window.addEventListener('keydown', handleCtrlB);
+    return () => window.removeEventListener('keydown', handleCtrlB);
+  }, [einsatzId, navigate, workspaceIsBlocked]);
+
   // Story App-weite Erinnerungsprüfung: Globaler Alarm-Trigger für den aktiven Einsatz
   // Triggert Sound + OS-Notification für Erinnerungen die den User betreffen:
   // - Mir zugewiesen (assignedToId === user.id)

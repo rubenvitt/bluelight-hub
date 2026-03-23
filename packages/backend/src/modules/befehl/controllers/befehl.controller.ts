@@ -289,7 +289,7 @@ export class BefehlController {
     description: 'Empfaenger quittiert einen Befehl mit Quittierungsart (VERSTANDEN, RUECKFRAGE, NICHT_VERSTANDEN).',
   })
   @ApiParam({ name: 'id', description: 'Befehl-ID', type: String })
-  @RequiresBefehlRolle('BEFEHLSGEBER', 'ERSTELLER', 'EMPFAENGER')
+  @RequiresBefehlRolle('BEFEHLSGEBER', 'EMPFAENGER')
   @ApiWrappedResponse(BefehlDto, { description: 'Befehl erfolgreich quittiert' })
   @ApiBadRequestResponse({ description: 'Validierungsfehler oder Domain-Fehler (nicht zugestellt, bereits quittiert, korrigiert)' })
   @ApiNotFoundResponse({ description: 'Befehl nicht gefunden' })
@@ -372,7 +372,7 @@ export class BefehlController {
     description: 'Erstellt einen Korrekturbefehl und markiert den Original-Befehl als KORRIGIERT. EinsatzId wird vom Original uebernommen.',
   })
   @ApiParam({ name: 'id', description: 'Original-Befehl-ID', type: String })
-  @RequiresBefehlRolle('ERSTELLER', 'BEFEHLSGEBER')
+  @RequiresBefehlRolle('BEFEHLSGEBER')
   @ApiWrappedCreatedResponse(BefehlDto, { description: 'Korrekturbefehl erstellt' })
   @ApiBadRequestResponse({ description: 'Validierungsfehler oder Domain-Fehler (ungültige Status-Transition)' })
   @ApiNotFoundResponse({ description: 'Original-Befehl nicht gefunden' })
@@ -501,6 +501,7 @@ export class BefehlController {
     @Query('q') q?: string,
     @Query('von') von?: string,
     @Query('bis') bis?: string,
+    @Req() req?: { einsatzRolle?: string; user?: { userId: string } },
   ): Promise<BefehlDto[]> {
     if (!einsatzId) {
       throw new BadRequestException('einsatzId ist erforderlich');
@@ -512,6 +513,8 @@ export class BefehlController {
     }
 
     const einsatzIdVo = einsatzIdResult.value as EinsatzId;
+    const einsatzRolle = req?.einsatzRolle;
+    const isEmpfaenger = einsatzRolle === 'EMPFAENGER' && req?.user?.userId;
 
     // Erweiterte Filter prüfen
     const hasExtendedFilters = status || empfaengerName || befehlsgeberName || q || von || bis;
@@ -519,6 +522,9 @@ export class BefehlController {
     let result: Result<Befehl[]>;
     if (hasExtendedFilters) {
       const filters = this.parseFilterParams(status, empfaengerName, befehlsgeberName, q, von, bis);
+      if (isEmpfaenger) {
+        filters.empfaengerUserId = req.user.userId;
+      }
       result = await this.befehlRepository.findFiltered(einsatzIdVo, filters);
     } else {
       const hasOpenRueckfragenBool = hasOpenRueckfragen?.toLowerCase() === 'true';
@@ -528,6 +534,8 @@ export class BefehlController {
         result = await this.befehlRepository.findWithOpenRueckfragen(einsatzIdVo);
       } else if (trimmedEmpfaengerId) {
         result = await this.befehlRepository.findByEmpfaengerId(einsatzIdVo, trimmedEmpfaengerId);
+      } else if (isEmpfaenger) {
+        result = await this.befehlRepository.findByEmpfaengerId(einsatzIdVo, req.user.userId);
       } else {
         result = await this.befehlRepository.findByEinsatzId(einsatzIdVo);
       }
@@ -537,7 +545,18 @@ export class BefehlController {
       throw new InternalServerErrorException('Fehler beim Laden der Befehle');
     }
 
-    return (result.value ?? []).map((b) => this.mapToDto(b));
+    const befehle = result.value ?? [];
+
+    const dtos = befehle.map((b) => this.mapToDto(b));
+
+    // BEOBACHTER: alle Befehle sehen, aber Kommentare ausblenden
+    if (einsatzRolle === 'BEOBACHTER') {
+      for (const dto of dtos) {
+        dto.kommentare = [];
+      }
+    }
+
+    return dtos;
   }
 
   /**

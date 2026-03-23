@@ -34,3 +34,6 @@ export { GetEinsatzRollenQuery, GetEinsatzRollenQueryHandler } from './get-einsa
 
 // CanMutateEinsatz (Security: Ownership/Membership für Mutationen)
 export { CanMutateEinsatzQuery, CanMutateEinsatzQueryHandler } from './can-mutate-einsatz';
+
+// GetMeineEinsatzRolle (Story 4.2: Eigene Rolle + Permissions)
+export { GetMeineEinsatzRolleQuery, GetMeineEinsatzRolleQueryHandler } from './get-meine-einsatz-rolle';

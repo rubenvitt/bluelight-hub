@@ -16,7 +16,6 @@ import { Tooltip } from '@/shared/ui/atoms/tooltip.atom';
 import { type BefehlDto, BefehlDtoStatusEnum, type BefehlEmpfaengerDtoQuittierungArtEnum } from '@bluelight-hub/shared/client';
 import { useAendereEmpfaengerStatus } from '../../api/use-aendere-empfaenger-status';
 import type { AendereEmpfaengerStatusInput } from '../../api/use-aendere-empfaenger-status';
-import { useBefehlPermissions } from '../../hooks/use-befehl-permissions';
 import { BefehlStatusBadge } from '../atoms/BefehlStatusBadge.atom';
 import { ZustellstatusAnzeige } from '../molecules/ZustellstatusAnzeige.molecule';
 import { getEigenerEmpfaengerStatus } from '../../lib/befehl-utils';
@@ -41,10 +40,15 @@ interface BefehlDetailPanelProps {
   currentUserId?: string;
   /** RBAC: Darf der aktuelle User quittieren? */
   canQuittieren?: boolean;
+  /** RBAC: Darf der aktuelle User Korrekturen erstellen? */
+  canKorrigieren?: boolean;
+  /** RBAC: Darf der aktuelle User Empfaenger-Status verwalten? */
+  canManageStatus?: boolean;
+  /** Ist der aktuelle User nur Beobachter? */
+  isBeobachter?: boolean;
 }
 
-export function BefehlDetailPanel({ befehl, isOpen, onClose, einsatzId, onQuittieren, currentUserId, canQuittieren }: BefehlDetailPanelProps) {
-  const { canKorrigieren, canManageStatus } = useBefehlPermissions(einsatzId);
+export function BefehlDetailPanel({ befehl, isOpen, onClose, einsatzId, onQuittieren, currentUserId, canQuittieren, canKorrigieren, canManageStatus, isBeobachter }: BefehlDetailPanelProps) {
   const [isKorrekturDialogOpen, setIsKorrekturDialogOpen] = useState(false);
   const statusMutation = useAendereEmpfaengerStatus(einsatzId);
 
@@ -92,8 +96,8 @@ export function BefehlDetailPanel({ befehl, isOpen, onClose, einsatzId, onQuitti
                       <BefehlStatusBadge status={befehl.status} className="mt-2" />
                     </div>
 
-                    {/* Quittierungs-Banner fuer Empfaenger */}
-                    {(() => {
+                    {/* Quittierungs-Banner fuer Empfaenger (nicht fuer Beobachter) */}
+                    {!isBeobachter && (() => {
                       const eigenerStatus = getEigenerEmpfaengerStatus(befehl.empfaenger, currentUserId);
                       if (!eigenerStatus.istEmpfaenger) return null;
 
@@ -123,6 +127,13 @@ export function BefehlDetailPanel({ befehl, isOpen, onClose, einsatzId, onQuitti
 
                       return null;
                     })()}
+
+                    {/* Beobachter-Hinweis */}
+                    {isBeobachter && (
+                      <div className="border-gray-200 border-b bg-gray-50 px-6 py-2 dark:border-gray-700 dark:bg-gray-800/50">
+                        <span className="text-gray-500 text-xs dark:text-gray-400">Nur-Lese-Ansicht — Beobachter haben keinen Zugriff auf Aktionen</span>
+                      </div>
+                    )}
 
                     {/* Body */}
                     <div className="flex-1 overflow-y-auto px-6 py-5">
@@ -168,11 +179,11 @@ export function BefehlDetailPanel({ befehl, isOpen, onClose, einsatzId, onQuitti
                           </div>
                         </section>
 
-                        {/* Korrektur-Button (nur wenn nicht bereits korrigiert) */}
-                        {befehl.status !== BefehlDtoStatusEnum.Korrigiert && (
+                        {/* Korrektur-Button (nur wenn nicht bereits korrigiert und nicht Beobachter) */}
+                        {!isBeobachter && befehl.status !== BefehlDtoStatusEnum.Korrigiert && (
                           <section>
                             {!canKorrigieren ? (
-                              <Tooltip content="Nur Ersteller/Befehlsgeber dürfen Korrekturen erstellen" position="bottom">
+                              <Tooltip content="Nur Befehlsgeber dürfen Korrekturen erstellen" position="bottom">
                                 <Button intent="warning" appearance="outline" size="sm" onClick={() => setIsKorrekturDialogOpen(true)} disabled aria-disabled="true">
                                   <PiPencilSimpleLine className="mr-1.5 h-4 w-4" />
                                   Korrektur erstellen

@@ -1,8 +1,11 @@
+import type { MeineEinsatzRolleDtoRolleEnum } from '@bluelight-hub/shared/client';
+import { useMyEinsatzRolle } from '../api/use-my-einsatz-rolle';
+
 /**
  * Permission Hook für Befehl-Aktionen
  *
- * Gibt aktuell alle Berechtigungen frei - Rollen-Checks werden
- * später mit dem Einsatzrollen-System re-aktiviert.
+ * Story 4.2 AC1: Leitet Berechtigungen aus der Einsatz-Rolle ab.
+ * Permissions-Mapping identisch zum Backend (GetMeineEinsatzRolleQueryHandler).
  */
 
 export interface BefehlPermissions {
@@ -21,30 +24,53 @@ export interface BefehlPermissions {
   /** Ist nur Beobachter (read-only) */
   isBeobachter: boolean;
   /** Aktuelle Rolle des Users (null wenn keine) */
-  rolle: string | null;
+  rolle: MeineEinsatzRolleDtoRolleEnum | null;
   /** Laden die Rollen-Daten noch? */
   isLoading: boolean;
 }
 
+/** Keine Permissions (Fallback bei Fehler oder fehlender Rolle) */
+const NO_PERMISSIONS: BefehlPermissions = {
+  canCreate: false,
+  canQuittieren: false,
+  canKorrigieren: false,
+  canManageStatus: false,
+  canExport: false,
+  canViewAll: false,
+  isBeobachter: false,
+  rolle: null,
+  isLoading: false,
+};
+
 /**
  * Hook zur Bestimmung der Befehl-Berechtigungen des aktuellen Users
  *
- * Aktuell: Alle Aktionen erlaubt (Passthrough).
- * Wird mit dem Einsatzrollen-System später eingeschränkt.
+ * Laedt die eigene Einsatz-Rolle via API und leitet Permissions ab.
+ * Waehrend des Ladens: isLoading=true, alle Permissions false.
  *
- * @param _einsatzId - Einsatz-ID (aktuell nicht verwendet)
- * @returns Alle Berechtigungen als true
+ * @param einsatzId - Einsatz-ID
+ * @returns Berechtigungen basierend auf der Einsatz-Rolle
  */
-export function useBefehlPermissions(_einsatzId: string): BefehlPermissions {
+export function useBefehlPermissions(einsatzId: string): BefehlPermissions {
+  const { data, isLoading } = useMyEinsatzRolle(einsatzId);
+
+  if (isLoading) {
+    return { ...NO_PERMISSIONS, isLoading: true };
+  }
+
+  if (!data) {
+    return NO_PERMISSIONS;
+  }
+
   return {
-    canCreate: true,
-    canQuittieren: true,
-    canKorrigieren: true,
-    canManageStatus: true,
-    canExport: true,
-    canViewAll: true,
-    isBeobachter: false,
-    rolle: null,
+    canCreate: data.permissions.canCreate,
+    canQuittieren: data.permissions.canQuittieren,
+    canKorrigieren: data.permissions.canKorrigieren,
+    canManageStatus: data.permissions.canManageStatus,
+    canExport: data.permissions.canExport,
+    canViewAll: data.permissions.canViewAll,
+    isBeobachter: data.permissions.isBeobachter,
+    rolle: data.rolle,
     isLoading: false,
   };
 }

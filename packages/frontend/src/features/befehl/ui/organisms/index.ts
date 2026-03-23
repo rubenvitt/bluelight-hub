@@ -7,3 +7,5 @@ export { KorrekturBefehlDialog } from './KorrekturBefehlDialog.organism';
 export { BefehlExportDialog } from './BefehlExportDialog.organism';
 export { BefehlsListeMitEingabe } from './BefehlsListeMitEingabe.organism';
 export { HandlungsbedarfSection } from './HandlungsbedarfSection.organism';
+export { BefehlWorkspace } from './BefehlWorkspace.organism';
+export { BefehlWorkspaceSkeleton } from './BefehlWorkspaceSkeleton.organism';

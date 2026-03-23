@@ -147,8 +147,15 @@ export class PrismaBefehlRepository implements IBefehlRepository {
         where.befehlsgeberName = { contains: filters.befehlsgeberName, mode: 'insensitive' };
       }
 
+      if (filters.empfaengerUserId) {
+        where.empfaenger = { some: { empfaengerId: filters.empfaengerUserId } };
+      }
+
       if (filters.empfaengerName) {
-        where.empfaenger = { some: { name: { contains: filters.empfaengerName, mode: 'insensitive' } } };
+        where.empfaenger = {
+          ...where.empfaenger,
+          some: { ...where.empfaenger?.some, name: { contains: filters.empfaengerName, mode: 'insensitive' } },
+        };
       }
 
       if (filters.von || filters.bis) {

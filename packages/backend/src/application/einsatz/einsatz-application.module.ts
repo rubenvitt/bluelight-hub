@@ -33,6 +33,7 @@ import {
   GetNextEinsatzIdQueryHandler,
   GetEinsatzTeilnehmerHandler,
   GetEinsatzRollenQueryHandler,
+  GetMeineEinsatzRolleQueryHandler,
 } from './queries';
 
 /**
@@ -122,6 +123,8 @@ import {
     // Story 5.2: Rollen Command + Query Handlers
     UpdateEinsatzRollenHandler,
     GetEinsatzRollenQueryHandler,
+    // Story 4.2: Eigene Rolle + Permissions Query Handler
+    GetMeineEinsatzRolleQueryHandler,
     // Security: Ownership/Membership-Check für Einsatz-Mutationen
     CanMutateEinsatzQueryHandler,
   ],
@@ -155,6 +158,8 @@ import {
     // Story 5.2: Rollen Command + Query Handlers
     UpdateEinsatzRollenHandler,
     GetEinsatzRollenQueryHandler,
+    // Story 4.2: Eigene Rolle + Permissions Query Handler
+    GetMeineEinsatzRolleQueryHandler,
     // Security: Ownership/Membership-Check für Einsatz-Mutationen
     CanMutateEinsatzQueryHandler,
   ],

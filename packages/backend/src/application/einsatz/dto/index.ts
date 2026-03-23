@@ -14,3 +14,4 @@ export { CompletenessQueryDto } from './completeness-query.dto';
 export { AktiveTeilnehmerResponseDto } from './aktive-teilnehmer-response.dto';
 export { EinsatzRolleDto } from './einsatz-rolle.dto';
 export { UpdateEinsatzRollenDto, RollenZuweisungDto } from './update-einsatz-rollen.dto';
+export { MeineEinsatzRolleDto, BefehlPermissionsDto } from './meine-einsatz-rolle.dto';

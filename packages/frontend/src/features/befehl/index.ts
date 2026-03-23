@@ -57,12 +57,16 @@ export {
   INTEGRATION_HEALTH_KEY,
   type IntegrationStatusEntry,
   type IntegrationHealthResponse,
+  // Einsatz-Rolle Query Hook (Story 4.2)
+  useMyEinsatzRolle,
+  MEINE_EINSATZ_ROLLE_KEY,
 } from './api';
 
 // ============================================
 // Hooks
 // ============================================
 export {
+  useDelayedLoading,
   useBefehlNotificationNavigation,
   useBefehlPermissions,
   type BefehlPermissions,
@@ -183,6 +187,8 @@ export {
   BefehlStatusBadge,
   BefehlTabellenView,
   BefehleViewToggle,
+  BefehlWorkspace,
+  BefehlWorkspaceSkeleton,
   ConnectionStatusBanner,
   EmpfaengerCombobox,
   IntegrationStatusBanner,

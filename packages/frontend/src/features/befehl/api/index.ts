@@ -17,6 +17,9 @@ export { useMeineBefehle } from './use-meine-befehle';
 // Filtered Query Hooks
 export { useOffeneRueckfragen } from './use-offene-rueckfragen';
 
+// Einsatz-Rolle Query Hook (Story 4.2)
+export { useMyEinsatzRolle, MEINE_EINSATZ_ROLLE_KEY } from './use-my-einsatz-rolle';
+
 // Mutation Hooks
 export { useAddBefehlKommentar } from './use-add-befehl-kommentar';
 export { useAendereEmpfaengerStatus, type AendereEmpfaengerStatusInput } from './use-aendere-empfaenger-status';

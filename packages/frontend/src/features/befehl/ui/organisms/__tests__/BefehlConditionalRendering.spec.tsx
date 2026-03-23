@@ -95,13 +95,27 @@ describe('BefehlDetailPanel RBAC (Story 5.4 AC2)', () => {
   it('zeigt Tooltip bei disabled Korrektur-Button', () => {
     Object.assign(mockPermissions, {
       canKorrigieren: false,
+      isBeobachter: false,
+      rolle: 'EMPFAENGER',
+    });
+
+    const befehl = createBefehl(baseBefehlProps);
+    renderWithProviders(<BefehlDetailPanel befehl={befehl} isOpen={true} onClose={vi.fn()} einsatzId="einsatz-1" />);
+
+    expect(screen.getByText(/nur befehlsgeber/i)).toBeInTheDocument();
+  });
+
+  it('zeigt keinen Korrektur-Button fuer BEOBACHTER', () => {
+    Object.assign(mockPermissions, {
+      canKorrigieren: false,
+      isBeobachter: true,
       rolle: 'BEOBACHTER',
     });
 
     const befehl = createBefehl(baseBefehlProps);
     renderWithProviders(<BefehlDetailPanel befehl={befehl} isOpen={true} onClose={vi.fn()} einsatzId="einsatz-1" />);
 
-    expect(screen.getByText(/nur ersteller\/befehlsgeber/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /korrektur/i })).not.toBeInTheDocument();
   });
 
   it('zeigt keinen Korrektur-Button bei status=KORRIGIERT', () => {

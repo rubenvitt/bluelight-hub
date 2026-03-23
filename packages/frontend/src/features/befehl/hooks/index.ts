@@ -2,6 +2,7 @@
  * Befehl Hooks - Public Exports
  */
 
+export { useDelayedLoading } from './use-delayed-loading';
 export { useBefehlNotificationNavigation } from './use-befehl-notification-navigation';
 export { useMissedBefehlAlerts, markAlertSeen } from './use-missed-befehl-alerts';
 export { useBefehlPermissions, type BefehlPermissions } from './use-befehl-permissions';

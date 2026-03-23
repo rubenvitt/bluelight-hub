@@ -10,6 +10,8 @@ import type { EinsatzId } from '@domain/value-objects/einsatz-id';
 export interface BefehlFilterParams {
   /** Filter nach BefehlStatus-Werten (ERTEILT, ZUGESTELLT, QUITTIERT, KORRIGIERT). */
   status?: string[];
+  /** Filter auf Empfaenger-User-ID (DB-Level Sichtbarkeitsfilter fuer EMPFAENGER-Rolle). */
+  empfaengerUserId?: string;
   /** Freitext-Filter auf Empfaenger-Name (case-insensitive, contains). */
   empfaengerName?: string;
   /** Freitext-Filter auf Befehlsgeber-Name (case-insensitive, contains). */

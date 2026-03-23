@@ -26,4 +26,6 @@ export {
   BefehlQuittierenDialog,
   KorrekturBefehlDialog,
   BefehlsListeMitEingabe,
+  BefehlWorkspace,
+  BefehlWorkspaceSkeleton,
 } from './organisms';

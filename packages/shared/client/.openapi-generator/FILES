@@ -136,6 +136,7 @@ models/BefehlEmpfaengerDto.ts
 models/BefehlHistorieEventDto.ts
 models/BefehlHistorieTimelineDto.ts
 models/BefehlKommentarDto.ts
+models/BefehlPermissionsDto.ts
 models/BefehlsgeberSucheResultDto.ts
 models/BefehlsgeberVorschlagDto.ts
 models/BesatzungMemberDto.ts
@@ -178,6 +179,7 @@ models/EinsatzControllerFindOneVAlpha200Response.ts
 models/EinsatzControllerGetActiveEinsaetzeWithCountsVAlpha200Response.ts
 models/EinsatzControllerGetCompletenessVAlpha200Response.ts
 models/EinsatzControllerGetEinsatzDetailsVAlpha200Response.ts
+models/EinsatzControllerGetMeineRolleVAlpha200Response.ts
 models/EinsatzControllerGetPreviousVAlpha200Response.ts
 models/EinsatzControllerGetRollenVAlpha200Response.ts
 models/EinsatzControllerGetStatusCountsVAlpha200Response.ts
@@ -298,6 +300,7 @@ models/LogoutResponseDto.ts
 models/ManagedUserResponse.ts
 models/ManagedUserResponseDto.ts
 models/MarkErledigtErinnerungDto.ts
+models/MeineEinsatzRolleDto.ts
 models/MigrateLegacyRuntimeConfigRequestDto.ts
 models/MigrateLegacyRuntimeConfigResultDto.ts
 models/MigrateLegacyRuntimeConfigResultSummaryDto.ts

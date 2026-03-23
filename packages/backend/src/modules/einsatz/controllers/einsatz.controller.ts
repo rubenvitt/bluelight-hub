@@ -17,6 +17,7 @@ import {
   UpdateEinsatzDto,
   EinsatzRolleDto,
   UpdateEinsatzRollenDto,
+  MeineEinsatzRolleDto,
 } from '@/application/einsatz/dto';
 import {
   GetActiveEinsaetzeWithCountsQuery,
@@ -31,6 +32,7 @@ import {
   GetEinsatzTeilnehmerHandler,
   GetEinsatzRollenQuery,
   GetEinsatzRollenQueryHandler,
+  GetMeineEinsatzRolleQuery,
   CanMutateEinsatzQuery,
 } from '@/application/einsatz/queries';
 import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
@@ -160,6 +162,36 @@ export class EinsatzController {
     const result = await this.queryBus.execute(new GetStatusCountsQuery(query.includeArchived));
     if (result.isFailure) throw new BadRequestException(result.error ?? 'Fehler beim Abrufen der Status-Statistiken');
     if (!result.value) throw new InternalServerErrorException('Keine Status-Statistiken zurückgegeben');
+    return result.value;
+  }
+
+  /**
+   * Gibt die eigene Rollenzuweisung + Permissions im Einsatz zurueck.
+   *
+   * Story 4.2 AC1: GET /api/v-alpha/einsaetze/:id/meine-rolle
+   * Jeder authentifizierte User darf seine eigene Rolle abfragen.
+   */
+  @Get(':id/meine-rolle')
+  @Roles('USER', 'ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Eigene Rolle im Einsatz abrufen',
+    description: 'Gibt die eigene Rollenzuweisung und abgeleitete Befehl-Berechtigungen zurueck.',
+  })
+  @ApiWrappedResponse(MeineEinsatzRolleDto, {
+    description: 'Aktuelle Rolle und Permissions im Einsatz',
+  })
+  async getMeineRolle(@Param('id') id: string, @CurrentUser() user: ValidatedUser): Promise<MeineEinsatzRolleDto> {
+    const query = new GetMeineEinsatzRolleQuery(id, user.userId);
+    const result = await this.queryBus.execute(query);
+
+    if (result.isFailure) {
+      throw new InternalServerErrorException(result.error);
+    }
+
+    if (!result.value) {
+      throw new InternalServerErrorException('Rolle konnte nicht ermittelt werden');
+    }
+
     return result.value;
   }
 

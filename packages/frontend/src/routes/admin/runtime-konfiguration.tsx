@@ -8,12 +8,10 @@ const AdminRuntimeConfig = lazy(() =>
 );
 
 export const Route = createFileRoute('/admin/runtime-konfiguration')({
-  head: () => ({
-    meta: [{ title: 'Admin | Secret-Verwaltung' }],
-  }),
   component: () => (
     <Suspense fallback={null}>
       <AdminRuntimeConfig />
     </Suspense>
   ),
+  meta: () => [{ title: 'Laufzeit-Konfiguration' }],
 });

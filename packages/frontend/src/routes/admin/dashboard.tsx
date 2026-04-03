@@ -13,4 +13,5 @@ export const Route = createFileRoute('/admin/dashboard')({
       <AdminDashboard />
     </Suspense>
   ),
+  meta: () => [{ title: 'Dashboard' }],
 });

@@ -15,6 +15,6 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute('/admin/integrations/hiorg')({
   component: AdminHiOrgIntegration,
-  meta: () => [{ title: 'HiOrg-Server Integration' }],
+  meta: () => [{ title: 'HiOrg-Integration' }],
   validateSearch: searchSchema,
 });

@@ -1,3 +1,25 @@
+## Performance
+
+- **Deutlich schnellere CI-Pipeline**: Frontend-Tests laufen nun parallel in drei Shards statt nacheinander – die Testzeit wurde von ~8 Minuten auf ~3 Minuten pro Shard reduziert. Backend-Unit-Tests ebenfalls parallelisiert und von 20+ Minuten auf unter 15 Minuten beschleunigt.
+
+- **Performance-Messungen präziser**: Performance-Tests laufen jetzt isoliert von CPU-lastigen Unit-Tests, um Timing-Verfälschungen zu vermeiden und verlässliche Baseline-Messungen zu gewährleisten.
+
+## Sicherheit & Stabilität
+
+- **Wichtiges Sicherheitsupdate**: DOMPurify auf Version 3.4.0 aktualisiert – behebt Cross-Site-Scripting (XSS) und Prototype-Pollution-Sicherheitslücken.
+
+- **Lagekarten-Anzeige verbessert**: MapLibre GL auf Version 5.23.0 aktualisiert – behebt einen Fehler, bei dem Beschriftungen von Polygon-Gefahrenzonen falsch positioniert wurden.
+
+- **Modernere Technologie-Basis**: TypeScript auf Version 6.0.3 aktualisiert – die letzte JavaScript-basierte Version vor dem großen Rewrite in TypeScript 7.
+
+- **Stabilere Dependencies**: 28 sichere Abhängigkeits-Updates ohne Breaking Changes durchgeführt, darunter NestJS, React Query, React Router, Vite und weitere Kernbibliotheken.
+
+## Dokumentation & Projektausrichtung
+
+- **Zielgruppe präzisiert**: Die Dokumentation wurde aktualisiert und stellt nun klar, dass Bluelight Hub speziell für **weiße Hilfsorganisationen** (DRK, JUH, MHD, ASB, DLRG) im Sanitätsdienst und Katastrophenschutz entwickelt wird – nicht für Feuerwehr, Polizei oder Bundeswehr. Die fachliche Ausrichtung auf Betreuungsdienst, MANV und Sanitätswachendienst ist jetzt deutlicher dokumentiert.
+
+- **Neues Modul geplant: Eigenschutz**: Das Produktkonzept für ein Eigenschutz-Modul wurde dokumentiert. Es soll Sicherheitsbeauftragte im Stab bei der Gefährdungsbeurteilung (5×5-Risikomatrix), PSA-Verwaltung, Sicherheitsregeln und Vorfallmeldungen während laufender Einsätze digital unterstützen.
+
 ## Gefahrenzonen auf der Lagekarte
 
 Die Lagekarte bietet nun die Möglichkeit, Gefahrenzonen direkt auf der Karte zu zeichnen und zu verwalten. Gefahrenzonen werden farblich nach ihrer Warnstufe (KEINE, NIEDRIG, MITTEL, HOCH, AKUT) dargestellt und sind mit der Gefahrenmatrix verknüpft.

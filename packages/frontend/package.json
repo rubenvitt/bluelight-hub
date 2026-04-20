@@ -1,6 +1,6 @@
 {
   "name": "@bluelight-hub/frontend",
-  "version": "1.0.0-alpha.103",
+  "version": "1.0.0-alpha.104",
   "private": true,
   "type": "module",
   "scripts": {

@@ -205,7 +205,11 @@ Write JSON to temp file: `/tmp/tea-test-review-determinism-{{timestamp}}.json`
     "MEDIUM": 1,
     "LOW": 1
   },
-  "recommendations": ["Use faker with fixed seed for all random data", "Replace all waitForTimeout with conditional waits", "Mock Date.now() in tests that use current time"],
+  "recommendations": [
+    "Use faker with fixed seed for all random data",
+    "Replace all waitForTimeout with conditional waits",
+    "Mock Date.now() in tests that use current time"
+  ],
   "summary": "Tests are mostly deterministic with 3 violations (1 HIGH, 1 MEDIUM, 1 LOW)"
 }
 ```

@@ -80,7 +80,7 @@ export const createSicherungspostenRequestSchema = z
     personal: z.array(personalEntrySchema).max(50),
     einheitId: z.string().trim().min(1).max(40).optional(),
     zustaendigkeitsbereich: z.string().trim().max(4000).optional(),
-    abloesezeiten: z.string().trim().max(500).optional(),
+    abloesezeiten: z.string().trim().max(2000).optional(),
   })
   .strict();
 export type CreateSicherungspostenRequest = z.infer<typeof createSicherungspostenRequestSchema>;
@@ -99,7 +99,7 @@ export const updateSicherungspostenRequestSchema = z
     personal: z.array(personalEntrySchema).max(50).optional(),
     einheitId: z.string().trim().min(1).max(40).nullable().optional(),
     zustaendigkeitsbereich: z.string().trim().max(4000).nullable().optional(),
-    abloesezeiten: z.string().trim().max(500).nullable().optional(),
+    abloesezeiten: z.string().trim().max(2000).nullable().optional(),
   })
   .strict();
 export type UpdateSicherungspostenRequest = z.infer<typeof updateSicherungspostenRequestSchema>;

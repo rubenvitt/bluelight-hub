@@ -10,21 +10,26 @@
  *   `freitext` mit name + optional rolle). Hinzufügen/Entfernen via
  *   Buttons; Toggle pro Eintrag zwischen User-ID und Freitext.
  * - **Zuständigkeitsbereich** (optional, Textarea ≤ 4000 Zeichen).
- * - **Ablösezeiten**: Read-Only-Stub-Hinweis (Editor in Story 4.2).
+ * - **Ablösezeiten**: Freitext-Editor (≤ 2000 Zeichen) mit debounciertem
+ *   Auto-Save (2 s) im Edit-Mode (Story 4.2). Im Create-Mode wird der Wert
+ *   regulär mit dem Footer-Submit gesendet.
  *
  * 409-Konflikt-Pfad: typsierter {@link SicherungspostenConflictError} →
- * Inline-Banner mit `currentVersion`. Submit bleibt blockiert, bis der
- * User den Drawer schließt (Pattern aus `SicherheitsregelDrawer`).
+ * Inline-Banner mit `currentVersion` und „Neu laden"-CTA. Submit und
+ * Auto-Save bleiben blockiert, bis der User „Neu laden" wählt oder den
+ * Drawer schließt.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from '@tanstack/react-form';
+import { useQueryClient } from '@tanstack/react-query';
 import type { CreateSicherungspostenDto, SicherungspostenDto, UpdateSicherungspostenDto } from '@bluelight-hub/shared/client';
 import { Button } from '@/shared/ui/atoms/button.atom';
 import { Input } from '@/shared/ui/atoms/input.atom';
 import { Textarea } from '@/shared/ui/atoms/textarea.atom';
 import { Dialog } from '@/shared/ui/molecules/dialog.molecule';
-import { SicherungspostenConflictError, useCreateSicherungsposten, useUpdateSicherungsposten } from '../../api/use-sicherungsposten';
+import { SicherungspostenConflictError, sicherungspostenQueryKeys, useCreateSicherungsposten, useUpdateSicherungsposten } from '../../api/use-sicherungsposten';
+import { useAutoSave, type AutoSaveStatus, type UseAutoSaveReturn } from '../../hooks/useAutoSave';
 import { sicherungspostenFormSchema, type SicherungspostenFormValues, type Standort, type PersonalEntry } from '../../schemas/sicherungsposten.schema';
 
 export interface SicherungspostenDrawerProps {
@@ -77,15 +82,72 @@ function normalizePersonalForSubmit(personal: PersonalEntry[]): PersonalEntry[] 
   });
 }
 
+/**
+ * Normalisiert den Ablösezeiten-Freitext: trimmt Whitespace und mappt
+ * leere Strings auf `null`. Story 4.2 — wird sowohl im `hasChanges`-Diff
+ * als auch im `saveFn`-Body verwendet, damit nur bedeutungsvolle
+ * Änderungen einen PATCH auslösen UND der persistierte Wert getrimmt
+ * ist (Backend-`@Length(0,2000)` validiert ohne Trim).
+ */
+function normalizeAbloesezeiten(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+}
+
+/**
+ * Inline-Statusbadge für den Auto-Save-Pfad der Ablösezeiten (Story 4.2).
+ * Rendert einen kleinen farbigen Pill-Badge neben der Sektions-Überschrift.
+ *
+ * Bewusst NICHT gerendert werden `local-saved` und `offline-queued` — beide
+ * Stati können in 4.2 nicht auftreten, da kein `onLocalSave`/`onOfflineSave`
+ * konfiguriert ist (Online-Only-Pivot).
+ */
+function AutoSaveBadge({ status }: { status: AutoSaveStatus }) {
+  const config: Partial<Record<AutoSaveStatus, { text: string; cls: string }>> = {
+    dirty: { text: 'Nicht gespeichert', cls: 'bg-status-warning-surface text-status-warning-text' },
+    debouncing: { text: 'Wird gespeichert…', cls: 'bg-surface-panel-elevated text-text-primary' },
+    syncing: { text: 'Wird synchronisiert…', cls: 'bg-surface-panel-elevated text-text-primary' },
+    synced: { text: 'Gespeichert', cls: 'bg-status-success-surface text-status-success-text' },
+    conflict: { text: 'Konflikt — bitte neu laden', cls: 'bg-status-warning-surface text-status-warning-text' },
+    error: { text: 'Fehler — Eingabe bleibt erhalten', cls: 'bg-status-danger-surface text-status-danger-text' },
+  };
+  const entry = config[status];
+  if (!entry) return null;
+  return (
+    <span data-testid="sicherungsposten-abloesezeiten-autosave-status" className={`rounded-full px-2 py-0.5 text-xs font-medium ${entry.cls}`}>
+      {entry.text}
+    </span>
+  );
+}
+
 export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten }: SicherungspostenDrawerProps) {
   const isEditMode = mode === 'edit';
   const createMutation = useCreateSicherungsposten(einsatzId);
   const updateMutation = useUpdateSicherungsposten(einsatzId);
+  const queryClient = useQueryClient();
 
   const [conflictError, setConflictError] = useState<SicherungspostenConflictError | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
 
   const defaults = useMemo(() => buildDefaults(posten), [posten]);
+
+  // Single-Source-of-Truth für die zuletzt bekannte Server-Version (Story 4.2,
+  // AC6). Sowohl der Footer-Submit (Edit-Mode) als auch der Auto-Save-Pfad der
+  // Ablösezeiten lesen/schreiben in DIESELBE Ref. So können Auto-Save-PATCHes
+  // und Footer-Submits beliebig verschachtelt ablaufen, ohne dass eine der
+  // beiden Routen mit einer veralteten `expectedVersion` einen falschen
+  // 409-Konflikt provoziert.
+  const latestVersionRef = useRef<number>(posten?.version ?? 1);
+  // Initialer Ablösezeiten-Wert beim Öffnen — Basis für den `hasChanges`-Diff
+  // im Auto-Save-Hook. Wird nach jedem erfolgreichen Save aktualisiert.
+  const initialAbloesezeitenRef = useRef<string | null>((posten?.abloesezeiten as string | null | undefined) ?? null);
+  // Forward-Ref auf den Auto-Save-Hook: der `useEffect` für `open`/`posten`
+  // muss vor dem `useAutoSave`-Aufruf stehen (Hook-Order), liest aber den
+  // Hook-State (Pending-Draft + `resetSynced`). Wird nach jedem Render auf
+  // den frischen Hook gesetzt; `useAutoSave` selbst gibt eine stabile
+  // Referenz mit Refs zurück, sodass die Stale-Lese unkritisch ist.
+  const autoSaveRef = useRef<UseAutoSaveReturn<string | null, SicherungspostenDto> | null>(null);
 
   const form = useForm<SicherungspostenFormValues>({
     defaultValues: defaults,
@@ -104,16 +166,29 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
 
       try {
         if (isEditMode && posten) {
+          // Story 4.2 / AC6: `expectedVersion` kommt aus der gemeinsamen
+          // `latestVersionRef`, NICHT aus `posten.version` — sonst würde ein
+          // zwischenzeitlich ausgeführter Auto-Save-PATCH (eigene Version
+          // bereits inkrementiert) hier einen falschen 409 erzeugen.
+          // `abloesezeiten` wird bewusst NICHT mitgesendet: Im Edit-Mode
+          // besitzt der Auto-Save-Pfad das Feld exklusiv und ist die einzige
+          // Quelle für PATCHes auf dieses Feld (AC4).
+          // Vor dem Footer-PATCH zuerst einen ggf. ausstehenden Auto-Save
+          // finalisieren — sonst lesen beide Pfade dieselbe `latestVersionRef`
+          // und der zweite Call kassiert einen unnötigen 409.
+          if (autoSaveRef.current?.hasPendingChanges) {
+            await autoSaveRef.current.flushNow();
+          }
           const body: UpdateSicherungspostenDto = {
-            expectedVersion: posten.version,
+            expectedVersion: latestVersionRef.current,
             bezeichnung: parsed.data.bezeichnung,
             standort: parsed.data.standort,
             personal: parsed.data.personal,
             einheitId: parsed.data.einheitId,
             zustaendigkeitsbereich: parsed.data.zustaendigkeitsbereich,
-            abloesezeiten: parsed.data.abloesezeiten,
           };
-          await updateMutation.mutateAsync({ postenId: posten.id, body });
+          const result = await updateMutation.mutateAsync({ postenId: posten.id, body });
+          latestVersionRef.current = result.version;
         } else {
           const body: CreateSicherungspostenDto = {
             bezeichnung: parsed.data.bezeichnung,
@@ -146,25 +221,89 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
   // monotone Marker (jede Mutation inkrementiert `version`).
   useEffect(() => {
     if (open) {
+      // Schutz vor Daten-Verlust: Wenn der Auto-Save-Hook noch ungesaved'te
+      // Eingaben hält und das Effect durch eine externe Posten-Version-Änderung
+      // ausgelöst wurde (z. B. WS-Invalidate eines anderen Tabs während des
+      // Tippens), würde `form.reset` den User-Draft überschreiben. In dem Fall
+      // halten wir den Draft und überspringen das Reset; der Auto-Save-Pfad
+      // schreibt den Draft bei nächstem Tick auf den frischen Server-Stand,
+      // ggf. mit 409-Konflikt-Banner als Recovery.
+      if (autoSaveRef.current?.hasPendingChanges) return;
       form.reset(buildDefaults(posten));
       setConflictError(null);
       setInlineError(null);
+      // Refs auf den frischen Posten-Snapshot zurücksetzen (Story 4.2):
+      // beim Öffnen mit anderem Posten oder neuer Version müssen sowohl die
+      // gemeinsame Versions-Ref als auch die Diff-Baseline für `hasChanges`
+      // re-initialisiert werden.
+      latestVersionRef.current = posten?.version ?? 1;
+      initialAbloesezeitenRef.current = (posten?.abloesezeiten as string | null | undefined) ?? null;
+      // Auto-Save-Hook-Internal-State zurücksetzen — sonst persistiert
+      // `conflictPausedRef` einer vorigen Drawer-Session, und der Hook
+      // bleibt nach Reopen permanent paused.
+      autoSaveRef.current?.resetSynced(initialAbloesezeitenRef.current);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, posten?.id, posten?.version]);
 
-  const handleClose = () => {
+  // Auto-Save-Verdrahtung für die Ablösezeiten (Story 4.2, AC4–AC8). Nur
+  // im Edit-Mode aktiv (`enabled`). Während eines aktiven 409-Konflikts wird
+  // der Hook deaktiviert, damit nicht weiter gegen die alte Server-Version
+  // geschrieben wird — der User muss zunächst „Neu laden" wählen.
+  const autoSave = useAutoSave<string | null, SicherungspostenDto>({
+    entityId: posten?.id ?? '',
+    entityType: 'sicherungsposten.abloesezeiten',
+    debounceMs: 2000,
+    enabled: isEditMode && !conflictError && !!posten,
+    saveFn: async (draft) => {
+      if (!posten) {
+        throw new Error('saveFn: posten missing');
+      }
+      const dto = await updateMutation.mutateAsync({
+        postenId: posten.id,
+        body: { expectedVersion: latestVersionRef.current, abloesezeiten: normalizeAbloesezeiten(draft) },
+      });
+      latestVersionRef.current = dto.version;
+      return dto;
+    },
+    isValid: (draft) => (draft?.length ?? 0) <= 2000,
+    hasChanges: (draft) => normalizeAbloesezeiten(draft) !== normalizeAbloesezeiten(initialAbloesezeitenRef.current),
+    isConflictError: (error) => error instanceof SicherungspostenConflictError,
+    onSaved: (dto) => {
+      initialAbloesezeitenRef.current = (dto.abloesezeiten as string | null | undefined) ?? null;
+      void queryClient.invalidateQueries({ queryKey: sicherungspostenQueryKeys.byEinsatz(einsatzId) });
+    },
+    onConflict: (error) => {
+      setConflictError(error as SicherungspostenConflictError);
+    },
+  });
+  // Forward-Ref aktualisieren, damit der zuvor deklarierte Open-Effect den
+  // aktuellen Hook-State sehen kann.
+  autoSaveRef.current = autoSave;
+
+  // `handleClose` MUSS asynchron sein (Story 4.2, AC5), damit eine noch
+  // ausstehende Auto-Save-Schreibung vor dem Schließen finalisiert wird.
+  // 3-Sekunden-Race verhindert, dass der Drawer hängen bleibt, falls der
+  // Server nicht antwortet — die Eingabe geht dabei nicht verloren, weil
+  // der Auto-Save-Hook im Hintergrund weiterläuft (siehe `useAutoSave`).
+  const handleClose = useCallback(async () => {
+    if (isEditMode && autoSave.hasPendingChanges && posten) {
+      const currentValue = form.getFieldValue('abloesezeiten') ?? null;
+      const flushPromise = autoSave.flushNow(normalizeAbloesezeiten(currentValue as string | null | undefined));
+      const timeoutPromise = new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 3000));
+      await Promise.race([flushPromise, timeoutPromise]);
+    }
     setConflictError(null);
     setInlineError(null);
     onClose();
-  };
+  }, [autoSave, isEditMode, posten, form, onClose]);
 
   const isSubmitDisabled = createMutation.isPending || updateMutation.isPending || conflictError !== null;
 
   return (
     <Dialog.SlideIn
       isOpen={open}
-      onClose={handleClose}
+      onClose={() => void handleClose()}
       title={isEditMode ? 'Sicherungsposten bearbeiten' : 'Neuer Sicherungsposten'}
       description={isEditMode ? 'Bezeichnung, Standort, Personal oder Zuständigkeit anpassen.' : 'Posten für den aktuellen Einsatz anlegen.'}
       size="lg"
@@ -434,20 +573,82 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
           </form.Field>
         </section>
 
-        <section className="rounded-control border border-border-subtle bg-surface-panel-elevated px-3 py-2 text-xs text-text-muted" data-testid="sicherungsposten-abloesezeiten-stub">
-          Ablösezeiten — Pflege in Story 4.2.
+        <section aria-labelledby="sicherungsposten-abloesezeiten-heading" className="space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <h2 id="sicherungsposten-abloesezeiten-heading" className="text-sm font-semibold text-text-primary">
+              Ablösezeiten
+            </h2>
+            {/* `conflictError` wird auch über den Footer-Submit-Pfad gesetzt
+                (nicht nur über `useAutoSave.onConflict`). Der Hook-Status
+                allein reicht deshalb nicht — wir überlagern, damit das Badge
+                in beiden Konflikt-Quellen „Konflikt — bitte neu laden" zeigt. */}
+            {isEditMode ? <AutoSaveBadge status={conflictError ? 'conflict' : autoSave.status} /> : null}
+          </div>
+          <p className="text-xs text-text-muted">Freitext, z. B. „08:00 – 12:00 Trupp 1, 12:00 – 16:00 Trupp 2". Schichtplanung als strukturierte Eingabe folgt in Phase 2.</p>
+          <form.Field name="abloesezeiten">
+            {(field) => {
+              const value = field.state.value ?? '';
+              const length = value.length;
+              const overLimit = length > 2000;
+              return (
+                <>
+                  <Textarea
+                    id="sicherungsposten-abloesezeiten"
+                    data-testid="sicherungsposten-abloesezeiten"
+                    value={value}
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      field.handleChange(next || undefined);
+                      if (isEditMode && posten) {
+                        autoSave.scheduleSave(normalizeAbloesezeiten(next));
+                      }
+                    }}
+                    maxLength={2000}
+                    rows={4}
+                    className="mt-1"
+                    aria-describedby="sicherungsposten-abloesezeiten-counter"
+                  />
+                  <span
+                    id="sicherungsposten-abloesezeiten-counter"
+                    data-testid="sicherungsposten-abloesezeiten-counter"
+                    aria-live="polite"
+                    className={`block text-right text-xs ${overLimit ? 'text-status-danger-text' : 'text-text-muted'}`}
+                  >
+                    {length} / 2000 Zeichen
+                  </span>
+                </>
+              );
+            }}
+          </form.Field>
         </section>
 
         {conflictError ? (
-          <p
+          <div
             role="alert"
             data-testid="sicherungsposten-drawer-conflict-banner"
             className="rounded-control border border-status-warning-border bg-status-warning-surface px-3 py-2 text-sm text-status-warning-text"
           >
-            {conflictError.currentVersion !== undefined
-              ? `Posten wurde zwischenzeitlich aktualisiert (Server-Version: ${conflictError.currentVersion}). Bitte neu laden.`
-              : 'Posten wurde zwischenzeitlich aktualisiert. Bitte neu laden.'}
-          </p>
+            <p>
+              {conflictError.currentVersion !== undefined
+                ? `Posten wurde zwischenzeitlich aktualisiert (Server-Version: ${conflictError.currentVersion}). Bitte neu laden.`
+                : 'Posten wurde zwischenzeitlich aktualisiert. Bitte neu laden.'}
+            </p>
+            <Button
+              intent="primary"
+              appearance="ghost"
+              size="sm"
+              type="button"
+              data-testid="sicherungsposten-drawer-conflict-reload"
+              onClick={() => {
+                void queryClient.invalidateQueries({ queryKey: sicherungspostenQueryKeys.byEinsatz(einsatzId) });
+                setConflictError(null);
+                onClose();
+              }}
+              className="mt-2"
+            >
+              Neu laden
+            </Button>
+          </div>
         ) : null}
 
         {inlineError ? (
@@ -461,7 +662,7 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
         ) : null}
 
         <footer className="mt-auto flex items-center justify-end gap-2 border-t border-border-subtle pt-4">
-          <Button intent="secondary" appearance="ghost" type="button" onClick={handleClose}>
+          <Button intent="secondary" appearance="ghost" type="button" onClick={() => void handleClose()}>
             Abbrechen
           </Button>
           <Button intent="primary" type="submit" disabled={isSubmitDisabled} loading={createMutation.isPending || updateMutation.isPending} data-testid="sicherungsposten-drawer-submit">

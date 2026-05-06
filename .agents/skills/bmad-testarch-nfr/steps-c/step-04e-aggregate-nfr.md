@@ -148,7 +148,11 @@ const subagentExecutionLabel =
         : 'MODE-DEPENDENT (4 NFR domains)';
 
 const performanceGainLabel =
-  resolvedMode === 'sequential' ? 'baseline (no parallel speedup)' : resolvedMode === 'agent-team' || resolvedMode === 'subagent' ? '~67% faster than sequential' : 'mode-dependent';
+  resolvedMode === 'sequential'
+    ? 'baseline (no parallel speedup)'
+    : resolvedMode === 'agent-team' || resolvedMode === 'subagent'
+      ? '~67% faster than sequential'
+      : 'mode-dependent';
 
 const executiveSummary = {
   overall_risk: overallRisk,

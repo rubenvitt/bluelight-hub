@@ -4,41 +4,41 @@ name: bmad-testarch-trace
 description: 'Generate traceability matrix and quality gate decision. Use when the user says "lets create traceability matrix" or "I want to analyze test coverage"'
 
 # Critical variables from config
-config_source: '{project-root}/_bmad/tea/config.yaml'
-output_folder: '{config_source}:output_folder'
-test_artifacts: '{config_source}:test_artifacts'
-user_name: '{config_source}:user_name'
-communication_language: '{config_source}:communication_language'
-document_output_language: '{config_source}:document_output_language'
+config_source: "{project-root}/_bmad/tea/config.yaml"
+output_folder: "{config_source}:output_folder"
+test_artifacts: "{config_source}:test_artifacts"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+document_output_language: "{config_source}:document_output_language"
 date: system-generated
 
 # Workflow components
-installed_path: '.'
-instructions: './instructions.md'
-validation: './checklist.md'
-template: './trace-template.md'
+installed_path: "."
+instructions: "./instructions.md"
+validation: "./checklist.md"
+template: "./trace-template.md"
 
 # Variables and inputs
 variables:
   # Directory paths
-  test_dir: '{project-root}/tests' # Root test directory
-  source_dir: '{project-root}' # Source code directory (customize if needed, e.g., {project-root}/src or {project-root}/lib)
+  test_dir: "{project-root}/tests" # Root test directory
+  source_dir: "{project-root}" # Source code directory (customize if needed, e.g., {project-root}/src or {project-root}/lib)
 
   # Workflow behavior
-  coverage_levels: 'e2e,api,component,unit' # Which test levels to trace
-  gate_type: 'story' # story | epic | release | hotfix - determines gate scope
-  decision_mode: 'deterministic' # deterministic (rule-based) | manual (team decision)
-  collection_mode: 'contract_static' # contract_static | inventory_only | runtime_manifest | deferred_shared | waived | restricted | inaccessible
+  coverage_levels: "e2e,api,component,unit" # Which test levels to trace
+  gate_type: "story" # story | epic | release | hotfix - determines gate scope
+  decision_mode: "deterministic" # deterministic (rule-based) | manual (team decision)
+  collection_mode: "contract_static" # contract_static | inventory_only | runtime_manifest | deferred_shared | waived | restricted | inaccessible
   allow_gate: true # Emit gate_status and gate-decision.json only when collection is gate-eligible
-  coverage_basis: 'auto' # auto | acceptance_criteria | synthetic_requirements | openapi_endpoints | user_journeys; Step 1 must resolve and persist a concrete value before Step 4/5 export
-  summary_confidence: 'auto' # auto | high | medium | low; Step 1 must resolve and persist a concrete value before Step 4/5 export
+  coverage_basis: "auto" # auto | acceptance_criteria | synthetic_requirements | openapi_endpoints | user_journeys; Step 1 must resolve and persist a concrete value before Step 4/5 export
+  summary_confidence: "auto" # auto | high | medium | low; Step 1 must resolve and persist a concrete value before Step 4/5 export
   allow_external_pointer_resolution: true # Follow local placeholder pointers (e.g., Jira/Confluence) when compatible adapters exist
   allow_synthetic_oracle: true # Infer journeys/requirements from source when no formal oracle exists
 
 # Output configuration
-default_output_file: '{test_artifacts}/traceability-matrix.md'
-e2e_trace_summary_output: '{test_artifacts}/e2e-trace-summary.json' # Machine-readable summary consumed by CI/CD and reporting pipelines
-gate_decision_output: '{test_artifacts}/gate-decision.json' # Optional downstream gate signal for CI/CD enforcement
+default_output_file: "{test_artifacts}/traceability-matrix.md"
+e2e_trace_summary_output: "{test_artifacts}/e2e-trace-summary.json" # Machine-readable summary consumed by CI/CD and reporting pipelines
+gate_decision_output: "{test_artifacts}/gate-decision.json" # Optional downstream gate signal for CI/CD enforcement
 
 # e2e-trace-summary.json schema (emitted by step-05 at workflow completion)
 # schema_version: 1

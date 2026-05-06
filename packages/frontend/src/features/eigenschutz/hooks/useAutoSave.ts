@@ -322,7 +322,18 @@ export function useAutoSave<TDraft, TResult>(options: UseAutoSaveOptions<TDraft,
   const scheduleSave = useCallback(
     (draft: TDraft): boolean => {
       const request = buildRequest(draft, 'auto-save');
-      if (!request) return false;
+      if (!request) {
+        // `isSaveable` lehnt aus mehreren Gründen ab. Wenn der einzige Grund die
+        // gescheiterte `isValid`-Prüfung bei vorhandener Änderung ist, soll der
+        // Hook trotzdem in den `dirty`-Status gehen (UX-Signal „Nicht
+        // gespeichert"). Andere Ablehnungs-Gründe (disabled, conflict-paused,
+        // unverändert) lassen den vorhandenen Status unangetastet.
+        if (enabledRef.current && !conflictPausedRef.current && isValidRef.current && !isValidRef.current(draft) && (!hasChangesRef.current || hasChangesRef.current(draft))) {
+          setStatus('dirty');
+          setHasPendingChanges(true);
+        }
+        return false;
+      }
       setStatus('debouncing');
       setHasPendingChanges(true);
       void persistLocalDraft(request, true);

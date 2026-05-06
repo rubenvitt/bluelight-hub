@@ -109,27 +109,38 @@ function SicherungspostenTable({ status, einsatzId, onEdit, onAufloesen }: Table
           </tr>
         </thead>
         <tbody className="divide-y divide-border-subtle bg-surface-panel">
-          {rows.map((posten) => (
-            <tr key={posten.id} data-testid={`sicherungsposten-row-${posten.id}`} className="text-text-primary">
-              <td className="px-3 py-2 font-medium">{posten.bezeichnung}</td>
-              <td className="px-3 py-2 text-text-secondary">{formatStandort(posten.standort)}</td>
-              <td className="px-3 py-2 text-text-secondary">{Array.isArray(posten.personal) ? posten.personal.length : 0}</td>
-              <td className="px-3 py-2 text-right">
-                {status === 'AKTIV' ? (
-                  <div className="flex justify-end gap-2">
-                    <Button intent="secondary" appearance="ghost" size="sm" onClick={() => onEdit(posten)} data-testid={`sicherungsposten-edit-${posten.id}`}>
-                      Bearbeiten
-                    </Button>
-                    <Button intent="secondary" appearance="ghost" size="sm" onClick={() => onAufloesen(posten)} data-testid={`sicherungsposten-aufloesen-${posten.id}`}>
-                      Auflösen
-                    </Button>
-                  </div>
-                ) : (
-                  <span className="text-xs text-text-muted">aufgelöst</span>
-                )}
-              </td>
-            </tr>
-          ))}
+          {rows.map((posten) => {
+            const standortKind = posten.standort && typeof posten.standort === 'object' ? (posten.standort as { kind?: unknown }).kind : undefined;
+            const showAddressHint = status === 'AKTIV' && standortKind === 'address';
+            return (
+              <tr key={posten.id} data-testid={`sicherungsposten-row-${posten.id}`} className="text-text-primary">
+                <td className="px-3 py-2 font-medium">{posten.bezeichnung}</td>
+                <td className="px-3 py-2 text-text-secondary">
+                  {formatStandort(posten.standort)}
+                  {showAddressHint ? (
+                    <span data-testid={`sicherungsposten-no-coordinate-hint-${posten.id}`} className="block text-xs text-text-muted italic">
+                      Kein Standort — auf Karte nicht sichtbar
+                    </span>
+                  ) : null}
+                </td>
+                <td className="px-3 py-2 text-text-secondary">{Array.isArray(posten.personal) ? posten.personal.length : 0}</td>
+                <td className="px-3 py-2 text-right">
+                  {status === 'AKTIV' ? (
+                    <div className="flex justify-end gap-2">
+                      <Button intent="secondary" appearance="ghost" size="sm" onClick={() => onEdit(posten)} data-testid={`sicherungsposten-edit-${posten.id}`}>
+                        Bearbeiten
+                      </Button>
+                      <Button intent="secondary" appearance="ghost" size="sm" onClick={() => onAufloesen(posten)} data-testid={`sicherungsposten-aufloesen-${posten.id}`}>
+                        Auflösen
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-text-muted">aufgelöst</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

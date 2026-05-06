@@ -312,6 +312,14 @@ vi.mock('@/features/lagekarte/ui/molecules/TaktischeZeichenLayer.molecule', () =
   TaktischeZeichenLayer: () => <div data-testid="taktische-zeichen-layer" />,
 }));
 
+vi.mock('@/features/eigenschutz', async () => {
+  const actual = await vi.importActual<typeof import('@/features/eigenschutz')>('@/features/eigenschutz');
+  return {
+    ...actual,
+    SecurityPostMapMarker: () => <div data-testid="security-post-map-marker-mock" />,
+  };
+});
+
 vi.mock('@/features/lagekarte/ui/molecules/KartenZeichenSidebar.molecule', () => ({
   KartenZeichenSidebar: () => <div data-testid="karten-zeichen-sidebar" />,
 }));
@@ -406,6 +414,12 @@ describe('LagekarteView', () => {
       render(<LagekarteView einsatzId="einsatz-1" />);
 
       expect(screen.getByTestId('layer-switcher')).toBeInTheDocument();
+    });
+
+    it('sollte SecurityPostMapMarker rendern (Story 4.3, FR28)', () => {
+      render(<LagekarteView einsatzId="einsatz-1" />);
+
+      expect(screen.getByTestId('security-post-map-marker-mock')).toBeInTheDocument();
     });
   });
 

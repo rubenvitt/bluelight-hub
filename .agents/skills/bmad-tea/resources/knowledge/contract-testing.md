@@ -167,8 +167,7 @@ describe('User API Contract', () => {
 ```json
 {
   "scripts": {
-    "test:pact:consumer": "./scripts/check-pact-determinism.sh 'npm run test:pact:consumer:run' 3 ./pacts",
-    "test:pact:consumer:run": "vitest run --config vitest.config.pact.ts",
+    "test:pact:consumer": "vitest run --config vitest.config.pact.ts",
     "publish:pact": ". ./scripts/env-setup.sh && ./scripts/publish-pact.sh"
   }
 }
@@ -643,7 +642,10 @@ export class ApiError extends Error {
 /**
  * User API client with retry and error handling
  */
-export async function getUserById(id: number, config?: AxiosRequestConfig & { retries?: number; retryDelay?: number; respectRateLimit?: boolean }): Promise<User> {
+export async function getUserById(
+  id: number,
+  config?: AxiosRequestConfig & { retries?: number; retryDelay?: number; respectRateLimit?: boolean },
+): Promise<User> {
   const { retries = 3, retryDelay = 1000, respectRateLimit = true, ...axiosConfig } = config || {};
 
   let lastError: Error;
@@ -724,7 +726,19 @@ function tagRelease(version: string, environment: 'staging' | 'production') {
 
   execFileSync(
     'pact-broker',
-    ['create-version-tag', '--pacticipant', PACTICIPANT, '--version', version, '--tag', environment, '--broker-base-url', PACT_BROKER_BASE_URL, '--broker-token', PACT_BROKER_TOKEN],
+    [
+      'create-version-tag',
+      '--pacticipant',
+      PACTICIPANT,
+      '--version',
+      version,
+      '--tag',
+      environment,
+      '--broker-base-url',
+      PACT_BROKER_BASE_URL,
+      '--broker-token',
+      PACT_BROKER_TOKEN,
+    ],
     { stdio: 'inherit' },
   );
 }
@@ -737,7 +751,19 @@ function recordDeployment(version: string, environment: 'staging' | 'production'
 
   execFileSync(
     'pact-broker',
-    ['record-deployment', '--pacticipant', PACTICIPANT, '--version', version, '--environment', environment, '--broker-base-url', PACT_BROKER_BASE_URL, '--broker-token', PACT_BROKER_TOKEN],
+    [
+      'record-deployment',
+      '--pacticipant',
+      PACTICIPANT,
+      '--version',
+      version,
+      '--environment',
+      environment,
+      '--broker-base-url',
+      PACT_BROKER_BASE_URL,
+      '--broker-token',
+      PACT_BROKER_TOKEN,
+    ],
     { stdio: 'inherit' },
   );
 }
@@ -751,7 +777,19 @@ function cleanupOldPacts() {
 
   execFileSync(
     'pact-broker',
-    ['clean', '--pacticipant', PACTICIPANT, '--broker-base-url', PACT_BROKER_BASE_URL, '--broker-token', PACT_BROKER_TOKEN, '--keep-latest-for-branch', '1', '--keep-min-age', '30'],
+    [
+      'clean',
+      '--pacticipant',
+      PACTICIPANT,
+      '--broker-base-url',
+      PACT_BROKER_BASE_URL,
+      '--broker-token',
+      PACT_BROKER_TOKEN,
+      '--keep-latest-for-branch',
+      '1',
+      '--keep-min-age',
+      '30',
+    ],
     { stdio: 'inherit' },
   );
 }
@@ -1017,7 +1055,7 @@ Four rules that together prevent both (a) non-deterministic pact generation fail
 1. **Consumer Vitest `fileParallelism: false`** in `vitest.config.pact.ts` — prevents parallel workers from racing on the shared pact JSON. See `pact-consumer-framework-setup.md` Example 2.
 2. **Consumer Vitest `pool: 'forks'` + `poolOptions.forks.singleFork: true`** in `vitest.config.pact.ts` — same config as the provider side (`pactjs-utils-provider-verifier.md` Example 7). Best current understanding: the `@pact-foundation/pact` napi-rs binding is not robust across Vitest worker threads sharing a process; serialization alone (via `fileParallelism: false`) is insufficient on the default threads pool in Vitest v1. Forks + `singleFork: true` runs every pact file in one subprocess with a coherent FFI handle and eliminated a reproducible Linux-CI flake on two repos (`pactjs-utils`, `seon-mcp-server`). Single-file consumer suites have not been observed to flake; this rule is still recommended as a future-proof. See `pact-consumer-framework-setup.md` Example 2.
 3. **One `addInteraction()` per `it()` block** — see `pactjs-utils-consumer-helpers.md` Example 6.
-4. **Determinism gate** runs the consumer suite N times and fails on byte-different pact JSON before publish — see `pact-consumer-framework-setup.md` Example 10 (`scripts/check-pact-determinism.sh`).
+4. **`publish-pact.sh` jq normalization** sorts interactions before publish — ensures byte-stable payload to PactFlow regardless of generator ordering quirks. See `pact-consumer-framework-setup.md` Example 4.
 
 Provider suites require the same `pool: 'forks'` + `singleFork: true` combination — see `pactjs-utils-provider-verifier.md` Example 7.
 

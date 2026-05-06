@@ -84,7 +84,11 @@ const score = Math.max(0, 100 - totalPenalty);
     "MEDIUM": 2,
     "LOW": 1
   },
-  "recommendations": ["Split large test files into smaller, focused files (<100 lines each)", "Add test.describe grouping for related tests", "Extract duplicate logic into helper functions"],
+  "recommendations": [
+    "Split large test files into smaller, focused files (<100 lines each)",
+    "Add test.describe grouping for related tests",
+    "Extract duplicate logic into helper functions"
+  ],
   "summary": "Tests have maintainability issues - 5 violations (2 HIGH)"
 }
 ```

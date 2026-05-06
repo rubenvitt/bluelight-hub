@@ -2767,7 +2767,7 @@ model Sicherungsposten {
   standort               Json
   zustaendigkeitsbereich String?   @db.Text
   personal               Json
-  abloesezeiten          String?   @db.VarChar(500)
+  abloesezeiten          String?   @db.VarChar(2000)
   version                Int       @default(1)
   erstelltAm             DateTime  @default(now()) @map("erstellt_am")
   erstelltVonUserId      String    @map("erstellt_von_user_id")

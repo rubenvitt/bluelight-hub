@@ -31,6 +31,7 @@ export { GefaehrdungItemEditor } from './ui/molecules/GefaehrdungItemEditor';
 export { GefaehrdungenEditorOrganism } from './ui/organisms/GefaehrdungenEditorOrganism';
 export { GefaehrdungseditorDrawer } from './ui/organisms/GefaehrdungseditorDrawer.organism';
 export { RiskMatrix5x5 } from './ui/organisms/RiskMatrix5x5';
+export { SICHERUNGSPOSTEN_LAYER_ID, SICHERUNGSPOSTEN_MARKER_IMAGE, SICHERUNGSPOSTEN_SOURCE_ID, SecurityPostMapMarker } from './ui/organisms/SecurityPostMapMarker';
 export { EigenschutzEntryPage } from './ui/pages/EigenschutzEntryPage';
 export { GefaehrdungenDetailPage } from './ui/pages/GefaehrdungenDetailPage';
 export { GefaehrdungenPage } from './ui/pages/GefaehrdungenPage';

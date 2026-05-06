@@ -131,10 +131,10 @@ export class CreateSicherungspostenDto {
   @Length(0, 4000)
   zustaendigkeitsbereich?: string;
 
-  @ApiPropertyOptional({ description: 'Ablösezeiten-Hinweis (Read-Only-Stub in 4.1, ≤ 500)' })
+  @ApiPropertyOptional({ description: 'Ablösezeiten als Freitext (z. B. „08:00 – 12:00 Trupp 1", ≤ 2000)' })
   @IsOptional()
   @IsString()
-  @Length(0, 500)
+  @Length(0, 2000)
   abloesezeiten?: string;
 }
 
@@ -206,11 +206,11 @@ export class UpdateSicherungspostenDto {
   @Length(0, 4000)
   zustaendigkeitsbereich?: string | null;
 
-  @ApiPropertyOptional({ description: 'Ablösezeiten (≤ 500, null = leeren)', nullable: true })
+  @ApiPropertyOptional({ description: 'Ablösezeiten (≤ 2000, null = leeren)', nullable: true })
   @IsOptional()
   @ValidateIf((_obj, value) => value !== null)
   @IsString()
-  @Length(0, 500)
+  @Length(0, 2000)
   abloesezeiten?: string | null;
 }
 

@@ -1,5 +1,14 @@
 ---
-stepsCompleted: ['step-01-discovery', 'step-02-classification', 'step-03-requirements', 'step-04-tools', 'step-05-plan-review', 'step-06-design', 'step-07-foundation']
+stepsCompleted:
+  [
+    'step-01-discovery',
+    'step-02-classification',
+    'step-03-requirements',
+    'step-04-tools',
+    'step-05-plan-review',
+    'step-06-design',
+    'step-07-foundation',
+  ]
 created: 2026-01-27
 status: FOUNDATION_COMPLETE
 approvedDate: 2026-01-27

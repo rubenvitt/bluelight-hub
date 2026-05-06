@@ -92,7 +92,7 @@ export function EtbEntryForm({
   const { data: personen } = useEinsatzPersonen(einsatzId ?? null);
   const { data: alleTeilnehmer } = useEinsatzTeilnehmer(einsatzId);
 
-  const [selectedKategorie, setSelectedKategorie] = useState<AddEintragDtoKategorieEnum>(editingEntry?.kategorie || AddEintragDtoKategorieEnum.Lage);
+  const [selectedKategorie, setSelectedKategorie] = useState<AddEintragDtoKategorieEnum>(editingEntry?.kategorie || AddEintragDtoKategorieEnum.Dokumentation);
   const [pendingTextbaustein, setPendingTextbaustein] = useState<{ id: string; text: string } | null>(null);
   const [lastAppliedTextbausteinText, setLastAppliedTextbausteinText] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -141,7 +141,7 @@ export function EtbEntryForm({
 
   const form = useForm({
     defaultValues: {
-      kategorie: editingEntry?.kategorie || AddEintragDtoKategorieEnum.Lage,
+      kategorie: editingEntry?.kategorie || AddEintragDtoKategorieEnum.Dokumentation,
       text: editingEntry?.text || '',
       absender: editingEntry?.absender || autoFillAbsender,
       empfaenger: editingEntry?.empfaenger || '',
@@ -213,12 +213,12 @@ export function EtbEntryForm({
       setSelectedKategorie(editingEntry.kategorie);
     } else {
       form.reset({
-        kategorie: AddEintragDtoKategorieEnum.Lage,
+        kategorie: AddEintragDtoKategorieEnum.Dokumentation,
         text: '',
         absender: autoFillAbsender,
         empfaenger: '',
       });
-      setSelectedKategorie(AddEintragDtoKategorieEnum.Lage);
+      setSelectedKategorie(AddEintragDtoKategorieEnum.Dokumentation);
     }
     resetSelection();
     setPendingTextbaustein(null);

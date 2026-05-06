@@ -230,7 +230,43 @@ describe('Sicherungsposten Aggregate (Story 4.1)', () => {
     expect(ok.value!.toJSON()).toEqual({ kind: 'address', text: 'Hauptbahnhof' });
   });
 
-  it('(15) reconstitute() rehydriert Aggregate ohne Events zu emittieren', () => {
+  it('(15-S4.2-A) update({ abloesezeiten: <2000-Zeichen> }) ist erfolgreich, changedFields enthält abloesezeiten', () => {
+    const aggregate = Sicherungsposten.create({
+      einsatzId: EINSATZ_ID,
+      bezeichnung: 'Posten Nord',
+      standort: buildAddressStandort(),
+      personal: [],
+      createdBy: USER_ID,
+    }).value!;
+    aggregate.clearDomainEvents();
+    const text2000 = 'ä'.repeat(2000);
+    const result = aggregate.update({ abloesezeiten: text2000 }, 1, USER_ID);
+    expect(result.isSuccess).toBe(true);
+    expect(aggregate.version).toBe(2);
+    const events = aggregate.getDomainEvents();
+    expect(events).toHaveLength(1);
+    const event = events[0] as SicherungspostenAktualisiertEvent;
+    expect(event.changedFields.changed).toEqual(['abloesezeiten']);
+  });
+
+  it('(15-S4.2-B) update({ abloesezeiten: <2001-Zeichen> }) liefert Result.fail(/abloesezeiten/)', () => {
+    const aggregate = Sicherungsposten.create({
+      einsatzId: EINSATZ_ID,
+      bezeichnung: 'Posten Nord',
+      standort: buildAddressStandort(),
+      personal: [],
+      createdBy: USER_ID,
+    }).value!;
+    aggregate.clearDomainEvents();
+    const text2001 = 'a'.repeat(2001);
+    const result = aggregate.update({ abloesezeiten: text2001 }, 1, USER_ID);
+    expect(result.isFailure).toBe(true);
+    expect(result.error).toMatch(/abloesezeiten/);
+    expect(aggregate.version).toBe(1);
+    expect(aggregate.getDomainEvents()).toHaveLength(0);
+  });
+
+  it('(16) reconstitute() rehydriert Aggregate ohne Events zu emittieren', () => {
     const result = Sicherungsposten.reconstitute({
       id: 'clw3h8x9y0000qwertyui04099',
       einsatzId: EINSATZ_ID,

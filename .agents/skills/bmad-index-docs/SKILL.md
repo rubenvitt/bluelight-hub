@@ -7,6 +7,7 @@ description: 'Generates or updates an index.md to reference all docs in the fold
 
 **Goal:** Generate or update an index.md to reference all docs in a target folder.
 
+
 ## EXECUTION
 
 ### Step 1: Scan Directory
@@ -24,6 +25,7 @@ description: 'Generates or updates an index.md to reference all docs in the fold
 ### Step 4: Create/Update Index
 
 - Write or update index.md with organized file listings
+
 
 ## OUTPUT FORMAT
 
@@ -47,10 +49,12 @@ description: 'Generates or updates an index.md to reference all docs in the fold
 - **[file3.ext](./another-folder/file3.ext)** - Brief description
 ```
 
+
 ## HALT CONDITIONS
 
 - HALT if target directory does not exist or is inaccessible
 - HALT if user does not have write permissions to create index.md
+
 
 ## VALIDATION
 

@@ -76,7 +76,7 @@ describe('useAutoSave (Story 2.5)', () => {
     expect(result.current.status).toBe('synced');
   });
 
-  it('erstellt bei invalidem Draft weder Server-Save noch Pending-State', () => {
+  it('blockiert Server-Save bei invalidem Draft, signalisiert aber `dirty` als UX-Hinweis (AC7)', () => {
     const saveFn = vi.fn().mockResolvedValue({ version: 2 });
     const { result } = renderHook(() =>
       useAutoSave({
@@ -92,8 +92,13 @@ describe('useAutoSave (Story 2.5)', () => {
       result.current.scheduleSave({ title: '   ' });
     });
 
+    // Spec-Wechsel Story 4.2 / AC7: Statt stumm bei `idle` zu bleiben, geht
+    // der Hook bei der einzigen Ablehnungs-Ursache `isValid=false` jetzt
+    // in `dirty` — das Badge muss „Nicht gespeichert" anzeigen, damit der
+    // User den Validierungs-Fehler sieht.
     expect(saveFn).not.toHaveBeenCalled();
-    expect(result.current.status).toBe('idle');
+    expect(result.current.status).toBe('dirty');
+    expect(result.current.hasPendingChanges).toBe(true);
   });
 
   it('ignoriert ältere Serverantworten für onSaved, wenn während in-flight ein neuer Draft entsteht', async () => {

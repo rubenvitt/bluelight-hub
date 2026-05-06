@@ -107,4 +107,26 @@ describe('SicherungspostenList', () => {
     });
     expect(screen.queryByTestId(`sicherungsposten-aufloesen-${POSTEN_AUFGELOEST.id}`)).not.toBeInTheDocument();
   });
+
+  it('zeigt im AKTIV-Tab den „Kein Standort"-Hinweis für address-only Sicherungsposten', () => {
+    setup();
+    const hint = screen.getByTestId(`sicherungsposten-no-coordinate-hint-${POSTEN_AKTIV.id}`);
+    expect(hint).toBeInTheDocument();
+    expect(hint).toHaveTextContent('Kein Standort — auf Karte nicht sichtbar');
+  });
+
+  it('rendert den „Kein Standort"-Hinweis NICHT für coordinate-Sicherungsposten', () => {
+    const coordinatePosten = {
+      ...POSTEN_AKTIV,
+      id: 'posten-coord',
+      bezeichnung: 'Koordinaten-Posten',
+      standort: { kind: 'coordinate', longitude: 10.5, latitude: 50.3 },
+    };
+    listMock.current = vi.fn((_einsatzId: string, status: 'AKTIV' | 'AUFGELOEST') => {
+      if (status === 'AKTIV') return { data: [coordinatePosten], isPending: false, isError: false };
+      return { data: [], isPending: false, isError: false };
+    });
+    setup();
+    expect(screen.queryByTestId('sicherungsposten-no-coordinate-hint-posten-coord')).toBeNull();
+  });
 });

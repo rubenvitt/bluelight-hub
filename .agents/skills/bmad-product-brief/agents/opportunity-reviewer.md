@@ -25,10 +25,20 @@ Return ONLY the following JSON object. No preamble, no commentary. Focus on the 
 
 ```json
 {
-  "untapped_value": [{ "opportunity": "adjacent problem or value prop", "rationale": "why it matters" }],
-  "positioning_opportunities": [{ "angle": "market angle or narrative", "impact": "how it strengthens the brief" }],
-  "growth_and_scale": ["bullet — network effects, viral loops, expansion paths"],
-  "strategic_partnerships": [{ "partner_type": "who", "value": "why this alliance matters" }],
-  "underemphasized_strengths": [{ "strength": "what's underplayed", "suggestion": "how to elevate it" }]
+  "untapped_value": [
+    {"opportunity": "adjacent problem or value prop", "rationale": "why it matters"}
+  ],
+  "positioning_opportunities": [
+    {"angle": "market angle or narrative", "impact": "how it strengthens the brief"}
+  ],
+  "growth_and_scale": [
+    "bullet — network effects, viral loops, expansion paths"
+  ],
+  "strategic_partnerships": [
+    {"partner_type": "who", "value": "why this alliance matters"}
+  ],
+  "underemphasized_strengths": [
+    {"strength": "what's underplayed", "suggestion": "how to elevate it"}
+  ]
 }
 ```

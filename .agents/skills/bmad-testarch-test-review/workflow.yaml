@@ -4,28 +4,28 @@ name: bmad-testarch-test-review
 description: 'Review test quality using best practices validation. Use when the user says "lets review tests" or "I want to evaluate test quality"'
 
 # Critical variables from config
-config_source: '{project-root}/_bmad/tea/config.yaml'
-output_folder: '{config_source}:output_folder'
-test_artifacts: '{config_source}:test_artifacts'
-user_name: '{config_source}:user_name'
-communication_language: '{config_source}:communication_language'
-document_output_language: '{config_source}:document_output_language'
+config_source: "{project-root}/_bmad/tea/config.yaml"
+output_folder: "{config_source}:output_folder"
+test_artifacts: "{config_source}:test_artifacts"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+document_output_language: "{config_source}:document_output_language"
 date: system-generated
 
 # Workflow components
-installed_path: '.'
-instructions: './instructions.md'
-validation: './checklist.md'
-template: './test-review-template.md'
+installed_path: "."
+instructions: "./instructions.md"
+validation: "./checklist.md"
+template: "./test-review-template.md"
 
 # Variables and inputs
 variables:
-  test_dir: '{project-root}/tests' # Root test directory
-  review_scope: 'single' # single (one file), directory (folder), suite (all tests)
-  test_stack_type: 'auto' # auto, frontend, backend, fullstack - from config or auto-detected
+  test_dir: "{project-root}/tests" # Root test directory
+  review_scope: "single" # single (one file), directory (folder), suite (all tests)
+  test_stack_type: "auto" # auto, frontend, backend, fullstack - from config or auto-detected
 
 # Output configuration
-default_output_file: '{test_artifacts}/test-review.md'
+default_output_file: "{test_artifacts}/test-review.md"
 
 # Required tools
 required_tools:

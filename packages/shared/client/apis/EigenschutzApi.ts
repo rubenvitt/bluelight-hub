@@ -17,10 +17,12 @@ import * as runtime from '../runtime';
 import type {
   AckPsaQuittungDto,
   AckSicherheitsregelDto,
+  AufloeseSicherungspostenDto,
   BulkChangePsaProfilDto,
   ChangePsaProfilDto,
   CreateGefaehrdungsbeurteilungDto,
   CreateSicherheitsregelDto,
+  CreateSicherungspostenDto,
   EigenschutzHealthControllerGetHealthVAlpha200Response,
   EigenschutzTelemetryControllerIngestVAlpha200Response,
   GefaehrdungsbeurteilungControllerCreateBeurteilungVAlpha201Response,
@@ -37,18 +39,23 @@ import type {
   SicherheitsregelControllerGetRegelVAlpha200Response,
   SicherheitsregelControllerListQuittungenVAlpha200Response,
   SicherheitsregelControllerListRegelnVAlpha200Response,
+  SicherungspostenControllerCreateSicherungspostenVAlpha201Response,
+  SicherungspostenControllerListSicherungspostenVAlpha200Response,
   SyncConflictControllerListSyncConflictsVAlpha200Response,
   SyncConflictControllerReportSyncConflictVAlpha200Response,
   SyncConflictControllerResolveSyncConflictVAlpha200Response,
   TelemetryEventBatchDto,
   UpdateGefaehrdungsbeurteilungItemsDto,
   UpdateSicherheitsregelDto,
+  UpdateSicherungspostenDto,
 } from '../models/index';
 import {
     AckPsaQuittungDtoFromJSON,
     AckPsaQuittungDtoToJSON,
     AckSicherheitsregelDtoFromJSON,
     AckSicherheitsregelDtoToJSON,
+    AufloeseSicherungspostenDtoFromJSON,
+    AufloeseSicherungspostenDtoToJSON,
     BulkChangePsaProfilDtoFromJSON,
     BulkChangePsaProfilDtoToJSON,
     ChangePsaProfilDtoFromJSON,
@@ -57,6 +64,8 @@ import {
     CreateGefaehrdungsbeurteilungDtoToJSON,
     CreateSicherheitsregelDtoFromJSON,
     CreateSicherheitsregelDtoToJSON,
+    CreateSicherungspostenDtoFromJSON,
+    CreateSicherungspostenDtoToJSON,
     EigenschutzHealthControllerGetHealthVAlpha200ResponseFromJSON,
     EigenschutzHealthControllerGetHealthVAlpha200ResponseToJSON,
     EigenschutzTelemetryControllerIngestVAlpha200ResponseFromJSON,
@@ -89,6 +98,10 @@ import {
     SicherheitsregelControllerListQuittungenVAlpha200ResponseToJSON,
     SicherheitsregelControllerListRegelnVAlpha200ResponseFromJSON,
     SicherheitsregelControllerListRegelnVAlpha200ResponseToJSON,
+    SicherungspostenControllerCreateSicherungspostenVAlpha201ResponseFromJSON,
+    SicherungspostenControllerCreateSicherungspostenVAlpha201ResponseToJSON,
+    SicherungspostenControllerListSicherungspostenVAlpha200ResponseFromJSON,
+    SicherungspostenControllerListSicherungspostenVAlpha200ResponseToJSON,
     SyncConflictControllerListSyncConflictsVAlpha200ResponseFromJSON,
     SyncConflictControllerListSyncConflictsVAlpha200ResponseToJSON,
     SyncConflictControllerReportSyncConflictVAlpha200ResponseFromJSON,
@@ -101,6 +114,8 @@ import {
     UpdateGefaehrdungsbeurteilungItemsDtoToJSON,
     UpdateSicherheitsregelDtoFromJSON,
     UpdateSicherheitsregelDtoToJSON,
+    UpdateSicherungspostenDtoFromJSON,
+    UpdateSicherungspostenDtoToJSON,
 } from '../models/index';
 
 export interface EigenschutzHealthControllerGetHealthVAlphaRequest {
@@ -209,6 +224,28 @@ export interface SicherheitsregelControllerUpdateRegelVAlphaRequest {
     einsatzId: string;
     id: string;
     updateSicherheitsregelDto: UpdateSicherheitsregelDto;
+}
+
+export interface SicherungspostenControllerAufloeseSicherungspostenVAlphaRequest {
+    einsatzId: string;
+    postenId: string;
+    aufloeseSicherungspostenDto: AufloeseSicherungspostenDto;
+}
+
+export interface SicherungspostenControllerCreateSicherungspostenVAlphaRequest {
+    einsatzId: string;
+    createSicherungspostenDto: CreateSicherungspostenDto;
+}
+
+export interface SicherungspostenControllerListSicherungspostenVAlphaRequest {
+    einsatzId: string;
+    status: SicherungspostenControllerListSicherungspostenVAlphaStatusEnum;
+}
+
+export interface SicherungspostenControllerUpdateSicherungspostenVAlphaRequest {
+    einsatzId: string;
+    postenId: string;
+    updateSicherungspostenDto: UpdateSicherungspostenDto;
 }
 
 export interface SyncConflictControllerListSyncConflictsVAlphaRequest {
@@ -1116,6 +1153,193 @@ export class EigenschutzApi extends runtime.BaseAPI {
     }
 
     /**
+     * Sicherungsposten auflösen (Pflicht-Begründung — UX-DR27)
+     */
+    async sicherungspostenControllerAufloeseSicherungspostenVAlphaRaw(requestParameters: SicherungspostenControllerAufloeseSicherungspostenVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SicherungspostenControllerCreateSicherungspostenVAlpha201Response>> {
+        if (requestParameters['einsatzId'] == null) {
+            throw new runtime.RequiredError(
+                'einsatzId',
+                'Required parameter "einsatzId" was null or undefined when calling sicherungspostenControllerAufloeseSicherungspostenVAlpha().'
+            );
+        }
+
+        if (requestParameters['postenId'] == null) {
+            throw new runtime.RequiredError(
+                'postenId',
+                'Required parameter "postenId" was null or undefined when calling sicherungspostenControllerAufloeseSicherungspostenVAlpha().'
+            );
+        }
+
+        if (requestParameters['aufloeseSicherungspostenDto'] == null) {
+            throw new runtime.RequiredError(
+                'aufloeseSicherungspostenDto',
+                'Required parameter "aufloeseSicherungspostenDto" was null or undefined when calling sicherungspostenControllerAufloeseSicherungspostenVAlpha().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        const response = await this.request({
+            path: `/api/v-alpha/einsaetze/{einsatzId}/sicherheit/eigenschutz/sicherungsposten/{postenId}/aufloesen`.replace(`{${"einsatzId"}}`, encodeURIComponent(String(requestParameters['einsatzId']))).replace(`{${"postenId"}}`, encodeURIComponent(String(requestParameters['postenId']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: AufloeseSicherungspostenDtoToJSON(requestParameters['aufloeseSicherungspostenDto']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SicherungspostenControllerCreateSicherungspostenVAlpha201ResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Sicherungsposten auflösen (Pflicht-Begründung — UX-DR27)
+     */
+    async sicherungspostenControllerAufloeseSicherungspostenVAlpha(requestParameters: SicherungspostenControllerAufloeseSicherungspostenVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SicherungspostenControllerCreateSicherungspostenVAlpha201Response> {
+        const response = await this.sicherungspostenControllerAufloeseSicherungspostenVAlphaRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Neuen Sicherungsposten anlegen
+     */
+    async sicherungspostenControllerCreateSicherungspostenVAlphaRaw(requestParameters: SicherungspostenControllerCreateSicherungspostenVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SicherungspostenControllerCreateSicherungspostenVAlpha201Response>> {
+        if (requestParameters['einsatzId'] == null) {
+            throw new runtime.RequiredError(
+                'einsatzId',
+                'Required parameter "einsatzId" was null or undefined when calling sicherungspostenControllerCreateSicherungspostenVAlpha().'
+            );
+        }
+
+        if (requestParameters['createSicherungspostenDto'] == null) {
+            throw new runtime.RequiredError(
+                'createSicherungspostenDto',
+                'Required parameter "createSicherungspostenDto" was null or undefined when calling sicherungspostenControllerCreateSicherungspostenVAlpha().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        const response = await this.request({
+            path: `/api/v-alpha/einsaetze/{einsatzId}/sicherheit/eigenschutz/sicherungsposten`.replace(`{${"einsatzId"}}`, encodeURIComponent(String(requestParameters['einsatzId']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CreateSicherungspostenDtoToJSON(requestParameters['createSicherungspostenDto']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SicherungspostenControllerCreateSicherungspostenVAlpha201ResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Neuen Sicherungsposten anlegen
+     */
+    async sicherungspostenControllerCreateSicherungspostenVAlpha(requestParameters: SicherungspostenControllerCreateSicherungspostenVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SicherungspostenControllerCreateSicherungspostenVAlpha201Response> {
+        const response = await this.sicherungspostenControllerCreateSicherungspostenVAlphaRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Sicherungsposten eines Einsatzes auflisten (Status-Filter AKTIV/AUFGELOEST)
+     */
+    async sicherungspostenControllerListSicherungspostenVAlphaRaw(requestParameters: SicherungspostenControllerListSicherungspostenVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SicherungspostenControllerListSicherungspostenVAlpha200Response>> {
+        if (requestParameters['einsatzId'] == null) {
+            throw new runtime.RequiredError(
+                'einsatzId',
+                'Required parameter "einsatzId" was null or undefined when calling sicherungspostenControllerListSicherungspostenVAlpha().'
+            );
+        }
+
+        if (requestParameters['status'] == null) {
+            throw new runtime.RequiredError(
+                'status',
+                'Required parameter "status" was null or undefined when calling sicherungspostenControllerListSicherungspostenVAlpha().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['status'] != null) {
+            queryParameters['status'] = requestParameters['status'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/api/v-alpha/einsaetze/{einsatzId}/sicherheit/eigenschutz/sicherungsposten`.replace(`{${"einsatzId"}}`, encodeURIComponent(String(requestParameters['einsatzId']))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SicherungspostenControllerListSicherungspostenVAlpha200ResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Sicherungsposten eines Einsatzes auflisten (Status-Filter AKTIV/AUFGELOEST)
+     */
+    async sicherungspostenControllerListSicherungspostenVAlpha(requestParameters: SicherungspostenControllerListSicherungspostenVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SicherungspostenControllerListSicherungspostenVAlpha200Response> {
+        const response = await this.sicherungspostenControllerListSicherungspostenVAlphaRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Sicherungsposten aktualisieren (Optimistic-Concurrency)
+     */
+    async sicherungspostenControllerUpdateSicherungspostenVAlphaRaw(requestParameters: SicherungspostenControllerUpdateSicherungspostenVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SicherungspostenControllerCreateSicherungspostenVAlpha201Response>> {
+        if (requestParameters['einsatzId'] == null) {
+            throw new runtime.RequiredError(
+                'einsatzId',
+                'Required parameter "einsatzId" was null or undefined when calling sicherungspostenControllerUpdateSicherungspostenVAlpha().'
+            );
+        }
+
+        if (requestParameters['postenId'] == null) {
+            throw new runtime.RequiredError(
+                'postenId',
+                'Required parameter "postenId" was null or undefined when calling sicherungspostenControllerUpdateSicherungspostenVAlpha().'
+            );
+        }
+
+        if (requestParameters['updateSicherungspostenDto'] == null) {
+            throw new runtime.RequiredError(
+                'updateSicherungspostenDto',
+                'Required parameter "updateSicherungspostenDto" was null or undefined when calling sicherungspostenControllerUpdateSicherungspostenVAlpha().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        const response = await this.request({
+            path: `/api/v-alpha/einsaetze/{einsatzId}/sicherheit/eigenschutz/sicherungsposten/{postenId}`.replace(`{${"einsatzId"}}`, encodeURIComponent(String(requestParameters['einsatzId']))).replace(`{${"postenId"}}`, encodeURIComponent(String(requestParameters['postenId']))),
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateSicherungspostenDtoToJSON(requestParameters['updateSicherungspostenDto']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SicherungspostenControllerCreateSicherungspostenVAlpha201ResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Sicherungsposten aktualisieren (Optimistic-Concurrency)
+     */
+    async sicherungspostenControllerUpdateSicherungspostenVAlpha(requestParameters: SicherungspostenControllerUpdateSicherungspostenVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SicherungspostenControllerCreateSicherungspostenVAlpha201Response> {
+        const response = await this.sicherungspostenControllerUpdateSicherungspostenVAlphaRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Liste offener Sync-Konflikte für den Einsatz — Story 3.10 (FR50, UX-DR6)
      */
     async syncConflictControllerListSyncConflictsVAlphaRaw(requestParameters: SyncConflictControllerListSyncConflictsVAlphaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SyncConflictControllerListSyncConflictsVAlpha200Response>> {
@@ -1251,6 +1475,14 @@ export class EigenschutzApi extends runtime.BaseAPI {
 
 }
 
+/**
+ * @export
+ */
+export const SicherungspostenControllerListSicherungspostenVAlphaStatusEnum = {
+    Aktiv: 'AKTIV',
+    Aufgeloest: 'AUFGELOEST'
+} as const;
+export type SicherungspostenControllerListSicherungspostenVAlphaStatusEnum = typeof SicherungspostenControllerListSicherungspostenVAlphaStatusEnum[keyof typeof SicherungspostenControllerListSicherungspostenVAlphaStatusEnum];
 /**
  * @export
  */

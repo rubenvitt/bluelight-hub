@@ -242,7 +242,11 @@ const subagentExecutionLabel =
         ? 'SUBAGENT (parallel subagents)'
         : `PARALLEL (based on ${detected_stack})`;
 const performanceGainLabel =
-  resolvedMode === 'sequential' ? 'baseline (no parallel speedup)' : resolvedMode === 'agent-team' || resolvedMode === 'subagent' ? '~40-70% faster than sequential' : 'mode-dependent';
+  resolvedMode === 'sequential'
+    ? 'baseline (no parallel speedup)'
+    : resolvedMode === 'agent-team' || resolvedMode === 'subagent'
+      ? '~40-70% faster than sequential'
+      : 'mode-dependent';
 
 const summary = {
   detected_stack: '{detected_stack}',

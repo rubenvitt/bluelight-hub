@@ -43,6 +43,7 @@ import { GamsZonenPanel } from '../../molecules/GamsZonenPanel.molecule';
 import { FullscreenCloseButton } from '../FullscreenCloseButton/FullscreenCloseButton';
 import { NinaGeoJsonLayer } from '../../molecules/NinaGeoJsonLayer.molecule';
 import { TaktischeZeichenLayer } from '../../molecules/TaktischeZeichenLayer.molecule';
+import { SecurityPostMapMarker } from '@/features/eigenschutz';
 import { GhostZeichenMarker } from '../../molecules/GhostZeichenMarker.molecule';
 import { KartenZeichenSidebar } from '../../molecules/KartenZeichenSidebar.molecule';
 import { GefahrenToolsSidebar } from '../../molecules/GefahrenToolsSidebar.molecule';
@@ -552,6 +553,9 @@ export const LagekarteView: React.FC<LagekarteViewProps> = ({ einsatzId, mode = 
 
         {/* Taktische Zeichen Layer (DV 102) */}
         <TaktischeZeichenLayer mapRef={mapRef} isMapLoaded={isMapLoaded} zeichen={einsatzZeichen} />
+
+        {/* Sicherungsposten-Marker (Story 4.3, FR28) */}
+        {einsatzId && <SecurityPostMapMarker einsatzId={einsatzId} mapRef={mapRef} isMapLoaded={isMapLoaded} />}
 
         {/* Gefahrenzonen-Layer + Inline-Popover (Issue #627, G2) + Deep-Link-Panel (G3) */}
         {isMapLoaded && einsatzId && <GefahrenzoneHost einsatzId={einsatzId} mapRef={mapRef} focus={focus} />}

@@ -26,7 +26,7 @@ export function EtbKategorieSelect({ value, onChange, onBlur, error, disabled = 
 
   const handleChange = (newValue: string | null) => {
     // Bei leerem Wert die Standard-Kategorie setzen
-    const kategorie = (newValue || EtbKategorie.Lage) as EtbKategorie;
+    const kategorie = (newValue || EtbKategorie.Dokumentation) as EtbKategorie;
     onChange(kategorie);
   };
 

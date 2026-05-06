@@ -1526,7 +1526,7 @@ model Sicherungsposten {
   standort              Json     // GeoJSON Point
   zustaendigkeitsbereich String? @db.Text
   personal              Json     // Array {name, rolle}
-  abloesezeiten         String?  @db.VarChar(500)
+  abloesezeiten         String?  @db.VarChar(2000) // Hochsetzung 500 → 2000 in Story 4.2 (Epic-Verfeinerung); LWW-Auto-Merge bleibt unverändert.
   version               Int      @default(1)
   erstelltAm            DateTime @default(now())
   erstelltVonUserId     String

@@ -296,7 +296,7 @@ export default defineConfig({
 - `pactjs-utils-overview.md` — installation, decision tree, design philosophy
 - `pactjs-utils-consumer-helpers.md` — consumer-side state parameter creation, **one-interaction-per-`it()` rule**
 - `pactjs-utils-request-filter.md` — auth injection for provider verification
-- `pact-consumer-framework-setup.md` — consumer-side framework setup, Vitest `fileParallelism: false`, determinism gate
+- `pact-consumer-framework-setup.md` — consumer-side framework setup, Vitest `fileParallelism: false`, CI wiring
 - `pact-broker-webhooks.md` — PactFlow → GitHub webhook auth/staleness for webhook-triggered provider verification (`contract_requiring_verification_published`)
 - `contract-testing.md` — foundational patterns with raw Pact.js
 
@@ -314,7 +314,10 @@ const opts: VerifierOptions = {
   publishVerificationResult: process.env.CI === 'true',
   providerVersion: process.env.GIT_SHA || process.env.GITHUB_SHA || 'dev',
   providerVersionBranch: process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME,
-  consumerVersionSelectors: process.env.PACT_BREAKING_CHANGE === 'true' ? [{ matchingBranch: true }] : [{ matchingBranch: true }, { mainBranch: true }, { deployedOrReleased: true }],
+  consumerVersionSelectors:
+    process.env.PACT_BREAKING_CHANGE === 'true'
+      ? [{ matchingBranch: true }]
+      : [{ matchingBranch: true }, { mainBranch: true }, { deployedOrReleased: true }],
   pactUrls: process.env.PACT_PAYLOAD_URL ? [process.env.PACT_PAYLOAD_URL] : undefined,
   stateHandlers: {
     /* ... */

@@ -57,20 +57,17 @@ Present summary of completed edits and offer next steps including seamless integ
 From step e-03 change execution, compile:
 
 **Changes Made:**
-
 - Sections added: {list with names}
 - Sections updated: {list with names}
 - Content removed: {list}
 - Structure changes: {description}
 
 **Edit Details:**
-
 - Total sections affected: {count}
 - Mode: {restructure/targeted/both}
 - Priority addressed: {Critical/High/Medium/Low}
 
 **PRD Status:**
-
 - Format: {BMAD Standard / BMAD Variant / Legacy (converted)}
 - Completeness: {assessment}
 - Ready for: {downstream use cases}
@@ -92,7 +89,6 @@ Display:
 **PRD Format:** {format}
 
 **PRD is now ready for:**
-
 - Downstream workflows (UX Design, Architecture)
 - Validation to ensure quality
 - Production use
@@ -134,11 +130,13 @@ Display:
     - Before/after comparison (key improvements)
     - Recommendations for next steps
   - Display: "**Edit Workflow Complete**"
+  - Run: `python3 {project-root}/_bmad/scripts/resolve_customization.py --skill {skill-root} --key workflow.on_complete` — if the resolved value is non-empty, follow it as the final terminal instruction before exiting.
   - Exit
 
 - **IF X (Exit):**
   - Display summary
   - Display: "**Edit Workflow Complete**"
+  - Run: `python3 {project-root}/_bmad/scripts/resolve_customization.py --skill {skill-root} --key workflow.on_complete` — if the resolved value is non-empty, follow it as the final terminal instruction before exiting.
   - Exit
 
 - **IF Any other:** Help user, then redisplay menu

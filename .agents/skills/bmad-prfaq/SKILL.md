@@ -19,26 +19,63 @@ The PRFAQ forces customer-first clarity: write the press release announcing the 
 
 **Research-grounded.** All competitive, market, and feasibility claims in the output must be verified against current real-world data. Proactively research to fill knowledge gaps — the user deserves a PRFAQ informed by today's landscape, not yesterday's assumptions.
 
+## Conventions
+
+- Bare paths (e.g. `references/press-release.md`) resolve from the skill root.
+- `{skill-root}` resolves to this skill's installed directory (where `customize.toml` lives).
+- `{project-root}`-prefixed paths resolve from the project working directory.
+- `{skill-name}` resolves to the skill directory's basename.
+
 ## On Activation
 
-1. Load config from `{project-root}/_bmad/bmm/config.yaml` and resolve::
-   - Use `{user_name}` for greeting
-   - Use `{communication_language}` for all communications
-   - Use `{document_output_language}` for output documents
-   - Use `{planning_artifacts}` for output location and artifact scanning
-   - Use `{project_knowledge}` for additional context scanning
+### Step 1: Resolve the Workflow Block
 
-2. **Greet user** as `{user_name}`, speaking in `{communication_language}`. Be warm but efficient — dream builder energy.
+Run: `python3 {project-root}/_bmad/scripts/resolve_customization.py --skill {skill-root} --key workflow`
 
-3. **Resume detection:** Check if `{planning_artifacts}/prfaq-{project_name}.md` already exists. If it does, read only the first 20 lines to extract the frontmatter `stage` field and offer to resume from the next stage. Do not read the full document. If the user confirms, route directly to that stage's reference file.
+**If the script fails**, resolve the `workflow` block yourself by reading these three files in base → team → user order and applying the same structural merge rules as the resolver:
 
-4. **Mode detection:**
+1. `{skill-root}/customize.toml` — defaults
+2. `{project-root}/_bmad/custom/{skill-name}.toml` — team overrides
+3. `{project-root}/_bmad/custom/{skill-name}.user.toml` — personal overrides
 
+Any missing file is skipped. Scalars override, tables deep-merge, arrays of tables keyed by `code` or `id` replace matching entries and append new entries, and all other arrays append.
+
+### Step 2: Execute Prepend Steps
+
+Execute each entry in `{workflow.activation_steps_prepend}` in order before proceeding.
+
+### Step 3: Load Persistent Facts
+
+Treat every entry in `{workflow.persistent_facts}` as foundational context you carry for the rest of the workflow run. Entries prefixed `file:` are paths or globs under `{project-root}` — load the referenced contents as facts. All other entries are facts verbatim.
+
+### Step 4: Load Config
+
+Load config from `{project-root}/_bmad/bmm/config.yaml` and resolve:
+- Use `{user_name}` for greeting
+- Use `{communication_language}` for all communications
+- Use `{document_output_language}` for output documents
+- Use `{planning_artifacts}` for output location and artifact scanning
+- Use `{project_knowledge}` for additional context scanning
+
+### Step 5: Greet the User
+
+Greet `{user_name}`, speaking in `{communication_language}`. Be warm but efficient — dream builder energy.
+
+### Step 6: Execute Append Steps
+
+Execute each entry in `{workflow.activation_steps_append}` in order.
+
+Activation is complete. Continue below.
+
+## Pre-workflow Setup
+
+1. **Resume detection:** Check if `{planning_artifacts}/prfaq-{project_name}.md` already exists. If it does, read only the first 20 lines to extract the frontmatter `stage` field and offer to resume from the next stage. Do not read the full document. If the user confirms, route directly to that stage's reference file.
+
+2. **Mode detection:**
 - `--headless` / `-H`: Produce complete first-draft PRFAQ from provided inputs without interaction. Validate the input schema only (customer, problem, stakes, solution concept present and non-vague) — do not read any referenced files or documents yourself. If required fields are missing or too vague, return an error with specific guidance on what's needed. Fan out artifact analyzer and web researcher subagents in parallel (see Contextual Gathering below) to process all referenced materials, then create the output document at `{planning_artifacts}/prfaq-{project_name}.md` using `./assets/prfaq-template.md` and route to `./references/press-release.md`.
 - Default: Full interactive coaching — the gauntlet.
 
 **Headless input schema:**
-
 - **Required:** customer (specific persona), problem (concrete), stakes (why it matters), solution (concept)
 - **Optional:** competitive context, technical constraints, team/org context, target market, existing research
 
@@ -63,7 +100,6 @@ When the user gets stuck, offer concrete suggestions based on what they've share
 **Concept type detection:** Early in the conversation, identify whether this is a commercial product, internal tool, open-source project, or community/nonprofit initiative. Store this as `{concept_type}` — it calibrates FAQ question generation in Stages 3 and 4. Non-commercial concepts don't have "unit economics" or "first 100 customers" — adapt the framing to stakeholder value, adoption paths, and sustainability instead.
 
 **Essentials to capture before progressing:**
-
 - Who is the customer/user? (specific persona, not "everyone")
 - What is their problem? (concrete and felt, not abstract)
 - Why does this matter to them? (stakes and consequences)
@@ -90,10 +126,10 @@ When the user gets stuck, offer concrete suggestions based on what they've share
 
 ## Stages
 
-| #   | Stage             | Purpose                                      | Location                        |
-| --- | ----------------- | -------------------------------------------- | ------------------------------- |
-| 1   | Ignition          | Raw concept, enforce customer-first thinking | SKILL.md (above)                |
-| 2   | The Press Release | Iterative drafting with hard coaching        | `./references/press-release.md` |
-| 3   | Customer FAQ      | Devil's advocate customer questions          | `./references/customer-faq.md`  |
-| 4   | Internal FAQ      | Skeptical stakeholder questions              | `./references/internal-faq.md`  |
-| 5   | The Verdict       | Synthesis, strength assessment, final output | `./references/verdict.md`       |
+| # | Stage | Purpose | Location |
+|---|-------|---------|----------|
+| 1 | Ignition | Raw concept, enforce customer-first thinking | SKILL.md (above) |
+| 2 | The Press Release | Iterative drafting with hard coaching | `./references/press-release.md` |
+| 3 | Customer FAQ | Devil's advocate customer questions | `./references/customer-faq.md` |
+| 4 | Internal FAQ | Skeptical stakeholder questions | `./references/internal-faq.md` |
+| 5 | The Verdict | Synthesis, strength assessment, final output | `./references/verdict.md` |

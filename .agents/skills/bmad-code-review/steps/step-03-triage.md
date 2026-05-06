@@ -43,6 +43,7 @@
 
 6. If zero findings remain after triage (all rejected or none raised): state "✅ Clean review — all layers passed." (Step 3 already warned if any review layers failed via `{failed_layers}`.)
 
+
 ## NEXT
 
 Read fully and follow `./step-04-present.md`

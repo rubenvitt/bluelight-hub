@@ -3,11 +3,11 @@
 
 sessions:
   - id: session-01-quickstart
-    name: 'Quick Start'
-    duration: '30 min'
+    name: "Quick Start"
+    duration: "30 min"
     difficulty: beginner
-    objective: 'Get immediate value by seeing TEA in action'
-    description: 'TEA Lite intro, run automate workflow, understand engagement models'
+    objective: "Get immediate value by seeing TEA in action"
+    description: "TEA Lite intro, run automate workflow, understand engagement models"
     recommended_for:
       - beginner
       - intermediate
@@ -15,22 +15,22 @@ sessions:
     prerequisites: []
 
   - id: session-02-concepts
-    name: 'Core Concepts'
-    duration: '45 min'
+    name: "Core Concepts"
+    duration: "45 min"
     difficulty: beginner
-    objective: 'Understand WHY behind TEA principles'
-    description: 'Risk-based testing, DoD, testing as engineering philosophy'
+    objective: "Understand WHY behind TEA principles"
+    description: "Risk-based testing, DoD, testing as engineering philosophy"
     recommended_for:
       - beginner
       - intermediate
     prerequisites: []
 
   - id: session-03-architecture
-    name: 'Architecture & Patterns'
-    duration: '60 min'
+    name: "Architecture & Patterns"
+    duration: "60 min"
     difficulty: intermediate
-    objective: 'Understand TEA patterns and architecture'
-    description: 'Fixtures, network-first patterns, data factories, step-file architecture'
+    objective: "Understand TEA patterns and architecture"
+    description: "Fixtures, network-first patterns, data factories, step-file architecture"
     recommended_for:
       - intermediate
       - experienced
@@ -38,11 +38,11 @@ sessions:
       - session-02-concepts
 
   - id: session-04-test-design
-    name: 'Test Design'
-    duration: '60 min'
+    name: "Test Design"
+    duration: "60 min"
     difficulty: intermediate
-    objective: 'Learn risk assessment and coverage planning'
-    description: 'Test Design workflow, risk/testability assessment, coverage planning'
+    objective: "Learn risk assessment and coverage planning"
+    description: "Test Design workflow, risk/testability assessment, coverage planning"
     recommended_for:
       - intermediate
       - experienced
@@ -50,11 +50,11 @@ sessions:
       - session-02-concepts
 
   - id: session-05-atdd-automate
-    name: 'ATDD & Automate'
-    duration: '60 min'
+    name: "ATDD & Automate"
+    duration: "60 min"
     difficulty: intermediate
-    objective: 'Generate tests with TDD red-green approach'
-    description: 'ATDD workflow (red phase), Automate workflow, component TDD, API testing'
+    objective: "Generate tests with TDD red-green approach"
+    description: "ATDD workflow (red phase), Automate workflow, component TDD, API testing"
     recommended_for:
       - intermediate
       - experienced
@@ -62,11 +62,11 @@ sessions:
       - session-02-concepts
 
   - id: session-06-quality-trace
-    name: 'Quality & Trace'
-    duration: '45 min'
+    name: "Quality & Trace"
+    duration: "45 min"
     difficulty: intermediate
-    objective: 'Audit quality and ensure traceability'
-    description: 'Test Review (5 dimensions), Trace workflow, quality metrics'
+    objective: "Audit quality and ensure traceability"
+    description: "Test Review (5 dimensions), Trace workflow, quality metrics"
     recommended_for:
       - intermediate
       - experienced
@@ -74,11 +74,11 @@ sessions:
       - session-02-concepts
 
   - id: session-07-advanced
-    name: 'Advanced Patterns'
-    duration: 'ongoing'
+    name: "Advanced Patterns"
+    duration: "ongoing"
     difficulty: advanced
-    objective: 'Deep-dive into specific knowledge fragments'
-    description: 'Menu-driven exploration of 42 knowledge fragments organized by category'
+    objective: "Deep-dive into specific knowledge fragments"
+    description: "Menu-driven exploration of 42 knowledge fragments organized by category"
     recommended_for:
       - experienced
     prerequisites: []
@@ -126,4 +126,4 @@ completion:
   minimum_sessions: 7 # All sessions required for certificate
   passing_score: 70 # Minimum quiz score to pass session
   average_score_threshold: 70 # Minimum average for certificate
-  certificate_note: 'Certificate eligibility requires completion.minimum_sessions. If intermediate.skip_optional or experienced.skip_optional sessions are skipped, certificate eligibility is forfeited.'
+  certificate_note: "Certificate eligibility requires completion.minimum_sessions. If intermediate.skip_optional or experienced.skip_optional sessions are skipped, certificate eligibility is forfeited."

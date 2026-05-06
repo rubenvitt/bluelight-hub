@@ -58,8 +58,8 @@ export type {
  *
  * Spiegelt die Felder aus {@link createSicherungspostenRequestSchema} —
  * `expectedVersion` ist Form-fremd und wird vom Mutation-Hook injiziert.
- * Die Ablösezeiten-UI kommt mit Story 4.2; das Feld bleibt im Schema
- * optional, damit kein Submit blockiert wird.
+ * Ablösezeiten sind ein optionales Freitextfeld (max. 2000 Zeichen,
+ * Hochsetzung 500 → 2000 in Story 4.2).
  */
 export const sicherungspostenFormSchema = z
   .object({
@@ -68,7 +68,7 @@ export const sicherungspostenFormSchema = z
     personal: z.array(personalEntrySchema).max(50, 'Maximal 50 Personal-Einträge erlaubt.'),
     einheitId: z.string().trim().min(1).max(40).optional(),
     zustaendigkeitsbereich: z.string().trim().max(4000, 'Zuständigkeitsbereich darf maximal 4000 Zeichen haben.').optional(),
-    abloesezeiten: z.string().trim().max(500).optional(),
+    abloesezeiten: z.string().trim().max(2000, 'Ablösezeiten dürfen maximal 2000 Zeichen haben.').optional(),
   })
   .strict();
 

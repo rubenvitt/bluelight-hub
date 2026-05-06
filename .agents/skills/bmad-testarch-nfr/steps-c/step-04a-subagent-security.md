@@ -120,7 +120,11 @@ For each category, determine status:
     "HIPAA": "N/A",
     "PCI-DSS": "FAIL"
   },
-  "priority_actions": ["Fix SQL injection vulnerability (URGENT)", "Enable database encryption within 30 days", "Implement rate limiting for all APIs"],
+  "priority_actions": [
+    "Fix SQL injection vulnerability (URGENT)",
+    "Enable database encryption within 30 days",
+    "Implement rate limiting for all APIs"
+  ],
   "summary": "Security posture is MEDIUM risk with 1 critical vulnerability requiring immediate attention"
 }
 ```

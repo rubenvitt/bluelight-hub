@@ -23,11 +23,16 @@ Party mode accepts optional arguments when invoked:
 1. **Parse arguments** — check for `--model` and `--solo` flags from the user's invocation.
 
 2. Load config from `{project-root}/_bmad/core/config.yaml` and resolve:
+  - Use `{user_name}` for greeting
+  - Use `{communication_language}` for all communications
 
-- Use `{user_name}` for greeting
-- Use `{communication_language}` for all communications
+3. **Resolve the agent roster** by running:
 
-3. **Read the agent manifest** at `{project-root}/_bmad/_config/agent-manifest.csv`. Build an internal roster of available agents with their displayName, title, icon, role, identity, communicationStyle, and principles.
+    ```bash
+    python3 {project-root}/_bmad/scripts/resolve_config.py --project-root {project-root} --key agents
+    ```
+
+    The resolver merges four layers in order: `_bmad/config.toml` (installer base, team-scoped), `_bmad/config.user.toml` (installer base, user-scoped), `_bmad/custom/config.toml` (team overrides), and `_bmad/custom/config.user.toml` (personal overrides). Each entry under `agents` is keyed by the agent's `code` and carries `name`, `title`, `icon`, `description`, `module`, and `team`. Build an internal roster of available agents from those fields.
 
 4. **Load project context** — search for `**/project-context.md`. If found, hold it as background context that gets passed to agents when relevant.
 
@@ -51,16 +56,12 @@ Choose 2-4 agents whose expertise is most relevant to what the user is asking. U
 
 For each selected agent, spawn a subagent using the Agent tool. Each subagent gets:
 
-**The agent prompt** (built from the manifest data):
-
+**The agent prompt** (built from the resolved roster entry):
 ```
-You are {displayName} ({title}), a BMAD agent in a collaborative roundtable discussion.
+You are {name} ({title}), a BMAD agent in a collaborative roundtable discussion.
 
 ## Your Persona
-- Icon: {icon}
-- Communication Style: {communicationStyle}
-- Principles: {principles}
-- Identity: {identity}
+{icon} {name} — {description}
 
 ## Discussion Context
 {summary of the conversation so far — keep under 400 words}
@@ -74,11 +75,11 @@ You are {displayName} ({title}), a BMAD agent in a collaborative roundtable disc
 {the user's actual message}
 
 ## Guidelines
-- Respond authentically as {displayName}. Your perspective should reflect your genuine expertise.
-- Start your response with: {icon} **{displayName}:**
+- Respond authentically as {name}. Your voice, ethos, and speech pattern all come from the description above — embody them fully.
+- Start your response with: {icon} **{name}:**
 - Speak in {communication_language}.
 - Scale your response to the substance — don't pad. If you have a brief point, make it briefly.
-- Disagree with other agents when your expertise tells you to. Don't hedge or be polite about it.
+- Disagree with other agents when your perspective tells you to. Don't hedge or be polite about it.
 - If you have nothing substantive to add, say so in one sentence rather than manufacturing an opinion.
 - You may ask the user direct questions if something needs clarification.
 - Do NOT use tools. Just respond with your perspective.
@@ -100,14 +101,14 @@ After all agent responses are presented in full, you may optionally add a brief 
 
 The user drives what happens next. Common patterns:
 
-| User says...                                                 | You do...                                                |
-| ------------------------------------------------------------ | -------------------------------------------------------- |
-| Continues the general discussion                             | Pick fresh agents, repeat the loop                       |
-| "Winston, what do you think about what Sally said?"          | Spawn just Winston with Sally's response as context      |
-| "Bring in Amelia on this"                                    | Spawn Amelia with a summary of the discussion so far     |
-| "I agree with John, let's go deeper on that"                 | Spawn John + 1-2 others to expand on John's point        |
+| User says... | You do... |
+|---|---|
+| Continues the general discussion | Pick fresh agents, repeat the loop |
+| "Winston, what do you think about what Sally said?" | Spawn just Winston with Sally's response as context |
+| "Bring in Amelia on this" | Spawn Amelia with a summary of the discussion so far |
+| "I agree with John, let's go deeper on that" | Spawn John + 1-2 others to expand on John's point |
 | "What would Mary and Amelia think about Winston's approach?" | Spawn Mary and Amelia with Winston's response as context |
-| Asks a question directed at everyone                         | Back to step 1 with all agents                           |
+| Asks a question directed at everyone | Back to step 1 with all agents |
 
 The key insight: you can spawn any combination at any time. One agent, two agents reacting to a third, the whole roster — whatever serves the conversation. Each spawn is cheap and independent.
 

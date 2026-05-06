@@ -25,10 +25,20 @@ Return ONLY the following JSON object. No preamble, no commentary. Maximum 5 ite
 
 ```json
 {
-  "critical_gaps": [{ "issue": "what's missing", "impact": "why it matters", "suggestion": "how to fix" }],
-  "untested_assumptions": [{ "assumption": "what's asserted", "risk": "what could go wrong" }],
-  "unacknowledged_risks": [{ "risk": "potential failure mode", "severity": "high|medium|low" }],
-  "vague_areas": [{ "section": "where", "issue": "what's vague", "suggestion": "how to sharpen" }],
-  "suggested_improvements": ["actionable suggestion"]
+  "critical_gaps": [
+    {"issue": "what's missing", "impact": "why it matters", "suggestion": "how to fix"}
+  ],
+  "untested_assumptions": [
+    {"assumption": "what's asserted", "risk": "what could go wrong"}
+  ],
+  "unacknowledged_risks": [
+    {"risk": "potential failure mode", "severity": "high|medium|low"}
+  ],
+  "vague_areas": [
+    {"section": "where", "issue": "what's vague", "suggestion": "how to sharpen"}
+  ],
+  "suggested_improvements": [
+    "actionable suggestion"
+  ]
 }
 ```

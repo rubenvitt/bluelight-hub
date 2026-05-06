@@ -38,7 +38,11 @@ Use `matcherDetails` to confirm the matchers were configured correctly. Use `rec
 ```typescript
 import { WebhookTimeoutError, webhookTemplate } from '@seontechnologies/playwright-utils/webhook';
 
-const neverArrivingTemplate = webhookTemplate('never.arrives').matchField('event', 'event.that.never.happens').withTimeout(500).withInterval(100).build();
+const neverArrivingTemplate = webhookTemplate('never.arrives')
+  .matchField('event', 'event.that.never.happens')
+  .withTimeout(500)
+  .withInterval(100)
+  .build();
 
 const [waitResult] = await Promise.allSettled([webhookRegistry.waitFor(neverArrivingTemplate)]);
 

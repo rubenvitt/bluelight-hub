@@ -8,7 +8,7 @@
 import { cn } from '@/shared/ui/cn';
 import { Switch } from '@/shared/ui/atoms/switch.atom';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
-import { PiCloudRain, PiGlobeHemisphereWest, PiMapTrifold, PiMegaphone, PiMountains, PiPoliceCarFill, PiShieldWarning, PiSiren, PiStack, PiWaves } from 'react-icons/pi';
+import { PiCloudRain, PiGlobeHemisphereWest, PiMapTrifold, PiMegaphone, PiMountains, PiPoliceCarFill, PiShieldCheck, PiShieldWarning, PiSiren, PiStack, PiWaves } from 'react-icons/pi';
 import type { BaseLayerConfig, BaseLayerId } from '../../utils/map-config';
 import type { NinaOverlayState, NinaSource } from '../../stores/map-layer.store';
 import { setBaseLayer, setDwdOverlay, setNinaOverlay } from '../../stores/map-layer.store';
@@ -123,6 +123,17 @@ export function MapLayerSwitcher({ availableLayers, selectedBaseLayer, dwdOverla
             </label>
           ))}
         </div>
+
+        {/* Legende */}
+        <section className="mt-2 border-t border-border-subtle px-3 pt-2">
+          <p className="mb-1.5 text-xs font-semibold text-text-muted uppercase">Legende</p>
+          <div className="flex items-center gap-2 px-1 py-1" data-testid="map-legend-sicherungsposten">
+            <span aria-hidden="true" className="inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#1d4ed8] bg-white">
+              <PiShieldCheck className="h-3 w-3 text-[#1d4ed8]" />
+            </span>
+            <span className="text-sm text-text-primary">Sicherungsposten</span>
+          </div>
+        </section>
       </PopoverPanel>
     </Popover>
   );

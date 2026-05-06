@@ -50,7 +50,7 @@ export function EditEtbEntryModal({ entry, isOpen, onClose, onSaveSuccess }: Edi
 
   const form = useForm({
     defaultValues: {
-      kategorie: entry?.kategorie || EtbKategorie.Lage,
+      kategorie: entry?.kategorie || EtbKategorie.Dokumentation,
       text: entry?.text || '',
       absender: entry?.absender || '',
       empfaenger: entry?.empfaenger || '',

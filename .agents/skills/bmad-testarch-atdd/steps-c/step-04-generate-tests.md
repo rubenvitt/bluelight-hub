@@ -142,7 +142,8 @@ subagentContext.execution = {
 };
 
 if (!probeEnabled && (requestedMode === 'agent-team' || requestedMode === 'subagent')) {
-  const unsupportedRequestedMode = (requestedMode === 'agent-team' && !supports.agentTeam) || (requestedMode === 'subagent' && !supports.subagent);
+  const unsupportedRequestedMode =
+    (requestedMode === 'agent-team' && !supports.agentTeam) || (requestedMode === 'subagent' && !supports.subagent);
 
   if (unsupportedRequestedMode) {
     subagentContext.execution.error = `Requested execution mode "${requestedMode}" is unavailable because capability probing is disabled.`;

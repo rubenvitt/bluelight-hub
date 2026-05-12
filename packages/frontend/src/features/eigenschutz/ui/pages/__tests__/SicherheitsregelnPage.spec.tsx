@@ -36,6 +36,11 @@ const { mocks, drawerProps } = vi.hoisted(() => ({
 
 vi.mock('@/features/eigenschutz/api/queries', () => ({
   useSicherheitsregeln: () => mocks.regelnQuery,
+  // Card-Layout (Goal G3) lädt den Quittungs-Stand pro Regel lazy via
+  // `SicherheitsregelQuittungsBadge`. Der Hook bleibt im Test stumm,
+  // damit das Badge nur den Placeholder rendert — die Page-Specs prüfen
+  // ausschließlich die Karten- und Filter-Logik.
+  useSicherheitsregelQuittungen: () => ({ data: [], isPending: false, isError: false }),
 }));
 
 vi.mock('@/features/kraefte/api', () => ({

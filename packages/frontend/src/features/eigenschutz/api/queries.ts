@@ -751,7 +751,7 @@ export interface SicherheitsregelQuittungEntry {
  * (Story 2.7 AC10/AC13). Wird vom Stab-Dashboard und vom
  * `AcknowledgmentStatusBadge`-Popover konsumiert.
  */
-export function useSicherheitsregelQuittungen(einsatzId: string, regelId: string) {
+export function useSicherheitsregelQuittungen(einsatzId: string, regelId: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: EIGENSCHUTZ_QUERY_KEYS.sicherheitsregelQuittungen(einsatzId, regelId),
     queryFn: async (): Promise<SicherheitsregelQuittungEntry[]> => {
@@ -770,7 +770,10 @@ export function useSicherheitsregelQuittungen(einsatzId: string, regelId: string
     },
     retry: eigenschutzRetry,
     meta: { silentError: true },
-    enabled: Boolean(einsatzId) && Boolean(regelId),
+    // Goal G3: Card-Listen rendern N Karten und brauchen die Quittungs-
+    // Detailliste pro Regel nur on-demand (Popover-Open). Default-Verhalten
+    // bleibt unverändert (`enabled: true`).
+    enabled: (options?.enabled ?? true) && Boolean(einsatzId) && Boolean(regelId),
   });
 }
 

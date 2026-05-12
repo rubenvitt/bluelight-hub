@@ -128,7 +128,7 @@ export default async function globalSetup(): Promise<void> {
   const repoRoot = resolve(__dirname, '../../../..');
 
   // 1. Backend out-of-process starten (Pivot-Anker §2)
-  const backend = spawnLogged('pnpm', ['--filter', '@bluelight-hub/backend', 'exec', 'node', 'dist/main.js'], 'backend', {
+  const backend = spawnLogged('pnpm', ['--filter', '@bluelight-hub/backend', 'exec', 'node', 'dist/src/main.js'], 'backend', {
     ...process.env,
     NODE_ENV: 'test',
     PORT: BACKEND_PORT,

@@ -179,7 +179,7 @@ describe('EigenschutzVorfallJsonRenderer (Story 5.5)', () => {
       erzeugtVonUserId: CALLER_ID,
     });
     const body = JSON.parse(buffer.toString('utf-8')) as {
-      vorfall: { beteiligte: Array<{ kind: string; userId?: string; name?: string; rolle?: string | null }> };
+      vorfall: { beteiligte: Array<{ kind: string; einsatzPersonId?: string; name?: string; rolle?: string | null }> };
     };
     const beteiligte = body.vorfall.beteiligte;
     expect(beteiligte).toHaveLength(5);
@@ -187,12 +187,13 @@ describe('EigenschutzVorfallJsonRenderer (Story 5.5)', () => {
     expect(beteiligte.filter((b) => b.kind === 'freitext')).toHaveLength(2);
     const freitextEntry = beteiligte.find((b) => b.kind === 'freitext' && b.name === 'Anna Schmidt');
     expect(freitextEntry?.rolle).toBeNull();
-    // User-Beteiligte propagieren `rolle` symmetrisch zum PDF-Pfad (D1):
+    // EinsatzPerson-Beteiligte propagieren `rolle` symmetrisch zum PDF-Pfad (D1):
     // ERFASSER_ID hat 'San', CALLER_ID/clw…05009 haben kein rolle → null.
-    const userMitRolle = beteiligte.find((b) => b.kind === 'einsatzPerson' && b.userId === ERFASSER_ID);
-    expect(userMitRolle?.rolle).toBe('San');
-    const userOhneRolle = beteiligte.find((b) => b.kind === 'einsatzPerson' && b.userId === CALLER_ID);
-    expect(userOhneRolle?.rolle).toBeNull();
+    // Schema-Migration: kind 'user' + userId → kind 'einsatzPerson' + einsatzPersonId.
+    const personMitRolle = beteiligte.find((b) => b.kind === 'einsatzPerson' && b.einsatzPersonId === ERFASSER_ID);
+    expect(personMitRolle?.rolle).toBe('San');
+    const personOhneRolle = beteiligte.find((b) => b.kind === 'einsatzPerson' && b.einsatzPersonId === CALLER_ID);
+    expect(personOhneRolle?.rolle).toBeNull();
   });
 
   it('(7) Empty-Snapshot-Pfad: kontextSnapshot={} und kontextSnapshotIsLegacyEmpty=true', async () => {

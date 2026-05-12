@@ -5,6 +5,7 @@ import { EinheitCombobox } from '@/features/kraefte/ui/molecules';
 import { useReportVorfall } from '../../api/use-report-vorfall';
 import type { ReportVorfallDto } from '@bluelight-hub/shared/client';
 import { reportVorfallFormSchema } from '../../schemas/vorfall.schema';
+import { PersonCombobox } from '../molecules/PersonCombobox';
 
 const MAX_WAS_LENGTH = 80;
 const MAX_MASSNAHMEN_LENGTH = 4000;
@@ -423,15 +424,9 @@ export function VorfallMeldenDrawer({ einsatzId, einheitId, open, onClose, onSuc
               <div key={row.key} data-testid={`vorfall-beteiligter-row-${row.key}`} className="grid grid-cols-12 gap-2">
                 <span className="col-span-2 text-xs text-text-muted">{row.kind === 'user' ? 'User' : 'Freitext'}</span>
                 {row.kind === 'user' ? (
-                  <input
-                    data-testid={`vorfall-beteiligter-userid-${row.key}`}
-                    type="text"
-                    placeholder="User-CUID"
-                    value={row.userId}
-                    onChange={(e) => updateBeteiligter(row.key, { userId: e.target.value })}
-                    className="border-border-default col-span-5 rounded-md border px-2 py-1 text-sm"
-                    disabled={isPending}
-                  />
+                  <div className="col-span-5" data-testid={`vorfall-beteiligter-userid-${row.key}`}>
+                    <PersonCombobox value={row.userId} onChange={(userId) => updateBeteiligter(row.key, { userId })} label="" placeholder="Benutzer suchen…" disabled={isPending} />
+                  </div>
                 ) : (
                   <input
                     data-testid={`vorfall-beteiligter-name-${row.key}`}

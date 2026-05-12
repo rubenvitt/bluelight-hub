@@ -14,6 +14,7 @@
  */
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SyncConflictListItemDto } from '@bluelight-hub/shared/client';
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
@@ -452,31 +453,22 @@ describe('ConflictResolutionList (Story 3.10 AC8)', () => {
     expect(btn2).not.toBeDisabled();
   });
 
-  it('Filter-Eingabe einheitId mit ungültigem Format zeigt inline-Hinweis und schreibt nicht in Filter-State (F17)', () => {
+  it('Einheit-Auswahl per Combobox übergibt die zugehörige Einheit-ID an den Filter (G7)', async () => {
     render(<ConflictResolutionList einsatzId="einsatz-1" canResolve={true} />);
-    const callsBefore = useSyncConflictsMock.mock.calls.length;
-    const input = screen.getByLabelText('Einheit-ID') as HTMLInputElement;
-    act(() => {
-      fireEvent.change(input, { target: { value: 'kein-cuid' } });
-    });
-    expect(screen.getByTestId('conflict-filter-einheit-id-error')).toBeInTheDocument();
-    // useSyncConflicts darf NICHT mit kaputtem Filter aufgerufen worden sein —
-    // wir prüfen, dass alle Calls nach dem Initial-Render leeren oder
-    // unveränderten Filter haben. Bei reiner Input-Eingabe ohne State-Change
-    // erwarten wir KEINEN zusätzlichen Re-Render → 0 neue Calls.
-    const newCalls = useSyncConflictsMock.mock.calls.slice(callsBefore);
-    expect(newCalls.length).toBe(0);
-  });
+    // Combobox im Filter-Bereich isolieren (testId-Wrapper).
+    const filterCombobox = screen.getByTestId('conflict-filter-einheit-id');
+    const input = filterCombobox.querySelector('input[role="combobox"]') as HTMLInputElement;
+    expect(input).not.toBeNull();
 
-  it('Filter-Eingabe einheitId mit gültigem cuid2 (24 Zeichen) wird übernommen (F17)', () => {
-    render(<ConflictResolutionList einsatzId="einsatz-1" canResolve={true} />);
-    const input = screen.getByLabelText('Einheit-ID') as HTMLInputElement;
-    act(() => {
-      fireEvent.change(input, { target: { value: VALID_CUID2 } });
-    });
-    expect(screen.queryByTestId('conflict-filter-einheit-id-error')).not.toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(input);
+    // Popover-Option als role=option selektieren — vermeidet Mehrfach-Matches
+    // gegen Row-Renderings desselben Einheit-Namens.
+    const option = await screen.findByRole('option', { name: /SEG Nord/i });
+    await user.click(option);
+
     const lastCall = useSyncConflictsMock.mock.calls.at(-1);
-    expect(lastCall?.[1]).toEqual({ einheitId: VALID_CUID2 });
+    expect(lastCall?.[1]).toEqual({ einheitId: 'einheit-1' });
   });
 
   it('Externe initialFilter-Änderung (Browser-Back) wird in den State übernommen (F8 URL→State)', () => {

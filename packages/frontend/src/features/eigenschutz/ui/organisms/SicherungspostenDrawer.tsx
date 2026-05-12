@@ -30,6 +30,7 @@ import { Input } from '@/shared/ui/atoms/input.atom';
 import { Textarea } from '@/shared/ui/atoms/textarea.atom';
 import { Dialog } from '@/shared/ui/molecules/dialog.molecule';
 import { SicherungspostenConflictError, sicherungspostenQueryKeys, useCreateSicherungsposten, useUpdateSicherungsposten } from '../../api/use-sicherungsposten';
+import { PersonCombobox } from '../molecules/PersonCombobox';
 import { useAutoSave, type AutoSaveStatus, type UseAutoSaveReturn } from '../../hooks/useAutoSave';
 import { sicherungspostenFormSchema, type SicherungspostenFormValues, type Standort, type PersonalEntry } from '../../schemas/sicherungsposten.schema';
 
@@ -510,17 +511,16 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
                       </Button>
                     </div>
                     {entry.kind === 'user' ? (
-                      <Input
-                        type="text"
+                      <PersonCombobox
                         value={entry.userId}
-                        onChange={(event) => {
+                        onChange={(userId) => {
                           const next = [...field.state.value];
-                          next[index] = { kind: 'user', userId: event.target.value };
+                          next[index] = { kind: 'user', userId };
                           field.handleChange(next);
                         }}
-                        maxLength={40}
-                        placeholder="User-ID (CUID)"
-                        data-testid={`sicherungsposten-personal-userid-${index}`}
+                        label="Benutzer"
+                        placeholder="Benutzer suchen…"
+                        testId={`sicherungsposten-personal-userid-${index}`}
                       />
                     ) : (
                       <div className="grid gap-2 sm:grid-cols-2">

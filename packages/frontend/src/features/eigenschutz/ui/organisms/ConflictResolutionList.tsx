@@ -36,21 +36,13 @@ import { EmptyState } from '@/shared/ui/molecules/empty-state.molecule';
 import { cn } from '@/shared/ui/cn';
 import { formatEntityTypeLabel, formatLocalPayloadFull, formatLocalPayloadPreview, formatRelativeTimeDe } from '../../utils/format-conflict-row';
 import { useResolveKonflikt, useSyncConflicts, type SyncConflictsFilter } from '../../api/queries';
+import { EinheitCombobox } from '../molecules/EinheitCombobox';
 
 type Resolution = 'SERVER_WINS' | 'LOCAL_WINS' | 'MERGED';
 type EntityType = SyncConflictListItemDto['entityType'];
 
 type SortColumn = 'reportedAt' | 'entityType' | 'einheitName' | 'serverVersion' | 'localExpectedVersion';
 type SortDirection = 'asc' | 'desc';
-
-/**
- * cuid2-Default-Länge ist 24 Zeichen (lowercase a-z + 0-9). Die Filter-Eingabe
- * für `einheitId` wird gegen dieses Pattern validiert, um Junk-Filter (z. B.
- * Tippfehler aus der Zwischenablage) bereits clientseitig zu blocken — sonst
- * landet ein 404-Backend-Roundtrip im Cache und der User sieht „leere Liste"
- * ohne klaren Hinweis (F17).
- */
-const CUID2_PATTERN = /^[a-z0-9]{24}$/;
 
 export interface ConflictResolutionListProps {
   einsatzId: string;
@@ -245,7 +237,7 @@ export function ConflictResolutionList({ einsatzId, initialFilter, canResolve }:
         {announcement}
       </div>
 
-      <FilterBar filter={filter} onChange={setFilter} onReset={handleResetFilter} />
+      <FilterBar einsatzId={einsatzId} filter={filter} onChange={setFilter} onReset={handleResetFilter} />
 
       {isError ? (
         <Alert
@@ -396,38 +388,18 @@ export function ConflictResolutionList({ einsatzId, initialFilter, canResolve }:
 }
 
 interface FilterBarProps {
+  einsatzId: string;
   filter: SyncConflictsFilter;
   onChange: (next: SyncConflictsFilter) => void;
   onReset: () => void;
 }
 
-function FilterBar({ filter, onChange, onReset }: FilterBarProps) {
-  // Lokaler Input-Buffer für `einheitId`: erlaubt Tippen ohne sofortige
-  // Validierung. Erst wenn der Wert leer ist oder zum cuid2-Pattern passt,
-  // schreibt der Bar in den Filter-State (sonst inline-Hinweis, F17).
-  const [einheitInput, setEinheitInput] = useState<string>(filter.einheitId ?? '');
-  const [einheitError, setEinheitError] = useState<string | null>(null);
-
-  // Externe Filter-Änderungen (Reset, URL-Sync) → Input-Buffer angleichen.
-  useEffect(() => {
-    setEinheitInput(filter.einheitId ?? '');
-    setEinheitError(null);
-  }, [filter.einheitId]);
-
-  const handleEinheitChange = (value: string) => {
-    const trimmed = value.trim();
-    setEinheitInput(value);
-    if (trimmed === '') {
-      setEinheitError(null);
-      onChange({ ...filter, einheitId: undefined });
-      return;
-    }
-    if (!CUID2_PATTERN.test(trimmed)) {
-      setEinheitError('Bitte eine gültige Einheit-ID (24 Zeichen, a–z 0–9) eingeben.');
-      return;
-    }
-    setEinheitError(null);
-    onChange({ ...filter, einheitId: trimmed });
+function FilterBar({ einsatzId, filter, onChange, onReset }: FilterBarProps) {
+  // Einheit-Auswahl per Name-Combobox (G7) — der Filter speichert weiterhin
+  // die `einheitId` (CUID2). Externe Filter-Änderungen (Reset, URL-Sync)
+  // propagieren über das `value`-Prop direkt in den Combobox-Adapter.
+  const handleEinheitChange = (einheitId: string) => {
+    onChange({ ...filter, einheitId: einheitId.length === 0 ? undefined : einheitId });
   };
 
   return (
@@ -453,25 +425,8 @@ function FilterBar({ filter, onChange, onReset }: FilterBarProps) {
           ))}
         </select>
       </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="conflict-filter-einheit-id" className="text-xs font-medium text-text-secondary">
-          Einheit-ID
-        </label>
-        <input
-          id="conflict-filter-einheit-id"
-          type="text"
-          value={einheitInput}
-          onChange={(event) => handleEinheitChange(event.target.value)}
-          placeholder="cuid2 (24 Zeichen)"
-          aria-invalid={einheitError !== null}
-          aria-describedby={einheitError ? 'conflict-filter-einheit-id-error' : undefined}
-          className="rounded-control border border-border-subtle bg-surface-panel px-2 py-1.5 text-sm"
-        />
-        {einheitError ? (
-          <span id="conflict-filter-einheit-id-error" className="text-xs text-status-danger-text" data-testid="conflict-filter-einheit-id-error">
-            {einheitError}
-          </span>
-        ) : null}
+      <div className="flex min-w-[16rem] flex-col gap-1">
+        <EinheitCombobox einsatzId={einsatzId} value={filter.einheitId ?? null} onChange={handleEinheitChange} label="Einheit" placeholder="Einheit suchen…" testId="conflict-filter-einheit-id" />
       </div>
       <button
         type="button"

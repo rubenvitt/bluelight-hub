@@ -86,12 +86,19 @@ FRONTEND_ENV="$REPO_ROOT/packages/frontend/.env"
 if [ "$OFFSET" -eq 0 ] && [ -f "$BACKEND_ENV" ] && [ "$FORCE" = false ]; then
   echo "Hauptrepo: Bestehende .env Dateien bleiben unverändert (--force zum Überschreiben)"
 else
-  # MASTER_SECRET aus bestehender .env wiederverwenden (falls vorhanden)
+  # MASTER_SECRET und VAPID-Keypair aus bestehender .env wiederverwenden (falls vorhanden)
   EXISTING_SECRET=""
+  EXISTING_VAPID_PUBLIC=""
+  EXISTING_VAPID_PRIVATE=""
+  EXISTING_VAPID_SUBJECT=""
   if [ -f "$BACKEND_ENV" ]; then
-    EXISTING_SECRET=$(grep '^MASTER_SECRET=' "$BACKEND_ENV" 2>/dev/null | cut -d'=' -f2 | tr -d '"' || true)
+    EXISTING_SECRET=$(grep '^MASTER_SECRET=' "$BACKEND_ENV" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || true)
+    EXISTING_VAPID_PUBLIC=$(grep '^VAPID_PUBLIC_KEY=' "$BACKEND_ENV" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || true)
+    EXISTING_VAPID_PRIVATE=$(grep '^VAPID_PRIVATE_KEY=' "$BACKEND_ENV" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || true)
+    EXISTING_VAPID_SUBJECT=$(grep '^VAPID_SUBJECT=' "$BACKEND_ENV" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || true)
   fi
   MASTER_SECRET="${EXISTING_SECRET:-$(openssl rand -hex 32)}"
+  VAPID_SUBJECT_VALUE="${EXISTING_VAPID_SUBJECT:-mailto:ops@example.org}"
 
   # Backend .env generieren
   cat > "$BACKEND_ENV" <<EOF
@@ -113,6 +120,11 @@ HTTPS_KEY_PATH=../../certs/localhost-key.pem
 HTTPS_CERT_PATH=../../certs/localhost.pem
 
 ALLOWED_ORIGIN_PATTERNS=^https:\/\/[\w-]+\.bluelight-hub-app\.pages\.dev$
+
+# Web-Push (Story 1.1, ADR-011) — Dev-Keypair, wird nach pnpm install befüllt
+VAPID_PUBLIC_KEY=${EXISTING_VAPID_PUBLIC}
+VAPID_PRIVATE_KEY=${EXISTING_VAPID_PRIVATE}
+VAPID_SUBJECT=${VAPID_SUBJECT_VALUE}
 EOF
   echo "Backend .env generiert"
 
@@ -122,6 +134,9 @@ EOF
 VITE_API_URL=${VITE_API_URL}
 VITE_PORT=${VITE_PORT}
 VITE_INSECURE_MODE=$( [ "$USE_HTTPS" = true ] && echo "false" || echo "true" )
+
+# Web-Push (Story 1.1, ADR-011) — muss zum Backend-VAPID_PUBLIC_KEY passen
+VITE_VAPID_PUBLIC_KEY=${EXISTING_VAPID_PUBLIC}
 EOF
   echo "Frontend .env generiert"
 fi
@@ -153,6 +168,32 @@ echo ""
 echo "pnpm install..."
 cd "$REPO_ROOT"
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+
+# --- VAPID-Keypair (Web-Push, Story 1.1 / ADR-011) ---
+# Generieren, wenn noch keins existiert. Public-Key wandert zusätzlich ins Frontend,
+# damit der PushSubscriptionManager beim Boot eine konsistente Identität hat.
+CURRENT_VAPID_PUBLIC=$(grep '^VAPID_PUBLIC_KEY=' "$BACKEND_ENV" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || true)
+CURRENT_VAPID_PRIVATE=$(grep '^VAPID_PRIVATE_KEY=' "$BACKEND_ENV" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || true)
+if [ -z "$CURRENT_VAPID_PUBLIC" ] || [ -z "$CURRENT_VAPID_PRIVATE" ]; then
+  echo ""
+  echo "Generiere VAPID-Keypair für Web-Push..."
+  VAPID_JSON=$(pnpm --filter @bluelight-hub/backend --silent exec web-push generate-vapid-keys --json)
+  VAPID_PUBLIC=$(echo "$VAPID_JSON" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>process.stdout.write(JSON.parse(d).publicKey))')
+  VAPID_PRIVATE=$(echo "$VAPID_JSON" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>process.stdout.write(JSON.parse(d).privateKey))')
+  if [ -z "$VAPID_PUBLIC" ] || [ -z "$VAPID_PRIVATE" ]; then
+    echo "FEHLER: VAPID-Keypair konnte nicht generiert werden"
+    exit 1
+  fi
+  # macOS/BSD und GNU sed kompatibel ersetzen
+  sed -i.bak "s|^VAPID_PUBLIC_KEY=.*|VAPID_PUBLIC_KEY=${VAPID_PUBLIC}|" "$BACKEND_ENV" && rm -f "$BACKEND_ENV.bak"
+  sed -i.bak "s|^VAPID_PRIVATE_KEY=.*|VAPID_PRIVATE_KEY=${VAPID_PRIVATE}|" "$BACKEND_ENV" && rm -f "$BACKEND_ENV.bak"
+  if grep -q '^VITE_VAPID_PUBLIC_KEY=' "$FRONTEND_ENV" 2>/dev/null; then
+    sed -i.bak "s|^VITE_VAPID_PUBLIC_KEY=.*|VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC}|" "$FRONTEND_ENV" && rm -f "$FRONTEND_ENV.bak"
+  else
+    printf '\n# Web-Push (Story 1.1, ADR-011) — muss zum Backend-VAPID_PUBLIC_KEY passen\nVITE_VAPID_PUBLIC_KEY=%s\n' "$VAPID_PUBLIC" >> "$FRONTEND_ENV"
+  fi
+  echo "VAPID-Keypair gesetzt (Public-Key auch im Frontend)"
+fi
 
 # --- Shared Package Build ---
 echo ""

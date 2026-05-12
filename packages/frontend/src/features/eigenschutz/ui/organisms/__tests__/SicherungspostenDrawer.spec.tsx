@@ -122,7 +122,8 @@ describe('SicherungspostenDrawer', () => {
     await waitFor(() => {
       expect(screen.getByTestId('sicherungsposten-personal-row-0')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('sicherungsposten-personal-name-0')).toBeInTheDocument();
+    // Standardmodus ist Personal-Auswahl (kind: 'user'), nicht Freitext.
+    expect(screen.getByTestId('sicherungsposten-personal-userid-0')).toBeInTheDocument();
 
     await user.click(screen.getByTestId('sicherungsposten-personal-remove-0'));
     await waitFor(() => {
@@ -130,19 +131,19 @@ describe('SicherungspostenDrawer', () => {
     });
   });
 
-  it('Personal: Toggle zwischen User-ID und Freitext', async () => {
+  it('Personal: Toggle zwischen Personal-Auswahl und Freitext', async () => {
     const user = userEvent.setup();
     setup();
     await user.click(screen.getByTestId('sicherungsposten-personal-add'));
     await waitFor(() => {
-      expect(screen.getByTestId('sicherungsposten-personal-name-0')).toBeInTheDocument();
-    });
-
-    await user.click(screen.getByTestId('sicherungsposten-personal-toggle-user-0'));
-    await waitFor(() => {
       expect(screen.getByTestId('sicherungsposten-personal-userid-0')).toBeInTheDocument();
     });
-    expect(screen.queryByTestId('sicherungsposten-personal-name-0')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('sicherungsposten-personal-toggle-freitext-0'));
+    await waitFor(() => {
+      expect(screen.getByTestId('sicherungsposten-personal-name-0')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('sicherungsposten-personal-userid-0')).not.toBeInTheDocument();
   });
 
   it('Submit im Create-Modus ruft useCreateSicherungsposten mit Form-Werten', async () => {

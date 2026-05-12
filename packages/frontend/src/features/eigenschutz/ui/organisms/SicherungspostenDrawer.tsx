@@ -8,7 +8,7 @@
  *   + optional `addressHint`) ODER `address` (Freitext). RadioGroup-Toggle.
  * - **Personal**: Liste discriminated Unions (`user` mit userId ODER
  *   `freitext` mit name + optional rolle). Hinzufügen/Entfernen via
- *   Buttons; Toggle pro Eintrag zwischen User-ID und Freitext.
+ *   Buttons; Toggle pro Eintrag zwischen Personal-Auswahl und Freitext.
  * - **Zuständigkeitsbereich** (optional, Textarea ≤ 4000 Zeichen).
  * - **Ablösezeiten** (Story 4.2): Freitext-Editor ≤ 2000 Zeichen mit
  *   Auto-Save (`useAutoSave`, Debounce 2 s, online-only). Im Edit-Mode
@@ -478,7 +478,7 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
                             }}
                             data-testid={`sicherungsposten-personal-toggle-user-${index}`}
                           />
-                          <span>User-ID</span>
+                          <span>Personal</span>
                         </label>
                         <label className="flex items-center gap-1 text-text-primary">
                           <input
@@ -518,8 +518,8 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
                           next[index] = { kind: 'user', userId };
                           field.handleChange(next);
                         }}
-                        label="Benutzer"
-                        placeholder="Benutzer suchen…"
+                        label="Personal"
+                        placeholder="Personal suchen…"
                         testId={`sicherungsposten-personal-userid-${index}`}
                       />
                     ) : (
@@ -557,7 +557,7 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
                   appearance="ghost"
                   size="sm"
                   type="button"
-                  onClick={() => field.handleChange([...field.state.value, { kind: 'freitext', name: '' }])}
+                  onClick={() => field.handleChange([...field.state.value, { kind: 'user', userId: '' }])}
                   data-testid="sicherungsposten-personal-add"
                 >
                   + Eintrag hinzufügen

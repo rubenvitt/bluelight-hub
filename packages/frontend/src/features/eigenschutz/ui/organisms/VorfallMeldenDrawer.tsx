@@ -422,10 +422,10 @@ export function VorfallMeldenDrawer({ einsatzId, einheitId, open, onClose, onSuc
             <legend className="px-1 text-sm font-medium text-text-primary">Beteiligte (optional)</legend>
             {beteiligte.map((row) => (
               <div key={row.key} data-testid={`vorfall-beteiligter-row-${row.key}`} className="grid grid-cols-12 gap-2">
-                <span className="col-span-2 text-xs text-text-muted">{row.kind === 'user' ? 'User' : 'Freitext'}</span>
+                <span className="col-span-2 text-xs text-text-muted">{row.kind === 'user' ? 'Personal' : 'Freitext'}</span>
                 {row.kind === 'user' ? (
                   <div className="col-span-5" data-testid={`vorfall-beteiligter-userid-${row.key}`}>
-                    <PersonCombobox value={row.userId} onChange={(userId) => updateBeteiligter(row.key, { userId })} label="" placeholder="Benutzer suchen…" disabled={isPending} />
+                    <PersonCombobox value={row.userId} onChange={(userId) => updateBeteiligter(row.key, { userId })} label="" placeholder="Personal suchen…" disabled={isPending} />
                   </div>
                 ) : (
                   <input
@@ -461,7 +461,7 @@ export function VorfallMeldenDrawer({ einsatzId, einheitId, open, onClose, onSuc
             ))}
             <div className="flex gap-2">
               <Button data-testid="vorfall-beteiligter-add-user" intent="secondary" onClick={() => addBeteiligterRow('user')} disabled={isPending}>
-                + User
+                + Personal
               </Button>
               <Button data-testid="vorfall-beteiligter-add-freitext" intent="secondary" onClick={() => addBeteiligterRow('freitext')} disabled={isPending}>
                 + Freitext

@@ -1,11 +1,11 @@
 /**
- * `PersonCombobox` — Name-basierte Auswahl eines Benutzers (Person) im
+ * `PersonCombobox` — Name-basierte Auswahl einer Person (Personal) im
  * Eigenschutz-Kontext. Ersetzt rohe User-CUID-Eingaben in den Personal-
  * Listen des `SicherungspostenDrawer` und den Beteiligte-Reihen des
  * `VorfallMeldenDrawer`.
  *
- * Intern wird weiter die User-CUID2 als `value` gespeichert — der User
- * sucht und sieht ausschließlich den Benutzernamen.
+ * Intern wird weiter die User-CUID2 als `value` gespeichert — der Anwender
+ * sucht und sieht ausschließlich den Personalnamen.
  *
  * Architektur: Thin-Adapter über den projektweiten {@link Combobox} aus
  * `shared/ui/headless` (Headless UI v2). Lookup über {@link usePersonSuche}
@@ -14,7 +14,7 @@
  * von der Headless-Komponente abgedeckt.
  *
  * Empty-State-Differenzierung:
- * - `rawCount === 0` → „Keine Benutzer geladen" (Berechtigung/Setup-
+ * - `rawCount === 0` → „Kein Personal verfügbar" (Berechtigung/Setup-
  *   Hinweis statt „nichts gefunden").
  * - `rawCount > 0` & gefilterte Liste leer → Standard-Combobox-Meldung.
  */
@@ -61,9 +61,9 @@ export function PersonCombobox({
 
   const effectiveHelper = useMemo(() => {
     if (error) return undefined;
-    if (isLoading) return 'Benutzer werden geladen…';
-    if (isError) return 'Benutzer konnten nicht geladen werden.';
-    if (rawCount === 0) return 'Keine Benutzer verfügbar.';
+    if (isLoading) return 'Personal wird geladen…';
+    if (isError) return 'Personal konnte nicht geladen werden.';
+    if (rawCount === 0) return 'Kein Personal verfügbar.';
     return helperText;
   }, [error, isLoading, isError, rawCount, helperText]);
 

@@ -16,8 +16,8 @@
 -- gehört, bleiben als "fremde" einsatzPersonId-Werte im Array stehen.
 -- Validierung beim Lesen/Schreiben wird im Mapper/Aggregate enforced.
 
--- Sicherungsposten.personal: Array<{kind,userId}|{kind,name,rolle}>
-UPDATE "Sicherungsposten"
+-- sicherungsposten.personal: Array<{kind,userId}|{kind,name,rolle}>
+UPDATE "sicherungsposten"
 SET "personal" = (
   SELECT COALESCE(jsonb_agg(
     CASE
@@ -35,8 +35,8 @@ WHERE jsonb_typeof("personal") = 'array'
     WHERE entry->>'kind' = 'user'
   );
 
--- EigenschutzVorfall.beteiligte: Array<{kind,userId,rolle}|{kind,name,rolle}>
-UPDATE "EigenschutzVorfall"
+-- eigenschutz_vorfaelle.beteiligte: Array<{kind,userId,rolle}|{kind,name,rolle}>
+UPDATE "eigenschutz_vorfaelle"
 SET "beteiligte" = (
   SELECT COALESCE(jsonb_agg(
     CASE

@@ -6,6 +6,13 @@ import { EintragId } from '@domain/value-objects/eintrag-id';
 import { createEtbE2eModule, teardownE2eModule, cleanupTestData, type EtbE2eTestContext } from './etb.e2e-setup';
 
 const databaseAvailable = !!process.env.DATABASE_URL;
+// Opt-In-Gate: Performance-Baselines sind hardware-abhängig und reagieren
+// empfindlich auf parallele Last (z.B. wenn andere Tests im gleichen Run
+// laufen). Sie gehören NICHT in jeden lokalen `pnpm test`-Lauf — Trigger
+// per `PERF_TESTS=1`. CI-Pipelines mit dedizierter Performance-Stage setzen
+// die Variable aktiv.
+const perfTestsEnabled = process.env.PERF_TESTS === '1' || process.env.PERF_TESTS === 'true';
+const shouldRun = databaseAvailable && perfTestsEnabled;
 
 /**
  * E2E Performance Baseline Tests für ETB Infrastructure
@@ -21,8 +28,10 @@ const databaseAvailable = !!process.env.DATABASE_URL;
  * **HINWEIS:** Diese Tests verwenden performance.now() für präzise Zeitmessungen.
  * Ergebnisse können je nach Hardware und Datenbankauslastung variieren.
  * CI-Umgebungen sind generell langsamer als lokale Maschinen.
+ *
+ * **OPT-IN:** Standard-Skip; aktivieren mit `PERF_TESTS=1 pnpm test ...`.
  */
-(databaseAvailable ? describe : describe.skip)('ETB Performance Baselines (E2E)', () => {
+(shouldRun ? describe : describe.skip)('ETB Performance Baselines (E2E)', () => {
   let ctx: EtbE2eTestContext;
 
   beforeAll(async () => {

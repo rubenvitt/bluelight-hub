@@ -126,16 +126,16 @@ function buildDefaults(regel?: SicherheitsregelDto): FormValues {
   if (!regel) {
     return { titel: '', inhalt: '', einsatzweit: true, einheitIds: [] };
   }
-  // Strikt `=== null` (nicht `=== undefined`) — der generierte Client
-  // typisiert `einheitId` nun als `string | null`, das Trennen in zwei
-  // Branches schützt gegen DTO-Drift, in der `undefined` einer
-  // Einheit-zugeordneten Regel als „einsatzweit" interpretiert würde.
-  const einsatzweit = regel.einheitId === null;
+  // `== null` (lockerer Vergleich) fängt `null` UND `undefined`. Sonst
+  // landet eine API-Antwort mit fehlendem `einheitId` (undefined) in der
+  // „nicht einsatzweit"-Branch, was zu `einheitIds: [undefined]` führt
+  // und beim Submit gegen das CUID-Schema fehlschlägt.
+  const einsatzweit = regel.einheitId == null;
   return {
     titel: regel.titel,
     inhalt: regel.inhalt,
     einsatzweit,
-    einheitIds: einsatzweit || regel.einheitId === null ? [] : [regel.einheitId],
+    einheitIds: einsatzweit ? [] : [regel.einheitId as string],
   };
 }
 
@@ -183,7 +183,10 @@ export function SicherheitsregelDrawer({ einsatzId, open, onClose, onSaved, rege
     onSubmit: async ({ value }) => {
       // Wenn keine Einheiten im Einsatz existieren → einsatzweit erzwingen.
       const einsatzweit = einheitenLeer ? true : value.einsatzweit;
-      const einheitIds = einsatzweit ? [] : value.einheitIds;
+      // Defensiv `undefined`/leere Strings filtern, damit ein verschluckter
+      // Combobox-Quirk oder eine stale Vorauswahl nicht über das CUID-Schema
+      // mit einer kryptischen Message scheitert.
+      const einheitIds = einsatzweit ? [] : value.einheitIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
 
       // Schema-Parse über die Zod-Diskriminante — wirft valide Fehlerpfade.
       const candidate = einsatzweit ? { titel: value.titel, inhalt: value.inhalt, einsatzweit: true as const } : { titel: value.titel, inhalt: value.inhalt, einsatzweit: false as const, einheitIds };
@@ -196,7 +199,16 @@ export function SicherheitsregelDrawer({ einsatzId, open, onClose, onSaved, rege
         } else if (pathKey?.startsWith('inhalt')) {
           setInlineError(firstIssue?.message ?? 'Inhalt ist ungültig.');
         } else if (pathKey?.startsWith('einheitIds')) {
-          setInlineError('Bitte mindestens eine Einheit wählen oder „Gesamter Einsatz" auswählen.');
+          // Generische Fallback-Message nur, wenn die min(1)-Regel des
+          // Array-Schemas selbst gegriffen hat (Pfad ist exakt „einheitIds").
+          // Für Element-Fehler (z. B. „einheitIds.0" → ungültige CUID) die
+          // echte Zod-Message durchreichen, sonst maskiert die generische
+          // Variante echte Validierungsprobleme.
+          if (pathKey === 'einheitIds') {
+            setInlineError(firstIssue?.message ?? 'Bitte mindestens eine Einheit wählen oder „Gesamter Einsatz" auswählen.');
+          } else {
+            setInlineError(`Einheit-Auswahl ungültig: ${firstIssue?.message ?? 'unbekannter Fehler'}`);
+          }
         } else {
           setInlineError(firstIssue?.message ?? 'Eingaben sind ungültig.');
         }

@@ -77,7 +77,12 @@ export function EinheitMultiCombobox({ einsatzId, values, onChange, onBlur, disa
   }, [optionsById, values, query]);
 
   const handleAdd = (option: EinheitOption | null) => {
-    if (!option) return;
+    // Defensiver Guard: Headless UI v2's Combobox kann onChange unter bestimmten
+    // Transitions (Blur ohne Selection, Reset) mit einem unvollständigen Wert
+    // aufrufen. Wir akzeptieren nur Optionen mit einer plausiblen CUID, damit
+    // kein `undefined` in den Form-State landet (sonst schlägt das Submit-
+    // Schema mit „expected string, received undefined" fehl).
+    if (!option || typeof option.id !== 'string' || option.id.length === 0) return;
     if (!values.includes(option.id)) {
       onChange([...values, option.id]);
     }

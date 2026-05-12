@@ -470,7 +470,7 @@ describe('SingleEinsatzLayout workspace hotkeys', () => {
   it('öffnet den ETB-Composer per Cmd+Shift+E', () => {
     renderLayout();
 
-    fireEvent.keyDown(document, { key: 'e', code: 'KeyE', metaKey: true, shiftKey: true });
+    fireEvent.keyDown(document, { key: 'e', code: 'KeyE', ctrlKey: true, shiftKey: true });
 
     expect(navigateSpy).toHaveBeenCalledWith({
       to: '/app/einsatz/$einsatzId/führung/etb',
@@ -484,7 +484,7 @@ describe('SingleEinsatzLayout workspace hotkeys', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Modulübersicht öffnen' })[0]);
     navigateSpy.mockClear();
 
-    fireEvent.keyDown(document, { key: 'e', code: 'KeyE', metaKey: true, shiftKey: true });
+    fireEvent.keyDown(document, { key: 'e', code: 'KeyE', ctrlKey: true, shiftKey: true });
 
     expect(navigateSpy).not.toHaveBeenCalled();
   });

@@ -49,7 +49,7 @@
   },
   "dependencies": {
     "@bluelight-hub/shared": "workspace:*",
-    "@dotenvx/dotenvx": "^1.61.1",
+    "@dotenvx/dotenvx": "^1.65.0",
     "@dotenvx/dotenvx-ops": "^0.37.9",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^3.1.2",
@@ -72,7 +72,7 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@willsoto/nestjs-prometheus": "^6.1.0",
-    "axios": "^1.15.1",
+    "axios": "^1.16.0",
     "bcrypt": "^6.0.0",
     "cache-manager": "^7.2.8",
     "class-transformer": "^0.5.1",

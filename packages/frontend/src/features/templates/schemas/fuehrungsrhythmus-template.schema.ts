@@ -6,7 +6,7 @@ import { z } from 'zod';
 const eintragSchema = z.object({
   titel: z.string().trim().min(1, 'Titel ist erforderlich').max(100, 'Titel darf maximal 100 Zeichen lang sein'),
   intervallMinuten: z.number().int('Intervall muss eine ganze Zahl sein').min(1, 'Mindestens 1 Minute').max(1440, 'Maximal 1440 Minuten (24h)'),
-  offsetMinuten: z.number().int('Offset muss eine ganze Zahl sein').min(0, 'Offset darf nicht negativ sein').max(1440, 'Maximal 1440 Minuten (24h)').optional().default(0),
+  offsetMinuten: z.number().int('Offset muss eine ganze Zahl sein').min(0, 'Offset darf nicht negativ sein').max(1440, 'Maximal 1440 Minuten (24h)').default(0),
 });
 
 /**

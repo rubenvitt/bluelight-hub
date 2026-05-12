@@ -174,8 +174,8 @@ importers:
         specifier: ^3.6.7
         version: 3.6.7
       zod:
-        specifier: ^4.3.6
-        version: 4.3.6
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@compodoc/compodoc':
         specifier: ^1.2.1
@@ -332,7 +332,7 @@ importers:
         version: 3.13.24(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/zod-form-adapter':
         specifier: ^0.42.1
-        version: 0.42.1(zod@4.3.6)
+        version: 0.42.1(zod@4.4.3)
       '@tauri-apps/api':
         specifier: ^2.11.0
         version: 2.11.0
@@ -436,8 +436,8 @@ importers:
         specifier: ^10.1.1
         version: 10.1.1(react@19.2.6)
       zod:
-        specifier: ^4.3.6
-        version: 4.3.6
+        specifier: ^4.4.3
+        version: 4.4.3
       zxcvbn:
         specifier: ^4.4.2
         version: 4.4.2
@@ -524,8 +524,8 @@ importers:
   packages/shared:
     dependencies:
       zod:
-        specifier: ^4.3.6
-        version: 4.3.6
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@openapitools/openapi-generator-cli':
         specifier: ^2.31.1
@@ -11056,8 +11056,8 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
-  zod@4.3.6:
-    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
   zxcvbn@4.4.2:
     resolution: {integrity: sha512-Bq0B+ixT/DMyG8kgX2xWcI5jUvCwqrMxSFam7m0lAf78nf04hv6lNCsyLYdyYTrCVMqNDY/206K7eExYCeSyUQ==}
@@ -16209,10 +16209,10 @@ snapshots:
 
   '@tanstack/virtual-file-routes@1.161.7': {}
 
-  '@tanstack/zod-form-adapter@0.42.1(zod@4.3.6)':
+  '@tanstack/zod-form-adapter@0.42.1(zod@4.4.3)':
     dependencies:
       '@tanstack/form-core': 0.42.1
-      zod: 4.3.6
+      zod: 4.4.3
 
   '@tauri-apps/api@2.11.0': {}
 
@@ -24175,6 +24175,6 @@ snapshots:
 
   zod@3.25.76: {}
 
-  zod@4.3.6: {}
+  zod@4.4.3: {}
 
   zxcvbn@4.4.2: {}

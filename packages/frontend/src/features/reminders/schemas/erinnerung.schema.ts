@@ -60,7 +60,7 @@ export const createErinnerungSchema = z
     /** Story 8.2: Kategorie fuer Erinnerung (optional) */
     kategorieId: z.string().optional().nullable(),
     /** Story 6.4: Wiederkehrende Erinnerung */
-    isRecurring: z.boolean().optional().default(false),
+    isRecurring: z.boolean().default(false),
     /** Story 6.4: Intervall in Minuten */
     recurringIntervalMinutes: z.number().int().min(1).max(1440).optional(),
     /** Story 6.4: Endzeitpunkt der Serie (ISO-8601 String) */
@@ -68,7 +68,7 @@ export const createErinnerungSchema = z
     /** Story 6.4: Maximale Anzahl Wiederholungen */
     recurringMaxCount: z.number().int().min(1).max(100).optional(),
     /** Story 6.4: Ende-Modus für UI */
-    recurringEndMode: z.enum(['none', 'count', 'date']).optional().default('none'),
+    recurringEndMode: z.enum(['none', 'count', 'date']).default('none'),
   })
   .superRefine((data, ctx) => {
     if (data.timeMode === 'preset' && data.minuten === undefined) {

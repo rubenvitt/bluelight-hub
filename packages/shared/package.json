@@ -37,7 +37,7 @@
     "test": "echo 'No tests available for shared package'"
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@openapitools/openapi-generator-cli": "^2.31.1",

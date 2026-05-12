@@ -528,8 +528,8 @@ importers:
         version: 4.4.3
     devDependencies:
       '@openapitools/openapi-generator-cli':
-        specifier: ^2.31.1
-        version: 2.31.1(@nestjs/platform-express@11.1.19)(@nestjs/websockets@11.1.19)(class-transformer@0.5.1)(class-validator@0.15.1)(debug@4.4.3)
+        specifier: ^2.32.0
+        version: 2.32.0(@nestjs/platform-express@11.1.19)(@nestjs/websockets@11.1.19)(class-transformer@0.5.1)(class-validator@0.15.1)(debug@4.4.3)
       rimraf:
         specifier: ^6.1.3
         version: 6.1.3
@@ -2767,8 +2767,8 @@ packages:
   '@octokit/types@16.0.0':
     resolution: {integrity: sha512-sKq+9r1Mm4efXW1FCk7hFSeJo4QKreL/tTbR0rz/qx/r1Oa2VV83LTA/H/MuCOX7uCIJmQVRKBcbmWoySjAnSg==}
 
-  '@openapitools/openapi-generator-cli@2.31.1':
-    resolution: {integrity: sha512-dPE+COjNLLTHFQ1lddUvpo+J8YQB1RD3/NVRJ3K+1hPZnyuxCURgOCmr7mXgHEyHmzWH8dKXWm/pD170iVR0vw==}
+  '@openapitools/openapi-generator-cli@2.32.0':
+    resolution: {integrity: sha512-9HZ3fp3cankdUC89UNsnW+HZFmRUadjjtqOvIIo6/D+bAVs+VJRqyhDy4rT4/cxqcLhXw40njs/vJLj21r60JA==}
     engines: {node: '>=20.19.0'}
     hasBin: true
 
@@ -5713,9 +5713,6 @@ packages:
   axe-core@4.11.4:
     resolution: {integrity: sha512-KunSNx+TVpkAw/6ULfhnx+HWRecjqZGTOyquAoWHYLRSdK1tB5Ihce1ZW+UY3fj33bYAFWPu7W/GRSmmrCGuxA==}
     engines: {node: '>=4'}
-
-  axios@1.15.1:
-    resolution: {integrity: sha512-WOG+Jj8ZOvR0a3rAn+Tuf1UQJRxw5venr6DgdbJzngJE3qG7X0kL83CZGpdHMxEm+ZK3seAbvFsw4FfOfP9vxg==}
 
   axios@1.16.0:
     resolution: {integrity: sha512-6hp5CwvTPlN2A31g5dxnwAX0orzM7pmCRDLnZSX772mv8WDqICwFjowHuPs04Mc8deIld1+ejhtaMn5vp6b+1w==}
@@ -14151,10 +14148,10 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
-  '@nestjs/axios@4.0.1(@nestjs/common@11.1.17(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(axios@1.15.1(debug@4.4.3))(rxjs@7.8.2)':
+  '@nestjs/axios@4.0.1(@nestjs/common@11.1.17(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(axios@1.16.0(debug@4.4.3))(rxjs@7.8.2)':
     dependencies:
       '@nestjs/common': 11.1.17(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      axios: 1.15.1(debug@4.4.3)
+      axios: 1.16.0(debug@4.4.3)
       rxjs: 7.8.2
 
   '@nestjs/axios@4.0.1(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(axios@1.16.0(debug@4.4.3))(rxjs@7.8.2)':
@@ -14596,14 +14593,14 @@ snapshots:
     dependencies:
       '@octokit/openapi-types': 27.0.0
 
-  '@openapitools/openapi-generator-cli@2.31.1(@nestjs/platform-express@11.1.19)(@nestjs/websockets@11.1.19)(class-transformer@0.5.1)(class-validator@0.15.1)(debug@4.4.3)':
+  '@openapitools/openapi-generator-cli@2.32.0(@nestjs/platform-express@11.1.19)(@nestjs/websockets@11.1.19)(class-transformer@0.5.1)(class-validator@0.15.1)(debug@4.4.3)':
     dependencies:
       '@inquirer/select': 1.3.3
-      '@nestjs/axios': 4.0.1(@nestjs/common@11.1.17(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(axios@1.15.1(debug@4.4.3))(rxjs@7.8.2)
+      '@nestjs/axios': 4.0.1(@nestjs/common@11.1.17(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(axios@1.16.0(debug@4.4.3))(rxjs@7.8.2)
       '@nestjs/common': 11.1.17(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 11.1.18(@nestjs/common@11.1.17(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.19)(@nestjs/websockets@11.1.19)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nuxtjs/opencollective': 0.3.2
-      axios: 1.15.1(debug@4.4.3)
+      axios: 1.16.0(debug@4.4.3)
       chalk: 4.1.2
       commander: 8.3.0
       compare-versions: 6.1.1
@@ -18458,14 +18455,6 @@ snapshots:
   aws-ssl-profiles@1.1.2: {}
 
   axe-core@4.11.4: {}
-
-  axios@1.15.1(debug@4.4.3):
-    dependencies:
-      follow-redirects: 1.16.0(debug@4.4.3)
-      form-data: 4.0.5
-      proxy-from-env: 2.1.0
-    transitivePeerDependencies:
-      - debug
 
   axios@1.16.0(debug@4.4.3):
     dependencies:

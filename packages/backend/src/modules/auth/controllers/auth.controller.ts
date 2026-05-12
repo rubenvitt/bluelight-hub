@@ -56,6 +56,16 @@ import type { ValidatedUser } from '../strategies/jwt.strategy';
 import { isAdmin } from '../utils/auth.utils';
 import { clearAdminCookie, clearAuthCookies, setAdminCookie, setAuthCookies } from '../utils/cookies.utils';
 
+// Throttler-Limit fuer Auth-Endpunkte (Brute-Force-Schutz). Default 5 Req/min/IP; per ENV
+// (`AUTH_LOGIN_THROTTLE_LIMIT`) ueberschreibbar, damit E2E-Seed mit mehreren sequentiellen
+// Logins nicht in 429 laeuft (Production-Default bleibt 5).
+const AUTH_LOGIN_THROTTLE_LIMIT = (() => {
+  const raw = process.env.AUTH_LOGIN_THROTTLE_LIMIT;
+  const parsed = raw === undefined ? 5 : Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
+})();
+const AUTH_LOGIN_THROTTLE = { default: { limit: AUTH_LOGIN_THROTTLE_LIMIT, ttl: 60000 } };
+
 /**
  * Controller für Authentifizierung-Endpunkte
  *
@@ -102,7 +112,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @SkipServerAccess()
   @SkipSetupCheck()
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 Anfragen pro Minute
+  @Throttle(AUTH_LOGIN_THROTTLE) // Default 5 Anfragen pro Minute; siehe AUTH_LOGIN_THROTTLE_LIMIT
   @ApiOperation({
     summary: 'Unified Login & Auto-Register',
     description: 'Vereinheitlichter Endpunkt für Login und automatische Registrierung. Wenn der Benutzer nicht existiert, wird er automatisch angelegt.',
@@ -187,7 +197,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @SkipServerAccess()
   @SkipSetupCheck()
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 Anfragen pro Minute
+  @Throttle(AUTH_LOGIN_THROTTLE) // Default 5 Anfragen pro Minute; siehe AUTH_LOGIN_THROTTLE_LIMIT
   @ApiOperation({
     summary: 'User Login (PASSWORDLESS für USER, PASSWORD für ADMIN)',
     description: 'Meldet einen User an und gibt JWT Token zurück. PASSWORDLESS Auth für USER Role, PASSWORD-REQUIRED für ADMIN/SUPER_ADMIN.',
@@ -678,7 +688,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK) // AC1: 200 OK bei Erfolg
   @SkipServerAccess()
   @SkipSetupCheck()
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // AC5: 5 req/min/IP
+  @Throttle(AUTH_LOGIN_THROTTLE) // AC5: Default 5 req/min/IP; siehe AUTH_LOGIN_THROTTLE_LIMIT
   @ApiOperation({
     summary: 'Invite-Code einlösen',
     description: 'Tauscht einen zeitlich begrenzten Invite-Code gegen ein dauerhaftes Server-Access-Token ein. Der Invite-Code wird nach erfolgreicher Einlösung als verwendet markiert.',

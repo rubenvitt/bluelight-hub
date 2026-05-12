@@ -138,6 +138,9 @@ export default async function globalSetup(): Promise<void> {
     // P24 (Review): `INSECURE_MODE` ist hier dokumentiert nötig, weil das Production-Backend
     // ohne Self-Signed-Zertifikat HTTPS-Lock aktiv hat. E2E-Suite läuft gegen HTTP-Loopback.
     INSECURE_MODE: 'true',
+    // Seed-Phase laedt Admin + 6 Test-User per sequentiellem Login; Auth-Throttler-Default
+    // (5 Req/min/IP) wuerde den 6. Login blocken. Production-Default bleibt unveraendert (5).
+    AUTH_LOGIN_THROTTLE_LIMIT: process.env.AUTH_LOGIN_THROTTLE_LIMIT ?? '100',
   });
 
   // P19 (Review): PIDs *direkt nach Spawn* persistieren (vor Seed), damit Teardown

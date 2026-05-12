@@ -1,12 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { SyncConflictListItemDto } from '@bluelight-hub/shared/client';
-
-const { mocks } = vi.hoisted(() => ({
-  mocks: {
-    syncConflicts: { data: [] as SyncConflictListItemDto[] },
-  },
-}));
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-router')>();
@@ -51,15 +44,10 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   };
 });
 
-vi.mock('@/features/eigenschutz/api/queries', () => ({
-  useSyncConflicts: () => mocks.syncConflicts,
-}));
-
 import { EigenschutzSubNav } from '../EigenschutzSubNav';
 
 describe('EigenschutzSubNav', () => {
-  it('rendert sieben Tabs in stabiler Reihenfolge', () => {
-    mocks.syncConflicts = { data: [] };
+  it('rendert sechs Tabs in stabiler Reihenfolge (Goal G6: kein „Konflikte"-Tab)', () => {
     render(<EigenschutzSubNav einsatzId="einsatz-1" />);
 
     const nav = screen.getByTestId('eigenschutz-subnav');
@@ -74,8 +62,14 @@ describe('EigenschutzSubNav', () => {
       expect.stringMatching(/^PSA-Profile$/),
       expect.stringMatching(/^Sicherungsposten$/),
       expect.stringMatching(/^Vorfälle$/),
-      expect.stringMatching(/^Konflikte$/),
     ]);
+  });
+
+  it('rendert keinen „Konflikte"-Tab mehr (Goal G6: Drawer statt Sub-Tab)', () => {
+    render(<EigenschutzSubNav einsatzId="einsatz-1" />);
+
+    expect(screen.queryByTestId('eigenschutz-subnav-link-konflikte')).toBeNull();
+    expect(screen.queryByTestId('eigenschutz-subnav-konflikte-badge')).toBeNull();
   });
 
   it('propagiert die einsatzId an jeden Tab-Link', () => {
@@ -91,27 +85,7 @@ describe('EigenschutzSubNav', () => {
 
     expect(screen.getByTestId('eigenschutz-subnav-link-uebersicht').getAttribute('data-active-exact')).toBe('true');
     expect(screen.getByTestId('eigenschutz-subnav-link-gefaehrdungen').getAttribute('data-active-exact')).toBe('false');
-    expect(screen.getByTestId('eigenschutz-subnav-link-konflikte').getAttribute('data-active-exact')).toBe('false');
-  });
-
-  it('zeigt den Konflikt-Badge, wenn offene Konflikte existieren', () => {
-    mocks.syncConflicts = {
-      data: [{ id: 'c-1' } as SyncConflictListItemDto, { id: 'c-2' } as SyncConflictListItemDto],
-    };
-
-    render(<EigenschutzSubNav einsatzId="einsatz-1" />);
-
-    const badge = screen.getByTestId('eigenschutz-subnav-konflikte-badge');
-    expect(badge).toHaveTextContent('2');
-    expect(badge).toHaveAttribute('aria-label', '2 offene Konflikte');
-  });
-
-  it('blendet den Konflikt-Badge bei leerer Konfliktliste aus', () => {
-    mocks.syncConflicts = { data: [] };
-
-    render(<EigenschutzSubNav einsatzId="einsatz-1" />);
-
-    expect(screen.queryByTestId('eigenschutz-subnav-konflikte-badge')).toBeNull();
+    expect(screen.getByTestId('eigenschutz-subnav-link-vorfaelle').getAttribute('data-active-exact')).toBe('false');
   });
 
   it('exponiert eine Navigations-Landmark mit deutschem aria-label', () => {
@@ -140,17 +114,5 @@ describe('EigenschutzSubNav', () => {
     expect(psaTab.getAttribute('data-active-aria-current')).toBe('page');
     expect(psaTab.getAttribute('data-class-active')).toMatch(/\bborder-action-primary\b/);
     expect(psaTab.getAttribute('data-class-active')).toMatch(/\btext-text-primary\b/);
-  });
-
-  it('blendet den Konflikt-Badge auch im Fehlerfall der useSyncConflicts-Query aus', () => {
-    // TanStack-Query liefert im Error-Pfad `data: undefined`; das ?? 0 muss
-    // den Badge stumm halten (Spec §I/O „Query-Fehler: Badge wird nicht
-    // angezeigt").
-    mocks.syncConflicts = { data: undefined as unknown as SyncConflictListItemDto[] };
-
-    render(<EigenschutzSubNav einsatzId="einsatz-1" />);
-
-    expect(screen.queryByTestId('eigenschutz-subnav-konflikte-badge')).toBeNull();
-    expect(screen.getByTestId('eigenschutz-subnav-link-konflikte')).toBeInTheDocument();
   });
 });

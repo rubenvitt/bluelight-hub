@@ -1,17 +1,22 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 import { z } from 'zod';
-import { SyncConflictsPage } from '@/features/eigenschutz/ui/pages/SyncConflictsPage';
 
 /**
- * Search-Param-Schema für `/sync-konflikte` (Story 3.10 AC9).
+ * Legacy-Route `/sync-konflikte` — leitet auf den Eigenschutz-Layout-Mount
+ * um und öffnet dort den `SyncConflictsDrawer` über den Search-Param
+ * `openConflicts=1`.
  *
- * Beide Felder sind optional und erlauben Deep-Links aus dem
- * `KonfliktErkanntMikroBanner` (Story 3.9, AC7 §5):
- * - `entityType`: vor-filtert die Liste auf PSA- bzw. GB-Konflikte.
- * - `einheitId`: fokussiert auf eine spezifische Einheit.
+ * **Hintergrund:** Die ehemalige `SyncConflictsPage` wurde zugunsten eines
+ * Slide-in-Drawers entfernt (Goal G6) — Konflikt-Auflösung ist eine
+ * kontextuelle BEFEHLSGEBER-Aktion und gehört nicht in eine eigene
+ * Sub-Tab-Route. Diese Datei bleibt erhalten, damit bestehende Deep-Links
+ * (Mikro-Banner-History, externer Bookmark, Smoke-Test-URLs) nicht ins
+ * Leere laufen — sie redirecten auf den Eigenschutz-Bereich mit aktivem
+ * Drawer-Hint.
  *
- * Das gesamte Schema ist optional — direkter URL-Aufruf ohne Search-Params
- * darf nicht hart fehlschlagen.
+ * Story 3.10 F6 (Resilient Deep-Links): Auch wenn `entityType` oder
+ * `einheitId` als kaputte Werte hereinkommen, fällt `safeParse` auf
+ * `undefined` zurück; der Drawer öffnet sich dann ungefiltert.
  */
 const SyncConflictsSearchSchema = z
   .object({
@@ -20,26 +25,22 @@ const SyncConflictsSearchSchema = z
   })
   .optional();
 
-/**
- * File-Route für die Sync-Konflikte-Liste (Story 3.10 AC9).
- *
- * Mountet die `SyncConflictsPage`. Die Layout-Route `eigenschutz.tsx`
- * navigiert hierhin, wenn der `KonfliktErkanntMikroBanner` „Konflikte ansehen"
- * triggert; die `EigenschutzEntryPage` verlinkt zusätzlich als reguläre
- * Sub-Route.
- */
 export const Route = createFileRoute('/app/einsatz/$einsatzId/sicherheit/eigenschutz/sync-konflikte')({
-  component: SyncConflictsRouteComponent,
-  // Story 3.10 F6: Kaputte Deep-Links (z. B. `?entityType=BOGUS`) dürfen
-  // die Route nicht zum Absturz bringen. `safeParse` mit Fallback auf ein
-  // leeres Filter-Objekt rendert die Liste ungefiltert statt zu werfen.
   validateSearch: (search) => {
     const result = SyncConflictsSearchSchema.safeParse(search);
     return result.success ? (result.data ?? {}) : {};
   },
+  beforeLoad: ({ params, search }) => {
+    const typed = search as { entityType?: string; einheitId?: string } | undefined;
+    throw redirect({
+      to: '/app/einsatz/$einsatzId/sicherheit/eigenschutz',
+      params: { einsatzId: params.einsatzId },
+      search: {
+        openConflicts: 1 as const,
+        ...(typed?.entityType ? { entityType: typed.entityType as 'PSA_PROFIL_ZUWEISUNG' | 'GEFAEHRDUNGSBEURTEILUNG_ITEM' } : {}),
+        ...(typed?.einheitId ? { einheitId: typed.einheitId } : {}),
+      },
+      replace: true,
+    });
+  },
 });
-
-function SyncConflictsRouteComponent() {
-  const { einsatzId } = Route.useParams();
-  return <SyncConflictsPage einsatzId={einsatzId} />;
-}

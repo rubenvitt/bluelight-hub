@@ -13,11 +13,12 @@ import { renderWithProviders } from '@/test/utils';
  * direkt verfügbar bleibt.
  */
 
-const { captured, mockUseParams, mockUseLocation, mockNavigate } = vi.hoisted(() => ({
+const { captured, mockUseParams, mockUseLocation, mockNavigate, mockUseSearch } = vi.hoisted(() => ({
   captured: { component: null as (() => React.JSX.Element) | null },
   mockUseParams: vi.fn(() => ({ einsatzId: 'einsatz-1' })),
   mockUseLocation: vi.fn(() => ({ pathname: '/app/einsatz/einsatz-1/sicherheit/eigenschutz' })),
   mockNavigate: vi.fn(),
+  mockUseSearch: vi.fn(() => ({}) as Record<string, unknown>),
 }));
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
@@ -29,6 +30,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
         captured.component = options.component;
         return {
           useParams: mockUseParams,
+          useSearch: mockUseSearch,
           options,
         };
       };
@@ -59,6 +61,15 @@ vi.mock('@/features/eigenschutz/ui/molecules/EigenschutzSyncStatusPopover', () =
 
 vi.mock('@/features/eigenschutz/ui/organisms/EigenschutzSubNav', () => ({
   EigenschutzSubNav: ({ einsatzId }: { einsatzId: string }) => <div data-testid="eigenschutz-subnav-mock">SubNav:{einsatzId}</div>,
+}));
+
+vi.mock('@/features/eigenschutz/ui/organisms/SyncConflictsDrawer', () => ({
+  SyncConflictsDrawer: ({ einsatzId, isOpen, initialFilter }: { einsatzId: string; isOpen: boolean; initialFilter?: { entityType?: string; einheitId?: string } }) =>
+    isOpen ? (
+      <div data-testid="sync-conflicts-drawer-mock" data-einsatz-id={einsatzId} data-entity-type={initialFilter?.entityType ?? ''} data-einheit-id={initialFilter?.einheitId ?? ''}>
+        DrawerOpen
+      </div>
+    ) : null,
 }));
 
 const { mockQuittungLive, mockLueckeLive, mockUeberfaelligLive, mockKonfliktLive, mockUseSyncStatus } = vi.hoisted(() => ({
@@ -129,6 +140,7 @@ describe('Eigenschutz Route (Story 1.6)', () => {
     vi.clearAllMocks();
     mockUseLocation.mockReturnValue({ pathname: '/app/einsatz/einsatz-1/sicherheit/eigenschutz/gefaehrdungen' });
     mockUseParams.mockReturnValue({ einsatzId: 'einsatz-1' });
+    mockUseSearch.mockReturnValue({});
     mockUseSyncStatus.mockReturnValue({
       status: 'synced',
       isLoaded: true,
@@ -246,7 +258,39 @@ describe('Eigenschutz Route (Story 1.6)', () => {
     renderRoute();
 
     expect(screen.getByTestId('eigenschutz-sync-conflict-summary-banner')).toHaveTextContent('Sync-Konflikt: jetzt auflösen');
-    expect(screen.getByTestId('eigenschutz-sync-conflict-summary-link')).toHaveAttribute('href', '/app/einsatz/einsatz-1/sicherheit/eigenschutz/sync-konflikte');
+    // Goal G6: Summary-Link ist jetzt ein Button (öffnet Drawer) — kein href mehr.
+    const summaryButton = screen.getByTestId('eigenschutz-sync-conflict-summary-link');
+    expect(summaryButton).toBeInTheDocument();
+    expect(summaryButton.tagName).toBe('BUTTON');
+  });
+
+  it('Goal G6: öffnet den SyncConflictsDrawer, wenn openConflicts=1 als Search-Param vorliegt (Legacy-Redirect)', () => {
+    mockUseSearch.mockReturnValue({ openConflicts: 1 });
+    mockUseLocation.mockReturnValue({ pathname: '/app/einsatz/einsatz-1/sicherheit/eigenschutz' });
+
+    renderRoute();
+
+    expect(screen.getByTestId('sync-conflicts-drawer-mock')).toHaveTextContent('DrawerOpen');
+  });
+
+  it('Goal G6: reicht Drawer-Filter (entityType, einheitId) aus Search-Params durch', () => {
+    mockUseSearch.mockReturnValue({ openConflicts: 1, entityType: 'PSA_PROFIL_ZUWEISUNG', einheitId: 'einheit-7' });
+    mockUseLocation.mockReturnValue({ pathname: '/app/einsatz/einsatz-1/sicherheit/eigenschutz' });
+
+    renderRoute();
+
+    const drawer = screen.getByTestId('sync-conflicts-drawer-mock');
+    expect(drawer.getAttribute('data-entity-type')).toBe('PSA_PROFIL_ZUWEISUNG');
+    expect(drawer.getAttribute('data-einheit-id')).toBe('einheit-7');
+  });
+
+  it('Goal G6: hält den Drawer geschlossen, wenn kein openConflicts-Hint gesetzt ist', () => {
+    mockUseSearch.mockReturnValue({});
+    mockUseLocation.mockReturnValue({ pathname: '/app/einsatz/einsatz-1/sicherheit/eigenschutz' });
+
+    renderRoute();
+
+    expect(screen.queryByTestId('sync-conflicts-drawer-mock')).toBeNull();
   });
 
   it('mountet die EigenschutzSubNav auf der Root-Route oberhalb der EntryPage (Wayfinding)', () => {

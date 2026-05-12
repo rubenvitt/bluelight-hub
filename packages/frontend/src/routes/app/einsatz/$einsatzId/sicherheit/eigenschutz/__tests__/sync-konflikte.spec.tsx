@@ -1,55 +1,64 @@
 /**
- * Schema- und Komponenten-Tests für die Sync-Konflikte-Route (Story 3.10 AC9).
+ * Schema- und Redirect-Tests für die Legacy-Route `/sync-konflikte`
+ * (Goal G6 — `SyncConflictsPage` ersetzt durch `SyncConflictsDrawer`).
  *
- * Pattern: `alarmierung.spec.ts` (Z. 1–92) — `createFileRoute` wird so
- * gemockt, dass die exportierte `Route` ein einfaches Konfig-Objekt ist; die
- * `validateSearch`-Funktion und `component`-Property sind direkt prüfbar,
- * ohne einen echten Router zu mounten.
+ * Der Route-Komponenten-Pfad existiert nicht mehr; stattdessen wirft
+ * `beforeLoad` ein TanStack-`redirect()`-Sentinel zur Layout-Route
+ * `/eigenschutz` mit `openConflicts=1`.
+ *
+ * Pattern für die `createFileRoute`-Mock-Verkabelung: `alarmierung.spec.ts`.
  */
 
-import { render } from '@testing-library/react';
-import { createElement, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockUseParams = vi.fn(() => ({ einsatzId: 'einsatz-1' }));
-
-const mockCreateFileRoute = vi.fn(() => (config: unknown) => ({
-  ...(config as object),
-  useParams: mockUseParams,
-}));
+const mockCreateFileRoute = vi.fn(() => (config: unknown) => ({ ...(config as object) }));
 
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-router')>('@tanstack/react-router');
   return {
     ...actual,
     createFileRoute: mockCreateFileRoute,
-    useParams: () => mockUseParams(),
+    // `redirect()` werfen wir manuell, damit der Test den Wurf direkt
+    // einfangen kann (TanStack-internes Sentinel-Objekt simuliert).
+    redirect: (target: unknown) => ({ __redirect: true, target }),
   };
 });
 
-const syncConflictsPageMock = vi.fn((_props: unknown) => null);
-
-vi.mock('@/features/eigenschutz/ui/pages/SyncConflictsPage', () => ({
-  SyncConflictsPage: (props: unknown) => syncConflictsPageMock(props),
-}));
-
 type RouteShape = {
   validateSearch: (s: unknown) => unknown;
-  component: () => ReactElement;
+  beforeLoad: (args: { params: { einsatzId: string }; search: Record<string, unknown> }) => void;
 };
 
-describe('Route /app/einsatz/$einsatzId/sicherheit/eigenschutz/sync-konflikte', () => {
+interface RedirectPayload {
+  to: string;
+  params: { einsatzId: string };
+  search: Record<string, unknown>;
+  replace: boolean;
+}
+
+interface RedirectSentinel {
+  __redirect: boolean;
+  target: RedirectPayload;
+}
+
+function captureRedirect(fn: () => void): RedirectSentinel | undefined {
+  try {
+    fn();
+    return undefined;
+  } catch (sentinel) {
+    return sentinel as RedirectSentinel;
+  }
+}
+
+describe('Route /app/einsatz/$einsatzId/sicherheit/eigenschutz/sync-konflikte (Legacy-Redirect)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseParams.mockReturnValue({ einsatzId: 'einsatz-1' });
   });
 
   describe('validateSearch (Zod-Schema)', () => {
     it('akzeptiert ein leeres Search-Objekt', async () => {
       const { Route } = await import('../sync-konflikte');
       const validate = (Route as unknown as RouteShape).validateSearch;
-      // Das Schema ist `.optional()` — `undefined` wird zu `{}` normalisiert
-      // (Story 3.10 F6: safeParse-Fallback).
       expect(validate(undefined)).toEqual({});
     });
 
@@ -70,8 +79,6 @@ describe('Route /app/einsatz/$einsatzId/sicherheit/eigenschutz/sync-konflikte', 
     it('Story 3.10 F6: kaputter Deep-Link (entityType=BOGUS) wirft NICHT, fällt auf leeres Filter-Objekt zurück', async () => {
       const { Route } = await import('../sync-konflikte');
       const validate = (Route as unknown as RouteShape).validateSearch;
-      // safeParse-Fallback: ungültige Search-Params dürfen die Route nicht
-      // sprengen. Die Komponente rendert die Liste mit leerem Filter.
       expect(() => validate({ entityType: 'BOGUS' })).not.toThrow();
       expect(validate({ entityType: 'BOGUS' })).toEqual({});
     });
@@ -79,24 +86,51 @@ describe('Route /app/einsatz/$einsatzId/sicherheit/eigenschutz/sync-konflikte', 
     it('Story 3.10 F6: andere kaputte Search-Param-Typen fallen ebenfalls auf {} zurück', async () => {
       const { Route } = await import('../sync-konflikte');
       const validate = (Route as unknown as RouteShape).validateSearch;
-      // einheitId muss ein String sein — eine Zahl ist ungültig.
       expect(() => validate({ einheitId: 42 })).not.toThrow();
       expect(validate({ einheitId: 42 })).toEqual({});
     });
   });
 
-  describe('SyncConflictsRouteComponent', () => {
-    it('rendert SyncConflictsPage mit der einsatzId aus Route.useParams', async () => {
-      mockUseParams.mockReturnValue({ einsatzId: 'einsatz-42' });
-
+  describe('beforeLoad — Redirect zur Layout-Route (Goal G6)', () => {
+    it('leitet auf /eigenschutz mit openConflicts=1 um', async () => {
       const { Route } = await import('../sync-konflikte');
-      const Component = (Route as unknown as RouteShape).component;
+      const beforeLoad = (Route as unknown as RouteShape).beforeLoad;
 
-      render(createElement(Component));
+      const sentinel = captureRedirect(() => beforeLoad({ params: { einsatzId: 'einsatz-1' }, search: {} }));
 
-      expect(syncConflictsPageMock).toHaveBeenCalledTimes(1);
-      const props = syncConflictsPageMock.mock.calls[0]?.[0] as { einsatzId: string };
-      expect(props.einsatzId).toBe('einsatz-42');
+      expect(sentinel?.__redirect).toBe(true);
+      expect(sentinel?.target.to).toBe('/app/einsatz/$einsatzId/sicherheit/eigenschutz');
+      expect(sentinel?.target.params).toEqual({ einsatzId: 'einsatz-1' });
+      expect(sentinel?.target.search).toEqual({ openConflicts: 1 });
+      expect(sentinel?.target.replace).toBe(true);
+    });
+
+    it('reicht entityType + einheitId an die Layout-Route weiter (Drawer öffnet vorgefiltert)', async () => {
+      const { Route } = await import('../sync-konflikte');
+      const beforeLoad = (Route as unknown as RouteShape).beforeLoad;
+
+      const sentinel = captureRedirect(() =>
+        beforeLoad({
+          params: { einsatzId: 'einsatz-42' },
+          search: { entityType: 'PSA_PROFIL_ZUWEISUNG', einheitId: 'einheit-7' },
+        }),
+      );
+
+      expect(sentinel?.target.search).toEqual({
+        openConflicts: 1,
+        entityType: 'PSA_PROFIL_ZUWEISUNG',
+        einheitId: 'einheit-7',
+      });
+    });
+
+    it('redirected auch ohne Search-Params', async () => {
+      const { Route } = await import('../sync-konflikte');
+      const beforeLoad = (Route as unknown as RouteShape).beforeLoad;
+
+      const sentinel = captureRedirect(() => beforeLoad({ params: { einsatzId: 'einsatz-1' }, search: undefined as unknown as Record<string, unknown> }));
+
+      expect(sentinel?.__redirect).toBe(true);
+      expect(sentinel?.target.search.openConflicts).toBe(1);
     });
   });
 });

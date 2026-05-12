@@ -18,7 +18,6 @@ const ROUTES = {
   psaProfile: '/app/einsatz/$einsatzId/sicherheit/eigenschutz/psa-profile',
   sicherheitsregeln: '/app/einsatz/$einsatzId/sicherheit/eigenschutz/sicherheitsregeln',
   sicherungsposten: '/app/einsatz/$einsatzId/sicherheit/eigenschutz/sicherungsposten',
-  syncKonflikte: '/app/einsatz/$einsatzId/sicherheit/eigenschutz/sync-konflikte',
 } as const;
 
 type RouteTarget = (typeof ROUTES)[keyof typeof ROUTES];
@@ -127,7 +126,10 @@ export function useEigenschutzCommandModule({ einsatzId, hidden = false, disable
               disabled: Boolean(conflictDisabledReason),
               disabledReason: conflictDisabledReason,
               keywords: ['Konflikte', 'Konflikt', 'Sync', 'Aufloesen', 'Auflösen'],
-              action: () => navigateTo(ROUTES.syncKonflikte),
+              // Goal G6: Konflikt-Auflösung läuft über den `SyncConflictsDrawer`
+              // an der Layout-Route. `openConflicts=1` triggert den Drawer-Open
+              // im Layout-`useEffect`.
+              action: () => navigateTo(ROUTES.dashboard, { openConflicts: 1 }),
             },
             {
               id: 'vorfall-archiv',

@@ -52,7 +52,11 @@ function EigenschutzSyncStatusPopoverView({
   syncStatus,
   onOpenConflicts,
 }: Required<Pick<EigenschutzSyncStatusPopoverProps, 'einsatzId' | 'syncStatus'>> & Pick<EigenschutzSyncStatusPopoverProps, 'onOpenConflicts'>) {
-  const conflictHref = useMemo(() => `/app/einsatz/${encodeURIComponent(einsatzId)}/sicherheit/eigenschutz/sync-konflikte`, [einsatzId]);
+  // Goal G6: Konflikte werden nicht mehr als eigene Seite, sondern als Drawer
+  // an der Eigenschutz-Layout-Route geöffnet. Der `href` ist ein
+  // No-JS-Fallback; mit JS überschreibt der `onClick`-Handler die Navigation
+  // und ruft `onOpenConflicts` auf, der den Drawer öffnet.
+  const conflictHref = useMemo(() => `/app/einsatz/${encodeURIComponent(einsatzId)}/sicherheit/eigenschutz?openConflicts=1`, [einsatzId]);
 
   return (
     <Popover className="relative inline-flex max-w-full">

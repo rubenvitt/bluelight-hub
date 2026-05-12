@@ -46,7 +46,7 @@ describe('EigenschutzSyncStatusPopover', () => {
     expect(await screen.findByTestId('eigenschutz-sync-status-popover')).toHaveTextContent('2 lokale Änderungen');
     expect(screen.getByTestId('eigenschutz-sync-status-popover')).toHaveTextContent('1 offener Konflikt');
     expect(screen.getByTestId('eigenschutz-sync-status-popover')).toHaveTextContent(/älteste lokale Änderung/i);
-    expect(screen.getByTestId('eigenschutz-sync-conflicts-link')).toHaveAttribute('href', '/app/einsatz/einsatz-1/sicherheit/eigenschutz/sync-konflikte');
+    expect(screen.getByTestId('eigenschutz-sync-conflicts-link')).toHaveAttribute('href', '/app/einsatz/einsatz-1/sicherheit/eigenschutz?openConflicts=1');
   });
 
   it('schließt mit Escape und gibt den Fokus an den Trigger zurück', async () => {

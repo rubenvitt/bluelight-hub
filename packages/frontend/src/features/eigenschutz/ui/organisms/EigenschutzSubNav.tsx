@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import type { ComponentType } from 'react';
-import { PiArrowsClockwise, PiClipboardText, PiGauge, PiMapPin, PiShield, PiShieldCheck, PiWarningOctagon } from 'react-icons/pi';
-import { useSyncConflicts } from '@/features/eigenschutz/api/queries';
+import { PiClipboardText, PiGauge, PiMapPin, PiShield, PiShieldCheck, PiWarningOctagon } from 'react-icons/pi';
 import { cn } from '@/shared/ui/cn';
 
 /**
@@ -18,10 +17,11 @@ import { cn } from '@/shared/ui/cn';
  * - Alle übrigen Tabs nutzen das `exact: false`-Default, sodass
  *   Detail-Routen (`…/gefaehrdungen/$id`) den Parent-Tab aktiv halten.
  *
- * **Konflikt-Badge:** wandert aus `EigenschutzEntryPage` hierher. Der
- * Mechanismus (`useSyncConflicts` → Count) bleibt identisch — der
- * `data-testid` ist stabil, damit der Walk-Flow aus bestehenden Specs
- * wiederverwendbar bleibt.
+ * **Goal G6 — kein „Konflikte"-Tab mehr:** Konflikt-Auflösung läuft jetzt
+ * über den `SyncConflictsDrawer` (kontextueller Slide-in). Die Konflikt-
+ * Sichtbarkeit für den Sicherheitsbeauftragten erfolgt über den
+ * `EigenschutzSyncStatusPopover`, den `KonfliktErkanntMikroBanner` und das
+ * Summary-Banner in der Layout-Route — keine dedizierte Sub-Tab nötig.
  */
 interface SubNavItem {
   readonly id: string;
@@ -38,7 +38,6 @@ const ITEMS: readonly SubNavItem[] = [
   { id: 'psa-profile', label: 'PSA-Profile', to: '/app/einsatz/$einsatzId/sicherheit/eigenschutz/psa-profile', Icon: PiShield },
   { id: 'sicherungsposten', label: 'Sicherungsposten', to: '/app/einsatz/$einsatzId/sicherheit/eigenschutz/sicherungsposten', Icon: PiMapPin },
   { id: 'vorfaelle', label: 'Vorfälle', to: '/app/einsatz/$einsatzId/sicherheit/eigenschutz/vorfaelle', Icon: PiWarningOctagon },
-  { id: 'konflikte', label: 'Konflikte', to: '/app/einsatz/$einsatzId/sicherheit/eigenschutz/sync-konflikte', Icon: PiArrowsClockwise },
 ] as const;
 
 export interface EigenschutzSubNavProps {
@@ -50,39 +49,24 @@ const LINK_BASE =
 const LINK_ACTIVE = 'border-action-primary text-text-primary';
 
 export function EigenschutzSubNav({ einsatzId }: EigenschutzSubNavProps) {
-  const conflictsQuery = useSyncConflicts(einsatzId);
-  const conflictCount = conflictsQuery.data?.length ?? 0;
-
   return (
     <nav aria-label="Eigenschutz-Bereiche" data-testid="eigenschutz-subnav" className="-mx-1 overflow-x-auto border-b border-border-subtle">
       <ul className="flex min-w-max items-stretch gap-1 px-1">
-        {ITEMS.map((item) => {
-          const isKonflikte = item.id === 'konflikte';
-          return (
-            <li key={item.id} className="flex">
-              <Link
-                to={item.to}
-                params={{ einsatzId }}
-                activeProps={{ className: cn(LINK_BASE, LINK_ACTIVE), 'aria-current': 'page', 'data-active': 'true' }}
-                inactiveProps={{ className: LINK_BASE }}
-                activeOptions={item.exact ? { exact: true } : undefined}
-                data-testid={`eigenschutz-subnav-link-${item.id}`}
-              >
-                <item.Icon aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
-                <span>{item.label}</span>
-                {isKonflikte && conflictCount > 0 ? (
-                  <span
-                    data-testid="eigenschutz-subnav-konflikte-badge"
-                    aria-label={`${conflictCount} offene Konflikte`}
-                    className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full border border-status-warning-border bg-status-warning-surface px-1.5 py-0.5 text-xs font-semibold text-status-warning-text"
-                  >
-                    {conflictCount}
-                  </span>
-                ) : null}
-              </Link>
-            </li>
-          );
-        })}
+        {ITEMS.map((item) => (
+          <li key={item.id} className="flex">
+            <Link
+              to={item.to}
+              params={{ einsatzId }}
+              activeProps={{ className: cn(LINK_BASE, LINK_ACTIVE), 'aria-current': 'page', 'data-active': 'true' }}
+              inactiveProps={{ className: LINK_BASE }}
+              activeOptions={item.exact ? { exact: true } : undefined}
+              data-testid={`eigenschutz-subnav-link-${item.id}`}
+            >
+              <item.Icon aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
+              <span>{item.label}</span>
+            </Link>
+          </li>
+        ))}
       </ul>
     </nav>
   );

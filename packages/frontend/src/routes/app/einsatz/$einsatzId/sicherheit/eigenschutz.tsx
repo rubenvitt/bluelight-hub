@@ -1,4 +1,5 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { z } from 'zod';
 import { EigenschutzEntryPage } from '@/features/eigenschutz';
 import { useEigenschutzPsaQuittungLive } from '@/features/eigenschutz/api/use-eigenschutz-psa-quittung-live';
 import { useEigenschutzLueckeGemeldetLive } from '@/features/eigenschutz/api/use-eigenschutz-luecke-gemeldet-live';
@@ -11,8 +12,10 @@ import type { KonfliktNotice } from '@/features/eigenschutz/api/use-eigenschutz-
 import { PsaProfilEmpfangBanner } from '@/features/eigenschutz/ui/organisms/PsaProfilEmpfangBanner';
 import { EinsatzleiterReprompEskalationBanner } from '@/features/eigenschutz/ui/organisms/EinsatzleiterReprompEskalationBanner';
 import { EigenschutzSubNav } from '@/features/eigenschutz/ui/organisms/EigenschutzSubNav';
+import { SyncConflictsDrawer } from '@/features/eigenschutz/ui/organisms/SyncConflictsDrawer';
 import { KonfliktErkanntMikroBanner } from '@/features/eigenschutz/ui/molecules/KonfliktErkanntMikroBanner';
 import { EigenschutzSyncStatusPopover } from '@/features/eigenschutz/ui/molecules/EigenschutzSyncStatusPopover';
+import type { SyncConflictsFilter } from '@/features/eigenschutz/api/queries';
 import { logger } from '@/shared/lib/logger';
 import { Outlet, createFileRoute, useLocation, useNavigate } from '@tanstack/react-router';
 
@@ -33,14 +36,41 @@ import { Outlet, createFileRoute, useLocation, useNavigate } from '@tanstack/rea
  * gemeinsamer Layout-Container montiert — der kritische CBRN-Banner
  * bleibt damit auf der Entry-Page **und** allen Eigenschutz-Sub-Pages
  * persistent oberhalb des Inhalts sichtbar.
+ *
+ * **Goal G6 — Sync-Konflikte als Drawer:** Die frühere
+ * `SyncConflictsPage`/`/sync-konflikte`-Sub-Tab-Route wurde zugunsten eines
+ * Slide-in-`SyncConflictsDrawer` entfernt (Konflikt-Auflösung ist eine
+ * kontextuelle BEFEHLSGEBER-Aktion, die den Workspace-Kontext sichtbar
+ * lassen soll). Der Drawer wird hier zentral gemountet und über vier
+ * Trigger geöffnet:
+ * 1. `EigenschutzSyncStatusPopover` → `onOpenConflicts`
+ * 2. `KonfliktErkanntMikroBanner` → `onOpenConflict` (mit Einheits-Filter)
+ * 3. `eigenschutz-sync-conflict-summary-banner` (Inline-Section unten)
+ * 4. Legacy-Deep-Link `?openConflicts=1` (Redirect von `/sync-konflikte`)
  */
+const EigenschutzSearchSchema = z
+  .object({
+    /** Legacy-Deep-Link-Hint: `1` öffnet den `SyncConflictsDrawer` automatisch. */
+    openConflicts: z.literal(1).optional(),
+    /** Optional: Drawer-Filter (Entity-Typ) aus Legacy-URL oder Mikro-Banner. */
+    entityType: z.enum(['PSA_PROFIL_ZUWEISUNG', 'GEFAEHRDUNGSBEURTEILUNG_ITEM']).optional(),
+    /** Optional: Drawer-Filter (Einheit) aus Legacy-URL oder Mikro-Banner. */
+    einheitId: z.string().optional(),
+  })
+  .optional();
+
 export const Route = createFileRoute('/app/einsatz/$einsatzId/sicherheit/eigenschutz')({
   component: EigenschutzRouteComponent,
+  validateSearch: (search) => {
+    const result = EigenschutzSearchSchema.safeParse(search);
+    return result.success ? (result.data ?? {}) : {};
+  },
 });
 
 function EigenschutzRouteComponent() {
   const { einsatzId } = Route.useParams();
   const location = useLocation();
+  const search = Route.useSearch() as { openConflicts?: 1; entityType?: 'PSA_PROFIL_ZUWEISUNG' | 'GEFAEHRDUNGSBEURTEILUNG_ITEM'; einheitId?: string } | undefined;
 
   // Story 3.4 AC11 — Sender-Live-Hook auf demselben Layout-Mount wie der
   // Empfänger-Banner-Hook (`useEigenschutzPsaLiveBanner` im
@@ -78,29 +108,56 @@ function EigenschutzRouteComponent() {
   const syncStatus = useEigenschutzSyncStatus(einsatzId);
 
   const navigate = useNavigate();
-  // Story 3.10 AC9 §4 — Wiring der Mikro-Banner-Navigation aus Story 3.9.
-  // Klick auf „Konflikte ansehen" navigiert zur `SyncConflictsPage` (Task 9);
-  // optionaler URL-Filter auf die spezifische Einheit landet als Search-Param
-  // an der Route, wo das Zod-Schema ihn validiert.
+
+  // Goal G6 — Drawer-Open-State. `null` = geschlossen; sonst aktueller
+  // Filter-Snapshot, der an die Liste durchgereicht wird (Pattern: Story 3.5
+  // `propagationGroupId` als Open-Signal).
+  const [conflictsFilter, setConflictsFilter] = useState<SyncConflictsFilter | null>(null);
+
+  const openSyncConflicts = useCallback((filter?: SyncConflictsFilter) => {
+    setConflictsFilter(filter ?? {});
+  }, []);
+
+  const closeSyncConflicts = useCallback(() => {
+    setConflictsFilter(null);
+    // Falls der Drawer per Deep-Link geöffnet wurde, den `openConflicts`-Hint
+    // aus der URL entfernen, damit ein Reload nicht erneut autoöffnet.
+    void navigate({
+      to: '.',
+      search: (prev) => {
+        const next = { ...(prev as Record<string, unknown>) };
+        delete next.openConflicts;
+        delete next.entityType;
+        delete next.einheitId;
+        return next as never;
+      },
+      replace: true,
+    });
+  }, [navigate]);
+
+  // Mikro-Banner-Wiring (Story 3.9 → 3.10): „Konflikte ansehen" öffnet den
+  // Drawer mit optionalem Einheits-Filter, statt zu navigieren.
   const handleOpenConflict = useCallback(
     (notice: KonfliktNotice) => {
-      void navigate({
-        to: '/app/einsatz/$einsatzId/sicherheit/eigenschutz/sync-konflikte',
-        params: { einsatzId },
-        search: notice.einheitId ? { einheitId: notice.einheitId } : {},
-      });
+      openSyncConflicts(notice.einheitId ? { einheitId: notice.einheitId } : {});
     },
-    [navigate, einsatzId],
+    [openSyncConflicts],
   );
 
   const handleOpenSyncConflicts = useCallback(() => {
-    void navigate({
-      to: '/app/einsatz/$einsatzId/sicherheit/eigenschutz/sync-konflikte',
-      params: { einsatzId },
-      search: {},
-    });
-  }, [navigate, einsatzId]);
-  const syncConflictsHref = `/app/einsatz/${encodeURIComponent(einsatzId)}/sicherheit/eigenschutz/sync-konflikte`;
+    openSyncConflicts({});
+  }, [openSyncConflicts]);
+
+  // Legacy-Deep-Link / Redirect von `/sync-konflikte`: wenn `openConflicts=1`
+  // im Search-State landet, den Drawer einmalig öffnen. Der Hint bleibt in
+  // der URL, bis der User den Drawer schließt — dann räumt `closeSyncConflicts`
+  // ihn weg. Functional-Update auf `setConflictsFilter` verhindert ein
+  // erneutes Öffnen, wenn der User den Drawer aktiv geschlossen hat (Filter
+  // bleibt `null`, bis der `openConflicts`-Hint aus der URL verschwindet).
+  useEffect(() => {
+    if (search?.openConflicts !== 1) return;
+    setConflictsFilter((prev) => (prev === null ? { entityType: search.entityType, einheitId: search.einheitId } : prev));
+  }, [search?.openConflicts, search?.entityType, search?.einheitId]);
 
   const isEigenschutzRoot = location.pathname.replace(/\/+$/, '').endsWith('/sicherheit/eigenschutz');
 
@@ -129,20 +186,18 @@ function EigenschutzRouteComponent() {
           data-testid="eigenschutz-sync-conflict-summary-banner"
         >
           <span className="font-medium">Sync-Konflikt: jetzt auflösen</span>
-          <a
-            href={syncConflictsHref}
-            onClick={(event) => {
-              event.preventDefault();
-              handleOpenSyncConflicts();
-            }}
+          <button
+            type="button"
+            onClick={handleOpenSyncConflicts}
             className="inline-flex min-h-11 items-center rounded-control px-3 py-1.5 text-body-sm font-semibold hover:bg-surface-panel focus:outline-none focus-visible:shadow-focus-ring"
             data-testid="eigenschutz-sync-conflict-summary-link"
           >
             Konflikte auflösen
-          </a>
+          </button>
         </section>
       ) : null}
       {isEigenschutzRoot ? <EigenschutzEntryPage einsatzId={einsatzId} /> : <Outlet />}
+      <SyncConflictsDrawer einsatzId={einsatzId} isOpen={conflictsFilter !== null} onClose={closeSyncConflicts} initialFilter={conflictsFilter ?? undefined} />
     </div>
   );
 }

@@ -40,20 +40,24 @@ interface SeedUserSpec {
   role: SeedStateUser['role'];
 }
 
+// Username-Suffixe ohne Bindestriche: Backend-Username-Regex erlaubt nur [a-zA-Z0-9_].
 const TEST_USERS: ReadonlyArray<SeedUserSpec> = [
-  { key: 'markus', usernameSuffix: 'markus-sb', role: 'SICHERHEITSBEAUFTRAGTER' },
-  { key: 'steffi1', usernameSuffix: 'steffi-1', role: 'ABSCHNITTSLEITER' },
-  { key: 'steffi2', usernameSuffix: 'steffi-2', role: 'ABSCHNITTSLEITER' },
-  { key: 'steffi3', usernameSuffix: 'steffi-3', role: 'ABSCHNITTSLEITER' },
+  { key: 'markus', usernameSuffix: 'markus_sb', role: 'SICHERHEITSBEAUFTRAGTER' },
+  { key: 'steffi1', usernameSuffix: 'steffi_1', role: 'ABSCHNITTSLEITER' },
+  { key: 'steffi2', usernameSuffix: 'steffi_2', role: 'ABSCHNITTSLEITER' },
+  { key: 'steffi3', usernameSuffix: 'steffi_3', role: 'ABSCHNITTSLEITER' },
   { key: 'einheitsfuehrer', usernameSuffix: 'einheitsfuehrer', role: 'EINHEITSFUEHRER' },
-  { key: 'sabine', usernameSuffix: 'sabine-nb', role: 'NACHBEREITUNG' },
+  { key: 'sabine', usernameSuffix: 'sabine_nb', role: 'NACHBEREITUNG' },
 ];
 
 const TEST_PASSWORD = 'E2E711TestPass!';
 
 export async function seedTestData({ backendBaseUrl, frontendBaseUrl }: SeedOptions): Promise<SeedState> {
   const marker = `E2E711-${Date.now()}`;
-  const adminUsername = `${marker}-admin`;
+  // Username-Variante des Markers ohne Bindestriche und lowercase: Backend-Regex erlaubt nur
+  // [a-zA-Z0-9_]; `findByUsername` normalisiert zusätzlich auf lowercase, daher gleich passend speichern.
+  const usernameMarker = marker.replace(/-/g, '_').toLowerCase();
+  const adminUsername = `${usernameMarker}_admin`;
   const passwordHash = await bcrypt.hash(TEST_PASSWORD, BCRYPT_COST_FACTOR_PASSWORD);
 
   // 1. Admin + ServerAccessToken via SQL — umgeht Bootstrap-Endpoints
@@ -103,7 +107,7 @@ export async function seedTestData({ backendBaseUrl, frontendBaseUrl }: SeedOpti
   await mkdir(AUTH_DIR, { recursive: true });
   for (const spec of TEST_USERS) {
     const userId = cuid24();
-    const username = `${marker}-${spec.usernameSuffix}`;
+    const username = `${usernameMarker}_${spec.usernameSuffix}`;
     await withClient(async (client) => {
       await client.query(
         `INSERT INTO "User" (id, username, "passwordHash", role, "isActive", "operativeRole", permissions, "createdAt", "updatedAt")

@@ -45,17 +45,19 @@ export class WoFreitextDto {
 }
 
 /**
- * Sub-DTO `Beteiligter.user` (Story 5.1, AC2 + AC6).
+ * Sub-DTO `Beteiligter.einsatzPerson` (Story 5.1, AC2 + AC6).
+ * Verweist auf eine im jeweiligen Einsatz registrierte `EinsatzPerson`
+ * (Existenzprüfung im Command-Handler gegen den `IEinsatzPersonRepository`).
  */
-export class BeteiligterUserDto {
-  @ApiProperty({ enum: ['user'] })
-  @IsIn(['user'])
-  kind!: 'user';
+export class BeteiligterEinsatzPersonDto {
+  @ApiProperty({ enum: ['einsatzPerson'] })
+  @IsIn(['einsatzPerson'])
+  kind!: 'einsatzPerson';
 
-  @ApiProperty({ description: 'CUID2 des Beteiligten-Users' })
+  @ApiProperty({ description: 'CUID2 der im Einsatz registrierten EinsatzPerson' })
   @IsString()
-  @Matches(/^[a-z0-9]{20,32}$/, { message: 'userId hat kein gültiges CUID-Format' })
-  userId!: string;
+  @Matches(/^[a-z0-9]{20,32}$/, { message: 'einsatzPersonId hat kein gültiges CUID-Format' })
+  einsatzPersonId!: string;
 
   @ApiPropertyOptional({ description: 'Optionale Rolle (≤ 100)' })
   @IsOptional()
@@ -132,7 +134,7 @@ export class ReportVorfallDto {
   @ApiProperty({
     description: 'Beteiligte als Liste discriminated Unions (kann leer sein)',
     type: 'array',
-    items: { oneOf: [{ $ref: getSchemaPath(BeteiligterUserDto) }, { $ref: getSchemaPath(BeteiligterFreitextDto) }] },
+    items: { oneOf: [{ $ref: getSchemaPath(BeteiligterEinsatzPersonDto) }, { $ref: getSchemaPath(BeteiligterFreitextDto) }] },
   })
   @IsArray()
   @ArrayMaxSize(50)
@@ -141,13 +143,13 @@ export class ReportVorfallDto {
     discriminator: {
       property: 'kind',
       subTypes: [
-        { value: BeteiligterUserDto, name: 'user' },
+        { value: BeteiligterEinsatzPersonDto, name: 'einsatzPerson' },
         { value: BeteiligterFreitextDto, name: 'freitext' },
       ],
     },
     keepDiscriminatorProperty: true,
   })
-  beteiligte!: Array<BeteiligterUserDto | BeteiligterFreitextDto>;
+  beteiligte!: Array<BeteiligterEinsatzPersonDto | BeteiligterFreitextDto>;
 
   @ApiProperty({ description: 'Maßnahmen (≤ 4000, leer erlaubt)' })
   @IsString()

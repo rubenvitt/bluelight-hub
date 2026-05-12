@@ -50,12 +50,12 @@ import {
   AufloeseSicherungspostenDto,
   CreateSicherungspostenDto,
   CreateSicherungspostenPersonalFreitextDto,
-  CreateSicherungspostenPersonalUserDto,
+  CreateSicherungspostenPersonalEinsatzPersonDto,
   CreateSicherungspostenStandortAddressDto,
   CreateSicherungspostenStandortCoordinateDto,
   UpdateSicherungspostenDto,
 } from '@/application/eigenschutz/dto/create-sicherungsposten.dto';
-import { PersonalFreitextEntryDto, PersonalUserEntryDto, SicherungspostenDto, StandortAddressDto, StandortCoordinateDto } from '@/application/eigenschutz/dto/sicherungsposten.dto';
+import { PersonalFreitextEntryDto, PersonalEinsatzPersonEntryDto, SicherungspostenDto, StandortAddressDto, StandortCoordinateDto } from '@/application/eigenschutz/dto/sicherungsposten.dto';
 import { toSicherungspostenDto } from '@/application/eigenschutz/dto/sicherungsposten.factory';
 import { SICHERUNGSPOSTEN_CONFLICT_DETECTED } from '@domain/eigenschutz/aggregates/sicherungsposten.aggregate';
 import type { ISicherungspostenRepository, SicherungspostenReadModel } from '@domain/eigenschutz/repositories';
@@ -82,11 +82,11 @@ function parseSicherungspostenStatus(raw: string | undefined): SicherungspostenQ
 @ApiExtraModels(
   StandortCoordinateDto,
   StandortAddressDto,
-  PersonalUserEntryDto,
+  PersonalEinsatzPersonEntryDto,
   PersonalFreitextEntryDto,
   CreateSicherungspostenStandortCoordinateDto,
   CreateSicherungspostenStandortAddressDto,
-  CreateSicherungspostenPersonalUserDto,
+  CreateSicherungspostenPersonalEinsatzPersonDto,
   CreateSicherungspostenPersonalFreitextDto,
 )
 @ApiUnauthorizedResponse({ description: 'Nicht authentifiziert — JWT fehlt oder ungültig' })

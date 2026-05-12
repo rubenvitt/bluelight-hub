@@ -70,11 +70,11 @@ function buildSnapshot(overrides: SnapshotOverrides = {}): Record<string, unknow
 
 function buildAggregate(snapshot: Record<string, unknown>, opts: { beteiligteCount?: number } = {}): EigenschutzVorfall {
   const baseBeteiligte = [
-    Beteiligter.create({ kind: 'user', userId: ERFASSER_ID, rolle: 'San' }).value!,
+    Beteiligter.create({ kind: 'einsatzPerson', einsatzPersonId: ERFASSER_ID, rolle: 'San' }).value!,
     Beteiligter.create({ kind: 'freitext', name: 'Hans Müller', rolle: 'Patient' }).value!,
-    Beteiligter.create({ kind: 'user', userId: CALLER_ID }).value!,
+    Beteiligter.create({ kind: 'einsatzPerson', einsatzPersonId: CALLER_ID }).value!,
     Beteiligter.create({ kind: 'freitext', name: 'Anna Schmidt' }).value!,
-    Beteiligter.create({ kind: 'user', userId: 'clw3h8x9y0000qwertyui05009' }).value!,
+    Beteiligter.create({ kind: 'einsatzPerson', einsatzPersonId: 'clw3h8x9y0000qwertyui05009' }).value!,
   ];
   const requested = opts.beteiligteCount ?? baseBeteiligte.length;
   const beteiligte =

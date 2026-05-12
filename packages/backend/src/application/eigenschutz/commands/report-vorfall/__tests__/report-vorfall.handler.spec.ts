@@ -110,7 +110,7 @@ describe('ReportVorfallHandler (Story 5.1)', () => {
       NOW,
       null,
       [
-        { kind: 'user', userId: 'INVALID-CAPS' },
+        { kind: 'einsatzPerson', einsatzPersonId: 'INVALID-CAPS' },
         { kind: 'freitext', name: 'Max' },
       ],
       '',
@@ -133,7 +133,7 @@ describe('ReportVorfallHandler (Story 5.1)', () => {
       null,
       [
         { kind: 'freitext', name: 'Max' },
-        { kind: 'user', userId: 'INVALID-CAPS' },
+        { kind: 'einsatzPerson', einsatzPersonId: 'INVALID-CAPS' },
       ],
       '',
       false,
@@ -179,7 +179,7 @@ describe('ReportVorfallHandler (Story 5.1)', () => {
       NOW,
       { kind: 'coordinate', longitude: 8.6821, latitude: 50.1109 },
       [
-        { kind: 'user', userId: USER_ID },
+        { kind: 'einsatzPerson', einsatzPersonId: USER_ID },
         { kind: 'freitext', name: 'Max', rolle: 'Sanitäter' },
       ],
       'Erstversorgung',

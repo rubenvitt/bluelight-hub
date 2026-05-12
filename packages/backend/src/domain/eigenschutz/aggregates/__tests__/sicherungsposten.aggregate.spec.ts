@@ -38,7 +38,7 @@ describe('Sicherungsposten Aggregate (Story 4.1)', () => {
       einsatzId: EINSATZ_ID,
       bezeichnung: 'Posten Süd',
       standort: buildCoordinateStandort(),
-      personal: [{ kind: 'user', userId: USER_ID }],
+      personal: [{ kind: 'einsatzPerson', einsatzPersonId: USER_ID }],
       createdBy: USER_ID,
       einheitId: EINHEIT_ID,
     }).value!;
@@ -86,14 +86,14 @@ describe('Sicherungsposten Aggregate (Story 4.1)', () => {
       bezeichnung: 'Posten Mischbesetzung',
       standort: buildAddressStandort(),
       personal: [
-        { kind: 'user', userId: USER_ID },
+        { kind: 'einsatzPerson', einsatzPersonId: USER_ID },
         { kind: 'freitext', name: '  Externer Helfer  ', rolle: '  Sanitäter  ' },
       ],
       createdBy: USER_ID,
     }).value!;
     const personal = aggregate.personal;
     expect(personal).toHaveLength(2);
-    expect(personal[0]).toEqual({ kind: 'user', userId: USER_ID });
+    expect(personal[0]).toEqual({ kind: 'einsatzPerson', einsatzPersonId: USER_ID });
     expect(personal[1]).toEqual({ kind: 'freitext', name: 'Externer Helfer', rolle: 'Sanitäter' });
   });
 
@@ -236,7 +236,7 @@ describe('Sicherungsposten Aggregate (Story 4.1)', () => {
       einsatzId: EINSATZ_ID,
       bezeichnung: 'Posten Reconstitute',
       standort: buildAddressStandort(),
-      personal: [{ kind: 'user', userId: USER_ID }],
+      personal: [{ kind: 'einsatzPerson', einsatzPersonId: USER_ID }],
       createdBy: USER_ID,
       einheitId: null,
       zustaendigkeitsbereich: null,

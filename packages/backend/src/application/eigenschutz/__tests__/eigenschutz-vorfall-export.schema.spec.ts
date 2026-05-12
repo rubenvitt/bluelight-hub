@@ -107,7 +107,7 @@ describe('EigenschutzVorfallExportV1 (Story 5.5 AC1) — Drift-Detection', () =>
       ...validExport,
       vorfall: {
         ...validExport.vorfall,
-        beteiligte: [{ kind: 'user' as const, userId: 'cl9user12345678901234567b', rolle: 'San' }],
+        beteiligte: [{ kind: 'einsatzPerson' as const, einsatzPersonId: 'cl9user12345678901234567b', rolle: 'San' }],
       },
     };
     expect(SharedExportSchema.safeParse(candidate).success).toBe(true);
@@ -119,7 +119,7 @@ describe('EigenschutzVorfallExportV1 (Story 5.5 AC1) — Drift-Detection', () =>
       ...validExport,
       vorfall: {
         ...validExport.vorfall,
-        beteiligte: [{ kind: 'user' as const, userId: 'cl9user12345678901234567b' } as never],
+        beteiligte: [{ kind: 'einsatzPerson' as const, einsatzPersonId: 'cl9user12345678901234567b' } as never],
       },
     };
     expect(SharedExportSchema.safeParse(drift).success).toBe(false);

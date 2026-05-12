@@ -37,13 +37,17 @@ export type Standort = z.infer<typeof standortSchema>;
 /**
  * Personal-Eintrag eines Sicherungspostens — discriminated Union (Story 4.1, AC7).
  *
- * Multi-Select-Mix aus User-Pickern (Stamm-User mit Konto) und Freitext-
- * Einträgen (z. B. externe Helfer ohne User-Account).
+ * Multi-Select-Mix aus EinsatzPerson-Referenzen (im Einsatz registrierte
+ * Personen, analog `BesetzeRolleDialog`) und Freitext-Einträgen (z. B.
+ * spontane Helfer, die noch nicht als EinsatzPerson erfasst sind).
+ *
+ * `kind: 'user'` mit `userId` wurde abgelöst — siehe JSONB-Migration
+ * `20260512163000_rename_user_to_einsatzperson_in_eigenschutz_jsonb`.
  */
-export const personalUserEntrySchema = z
+export const personalEinsatzPersonEntrySchema = z
   .object({
-    kind: z.literal('user'),
-    userId: z.string().trim().min(1).max(40),
+    kind: z.literal('einsatzPerson'),
+    einsatzPersonId: z.string().trim().min(1).max(40),
   })
   .strict();
 
@@ -55,9 +59,9 @@ export const personalFreitextEntrySchema = z
   })
   .strict();
 
-export const personalEntrySchema = z.discriminatedUnion('kind', [personalUserEntrySchema, personalFreitextEntrySchema]);
+export const personalEntrySchema = z.discriminatedUnion('kind', [personalEinsatzPersonEntrySchema, personalFreitextEntrySchema]);
 
-export type PersonalUserEntry = z.infer<typeof personalUserEntrySchema>;
+export type PersonalEinsatzPersonEntry = z.infer<typeof personalEinsatzPersonEntrySchema>;
 export type PersonalFreitextEntry = z.infer<typeof personalFreitextEntrySchema>;
 export type PersonalEntry = z.infer<typeof personalEntrySchema>;
 

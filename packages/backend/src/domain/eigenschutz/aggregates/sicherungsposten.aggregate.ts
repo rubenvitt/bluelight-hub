@@ -106,12 +106,12 @@ function normalizePersonal(personal: PersonalEntryProps[]): Result<PersonalEntry
     if (!entry || typeof entry !== 'object') {
       return Result.fail<PersonalEntryProps[]>('Ungültiger Personal-Eintrag');
     }
-    if (entry.kind === 'user') {
-      const userId = entry.userId?.trim() ?? '';
-      if (userId.length === 0) {
-        return Result.fail<PersonalEntryProps[]>('Personal-Eintrag (user): userId ist erforderlich');
+    if (entry.kind === 'einsatzPerson') {
+      const einsatzPersonId = entry.einsatzPersonId?.trim() ?? '';
+      if (einsatzPersonId.length === 0) {
+        return Result.fail<PersonalEntryProps[]>('Personal-Eintrag (einsatzPerson): einsatzPersonId ist erforderlich');
       }
-      normalized.push({ kind: 'user', userId });
+      normalized.push({ kind: 'einsatzPerson', einsatzPersonId });
     } else if (entry.kind === 'freitext') {
       const name = entry.name?.trim() ?? '';
       if (name.length === 0) {
@@ -120,7 +120,7 @@ function normalizePersonal(personal: PersonalEntryProps[]): Result<PersonalEntry
       const rolle = entry.rolle?.trim();
       normalized.push({ kind: 'freitext', name, ...(rolle && rolle.length > 0 ? { rolle } : {}) });
     } else {
-      return Result.fail<PersonalEntryProps[]>('Personal-Eintrag: kind muss user oder freitext sein');
+      return Result.fail<PersonalEntryProps[]>('Personal-Eintrag: kind muss einsatzPerson oder freitext sein');
     }
   }
   return Result.ok(normalized);
@@ -132,8 +132,8 @@ function deepEqualPersonal(a: readonly PersonalEntryProps[], b: readonly Persona
     const x = a[i] as PersonalEntryProps;
     const y = b[i] as PersonalEntryProps;
     if (x.kind !== y.kind) return false;
-    if (x.kind === 'user' && y.kind === 'user') {
-      if (x.userId !== y.userId) return false;
+    if (x.kind === 'einsatzPerson' && y.kind === 'einsatzPerson') {
+      if (x.einsatzPersonId !== y.einsatzPersonId) return false;
     } else if (x.kind === 'freitext' && y.kind === 'freitext') {
       if (x.name !== y.name) return false;
       if ((x.rolle ?? null) !== (y.rolle ?? null)) return false;

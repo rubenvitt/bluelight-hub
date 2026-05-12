@@ -87,11 +87,11 @@ describe('EigenschutzVorfall Aggregate (Story 5.1 + 5.2)', () => {
 
   it('(8) create() akzeptiert wo=Wo-VO und Mix-Beteiligte', () => {
     const wo = Wo.create({ kind: 'freitext', text: 'Eingang Süd' }).value!;
-    const beteiligte = [Beteiligter.create({ kind: 'user', userId: USER_ID }).value!, Beteiligter.create({ kind: 'freitext', name: 'Max Mustermann', rolle: 'Sanitäter' }).value!];
+    const beteiligte = [Beteiligter.create({ kind: 'einsatzPerson', einsatzPersonId: USER_ID }).value!, Beteiligter.create({ kind: 'freitext', name: 'Max Mustermann', rolle: 'Sanitäter' }).value!];
     const aggregate = EigenschutzVorfall.create(buildBaseProps({ wo, beteiligte })).value!;
     expect(aggregate.wo).toBe(wo);
     expect(aggregate.beteiligte).toHaveLength(2);
-    expect(aggregate.beteiligte[0]).toEqual({ kind: 'user', userId: USER_ID });
+    expect(aggregate.beteiligte[0]).toEqual({ kind: 'einsatzPerson', einsatzPersonId: USER_ID });
     expect(aggregate.beteiligte[1]).toEqual({ kind: 'freitext', name: 'Max Mustermann', rolle: 'Sanitäter' });
   });
 
@@ -99,7 +99,7 @@ describe('EigenschutzVorfall Aggregate (Story 5.1 + 5.2)', () => {
     const result = EigenschutzVorfall.create(
       buildBaseProps({
         // eslint-disable-next-line typescript/no-explicit-any -- forced raw object for guard test
-        beteiligte: [{ kind: 'user', userId: USER_ID } as any],
+        beteiligte: [{ kind: 'einsatzPerson', einsatzPersonId: USER_ID } as any],
       }),
     );
     expect(result.isFailure).toBe(true);

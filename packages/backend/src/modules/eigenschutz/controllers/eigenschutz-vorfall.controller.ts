@@ -53,7 +53,7 @@ import { GetVorfallAuditTimelineQuery } from '@/application/eigenschutz/queries/
 import type { VorfallAuditTimelineReadModel } from '@/application/eigenschutz/queries/get-vorfall-audit-timeline/get-vorfall-audit-timeline.handler';
 import { ListVorfaelleQuery } from '@/application/eigenschutz/queries/list-vorfaelle/list-vorfaelle.query';
 import type { EigenschutzVorfall } from '@domain/eigenschutz/aggregates/eigenschutz-vorfall.aggregate';
-import { BeteiligterFreitextDto, BeteiligterUserDto, ReportVorfallDto, WoCoordinateDto, WoFreitextDto } from '@/application/eigenschutz/dto/report-vorfall.dto';
+import { BeteiligterFreitextDto, BeteiligterEinsatzPersonDto, ReportVorfallDto, WoCoordinateDto, WoFreitextDto } from '@/application/eigenschutz/dto/report-vorfall.dto';
 import { EigenschutzVorfallDto } from '@/application/eigenschutz/dto/eigenschutz-vorfall.dto';
 import { EigenschutzVorfallListItemDto } from '@/application/eigenschutz/dto/eigenschutz-vorfall-list-item.dto';
 import { VorfallAuditTimelineDto, VorfallAuditTimelineEintragDto } from '@/application/eigenschutz/dto/vorfall-audit-timeline.dto';
@@ -94,7 +94,7 @@ import type { WoProps } from '@domain/eigenschutz/value-objects/wo.vo';
   VorfallAuditTimelineEintragDto,
   ListVorfaelleQueryDto,
   ReportVorfallDto,
-  BeteiligterUserDto,
+  BeteiligterEinsatzPersonDto,
   BeteiligterFreitextDto,
   WoCoordinateDto,
   WoFreitextDto,

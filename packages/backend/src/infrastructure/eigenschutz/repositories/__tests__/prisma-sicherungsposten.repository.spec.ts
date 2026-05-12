@@ -39,7 +39,7 @@ function buildAggregate(overrides: { version?: number; resolved?: boolean } = {}
     einsatzId: 'clw3h8x9y0000qwertyui04001',
     bezeichnung: 'Posten Nord',
     standort,
-    personal: [{ kind: 'user', userId: 'clw3h8x9y0000qwertyui04003' }],
+    personal: [{ kind: 'einsatzPerson', einsatzPersonId: 'clw3h8x9y0000qwertyui04003' }],
     createdBy: 'clw3h8x9y0000qwertyui04003',
   }).value!;
   if (overrides.version) {

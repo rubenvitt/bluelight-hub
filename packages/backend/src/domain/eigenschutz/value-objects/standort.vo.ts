@@ -95,8 +95,14 @@ export class Standort {
 }
 
 /**
- * Personal-Eintrag (User oder Freitext), spiegelt das Shared-Schema
- * `personalEntrySchema`. Kein eigenes VO — wird im Aggregate als Plain-Object
- * geführt (Persistenz via JSONB), Validierung erfolgt im Aggregate-Factory.
+ * Personal-Eintrag (EinsatzPerson-Referenz oder Freitext), spiegelt das
+ * Shared-Schema `personalEntrySchema`. Kein eigenes VO — wird im Aggregate
+ * als Plain-Object geführt (Persistenz via JSONB), Validierung erfolgt im
+ * Aggregate-Factory.
+ *
+ * `einsatzPerson`-Variante verweist auf eine im jeweiligen Einsatz
+ * registrierte EinsatzPerson (siehe `EinsatzPerson` aus dem
+ * `kraefte`-Modul). Existenzprüfung gegen den Einsatz erfolgt im
+ * Command-Handler.
  */
-export type PersonalEntryProps = { kind: 'user'; userId: string } | { kind: 'freitext'; name: string; rolle?: string };
+export type PersonalEntryProps = { kind: 'einsatzPerson'; einsatzPersonId: string } | { kind: 'freitext'; name: string; rolle?: string };

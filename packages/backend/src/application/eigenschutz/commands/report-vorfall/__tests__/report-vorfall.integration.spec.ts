@@ -209,7 +209,7 @@ describeIfDb('ReportVorfall Integration — Snapshot-Unveränderlichkeit (Story 
       wann: vorfallZeit,
       was: 'Sturz beim Aufbau',
       wo: null,
-      beteiligte: [Beteiligter.create({ kind: 'user', userId }).value!],
+      beteiligte: [Beteiligter.create({ kind: 'einsatzPerson', userId }).value!],
       massnahmen: 'Erstversorgung',
       unfallkasseRelevant: false,
       erfasstVonUserId: userId,

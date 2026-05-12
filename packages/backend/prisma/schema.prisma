@@ -2757,7 +2757,7 @@ model SicherheitsregelQuittung {
   @@map("sicherheitsregel_quittungen")
 }
 
-/// Sicherungsposten — `standort` ist Discriminated-Union-JSON ({kind:'coordinate'|address}), `personal` ist Array discriminated-Union {kind:'user'|freitext}.
+/// Sicherungsposten — `standort` ist Discriminated-Union-JSON ({kind:'coordinate'|address}), `personal` ist Array discriminated-Union {kind:'einsatzPerson'|freitext} (Wechsel von user→einsatzPerson via JSONB-Migration 20260512163000).
 /// `geloescht`-Boolean (Story 1.4) bleibt aus Backwards-Compat erhalten; der maßgebliche Auflösungs-Vertrag ist seit Story 4.1 `aufgeloestAm IS NOT NULL`.
 model Sicherungsposten {
   id                     String    @id @default(cuid())

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
-import { BeteiligterFreitextDto, BeteiligterUserDto, WoCoordinateDto, WoFreitextDto } from './report-vorfall.dto';
+import { BeteiligterFreitextDto, BeteiligterEinsatzPersonDto, WoCoordinateDto, WoFreitextDto } from './report-vorfall.dto';
 
 /**
  * Response-DTO für einen Eigenschutz-Vorfall (Story 5.1, AC6).
@@ -37,9 +37,9 @@ export class EigenschutzVorfallDto {
   @ApiProperty({
     description: 'Beteiligte als Liste discriminated Unions',
     type: 'array',
-    items: { oneOf: [{ $ref: getSchemaPath(BeteiligterUserDto) }, { $ref: getSchemaPath(BeteiligterFreitextDto) }] },
+    items: { oneOf: [{ $ref: getSchemaPath(BeteiligterEinsatzPersonDto) }, { $ref: getSchemaPath(BeteiligterFreitextDto) }] },
   })
-  beteiligte!: Array<BeteiligterUserDto | BeteiligterFreitextDto>;
+  beteiligte!: Array<BeteiligterEinsatzPersonDto | BeteiligterFreitextDto>;
 
   @ApiProperty({ description: 'Maßnahmen (Freitext, ≤ 4000)' })
   massnahmen!: string;

@@ -57,12 +57,12 @@ describe('toEigenschutzVorfallDto (Story 5.1 + 5.2)', () => {
   });
 
   it('(2) Beteiligter-Round-Trip behält Mix aus User+Freitext', () => {
-    const beteiligte = [Beteiligter.create({ kind: 'user', userId: USER_ID }).value!, Beteiligter.create({ kind: 'freitext', name: 'Max', rolle: 'Sanitäter' }).value!];
+    const beteiligte = [Beteiligter.create({ kind: 'einsatzPerson', einsatzPersonId: USER_ID }).value!, Beteiligter.create({ kind: 'freitext', name: 'Max', rolle: 'Sanitäter' }).value!];
     const aggregate = buildAggregate({ beteiligte });
     const dto = toEigenschutzVorfallDto(aggregate);
 
     expect(dto.beteiligte).toEqual([
-      { kind: 'user', userId: USER_ID },
+      { kind: 'einsatzPerson', einsatzPersonId: USER_ID },
       { kind: 'freitext', name: 'Max', rolle: 'Sanitäter' },
     ]);
   });

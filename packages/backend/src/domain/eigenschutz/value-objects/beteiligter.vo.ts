@@ -5,10 +5,12 @@ import { isCuid } from '@paralleldrive/cuid2';
  * Discriminated-Union-Shape eines am Vorfall Beteiligten (Story 5.1).
  *
  * Spiegelt das Epic-Wortlaut „Beteiligte (Multi-User + Freitext, optional)".
- * Domain bleibt Framework-frei — kein Zod-Import, dafür ein deckungsgleicher
- * Result-Validator (Pattern: `Standort` aus Story 4.1).
+ * Datenmodell-Update (Story Personenauswahl-Eigenschutz): `kind: 'user'` mit
+ * `userId` wurde abgelöst durch `kind: 'einsatzPerson'` mit `einsatzPersonId` —
+ * Beteiligte werden nun aus den im Einsatz registrierten EinsatzPersonen
+ * referenziert (analog `BesetzeRolleDialog`). Domain bleibt Framework-frei.
  */
-export type BeteiligterProps = { kind: 'user'; userId: string; rolle?: string } | { kind: 'freitext'; name: string; rolle?: string };
+export type BeteiligterProps = { kind: 'einsatzPerson'; einsatzPersonId: string; rolle?: string } | { kind: 'freitext'; name: string; rolle?: string };
 
 const FREITEXT_NAME_MIN = 1;
 const FREITEXT_NAME_MAX = 200;
@@ -20,7 +22,7 @@ const ROLLE_MAX = 100;
  * Plain-Object analog `PersonalEntryProps` aus Story 4.1).
  *
  * Invarianten:
- * - `kind = 'user'`: `userId` ist eine CUID2 (24 Zeichen, `[a-z0-9]`).
+ * - `kind = 'einsatzPerson'`: `einsatzPersonId` ist eine CUID2.
  * - `kind = 'freitext'`: `name` nach Trim 1–200 Zeichen.
  * - `rolle` optional, nach Trim 0–100 Zeichen (leer ⇒ `undefined`).
  */
@@ -38,12 +40,12 @@ export class Beteiligter {
     }
     const rolle = rolleResult.value ?? undefined;
 
-    if (props.kind === 'user') {
-      const userId = props.userId?.trim() ?? '';
-      if (!isCuid(userId)) {
-        return Result.fail<Beteiligter>('userId muss eine CUID2 sein');
+    if (props.kind === 'einsatzPerson') {
+      const einsatzPersonId = props.einsatzPersonId?.trim() ?? '';
+      if (!isCuid(einsatzPersonId)) {
+        return Result.fail<Beteiligter>('einsatzPersonId muss eine CUID2 sein');
       }
-      return Result.ok(new Beteiligter({ kind: 'user', userId, ...(rolle ? { rolle } : {}) }));
+      return Result.ok(new Beteiligter({ kind: 'einsatzPerson', einsatzPersonId, ...(rolle ? { rolle } : {}) }));
     }
 
     if (props.kind === 'freitext') {
@@ -65,8 +67,8 @@ export class Beteiligter {
    * DTO-Serialisierung). Kein Referenz-Leak.
    */
   toJSON(): BeteiligterProps {
-    if (this.props.kind === 'user') {
-      return { kind: 'user', userId: this.props.userId, ...(this.props.rolle !== undefined ? { rolle: this.props.rolle } : {}) };
+    if (this.props.kind === 'einsatzPerson') {
+      return { kind: 'einsatzPerson', einsatzPersonId: this.props.einsatzPersonId, ...(this.props.rolle !== undefined ? { rolle: this.props.rolle } : {}) };
     }
     return { kind: 'freitext', name: this.props.name, ...(this.props.rolle !== undefined ? { rolle: this.props.rolle } : {}) };
   }
@@ -77,8 +79,8 @@ export class Beteiligter {
 
   equals(other: Beteiligter): boolean {
     if (this.props.kind !== other.props.kind) return false;
-    if (this.props.kind === 'user' && other.props.kind === 'user') {
-      return this.props.userId === other.props.userId && (this.props.rolle ?? null) === (other.props.rolle ?? null);
+    if (this.props.kind === 'einsatzPerson' && other.props.kind === 'einsatzPerson') {
+      return this.props.einsatzPersonId === other.props.einsatzPersonId && (this.props.rolle ?? null) === (other.props.rolle ?? null);
     }
     if (this.props.kind === 'freitext' && other.props.kind === 'freitext') {
       return this.props.name === other.props.name && (this.props.rolle ?? null) === (other.props.rolle ?? null);

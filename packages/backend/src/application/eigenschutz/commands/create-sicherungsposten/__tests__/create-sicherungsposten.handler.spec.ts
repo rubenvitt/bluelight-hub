@@ -35,7 +35,9 @@ describe('CreateSicherungspostenHandler (Story 4.1)', () => {
 
   it('(1) Erfolg: speichert Aggregate, persistiert Events, gibt id zurück', async () => {
     const { handler, repo, outbox } = buildHandler();
-    const result = await handler.execute(new CreateSicherungspostenCommand(EINSATZ_ID, USER_ID, 'Posten Nord', { kind: 'address', text: 'Hauptbahnhof' }, [{ kind: 'user', userId: USER_ID }]));
+    const result = await handler.execute(
+      new CreateSicherungspostenCommand(EINSATZ_ID, USER_ID, 'Posten Nord', { kind: 'address', text: 'Hauptbahnhof' }, [{ kind: 'einsatzPerson', einsatzPersonId: USER_ID }]),
+    );
     expect(result.isSuccess).toBe(true);
     expect(typeof result.value).toBe('string');
     expect(repo.save).toHaveBeenCalledTimes(1);

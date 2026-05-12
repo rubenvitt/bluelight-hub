@@ -29,14 +29,14 @@ export class StandortAddressDto {
 
 /**
  * DTO-Variante eines Personal-Eintrags (Story 4.1, AC7).
- * Discriminated Union mit `kind: 'user' | 'freitext'`.
+ * Discriminated Union mit `kind: 'einsatzPerson' | 'freitext'`.
  */
-export class PersonalUserEntryDto {
-  @ApiProperty({ description: 'Discriminator', enum: ['user'] })
-  kind!: 'user';
+export class PersonalEinsatzPersonEntryDto {
+  @ApiProperty({ description: 'Discriminator', enum: ['einsatzPerson'] })
+  kind!: 'einsatzPerson';
 
-  @ApiProperty({ description: 'CUID des verknüpften Stamm-Users' })
-  userId!: string;
+  @ApiProperty({ description: 'CUID2 einer im Einsatz registrierten EinsatzPerson' })
+  einsatzPersonId!: string;
 }
 
 export class PersonalFreitextEntryDto {
@@ -70,11 +70,11 @@ export class SicherungspostenDto {
   standort!: StandortCoordinateDto | StandortAddressDto;
 
   @ApiProperty({
-    description: 'Personal als Liste discriminated Unions (user oder freitext)',
+    description: 'Personal als Liste discriminated Unions (einsatzPerson oder freitext)',
     type: 'array',
-    items: { oneOf: [{ $ref: getSchemaPath(PersonalUserEntryDto) }, { $ref: getSchemaPath(PersonalFreitextEntryDto) }] },
+    items: { oneOf: [{ $ref: getSchemaPath(PersonalEinsatzPersonEntryDto) }, { $ref: getSchemaPath(PersonalFreitextEntryDto) }] },
   })
-  personal!: Array<PersonalUserEntryDto | PersonalFreitextEntryDto>;
+  personal!: Array<PersonalEinsatzPersonEntryDto | PersonalFreitextEntryDto>;
 
   @ApiPropertyOptional({ description: 'Zuständigkeitsbereich (Freitext, ≤ 4000)', nullable: true })
   zustaendigkeitsbereich!: string | null;

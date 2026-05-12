@@ -5,7 +5,7 @@ import { EigenschutzKontextSnapshotV1 } from '@domain/eigenschutz/schemas/eigens
 import { EigenschutzVorfallExportV1, type EigenschutzVorfallExportV1Type } from '@domain/eigenschutz/schemas/eigenschutz-vorfall-export.schema';
 import type { EigenschutzVorfallJsonInput, IEigenschutzVorfallJsonRenderer } from '@/application/eigenschutz/ports/i-eigenschutz-vorfall-json-renderer.port';
 import { toEigenschutzVorfallDto } from '@/application/eigenschutz/dto/eigenschutz-vorfall.factory';
-import type { BeteiligterFreitextDto, BeteiligterUserDto, WoCoordinateDto, WoFreitextDto } from '@/application/eigenschutz/dto/report-vorfall.dto';
+import type { BeteiligterFreitextDto, BeteiligterEinsatzPersonDto, WoCoordinateDto, WoFreitextDto } from '@/application/eigenschutz/dto/report-vorfall.dto';
 
 /**
  * Sentinel-Error-Prefix für Schema-Validation-Failures im JSON-Export-Pfad
@@ -96,9 +96,9 @@ function serializeWo(wo: WoCoordinateDto | WoFreitextDto | null): EigenschutzVor
   return { kind: 'freitext', text: wo.text };
 }
 
-function serializeBeteiligter(b: BeteiligterUserDto | BeteiligterFreitextDto): EigenschutzVorfallExportV1Type['vorfall']['beteiligte'][number] {
-  if (b.kind === 'user') {
-    return { kind: 'user', userId: b.userId, rolle: b.rolle ?? null };
+function serializeBeteiligter(b: BeteiligterEinsatzPersonDto | BeteiligterFreitextDto): EigenschutzVorfallExportV1Type['vorfall']['beteiligte'][number] {
+  if (b.kind === 'einsatzPerson') {
+    return { kind: 'einsatzPerson', einsatzPersonId: b.einsatzPersonId, rolle: b.rolle ?? null };
   }
   return { kind: 'freitext', name: b.name, rolle: b.rolle ?? null };
 }

@@ -70,11 +70,11 @@ function buildSnapshot(overrides: SnapshotOverrides = {}): Record<string, unknow
 
 function buildAggregate(snapshot: Record<string, unknown>): EigenschutzVorfall {
   const beteiligte = [
-    Beteiligter.create({ kind: 'user', userId: ERFASSER_ID, rolle: 'San' }).value!,
+    Beteiligter.create({ kind: 'einsatzPerson', einsatzPersonId: ERFASSER_ID, rolle: 'San' }).value!,
     Beteiligter.create({ kind: 'freitext', name: 'Hans Müller', rolle: 'Patient' }).value!,
-    Beteiligter.create({ kind: 'user', userId: CALLER_ID }).value!,
+    Beteiligter.create({ kind: 'einsatzPerson', einsatzPersonId: CALLER_ID }).value!,
     Beteiligter.create({ kind: 'freitext', name: 'Anna Schmidt' }).value!,
-    Beteiligter.create({ kind: 'user', userId: 'clw3h8x9y0000qwertyui05009' }).value!,
+    Beteiligter.create({ kind: 'einsatzPerson', einsatzPersonId: 'clw3h8x9y0000qwertyui05009' }).value!,
   ];
   const wo = Wo.create({ kind: 'coordinate', longitude: 8.6789, latitude: 50.12345, addressHint: 'Hauptstraße 12' }).value!;
   const result = EigenschutzVorfall.reconstitute({
@@ -183,15 +183,15 @@ describe('EigenschutzVorfallJsonRenderer (Story 5.5)', () => {
     };
     const beteiligte = body.vorfall.beteiligte;
     expect(beteiligte).toHaveLength(5);
-    expect(beteiligte.filter((b) => b.kind === 'user')).toHaveLength(3);
+    expect(beteiligte.filter((b) => b.kind === 'einsatzPerson')).toHaveLength(3);
     expect(beteiligte.filter((b) => b.kind === 'freitext')).toHaveLength(2);
     const freitextEntry = beteiligte.find((b) => b.kind === 'freitext' && b.name === 'Anna Schmidt');
     expect(freitextEntry?.rolle).toBeNull();
     // User-Beteiligte propagieren `rolle` symmetrisch zum PDF-Pfad (D1):
     // ERFASSER_ID hat 'San', CALLER_ID/clw…05009 haben kein rolle → null.
-    const userMitRolle = beteiligte.find((b) => b.kind === 'user' && b.userId === ERFASSER_ID);
+    const userMitRolle = beteiligte.find((b) => b.kind === 'einsatzPerson' && b.userId === ERFASSER_ID);
     expect(userMitRolle?.rolle).toBe('San');
-    const userOhneRolle = beteiligte.find((b) => b.kind === 'user' && b.userId === CALLER_ID);
+    const userOhneRolle = beteiligte.find((b) => b.kind === 'einsatzPerson' && b.userId === CALLER_ID);
     expect(userOhneRolle?.rolle).toBeNull();
   });
 

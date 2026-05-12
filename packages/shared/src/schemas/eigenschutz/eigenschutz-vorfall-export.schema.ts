@@ -25,13 +25,13 @@ export const VorfallWoFreitextExportV1 = z
 export const VorfallWoExportV1 = z.discriminatedUnion('kind', [VorfallWoCoordinateExportV1, VorfallWoFreitextExportV1]);
 
 /**
- * Discriminated Union für `beteiligte[]` (siehe `BeteiligterUserDto` /
+ * Discriminated Union für `beteiligte[]` (siehe `BeteiligterEinsatzPersonDto` /
  * `BeteiligterFreitextDto`).
  */
-export const VorfallBeteiligterUserExportV1 = z
+export const VorfallBeteiligterEinsatzPersonExportV1 = z
   .object({
-    kind: z.literal('user'),
-    userId: cuidIdSchema,
+    kind: z.literal('einsatzPerson'),
+    einsatzPersonId: cuidIdSchema,
     rolle: z.string().nullable(),
   })
   .strict();
@@ -44,7 +44,7 @@ export const VorfallBeteiligterFreitextExportV1 = z
   })
   .strict();
 
-export const VorfallBeteiligterExportV1 = z.discriminatedUnion('kind', [VorfallBeteiligterUserExportV1, VorfallBeteiligterFreitextExportV1]);
+export const VorfallBeteiligterExportV1 = z.discriminatedUnion('kind', [VorfallBeteiligterEinsatzPersonExportV1, VorfallBeteiligterFreitextExportV1]);
 
 /**
  * Story 5.5 — Vertrags-Schema für den JSON-Export eines Eigenschutz-Vorfalls

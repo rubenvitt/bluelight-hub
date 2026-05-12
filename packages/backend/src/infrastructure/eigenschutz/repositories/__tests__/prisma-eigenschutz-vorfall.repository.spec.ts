@@ -91,14 +91,14 @@ describe('PrismaEigenschutzVorfallRepository (Story 5.1 + 5.2)', () => {
   it('(3) save() persistiert Beteiligter-Array 1:1 als JSON', async () => {
     const tx = makeTx();
     const repo = new PrismaEigenschutzVorfallRepository({} as unknown as PrismaService, noopLogger);
-    const beteiligte = [Beteiligter.create({ kind: 'user', userId: USER_ID }).value!, Beteiligter.create({ kind: 'freitext', name: 'Max Mustermann', rolle: 'Sanitäter' }).value!];
+    const beteiligte = [Beteiligter.create({ kind: 'einsatzPerson', einsatzPersonId: USER_ID }).value!, Beteiligter.create({ kind: 'freitext', name: 'Max Mustermann', rolle: 'Sanitäter' }).value!];
     const aggregate = buildAggregate({ beteiligte });
 
     await repo.save(aggregate, tx as never);
 
     const call = tx.eigenschutzVorfall.create.mock.calls[0][0];
     expect(call.data.beteiligte).toEqual([
-      { kind: 'user', userId: USER_ID },
+      { kind: 'einsatzPerson', einsatzPersonId: USER_ID },
       { kind: 'freitext', name: 'Max Mustermann', rolle: 'Sanitäter' },
     ]);
   });

@@ -40,15 +40,15 @@ export class CreateSicherungspostenStandortAddressDto {
   text!: string;
 }
 
-export class CreateSicherungspostenPersonalUserDto {
-  @ApiProperty({ enum: ['user'] })
-  @IsIn(['user'])
-  kind!: 'user';
+export class CreateSicherungspostenPersonalEinsatzPersonDto {
+  @ApiProperty({ enum: ['einsatzPerson'] })
+  @IsIn(['einsatzPerson'])
+  kind!: 'einsatzPerson';
 
-  @ApiProperty({ description: 'CUID des Stamm-Users' })
+  @ApiProperty({ description: 'CUID2 einer im Einsatz registrierten EinsatzPerson' })
   @IsString()
   @Length(1, 40)
-  userId!: string;
+  einsatzPersonId!: string;
 }
 
 export class CreateSicherungspostenPersonalFreitextDto {
@@ -102,7 +102,7 @@ export class CreateSicherungspostenDto {
   @ApiProperty({
     description: 'Personal als Liste discriminated Unions',
     type: 'array',
-    items: { oneOf: [{ $ref: getSchemaPath(CreateSicherungspostenPersonalUserDto) }, { $ref: getSchemaPath(CreateSicherungspostenPersonalFreitextDto) }] },
+    items: { oneOf: [{ $ref: getSchemaPath(CreateSicherungspostenPersonalEinsatzPersonDto) }, { $ref: getSchemaPath(CreateSicherungspostenPersonalFreitextDto) }] },
   })
   @IsArray()
   @ArrayMaxSize(50)
@@ -111,13 +111,13 @@ export class CreateSicherungspostenDto {
     discriminator: {
       property: 'kind',
       subTypes: [
-        { value: CreateSicherungspostenPersonalUserDto, name: 'user' },
+        { value: CreateSicherungspostenPersonalEinsatzPersonDto, name: 'einsatzPerson' },
         { value: CreateSicherungspostenPersonalFreitextDto, name: 'freitext' },
       ],
     },
     keepDiscriminatorProperty: true,
   })
-  personal!: Array<CreateSicherungspostenPersonalUserDto | CreateSicherungspostenPersonalFreitextDto>;
+  personal!: Array<CreateSicherungspostenPersonalEinsatzPersonDto | CreateSicherungspostenPersonalFreitextDto>;
 
   @ApiPropertyOptional({ description: 'CUID der zugeordneten Einheit (optional)' })
   @IsOptional()
@@ -174,7 +174,7 @@ export class UpdateSicherungspostenDto {
   @ApiPropertyOptional({
     description: 'Personal-Liste, optional',
     type: 'array',
-    items: { oneOf: [{ $ref: getSchemaPath(CreateSicherungspostenPersonalUserDto) }, { $ref: getSchemaPath(CreateSicherungspostenPersonalFreitextDto) }] },
+    items: { oneOf: [{ $ref: getSchemaPath(CreateSicherungspostenPersonalEinsatzPersonDto) }, { $ref: getSchemaPath(CreateSicherungspostenPersonalFreitextDto) }] },
   })
   @IsOptional()
   @IsArray()
@@ -184,13 +184,13 @@ export class UpdateSicherungspostenDto {
     discriminator: {
       property: 'kind',
       subTypes: [
-        { value: CreateSicherungspostenPersonalUserDto, name: 'user' },
+        { value: CreateSicherungspostenPersonalEinsatzPersonDto, name: 'einsatzPerson' },
         { value: CreateSicherungspostenPersonalFreitextDto, name: 'freitext' },
       ],
     },
     keepDiscriminatorProperty: true,
   })
-  personal?: Array<CreateSicherungspostenPersonalUserDto | CreateSicherungspostenPersonalFreitextDto>;
+  personal?: Array<CreateSicherungspostenPersonalEinsatzPersonDto | CreateSicherungspostenPersonalFreitextDto>;
 
   @ApiPropertyOptional({ description: 'CUID der Einheit (null = entkoppeln, optional)', nullable: true })
   @IsOptional()

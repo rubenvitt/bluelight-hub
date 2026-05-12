@@ -101,8 +101,8 @@ export class PrismaSicherungspostenMapper {
     for (const entry of raw) {
       if (!entry || typeof entry !== 'object') continue;
       const v = entry as Record<string, unknown>;
-      if (v.kind === 'user' && typeof v.userId === 'string' && v.userId.length > 0 && v.userId.length <= 40) {
-        out.push({ kind: 'user', userId: v.userId });
+      if (v.kind === 'einsatzPerson' && typeof v.einsatzPersonId === 'string' && v.einsatzPersonId.length > 0 && v.einsatzPersonId.length <= 40) {
+        out.push({ kind: 'einsatzPerson', einsatzPersonId: v.einsatzPersonId });
       } else if (v.kind === 'freitext' && typeof v.name === 'string' && v.name.length > 0 && v.name.length <= 200) {
         const rolle = typeof v.rolle === 'string' && v.rolle.length > 0 && v.rolle.length <= 120 ? v.rolle : undefined;
         out.push({ kind: 'freitext', name: v.name, ...(rolle ? { rolle } : {}) });

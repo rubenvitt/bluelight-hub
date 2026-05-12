@@ -661,9 +661,9 @@ function formatWo(vorfall: EigenschutzVorfall): string {
 }
 
 function formatBeteiligter(entry: BeteiligterProps): string {
-  if (entry.kind === 'user') {
+  if (entry.kind === 'einsatzPerson') {
     const rolle = entry.rolle ? ` (${entry.rolle})` : '';
-    return `Nutzer-ID ${safeRedact(entry.userId)}${rolle}`;
+    return `EinsatzPerson-ID ${safeRedact(entry.einsatzPersonId)}${rolle}`;
   }
   const rolle = entry.rolle ? ` (${entry.rolle})` : '';
   return `${entry.name}${rolle}`;

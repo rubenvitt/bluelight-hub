@@ -1,5 +1,5 @@
 import type { Sicherungsposten } from '@domain/eigenschutz/aggregates/sicherungsposten.aggregate';
-import { PersonalFreitextEntryDto, PersonalUserEntryDto, SicherungspostenDto, StandortAddressDto, StandortCoordinateDto } from './sicherungsposten.dto';
+import { PersonalEinsatzPersonEntryDto, PersonalFreitextEntryDto, SicherungspostenDto, StandortAddressDto, StandortCoordinateDto } from './sicherungsposten.dto';
 
 /**
  * Mapped ein Aggregate plus Persistenz-Metadaten auf das Response-DTO
@@ -29,11 +29,11 @@ export function toSicherungspostenDto(args: { aggregate: Sicherungsposten; erste
   }
 
   dto.personal = aggregate.personal.map((entry) => {
-    if (entry.kind === 'user') {
-      const user = new PersonalUserEntryDto();
-      user.kind = 'user';
-      user.userId = entry.userId;
-      return user;
+    if (entry.kind === 'einsatzPerson') {
+      const ep = new PersonalEinsatzPersonEntryDto();
+      ep.kind = 'einsatzPerson';
+      ep.einsatzPersonId = entry.einsatzPersonId;
+      return ep;
     }
     const freitext = new PersonalFreitextEntryDto();
     freitext.kind = 'freitext';

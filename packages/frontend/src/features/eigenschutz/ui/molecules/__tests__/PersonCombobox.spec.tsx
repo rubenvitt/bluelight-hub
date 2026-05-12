@@ -54,7 +54,7 @@ describe('PersonCombobox (G7)', () => {
     expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded');
   });
 
-  it('gibt Personal-ID an onChange zurück, wenn ein Name ausgewählt wird', async () => {
+  it('gibt Person-ID an onChange zurück, wenn ein Name ausgewählt wird', async () => {
     const onChange = vi.fn();
     const Wrapper = wrapper(makeClient());
     render(
@@ -74,7 +74,7 @@ describe('PersonCombobox (G7)', () => {
     expect(onChange).toHaveBeenCalledWith('user-1');
   });
 
-  it('zeigt Empty-Hinweis, wenn kein Personal geladen ist', async () => {
+  it('zeigt Empty-Hinweis, wenn keine Personen geladen sind', async () => {
     findAllBasicMock.mockResolvedValue({ data: [] });
     const Wrapper = wrapper(makeClient());
     render(
@@ -85,7 +85,7 @@ describe('PersonCombobox (G7)', () => {
 
     await waitFor(() => expect(findAllBasicMock).toHaveBeenCalled());
     await waitFor(() => {
-      expect(screen.getByText(/Kein Personal verfügbar/i)).toBeInTheDocument();
+      expect(screen.getByText(/Keine Personen verfügbar/i)).toBeInTheDocument();
     });
   });
 });

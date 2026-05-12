@@ -122,7 +122,7 @@ describe('SicherungspostenDrawer', () => {
     await waitFor(() => {
       expect(screen.getByTestId('sicherungsposten-personal-row-0')).toBeInTheDocument();
     });
-    // Standardmodus ist Personal-Auswahl (kind: 'user'), nicht Freitext.
+    // Standardmodus ist Person-Auswahl (kind: 'user'), nicht Freitext.
     expect(screen.getByTestId('sicherungsposten-personal-userid-0')).toBeInTheDocument();
 
     await user.click(screen.getByTestId('sicherungsposten-personal-remove-0'));
@@ -131,7 +131,7 @@ describe('SicherungspostenDrawer', () => {
     });
   });
 
-  it('Personal: Toggle zwischen Personal-Auswahl und Freitext', async () => {
+  it('Personal: Toggle zwischen Person-Auswahl und Freitext', async () => {
     const user = userEvent.setup();
     setup();
     await user.click(screen.getByTestId('sicherungsposten-personal-add'));

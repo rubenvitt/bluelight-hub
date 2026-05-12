@@ -8,7 +8,7 @@
  *   + optional `addressHint`) ODER `address` (Freitext). RadioGroup-Toggle.
  * - **Personal**: Liste discriminated Unions (`user` mit userId ODER
  *   `freitext` mit name + optional rolle). Hinzufügen/Entfernen via
- *   Buttons; Toggle pro Eintrag zwischen Personal-Auswahl und Freitext.
+ *   Buttons; Toggle pro Eintrag zwischen Person-Auswahl und Freitext.
  * - **Zuständigkeitsbereich** (optional, Textarea ≤ 4000 Zeichen).
  * - **Ablösezeiten** (Story 4.2): Freitext-Editor ≤ 2000 Zeichen mit
  *   Auto-Save (`useAutoSave`, Debounce 2 s, online-only). Im Edit-Mode
@@ -478,7 +478,7 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
                             }}
                             data-testid={`sicherungsposten-personal-toggle-user-${index}`}
                           />
-                          <span>Personal</span>
+                          <span>Person</span>
                         </label>
                         <label className="flex items-center gap-1 text-text-primary">
                           <input
@@ -518,8 +518,8 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
                           next[index] = { kind: 'user', userId };
                           field.handleChange(next);
                         }}
-                        label="Personal"
-                        placeholder="Personal suchen…"
+                        label="Person"
+                        placeholder="Person auswählen…"
                         testId={`sicherungsposten-personal-userid-${index}`}
                       />
                     ) : (

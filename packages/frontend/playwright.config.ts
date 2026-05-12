@@ -13,8 +13,8 @@ export default defineConfig({
   // auf `--reporter`-CLI-Override, damit der HTML-Report nicht verloren geht. Audit-Bericht
   // Sektion 1 dokumentiert `playwright-report/` als Artifact.
   reporter: IS_CI ? [['github'], ['junit', { outputFile: 'test-results/junit.xml' }], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
-  globalSetup: require.resolve('./e2e/setup/global-setup.ts'),
-  globalTeardown: require.resolve('./e2e/setup/global-teardown.ts'),
+  globalSetup: './e2e/setup/global-setup.ts',
+  globalTeardown: './e2e/setup/global-teardown.ts',
   timeout: 120_000,
   expect: {
     timeout: 10_000,

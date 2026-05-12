@@ -3,9 +3,11 @@ import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { withClient } from './test-db';
 import type { SeedState, SeedStateUser } from './types';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const AUTH_DIR = resolve(__dirname, '../.auth');
 const SEED_STATE_FILE = resolve(AUTH_DIR, 'seed-state.json');
 

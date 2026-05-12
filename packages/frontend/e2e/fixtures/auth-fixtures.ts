@@ -13,7 +13,8 @@ interface AuthFixtures {
 }
 
 export const test = base.extend<AuthFixtures>({
-  seedState: async (_args, use) => {
+  // eslint-disable-next-line no-empty-pattern -- Playwright fordert Object-Destructuring auch ohne Fixture-Bedarf
+  seedState: async ({}, use) => {
     const state = await readSeedState();
     await use(state);
   },

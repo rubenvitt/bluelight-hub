@@ -1,8 +1,10 @@
 import { readFile, rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { cleanupMarkedData, disconnectTestDb } from './test-db';
 import { readSeedState } from './seed';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const AUTH_DIR = resolve(__dirname, '../.auth');
 const PIDS_FILE = resolve(AUTH_DIR, 'process-pids.json');
 

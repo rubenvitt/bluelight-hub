@@ -111,7 +111,7 @@
     "@types/web-push": "^3.6.4",
     "artillery": "^2.0.31",
     "globals": "^17.6.0",
-    "jest": "^30.3.0",
+    "jest": "^30.4.2",
     "jsonwebtoken": "^9.0.3",
     "madge": "^8.0.0",
     "prisma": "^7.7.0",

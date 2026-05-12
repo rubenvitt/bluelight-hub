@@ -54,8 +54,8 @@ importers:
         specifier: ^1.65.0
         version: 1.65.0
       '@dotenvx/dotenvx-ops':
-        specifier: ^0.37.9
-        version: 0.37.9(@types/node@25.6.2)
+        specifier: ^0.45.2
+        version: 0.45.2(@types/node@25.6.2)
       '@nestjs/axios':
         specifier: ^4.0.1
         version: 4.0.1(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(axios@1.16.0(debug@4.4.3))(rxjs@7.8.2)
@@ -1617,12 +1617,8 @@ packages:
     peerDependencies:
       react: '>=16.8.0'
 
-  '@dotenvx/dotenvx-ops@0.37.9':
-    resolution: {integrity: sha512-wiR1IDzbbH1c3GnYHGNkB+bckdjbtH5N6ITfVLBb5qyJIr7M2mYOrFN9hjhOwmr8e0L9jRxA1si1qO1yb1GVRQ==}
-    hasBin: true
-
-  '@dotenvx/dotenvx@1.61.1':
-    resolution: {integrity: sha512-2OUX4KDKvQA6oa7oESG8eNcV4K/2C5jgrbxUcT0VoH9Zelg6dT+rDYew4w2GmXRV3db0tUaM4QZG3MyJL3fU5Q==}
+  '@dotenvx/dotenvx-ops@0.45.2':
+    resolution: {integrity: sha512-dP8JVS3bTi/9K80UaQuqxjN+QKQIgz0ONmgM4vTn2ug+ErutEUUCsMD9dfN1GbbiVGZXpZpO79mqF76TjEUWbg==}
     hasBin: true
 
   '@dotenvx/dotenvx@1.65.0':
@@ -13309,10 +13305,10 @@ snapshots:
       react: 19.2.6
       tslib: 2.8.1
 
-  '@dotenvx/dotenvx-ops@0.37.9(@types/node@25.6.2)':
+  '@dotenvx/dotenvx-ops@0.45.2(@types/node@25.6.2)':
     dependencies:
       '@clack/core': 0.4.2
-      '@dotenvx/dotenvx': 1.61.1
+      '@dotenvx/dotenvx': 1.65.0
       '@inquirer/prompts': 7.10.1(@types/node@25.6.2)
       arch: 2.2.0
       commander: 11.1.0
@@ -13323,25 +13319,13 @@ snapshots:
       express: 5.2.1
       open: 8.4.2
       playwright: 1.59.1
+      semver: 7.7.4
       systeminformation: 5.31.5
       undici: 7.25.0
       yocto-spinner: 1.1.0
     transitivePeerDependencies:
       - '@types/node'
       - supports-color
-
-  '@dotenvx/dotenvx@1.61.1':
-    dependencies:
-      commander: 11.1.0
-      dotenv: 17.4.2
-      eciesjs: 0.4.18
-      execa: 5.1.1
-      fdir: 6.5.0(picomatch@4.0.4)
-      ignore: 5.3.2
-      object-treeify: 1.1.33
-      picomatch: 4.0.4
-      which: 4.0.0
-      yocto-spinner: 1.1.0
 
   '@dotenvx/dotenvx@1.65.0':
     dependencies:

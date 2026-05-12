@@ -50,7 +50,7 @@
   "dependencies": {
     "@bluelight-hub/shared": "workspace:*",
     "@dotenvx/dotenvx": "^1.65.0",
-    "@dotenvx/dotenvx-ops": "^0.37.9",
+    "@dotenvx/dotenvx-ops": "^0.45.2",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^3.1.2",
     "@nestjs/common": "^11.1.19",

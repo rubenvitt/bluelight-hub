@@ -23,8 +23,8 @@ type WoMode = 'none' | 'coordinate' | 'freitext';
 
 interface BeteiligterRow {
   readonly key: string;
-  readonly kind: 'user' | 'freitext';
-  readonly userId: string;
+  readonly kind: 'einsatzPerson' | 'freitext';
+  readonly einsatzPersonId: string;
   readonly name: string;
   readonly rolle: string;
 }
@@ -161,8 +161,8 @@ export function VorfallMeldenDrawer({ einsatzId, einheitId, open, onClose, onSuc
     }
 
     const beteiligteOut: ReportVorfallDto['beteiligte'] = beteiligte.map((row) =>
-      row.kind === 'user'
-        ? { kind: 'user' as const, userId: row.userId.trim(), ...(row.rolle.trim() ? { rolle: row.rolle.trim() } : {}) }
+      row.kind === 'einsatzPerson'
+        ? { kind: 'einsatzPerson' as const, einsatzPersonId: row.einsatzPersonId.trim(), ...(row.rolle.trim() ? { rolle: row.rolle.trim() } : {}) }
         : { kind: 'freitext' as const, name: row.name.trim(), ...(row.rolle.trim() ? { rolle: row.rolle.trim() } : {}) },
     );
 
@@ -258,7 +258,7 @@ export function VorfallMeldenDrawer({ einsatzId, einheitId, open, onClose, onSuc
   );
 
   const addBeteiligterRow = useCallback((kind: BeteiligterRow['kind']) => {
-    setBeteiligte((prev) => [...prev, { key: nextBeteiligterRowKey(), kind, userId: '', name: '', rolle: '' }]);
+    setBeteiligte((prev) => [...prev, { key: nextBeteiligterRowKey(), kind, einsatzPersonId: '', name: '', rolle: '' }]);
   }, []);
 
   const removeBeteiligterRow = useCallback((key: string) => {
@@ -422,10 +422,17 @@ export function VorfallMeldenDrawer({ einsatzId, einheitId, open, onClose, onSuc
             <legend className="px-1 text-sm font-medium text-text-primary">Beteiligte (optional)</legend>
             {beteiligte.map((row) => (
               <div key={row.key} data-testid={`vorfall-beteiligter-row-${row.key}`} className="grid grid-cols-12 gap-2">
-                <span className="col-span-2 text-xs text-text-muted">{row.kind === 'user' ? 'Person' : 'Freitext'}</span>
-                {row.kind === 'user' ? (
+                <span className="col-span-2 text-xs text-text-muted">{row.kind === 'einsatzPerson' ? 'Person' : 'Freitext'}</span>
+                {row.kind === 'einsatzPerson' ? (
                   <div className="col-span-5" data-testid={`vorfall-beteiligter-userid-${row.key}`}>
-                    <PersonCombobox value={row.userId} onChange={(userId) => updateBeteiligter(row.key, { userId })} label="" placeholder="Person auswählen…" disabled={isPending} />
+                    <PersonCombobox
+                      einsatzId={einsatzId}
+                      value={row.einsatzPersonId}
+                      onChange={(einsatzPersonId) => updateBeteiligter(row.key, { einsatzPersonId })}
+                      label=""
+                      placeholder="Person auswählen…"
+                      disabled={isPending}
+                    />
                   </div>
                 ) : (
                   <input
@@ -460,7 +467,7 @@ export function VorfallMeldenDrawer({ einsatzId, einheitId, open, onClose, onSuc
               </div>
             ))}
             <div className="flex gap-2">
-              <Button data-testid="vorfall-beteiligter-add-user" intent="secondary" onClick={() => addBeteiligterRow('user')} disabled={isPending}>
+              <Button data-testid="vorfall-beteiligter-add-user" intent="secondary" onClick={() => addBeteiligterRow('einsatzPerson')} disabled={isPending}>
                 + Person
               </Button>
               <Button data-testid="vorfall-beteiligter-add-freitext" intent="secondary" onClick={() => addBeteiligterRow('freitext')} disabled={isPending}>

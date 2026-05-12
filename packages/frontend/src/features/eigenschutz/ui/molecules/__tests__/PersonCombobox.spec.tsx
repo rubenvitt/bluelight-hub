@@ -4,15 +4,15 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const findAllBasicMock = vi.fn();
+const findAllEinsatzPersonenMock = vi.fn();
 
 vi.mock('@/shared', async () => {
   const actual = await vi.importActual<Record<string, unknown>>('@/shared');
   return {
     ...actual,
     api: {
-      users: () => ({
-        userControllerFindAllBasicVAlpha: findAllBasicMock,
+      einsatzPersonen: () => ({
+        einsatzPersonenControllerFindAllVAlpha: findAllEinsatzPersonenMock,
       }),
     },
   };
@@ -29,63 +29,79 @@ const wrapper =
   (client: QueryClient) =>
   ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 
-const USERS = [
-  { id: 'user-1', username: 'Steffi Müller' },
-  { id: 'user-2', username: 'Hans Maier' },
+const TEST_EINSATZ_ID = 'cl9einsatz12345678901234';
+
+const PERSONEN = [
+  { id: 'person-1', vorname: 'Steffi', nachname: 'Müller', funkrufname: 'Florian Mitte 1' },
+  { id: 'person-2', vorname: 'Hans', nachname: 'Maier', funkrufname: null },
 ];
 
-describe('PersonCombobox (G7)', () => {
+describe('PersonCombobox', () => {
   beforeEach(() => {
-    findAllBasicMock.mockReset();
-    findAllBasicMock.mockResolvedValue({ data: USERS });
+    findAllEinsatzPersonenMock.mockReset();
+    findAllEinsatzPersonenMock.mockResolvedValue({ data: PERSONEN });
   });
 
   it('rendert Label und exponiert role=combobox', async () => {
     const Wrapper = wrapper(makeClient());
     render(
       <Wrapper>
-        <PersonCombobox value={null} onChange={() => {}} label="Person" testId="person-combobox" />
+        <PersonCombobox einsatzId={TEST_EINSATZ_ID} value={null} onChange={() => {}} label="Person" testId="person-combobox" />
       </Wrapper>,
     );
 
-    await waitFor(() => expect(findAllBasicMock).toHaveBeenCalled());
+    await waitFor(() => expect(findAllEinsatzPersonenMock).toHaveBeenCalledWith({ einsatzId: TEST_EINSATZ_ID }));
 
     expect(screen.getByText('Person')).toBeInTheDocument();
     expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded');
   });
 
-  it('gibt Person-ID an onChange zurück, wenn ein Name ausgewählt wird', async () => {
+  it('gibt EinsatzPerson-ID an onChange zurück, wenn ein Name ausgewählt wird', async () => {
     const onChange = vi.fn();
     const Wrapper = wrapper(makeClient());
     render(
       <Wrapper>
-        <PersonCombobox value={null} onChange={onChange} testId="person-combobox" />
+        <PersonCombobox einsatzId={TEST_EINSATZ_ID} value={null} onChange={onChange} testId="person-combobox" />
       </Wrapper>,
     );
 
-    await waitFor(() => expect(findAllBasicMock).toHaveBeenCalled());
+    await waitFor(() => expect(findAllEinsatzPersonenMock).toHaveBeenCalled());
 
     const user = userEvent.setup();
     const input = screen.getByRole('combobox');
     await user.click(input);
-    await waitFor(() => expect(screen.getByText('Steffi Müller')).toBeInTheDocument());
-    await user.click(screen.getByText('Steffi Müller'));
+    await waitFor(() => expect(screen.getByText('Steffi Müller (Florian Mitte 1)')).toBeInTheDocument());
+    await user.click(screen.getByText('Steffi Müller (Florian Mitte 1)'));
 
-    expect(onChange).toHaveBeenCalledWith('user-1');
+    expect(onChange).toHaveBeenCalledWith('person-1');
   });
 
-  it('zeigt Empty-Hinweis, wenn keine Personen geladen sind', async () => {
-    findAllBasicMock.mockResolvedValue({ data: [] });
+  it('zeigt Empty-Hinweis, wenn keine Personen registriert sind', async () => {
+    findAllEinsatzPersonenMock.mockResolvedValue({ data: [] });
     const Wrapper = wrapper(makeClient());
     render(
       <Wrapper>
-        <PersonCombobox value={null} onChange={() => {}} testId="person-combobox" />
+        <PersonCombobox einsatzId={TEST_EINSATZ_ID} value={null} onChange={() => {}} testId="person-combobox" />
       </Wrapper>,
     );
 
-    await waitFor(() => expect(findAllBasicMock).toHaveBeenCalled());
+    await waitFor(() => expect(findAllEinsatzPersonenMock).toHaveBeenCalled());
     await waitFor(() => {
-      expect(screen.getByText(/Keine Personen verfügbar/i)).toBeInTheDocument();
+      expect(screen.getByText(/Keine Personen registriert/i)).toBeInTheDocument();
     });
+  });
+
+  it('lädt Personen ohne Funkrufname als reinen "Vorname Nachname"-Label', async () => {
+    const Wrapper = wrapper(makeClient());
+    render(
+      <Wrapper>
+        <PersonCombobox einsatzId={TEST_EINSATZ_ID} value={null} onChange={() => {}} testId="person-combobox" />
+      </Wrapper>,
+    );
+
+    await waitFor(() => expect(findAllEinsatzPersonenMock).toHaveBeenCalled());
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox'));
+    await waitFor(() => expect(screen.getByText('Hans Maier')).toBeInTheDocument());
   });
 });

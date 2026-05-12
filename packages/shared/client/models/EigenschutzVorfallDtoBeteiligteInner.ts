@@ -12,6 +12,13 @@
  * Do not edit the class manually.
  */
 
+import type { BeteiligterEinsatzPersonDto } from './BeteiligterEinsatzPersonDto';
+import {
+    instanceOfBeteiligterEinsatzPersonDto,
+    BeteiligterEinsatzPersonDtoFromJSON,
+    BeteiligterEinsatzPersonDtoFromJSONTyped,
+    BeteiligterEinsatzPersonDtoToJSON,
+} from './BeteiligterEinsatzPersonDto';
 import type { BeteiligterFreitextDto } from './BeteiligterFreitextDto';
 import {
     instanceOfBeteiligterFreitextDto,
@@ -19,20 +26,13 @@ import {
     BeteiligterFreitextDtoFromJSONTyped,
     BeteiligterFreitextDtoToJSON,
 } from './BeteiligterFreitextDto';
-import type { BeteiligterUserDto } from './BeteiligterUserDto';
-import {
-    instanceOfBeteiligterUserDto,
-    BeteiligterUserDtoFromJSON,
-    BeteiligterUserDtoFromJSONTyped,
-    BeteiligterUserDtoToJSON,
-} from './BeteiligterUserDto';
 
 /**
  * @type EigenschutzVorfallDtoBeteiligteInner
  * 
  * @export
  */
-export type EigenschutzVorfallDtoBeteiligteInner = BeteiligterFreitextDto | BeteiligterUserDto;
+export type EigenschutzVorfallDtoBeteiligteInner = BeteiligterEinsatzPersonDto | BeteiligterFreitextDto;
 
 export function EigenschutzVorfallDtoBeteiligteInnerFromJSON(json: any): EigenschutzVorfallDtoBeteiligteInner {
     return EigenschutzVorfallDtoBeteiligteInnerFromJSONTyped(json, false);
@@ -42,11 +42,11 @@ export function EigenschutzVorfallDtoBeteiligteInnerFromJSONTyped(json: any, ign
     if (json == null) {
         return json;
     }
+    if (instanceOfBeteiligterEinsatzPersonDto(json)) {
+        return BeteiligterEinsatzPersonDtoFromJSONTyped(json, true);
+    }
     if (instanceOfBeteiligterFreitextDto(json)) {
         return BeteiligterFreitextDtoFromJSONTyped(json, true);
-    }
-    if (instanceOfBeteiligterUserDto(json)) {
-        return BeteiligterUserDtoFromJSONTyped(json, true);
     }
 
     return {} as any;
@@ -61,11 +61,11 @@ export function EigenschutzVorfallDtoBeteiligteInnerToJSONTyped(value?: Eigensch
         return value;
     }
 
+    if (instanceOfBeteiligterEinsatzPersonDto(value)) {
+        return BeteiligterEinsatzPersonDtoToJSON(value as BeteiligterEinsatzPersonDto);
+    }
     if (instanceOfBeteiligterFreitextDto(value)) {
         return BeteiligterFreitextDtoToJSON(value as BeteiligterFreitextDto);
-    }
-    if (instanceOfBeteiligterUserDto(value)) {
-        return BeteiligterUserDtoToJSON(value as BeteiligterUserDto);
     }
 
     return {};

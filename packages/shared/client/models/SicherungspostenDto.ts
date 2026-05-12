@@ -65,7 +65,7 @@ export interface SicherungspostenDto {
      */
     standort: SicherungspostenDtoStandort;
     /**
-     * Personal als Liste discriminated Unions (user oder freitext)
+     * Personal als Liste discriminated Unions (einsatzPerson oder freitext)
      * @type {Array<SicherungspostenDtoPersonalInner>}
      * @memberof SicherungspostenDto
      */

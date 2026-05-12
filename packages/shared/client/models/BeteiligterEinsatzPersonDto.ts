@@ -16,25 +16,25 @@ import { mapValues } from '../runtime';
 /**
  * 
  * @export
- * @interface BeteiligterUserDto
+ * @interface BeteiligterEinsatzPersonDto
  */
-export interface BeteiligterUserDto {
+export interface BeteiligterEinsatzPersonDto {
     /**
      * 
      * @type {string}
-     * @memberof BeteiligterUserDto
+     * @memberof BeteiligterEinsatzPersonDto
      */
-    kind: BeteiligterUserDtoKindEnum;
+    kind: BeteiligterEinsatzPersonDtoKindEnum;
     /**
-     * CUID2 des Beteiligten-Users
+     * CUID2 der im Einsatz registrierten EinsatzPerson
      * @type {string}
-     * @memberof BeteiligterUserDto
+     * @memberof BeteiligterEinsatzPersonDto
      */
-    userId: string;
+    einsatzPersonId: string;
     /**
      * Optionale Rolle (≤ 100)
      * @type {string}
-     * @memberof BeteiligterUserDto
+     * @memberof BeteiligterEinsatzPersonDto
      */
     rolle?: string;
 }
@@ -43,42 +43,42 @@ export interface BeteiligterUserDto {
 /**
  * @export
  */
-export const BeteiligterUserDtoKindEnum = {
-    User: 'user'
+export const BeteiligterEinsatzPersonDtoKindEnum = {
+    EinsatzPerson: 'einsatzPerson'
 } as const;
-export type BeteiligterUserDtoKindEnum = typeof BeteiligterUserDtoKindEnum[keyof typeof BeteiligterUserDtoKindEnum];
+export type BeteiligterEinsatzPersonDtoKindEnum = typeof BeteiligterEinsatzPersonDtoKindEnum[keyof typeof BeteiligterEinsatzPersonDtoKindEnum];
 
 
 /**
- * Check if a given object implements the BeteiligterUserDto interface.
+ * Check if a given object implements the BeteiligterEinsatzPersonDto interface.
  */
-export function instanceOfBeteiligterUserDto(value: object): value is BeteiligterUserDto {
+export function instanceOfBeteiligterEinsatzPersonDto(value: object): value is BeteiligterEinsatzPersonDto {
     if (!('kind' in value) || value['kind'] === undefined) return false;
-    if (!('userId' in value) || value['userId'] === undefined) return false;
+    if (!('einsatzPersonId' in value) || value['einsatzPersonId'] === undefined) return false;
     return true;
 }
 
-export function BeteiligterUserDtoFromJSON(json: any): BeteiligterUserDto {
-    return BeteiligterUserDtoFromJSONTyped(json, false);
+export function BeteiligterEinsatzPersonDtoFromJSON(json: any): BeteiligterEinsatzPersonDto {
+    return BeteiligterEinsatzPersonDtoFromJSONTyped(json, false);
 }
 
-export function BeteiligterUserDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean): BeteiligterUserDto {
+export function BeteiligterEinsatzPersonDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean): BeteiligterEinsatzPersonDto {
     if (json == null) {
         return json;
     }
     return {
         
         'kind': json['kind'],
-        'userId': json['userId'],
+        'einsatzPersonId': json['einsatzPersonId'],
         'rolle': json['rolle'] == null ? undefined : json['rolle'],
     };
 }
 
-export function BeteiligterUserDtoToJSON(json: any): BeteiligterUserDto {
-    return BeteiligterUserDtoToJSONTyped(json, false);
+export function BeteiligterEinsatzPersonDtoToJSON(json: any): BeteiligterEinsatzPersonDto {
+    return BeteiligterEinsatzPersonDtoToJSONTyped(json, false);
 }
 
-export function BeteiligterUserDtoToJSONTyped(value?: BeteiligterUserDto | null, ignoreDiscriminator: boolean = false): any {
+export function BeteiligterEinsatzPersonDtoToJSONTyped(value?: BeteiligterEinsatzPersonDto | null, ignoreDiscriminator: boolean = false): any {
     if (value == null) {
         return value;
     }
@@ -86,7 +86,7 @@ export function BeteiligterUserDtoToJSONTyped(value?: BeteiligterUserDto | null,
     return {
         
         'kind': value['kind'],
-        'userId': value['userId'],
+        'einsatzPersonId': value['einsatzPersonId'],
         'rolle': value['rolle'],
     };
 }

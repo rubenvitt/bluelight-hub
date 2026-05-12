@@ -122,7 +122,7 @@ describe('SicherungspostenDrawer', () => {
     await waitFor(() => {
       expect(screen.getByTestId('sicherungsposten-personal-row-0')).toBeInTheDocument();
     });
-    // Standardmodus ist Person-Auswahl (kind: 'user'), nicht Freitext.
+    // Standardmodus ist Person-Auswahl (kind: 'einsatzPerson'), nicht Freitext.
     expect(screen.getByTestId('sicherungsposten-personal-userid-0')).toBeInTheDocument();
 
     await user.click(screen.getByTestId('sicherungsposten-personal-remove-0'));

@@ -6,9 +6,10 @@
  * - **Bezeichnung** (Pflicht, 1–200 Zeichen).
  * - **Standort** als discriminated Union: `coordinate` (longitude/latitude
  *   + optional `addressHint`) ODER `address` (Freitext). RadioGroup-Toggle.
- * - **Personal**: Liste discriminated Unions (`user` mit userId ODER
- *   `freitext` mit name + optional rolle). Hinzufügen/Entfernen via
- *   Buttons; Toggle pro Eintrag zwischen Person-Auswahl und Freitext.
+ * - **Personal**: Liste discriminated Unions (`einsatzPerson` mit
+ *   einsatzPersonId ODER `freitext` mit name + optional rolle).
+ *   Hinzufügen/Entfernen via Buttons; Toggle pro Eintrag zwischen
+ *   Person-Auswahl und Freitext.
  * - **Zuständigkeitsbereich** (optional, Textarea ≤ 4000 Zeichen).
  * - **Ablösezeiten** (Story 4.2): Freitext-Editor ≤ 2000 Zeichen mit
  *   Auto-Save (`useAutoSave`, Debounce 2 s, online-only). Im Edit-Mode
@@ -115,12 +116,12 @@ function buildDefaults(posten?: SicherungspostenDto): SicherungspostenFormValues
 
 function normalizePersonalForSubmit(personal: PersonalEntry[]): PersonalEntry[] {
   // Trim, aber **nicht** silent-droppen: leere Einträge gehen weiter durch und
-  // werden vom Form-Schema (zod `.min(1)` auf userId/name) als Validierungsfehler
-  // erkannt — der User sieht eine inline-Meldung statt unbemerkt verlorenem
-  // Eintrag.
+  // werden vom Form-Schema (zod `.min(1)` auf einsatzPersonId/name) als
+  // Validierungsfehler erkannt — der User sieht eine inline-Meldung statt
+  // unbemerkt verlorenem Eintrag.
   return personal.map((entry) => {
-    if (entry.kind === 'user') {
-      return { kind: 'user' as const, userId: entry.userId.trim() };
+    if (entry.kind === 'einsatzPerson') {
+      return { kind: 'einsatzPerson' as const, einsatzPersonId: entry.einsatzPersonId.trim() };
     }
     const rolle = entry.rolle?.trim();
     return { kind: 'freitext' as const, name: entry.name.trim(), rolle: rolle && rolle.length > 0 ? rolle : undefined };
@@ -469,11 +470,11 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
                           <input
                             type="radio"
                             name={`personal-kind-${index}`}
-                            value="user"
-                            checked={entry.kind === 'user'}
+                            value="einsatzPerson"
+                            checked={entry.kind === 'einsatzPerson'}
                             onChange={() => {
                               const next = [...field.state.value];
-                              next[index] = { kind: 'user', userId: '' };
+                              next[index] = { kind: 'einsatzPerson', einsatzPersonId: '' };
                               field.handleChange(next);
                             }}
                             data-testid={`sicherungsposten-personal-toggle-user-${index}`}
@@ -510,12 +511,13 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
                         Entfernen
                       </Button>
                     </div>
-                    {entry.kind === 'user' ? (
+                    {entry.kind === 'einsatzPerson' ? (
                       <PersonCombobox
-                        value={entry.userId}
-                        onChange={(userId) => {
+                        einsatzId={einsatzId}
+                        value={entry.einsatzPersonId}
+                        onChange={(einsatzPersonId) => {
                           const next = [...field.state.value];
-                          next[index] = { kind: 'user', userId };
+                          next[index] = { kind: 'einsatzPerson', einsatzPersonId };
                           field.handleChange(next);
                         }}
                         label="Person"
@@ -557,7 +559,7 @@ export function SicherungspostenDrawer({ einsatzId, mode, open, onClose, posten 
                   appearance="ghost"
                   size="sm"
                   type="button"
-                  onClick={() => field.handleChange([...field.state.value, { kind: 'user', userId: '' }])}
+                  onClick={() => field.handleChange([...field.state.value, { kind: 'einsatzPerson', einsatzPersonId: '' }])}
                   data-testid="sicherungsposten-personal-add"
                 >
                   + Eintrag hinzufügen

@@ -1,18 +1,21 @@
 /**
- * `usePersonSuche` — Lookup-Hook für die Personen/User-Combobox im
+ * `usePersonSuche` — Lookup-Hook für die EinsatzPerson-Combobox im
  * Eigenschutz (Personal-Listen in `SicherungspostenDrawer` und Beteiligte
  * im `VorfallMeldenDrawer`).
  *
- * Wrappt {@link useUsers} (alle Benutzer der Organisation, `UserBasicDto`-
- * Liste) und projiziert auf `ComboboxItem` (`value=user.id`,
- * `label=user.username`). Wie {@link useEinheitSuche} läuft der Filter
- * client-side mit 250 ms Debounce über den gemeinsamen
- * {@link useComboboxFilter} — Server-side-Search ist als Folge-Story
- * dokumentiert (PR-Body).
+ * Wrappt {@link useEinsatzPersonen} (alle im jeweiligen Einsatz registrierten
+ * Personen) und projiziert auf `ComboboxItem`
+ * (`value = einsatzPerson.id`, `label = "Vorname Nachname [(Funkrufname)]"`).
+ * Wording und Datenquelle sind 1:1 zur Rollenbesetzung
+ * (`EinsatzPersonenPicker` / `BesetzeRolleDialog`).
+ *
+ * Wie {@link useEinheitSuche} läuft der Filter client-side mit 250 ms
+ * Debounce über den gemeinsamen {@link useComboboxFilter} — Server-side-
+ * Search ist als Folge-Story dokumentiert (PR-Body).
  */
 
 import { useMemo } from 'react';
-import { useUsers } from '@/features/auth/api';
+import { useEinsatzPersonen } from '@/features/einsatz/api';
 import type { ComboboxItem } from '@/shared/ui/headless/combobox';
 import { useComboboxFilter, type UseComboboxFilterOptions } from './use-combobox-filter';
 
@@ -26,20 +29,25 @@ export interface UsePersonSucheResult {
 
 export type UsePersonSucheOptions = UseComboboxFilterOptions;
 
-export function usePersonSuche(options?: UsePersonSucheOptions): UsePersonSucheResult {
-  const usersQuery = useUsers();
+export function usePersonSuche(einsatzId: string | null | undefined, options?: UsePersonSucheOptions): UsePersonSucheResult {
+  const personenQuery = useEinsatzPersonen(einsatzId ?? null);
 
   const allItems = useMemo<ReadonlyArray<ComboboxItem>>(() => {
-    const data = usersQuery.data ?? [];
-    return data.map((user) => ({ value: user.id, label: user.username }));
-  }, [usersQuery.data]);
+    const data = personenQuery.data ?? [];
+    return data
+      .map((person) => ({
+        value: person.id,
+        label: person.funkrufname ? `${person.vorname} ${person.nachname} (${person.funkrufname})` : `${person.vorname} ${person.nachname}`,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'de'));
+  }, [personenQuery.data]);
 
   const { items, setQuery } = useComboboxFilter(allItems, options);
 
   return {
     items,
-    isLoading: usersQuery.isLoading,
-    isError: usersQuery.isError,
+    isLoading: personenQuery.isLoading,
+    isError: personenQuery.isError,
     rawCount: allItems.length,
     setQuery,
   };

@@ -28,13 +28,22 @@ vi.mock('sonner', () => ({
   },
 }));
 
-vi.mock('@/shared', () => ({
-  api: {
-    eigenschutz: () => ({
-      eigenschutzVorfallControllerReportVorfallVAlpha: mockReport,
-    }),
-  },
-}));
+const mockFindAllEinsatzPersonen = vi.fn(() => Promise.resolve({ data: [] as Array<{ id: string; vorname: string; nachname: string; funkrufname: string | null }> }));
+
+vi.mock('@/shared', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('@/shared');
+  return {
+    ...actual,
+    api: {
+      eigenschutz: () => ({
+        eigenschutzVorfallControllerReportVorfallVAlpha: mockReport,
+      }),
+      einsatzPersonen: () => ({
+        einsatzPersonenControllerFindAllVAlpha: mockFindAllEinsatzPersonen,
+      }),
+    },
+  };
+});
 
 const mockEinheitenState = {
   data: [

@@ -1,12 +1,13 @@
 /**
- * `PersonCombobox` — Name-basierte Auswahl einer Person im
- * Eigenschutz-Kontext. Ersetzt rohe User-CUID-Eingaben in den Personal-
- * Listen des `SicherungspostenDrawer` und den Beteiligte-Reihen des
- * `VorfallMeldenDrawer`. Wording orientiert sich am `BesetzeRolleDialog`
- * („Person auswählen…").
+ * `PersonCombobox` — Name-basierte Auswahl einer im jeweiligen Einsatz
+ * registrierten Person (EinsatzPerson) im Eigenschutz-Kontext. Ersetzt
+ * rohe ID-Eingaben in den Personal-Listen des `SicherungspostenDrawer`
+ * und den Beteiligte-Reihen des `VorfallMeldenDrawer`. Wording und
+ * Datenquelle sind 1:1 zur Rollenbesetzung (`EinsatzPersonenPicker` aus
+ * `features/kraefte`).
  *
- * Intern wird weiter die User-CUID2 als `value` gespeichert — der Anwender
- * sucht und sieht ausschließlich den Personennamen.
+ * Intern wird die EinsatzPerson-CUID2 als `value` gespeichert — der
+ * Anwender sucht und sieht „Vorname Nachname (Funkrufname)".
  *
  * Architektur: Thin-Adapter über den projektweiten {@link Combobox} aus
  * `shared/ui/headless` (Headless UI v2). Lookup über {@link usePersonSuche}
@@ -15,8 +16,8 @@
  * von der Headless-Komponente abgedeckt.
  *
  * Empty-State-Differenzierung:
- * - `rawCount === 0` → „Keine Personen verfügbar" (Berechtigung/Setup-
- *   Hinweis statt „nichts gefunden").
+ * - `rawCount === 0` → „Keine Personen registriert" (Hinweis auf
+ *   fehlende EinsatzPerson-Registrierung statt „nichts gefunden").
  * - `rawCount > 0` & gefilterte Liste leer → Standard-Combobox-Meldung.
  */
 
@@ -25,10 +26,12 @@ import { Combobox } from '@/shared/ui/headless/combobox';
 import { usePersonSuche } from '../../hooks/use-person-suche';
 
 export interface PersonComboboxProps {
-  /** Aktuelle User-ID (intern). */
+  /** CUID2 des aktiven Einsatzes — Datenquelle der EinsatzPersonen. */
+  readonly einsatzId: string | null | undefined;
+  /** Aktuelle EinsatzPerson-ID (intern). */
   readonly value: string | null | undefined;
-  /** Callback mit neuer User-ID (oder leer-String beim Löschen). */
-  readonly onChange: (userId: string) => void;
+  /** Callback mit neuer EinsatzPerson-ID (oder leer-String beim Löschen). */
+  readonly onChange: (einsatzPersonId: string) => void;
   readonly label?: string;
   readonly placeholder?: string;
   readonly helperText?: string;
@@ -44,6 +47,7 @@ const DEFAULT_LABEL = 'Person';
 const DEFAULT_PLACEHOLDER = 'Person auswählen…';
 
 export function PersonCombobox({
+  einsatzId,
   value,
   onChange,
   label = DEFAULT_LABEL,
@@ -56,7 +60,7 @@ export function PersonCombobox({
   className,
   testId,
 }: PersonComboboxProps) {
-  const { items, isLoading, isError, rawCount, setQuery } = usePersonSuche();
+  const { items, isLoading, isError, rawCount, setQuery } = usePersonSuche(einsatzId);
 
   const mutableItems = useMemo(() => [...items], [items]);
 
@@ -64,7 +68,7 @@ export function PersonCombobox({
     if (error) return undefined;
     if (isLoading) return 'Personen werden geladen…';
     if (isError) return 'Personen konnten nicht geladen werden.';
-    if (rawCount === 0) return 'Keine Personen verfügbar.';
+    if (rawCount === 0) return 'Keine Personen registriert.';
     return helperText;
   }, [error, isLoading, isError, rawCount, helperText]);
 
@@ -79,7 +83,7 @@ export function PersonCombobox({
         placeholder={placeholder}
         helperText={effectiveHelper}
         error={error}
-        disabled={disabled || isLoading}
+        disabled={disabled || isLoading || !einsatzId}
         autoFocus={autoFocus}
         className={className}
         openOnFocus

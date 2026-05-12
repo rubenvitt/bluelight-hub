@@ -12,6 +12,13 @@
  * Do not edit the class manually.
  */
 
+import type { CreateSicherungspostenPersonalEinsatzPersonDto } from './CreateSicherungspostenPersonalEinsatzPersonDto';
+import {
+    instanceOfCreateSicherungspostenPersonalEinsatzPersonDto,
+    CreateSicherungspostenPersonalEinsatzPersonDtoFromJSON,
+    CreateSicherungspostenPersonalEinsatzPersonDtoFromJSONTyped,
+    CreateSicherungspostenPersonalEinsatzPersonDtoToJSON,
+} from './CreateSicherungspostenPersonalEinsatzPersonDto';
 import type { CreateSicherungspostenPersonalFreitextDto } from './CreateSicherungspostenPersonalFreitextDto';
 import {
     instanceOfCreateSicherungspostenPersonalFreitextDto,
@@ -19,20 +26,13 @@ import {
     CreateSicherungspostenPersonalFreitextDtoFromJSONTyped,
     CreateSicherungspostenPersonalFreitextDtoToJSON,
 } from './CreateSicherungspostenPersonalFreitextDto';
-import type { CreateSicherungspostenPersonalUserDto } from './CreateSicherungspostenPersonalUserDto';
-import {
-    instanceOfCreateSicherungspostenPersonalUserDto,
-    CreateSicherungspostenPersonalUserDtoFromJSON,
-    CreateSicherungspostenPersonalUserDtoFromJSONTyped,
-    CreateSicherungspostenPersonalUserDtoToJSON,
-} from './CreateSicherungspostenPersonalUserDto';
 
 /**
  * @type CreateSicherungspostenDtoPersonalInner
  * 
  * @export
  */
-export type CreateSicherungspostenDtoPersonalInner = CreateSicherungspostenPersonalFreitextDto | CreateSicherungspostenPersonalUserDto;
+export type CreateSicherungspostenDtoPersonalInner = CreateSicherungspostenPersonalEinsatzPersonDto | CreateSicherungspostenPersonalFreitextDto;
 
 export function CreateSicherungspostenDtoPersonalInnerFromJSON(json: any): CreateSicherungspostenDtoPersonalInner {
     return CreateSicherungspostenDtoPersonalInnerFromJSONTyped(json, false);
@@ -42,11 +42,11 @@ export function CreateSicherungspostenDtoPersonalInnerFromJSONTyped(json: any, i
     if (json == null) {
         return json;
     }
+    if (instanceOfCreateSicherungspostenPersonalEinsatzPersonDto(json)) {
+        return CreateSicherungspostenPersonalEinsatzPersonDtoFromJSONTyped(json, true);
+    }
     if (instanceOfCreateSicherungspostenPersonalFreitextDto(json)) {
         return CreateSicherungspostenPersonalFreitextDtoFromJSONTyped(json, true);
-    }
-    if (instanceOfCreateSicherungspostenPersonalUserDto(json)) {
-        return CreateSicherungspostenPersonalUserDtoFromJSONTyped(json, true);
     }
 
     return {} as any;
@@ -61,11 +61,11 @@ export function CreateSicherungspostenDtoPersonalInnerToJSONTyped(value?: Create
         return value;
     }
 
+    if (instanceOfCreateSicherungspostenPersonalEinsatzPersonDto(value)) {
+        return CreateSicherungspostenPersonalEinsatzPersonDtoToJSON(value as CreateSicherungspostenPersonalEinsatzPersonDto);
+    }
     if (instanceOfCreateSicherungspostenPersonalFreitextDto(value)) {
         return CreateSicherungspostenPersonalFreitextDtoToJSON(value as CreateSicherungspostenPersonalFreitextDto);
-    }
-    if (instanceOfCreateSicherungspostenPersonalUserDto(value)) {
-        return CreateSicherungspostenPersonalUserDtoToJSON(value as CreateSicherungspostenPersonalUserDto);
     }
 
     return {};

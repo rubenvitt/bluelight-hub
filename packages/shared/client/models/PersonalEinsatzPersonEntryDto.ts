@@ -16,62 +16,62 @@ import { mapValues } from '../runtime';
 /**
  * 
  * @export
- * @interface PersonalUserEntryDto
+ * @interface PersonalEinsatzPersonEntryDto
  */
-export interface PersonalUserEntryDto {
+export interface PersonalEinsatzPersonEntryDto {
     /**
      * Discriminator
      * @type {string}
-     * @memberof PersonalUserEntryDto
+     * @memberof PersonalEinsatzPersonEntryDto
      */
-    kind: PersonalUserEntryDtoKindEnum;
+    kind: PersonalEinsatzPersonEntryDtoKindEnum;
     /**
-     * CUID des verknüpften Stamm-Users
+     * CUID2 einer im Einsatz registrierten EinsatzPerson
      * @type {string}
-     * @memberof PersonalUserEntryDto
+     * @memberof PersonalEinsatzPersonEntryDto
      */
-    userId: string;
+    einsatzPersonId: string;
 }
 
 
 /**
  * @export
  */
-export const PersonalUserEntryDtoKindEnum = {
-    User: 'user'
+export const PersonalEinsatzPersonEntryDtoKindEnum = {
+    EinsatzPerson: 'einsatzPerson'
 } as const;
-export type PersonalUserEntryDtoKindEnum = typeof PersonalUserEntryDtoKindEnum[keyof typeof PersonalUserEntryDtoKindEnum];
+export type PersonalEinsatzPersonEntryDtoKindEnum = typeof PersonalEinsatzPersonEntryDtoKindEnum[keyof typeof PersonalEinsatzPersonEntryDtoKindEnum];
 
 
 /**
- * Check if a given object implements the PersonalUserEntryDto interface.
+ * Check if a given object implements the PersonalEinsatzPersonEntryDto interface.
  */
-export function instanceOfPersonalUserEntryDto(value: object): value is PersonalUserEntryDto {
+export function instanceOfPersonalEinsatzPersonEntryDto(value: object): value is PersonalEinsatzPersonEntryDto {
     if (!('kind' in value) || value['kind'] === undefined) return false;
-    if (!('userId' in value) || value['userId'] === undefined) return false;
+    if (!('einsatzPersonId' in value) || value['einsatzPersonId'] === undefined) return false;
     return true;
 }
 
-export function PersonalUserEntryDtoFromJSON(json: any): PersonalUserEntryDto {
-    return PersonalUserEntryDtoFromJSONTyped(json, false);
+export function PersonalEinsatzPersonEntryDtoFromJSON(json: any): PersonalEinsatzPersonEntryDto {
+    return PersonalEinsatzPersonEntryDtoFromJSONTyped(json, false);
 }
 
-export function PersonalUserEntryDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean): PersonalUserEntryDto {
+export function PersonalEinsatzPersonEntryDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean): PersonalEinsatzPersonEntryDto {
     if (json == null) {
         return json;
     }
     return {
         
         'kind': json['kind'],
-        'userId': json['userId'],
+        'einsatzPersonId': json['einsatzPersonId'],
     };
 }
 
-export function PersonalUserEntryDtoToJSON(json: any): PersonalUserEntryDto {
-    return PersonalUserEntryDtoToJSONTyped(json, false);
+export function PersonalEinsatzPersonEntryDtoToJSON(json: any): PersonalEinsatzPersonEntryDto {
+    return PersonalEinsatzPersonEntryDtoToJSONTyped(json, false);
 }
 
-export function PersonalUserEntryDtoToJSONTyped(value?: PersonalUserEntryDto | null, ignoreDiscriminator: boolean = false): any {
+export function PersonalEinsatzPersonEntryDtoToJSONTyped(value?: PersonalEinsatzPersonEntryDto | null, ignoreDiscriminator: boolean = false): any {
     if (value == null) {
         return value;
     }
@@ -79,7 +79,7 @@ export function PersonalUserEntryDtoToJSONTyped(value?: PersonalUserEntryDto | n
     return {
         
         'kind': value['kind'],
-        'userId': value['userId'],
+        'einsatzPersonId': value['einsatzPersonId'],
     };
 }
 

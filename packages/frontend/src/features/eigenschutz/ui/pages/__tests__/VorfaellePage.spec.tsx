@@ -21,14 +21,21 @@ vi.mock('@tanstack/react-router', async () => {
   };
 });
 
-vi.mock('@/shared', () => ({
-  api: {
-    eigenschutz: () => ({
-      eigenschutzVorfallControllerReportVorfallVAlpha: vi.fn(),
-      eigenschutzVorfallControllerListVorfaelleVAlpha: mockList,
-    }),
-  },
-}));
+vi.mock('@/shared', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('@/shared');
+  return {
+    ...actual,
+    api: {
+      eigenschutz: () => ({
+        eigenschutzVorfallControllerReportVorfallVAlpha: vi.fn(),
+        eigenschutzVorfallControllerListVorfaelleVAlpha: mockList,
+      }),
+      einsatzPersonen: () => ({
+        einsatzPersonenControllerFindAllVAlpha: vi.fn(() => Promise.resolve({ data: [] })),
+      }),
+    },
+  };
+});
 
 vi.mock('@/features/kraefte/api/use-einsatz-einheiten', () => ({
   useEinsatzEinheiten: () => ({

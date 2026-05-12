@@ -3,15 +3,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const findAllBasicMock = vi.fn();
+const findAllEinsatzPersonenMock = vi.fn();
 
 vi.mock('@/shared', async () => {
   const actual = await vi.importActual<Record<string, unknown>>('@/shared');
   return {
     ...actual,
     api: {
-      users: () => ({
-        userControllerFindAllBasicVAlpha: findAllBasicMock,
+      einsatzPersonen: () => ({
+        einsatzPersonenControllerFindAllVAlpha: findAllEinsatzPersonenMock,
       }),
     },
   };
@@ -28,39 +28,42 @@ const wrapper =
   (client: QueryClient) =>
   ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 
-const USERS = [
-  { id: 'user-1', username: 'Steffi Müller' },
-  { id: 'user-2', username: 'Hans Maier' },
-  { id: 'user-3', username: 'Steffi Schulz' },
+const TEST_EINSATZ_ID = 'cl9einsatz12345678901234';
+
+const PERSONEN = [
+  { id: 'person-1', vorname: 'Steffi', nachname: 'Müller', funkrufname: 'Florian Mitte 1' },
+  { id: 'person-2', vorname: 'Hans', nachname: 'Maier', funkrufname: null },
+  { id: 'person-3', vorname: 'Steffi', nachname: 'Schulz', funkrufname: null },
 ];
 
-describe('usePersonSuche (G7)', () => {
+describe('usePersonSuche', () => {
   beforeEach(() => {
-    findAllBasicMock.mockReset();
-    findAllBasicMock.mockResolvedValue({ data: USERS });
+    findAllEinsatzPersonenMock.mockReset();
+    findAllEinsatzPersonenMock.mockResolvedValue({ data: PERSONEN });
   });
 
-  it('projiziert Benutzer auf ComboboxItems mit value=id und label=username', async () => {
-    const { result } = renderHook(() => usePersonSuche({ debounceMs: 0 }), { wrapper: wrapper(makeClient()) });
+  it('projiziert EinsatzPersonen auf ComboboxItems mit value=id und label="Vorname Nachname [(Funkrufname)]"', async () => {
+    const { result } = renderHook(() => usePersonSuche(TEST_EINSATZ_ID, { debounceMs: 0 }), { wrapper: wrapper(makeClient()) });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.items).toHaveLength(3);
-    expect(result.current.items[0]).toEqual({ value: 'user-1', label: 'Steffi Müller' });
+    // alphabetisch (de) sortiert: Hans Maier, Steffi Müller (Florian Mitte 1), Steffi Schulz
+    expect(result.current.items.map((i) => i.label)).toEqual(['Hans Maier', 'Steffi Müller (Florian Mitte 1)', 'Steffi Schulz']);
     expect(result.current.rawCount).toBe(3);
   });
 
   it('filtert client-side nach Sub-String im Namen (case-insensitive)', async () => {
-    const { result } = renderHook(() => usePersonSuche({ debounceMs: 0 }), { wrapper: wrapper(makeClient()) });
+    const { result } = renderHook(() => usePersonSuche(TEST_EINSATZ_ID, { debounceMs: 0 }), { wrapper: wrapper(makeClient()) });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     act(() => result.current.setQuery('steffi'));
     await waitFor(() => expect(result.current.items).toHaveLength(2));
-    expect(result.current.items.map((i) => i.label).sort()).toEqual(['Steffi Müller', 'Steffi Schulz']);
+    expect(result.current.items.map((i) => i.label).sort()).toEqual(['Steffi Müller (Florian Mitte 1)', 'Steffi Schulz']);
   });
 
-  it('liefert rawCount=0 wenn keine Benutzer geladen sind', async () => {
-    findAllBasicMock.mockResolvedValue({ data: [] });
-    const { result } = renderHook(() => usePersonSuche({ debounceMs: 0 }), { wrapper: wrapper(makeClient()) });
+  it('liefert rawCount=0 wenn keine Personen registriert sind', async () => {
+    findAllEinsatzPersonenMock.mockResolvedValue({ data: [] });
+    const { result } = renderHook(() => usePersonSuche(TEST_EINSATZ_ID, { debounceMs: 0 }), { wrapper: wrapper(makeClient()) });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.rawCount).toBe(0);

@@ -12,6 +12,13 @@
  * Do not edit the class manually.
  */
 
+import type { PersonalEinsatzPersonEntryDto } from './PersonalEinsatzPersonEntryDto';
+import {
+    instanceOfPersonalEinsatzPersonEntryDto,
+    PersonalEinsatzPersonEntryDtoFromJSON,
+    PersonalEinsatzPersonEntryDtoFromJSONTyped,
+    PersonalEinsatzPersonEntryDtoToJSON,
+} from './PersonalEinsatzPersonEntryDto';
 import type { PersonalFreitextEntryDto } from './PersonalFreitextEntryDto';
 import {
     instanceOfPersonalFreitextEntryDto,
@@ -19,20 +26,13 @@ import {
     PersonalFreitextEntryDtoFromJSONTyped,
     PersonalFreitextEntryDtoToJSON,
 } from './PersonalFreitextEntryDto';
-import type { PersonalUserEntryDto } from './PersonalUserEntryDto';
-import {
-    instanceOfPersonalUserEntryDto,
-    PersonalUserEntryDtoFromJSON,
-    PersonalUserEntryDtoFromJSONTyped,
-    PersonalUserEntryDtoToJSON,
-} from './PersonalUserEntryDto';
 
 /**
  * @type SicherungspostenDtoPersonalInner
  * 
  * @export
  */
-export type SicherungspostenDtoPersonalInner = PersonalFreitextEntryDto | PersonalUserEntryDto;
+export type SicherungspostenDtoPersonalInner = PersonalEinsatzPersonEntryDto | PersonalFreitextEntryDto;
 
 export function SicherungspostenDtoPersonalInnerFromJSON(json: any): SicherungspostenDtoPersonalInner {
     return SicherungspostenDtoPersonalInnerFromJSONTyped(json, false);
@@ -42,11 +42,11 @@ export function SicherungspostenDtoPersonalInnerFromJSONTyped(json: any, ignoreD
     if (json == null) {
         return json;
     }
+    if (instanceOfPersonalEinsatzPersonEntryDto(json)) {
+        return PersonalEinsatzPersonEntryDtoFromJSONTyped(json, true);
+    }
     if (instanceOfPersonalFreitextEntryDto(json)) {
         return PersonalFreitextEntryDtoFromJSONTyped(json, true);
-    }
-    if (instanceOfPersonalUserEntryDto(json)) {
-        return PersonalUserEntryDtoFromJSONTyped(json, true);
     }
 
     return {} as any;
@@ -61,11 +61,11 @@ export function SicherungspostenDtoPersonalInnerToJSONTyped(value?: Sicherungspo
         return value;
     }
 
+    if (instanceOfPersonalEinsatzPersonEntryDto(value)) {
+        return PersonalEinsatzPersonEntryDtoToJSON(value as PersonalEinsatzPersonEntryDto);
+    }
     if (instanceOfPersonalFreitextEntryDto(value)) {
         return PersonalFreitextEntryDtoToJSON(value as PersonalFreitextEntryDto);
-    }
-    if (instanceOfPersonalUserEntryDto(value)) {
-        return PersonalUserEntryDtoToJSON(value as PersonalUserEntryDto);
     }
 
     return {};

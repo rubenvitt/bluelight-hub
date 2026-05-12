@@ -186,8 +186,8 @@ models/BefehlsgeberVorschlagDto.ts
 models/BeitrittsanfrageResponseDto.ts
 models/BesatzungMemberDto.ts
 models/BesetzeRolleDto.ts
+models/BeteiligterEinsatzPersonDto.ts
 models/BeteiligterFreitextDto.ts
-models/BeteiligterUserDto.ts
 models/BulkChangePsaProfilDto.ts
 models/ChangeEinsatzEinheitStatusDto.ts
 models/ChangeOperativeRoleDto.ts
@@ -228,8 +228,8 @@ models/CreateSicherheitsregelDto.ts
 models/CreateSicherungspostenDto.ts
 models/CreateSicherungspostenDtoPersonalInner.ts
 models/CreateSicherungspostenDtoStandort.ts
+models/CreateSicherungspostenPersonalEinsatzPersonDto.ts
 models/CreateSicherungspostenPersonalFreitextDto.ts
-models/CreateSicherungspostenPersonalUserDto.ts
 models/CreateSicherungspostenStandortAddressDto.ts
 models/CreateSicherungspostenStandortCoordinateDto.ts
 models/CreateStammFahrzeugDto.ts
@@ -456,8 +456,8 @@ models/OperativeRoleResponseDto.ts
 models/PersonRegisteredResponseDto.ts
 models/PersonStatistikDto.ts
 models/PersonStatistikItemDto.ts
+models/PersonalEinsatzPersonEntryDto.ts
 models/PersonalFreitextEntryDto.ts
-models/PersonalUserEntryDto.ts
 models/PlatziereZeichenDto.ts
 models/PlzLookupControllerLookupVAlpha200Response.ts
 models/PlzLookupResponseDto.ts

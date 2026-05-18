@@ -30,7 +30,9 @@ activation_steps_append = []
 #   - a file reference prefixed with `file:`, e.g. "file:{project-root}/docs/standards.md"
 #     (glob patterns are supported; the file's contents are loaded and treated as facts).
 
-persistent_facts = ["file:{project-root}/**/project-context.md"]
+persistent_facts = [
+  "file:{project-root}/**/project-context.md",
+]
 
 # Scalar: executed when the workflow reaches Step 14 (Workflow Completion),
 # after the UX design specification is finalized and status is updated. Override wins.

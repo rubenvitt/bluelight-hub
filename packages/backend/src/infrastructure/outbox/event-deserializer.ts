@@ -158,6 +158,13 @@ import { AlarmierungErstelltEvent } from '@domain/events/alarmierung-erstellt.ev
 import { AlarmierungZeitpunktFmsGesetztEvent } from '@domain/events/alarmierung-zeitpunkt-fms-gesetzt.event';
 import { AlarmierungZeitpunktKorrigiertEvent } from '@domain/events/alarmierung-zeitpunkt-korrigiert.event';
 import { NachalarmierungErstelltEvent } from '@domain/events/nachalarmierung-erstellt.event';
+// Patient Events (Story 1.2/1.3, Architecture §D-6)
+import { PatientErfasst } from '@domain/patienten/events/patient-erfasst.event';
+import { PatientGesichtet } from '@domain/patienten/events/patient-gesichtet.event';
+import { PatientSichtungAktualisiert } from '@domain/patienten/events/patient-sichtung-aktualisiert.event';
+import type { ErfasserRefData } from '@domain/patienten/value-objects/erfasser-ref.vo';
+import { SK_CODES, type SkCode } from '@domain/patienten/value-objects/sichtungskategorie.vo';
+import { SICHTUNG_ARTEN, type SichtungArt } from '@domain/patienten/value-objects/sichtung.vo';
 // Eigenschutz Events (Story 2.1+)
 import { GefaehrdungsbeurteilungErstelltEvent } from '@domain/eigenschutz/events/gefaehrdungsbeurteilung-erstellt.event';
 import { GefaehrdungsbeurteilungAktualisiertEvent } from '@domain/eigenschutz/events/gefaehrdungsbeurteilung-aktualisiert.event';
@@ -446,6 +453,11 @@ export class EventDeserializer {
       ['alarmierung.zeitpunkt_fms_gesetzt', deserializeAlarmierungZeitpunktFmsGesetzt],
       ['alarmierung.abgeschlossen', deserializeAlarmierungAbgeschlossen],
       ['alarmierung.nachalarmierung_erstellt', deserializeNachalarmierungErstellt],
+
+      // ===== PATIENT EVENTS (Story 1.2/1.3, Architecture §D-6) =====
+      ['patient.erfasst', deserializePatientErfasst],
+      ['patient.gesichtet', deserializePatientGesichtet],
+      ['patient.sichtung-aktualisiert', deserializePatientSichtungAktualisiert],
 
       // ===== EIGENSCHUTZ EVENTS (Story 2.1+) =====
       ['eigenschutz.gefaehrdungsbeurteilung_erstellt', deserializeGefaehrdungsbeurteilungErstellt],
@@ -2614,6 +2626,139 @@ function deserializeNachalarmierungErstellt(payload: Record<string, unknown>): R
     bezeichnung: data.bezeichnung,
     ursprungAlarmierungId: makeAlarmierungId(data.ursprungAlarmierungId),
   });
+  return Result.ok<DomainEvent>(event);
+}
+
+// ===== PATIENT DESERIALIZERS (Story 1.2, Architecture §D-6) =====
+
+const SK_CODE_SET: ReadonlySet<string> = new Set<string>(SK_CODES);
+
+function isSkCode(value: unknown): value is SkCode {
+  return typeof value === 'string' && SK_CODE_SET.has(value);
+}
+
+function parseErfasserRefData(value: unknown): ErfasserRefData | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as Partial<ErfasserRefData> & { type?: unknown };
+  if (candidate.type === 'user' && typeof candidate.userId === 'string' && candidate.userId.length > 0) {
+    return { type: 'user', userId: candidate.userId };
+  }
+  if (candidate.type === 'device' && typeof candidate.deviceId === 'string' && candidate.deviceId.length > 0) {
+    const captureSessionId = typeof candidate.captureSessionId === 'string' && candidate.captureSessionId.length > 0 ? candidate.captureSessionId : undefined;
+    return { type: 'device', deviceId: candidate.deviceId, captureSessionId };
+  }
+  return null;
+}
+
+function isSichtungArt(value: unknown): value is SichtungArt {
+  return typeof value === 'string' && (SICHTUNG_ARTEN as readonly string[]).includes(value);
+}
+
+function parseEventVersion(value: unknown, eventType: string): Result<number> {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    return Result.fail<number>(`Invalid payload for ${eventType}: eventVersion invalid`);
+  }
+  return Result.ok<number>(value);
+}
+
+function parseClockDrift(value: unknown, eventType: string): Result<number | undefined> {
+  if (value === null || value === undefined) return Result.ok<number | undefined>(undefined);
+  if (typeof value === 'number' && Number.isInteger(value)) return Result.ok<number | undefined>(value);
+  return Result.fail<number | undefined>(`Invalid payload for ${eventType}: clockDriftSeconds invalid`);
+}
+
+function deserializePatientGesichtet(payload: Record<string, unknown>, aggregateId?: string, occurredOn?: Date): Result<DomainEvent> {
+  const einsatzId = payload.einsatzId;
+  const patientId = aggregateId ?? payload.patientId;
+  if (typeof einsatzId !== 'string' || einsatzId.length === 0) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.gesichtet: einsatzId missing');
+  }
+  if (typeof patientId !== 'string' || patientId.length === 0) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.gesichtet: patientId missing');
+  }
+  const versionResult = parseEventVersion(payload.eventVersion, 'patient.gesichtet');
+  if (versionResult.isFailure) return Result.fail<DomainEvent>(versionResult.error!);
+  if (!isSkCode(payload.sk)) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.gesichtet: sk invalid');
+  }
+  if (!isSichtungArt(payload.sichtungArt)) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.gesichtet: sichtungArt invalid');
+  }
+  const sichter = parseErfasserRefData(payload.sichter);
+  if (!sichter) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.gesichtet: sichter invalid');
+  }
+  const driftResult = parseClockDrift(payload.clockDriftSeconds, 'patient.gesichtet');
+  if (driftResult.isFailure) return Result.fail<DomainEvent>(driftResult.error!);
+  const event = new PatientGesichtet(einsatzId, patientId, versionResult.value!, payload.sk, payload.sichtungArt, sichter, driftResult.value, occurredOn);
+  return Result.ok<DomainEvent>(event);
+}
+
+function deserializePatientSichtungAktualisiert(payload: Record<string, unknown>, aggregateId?: string, occurredOn?: Date): Result<DomainEvent> {
+  const einsatzId = payload.einsatzId;
+  const patientId = aggregateId ?? payload.patientId;
+  if (typeof einsatzId !== 'string' || einsatzId.length === 0) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.sichtung-aktualisiert: einsatzId missing');
+  }
+  if (typeof patientId !== 'string' || patientId.length === 0) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.sichtung-aktualisiert: patientId missing');
+  }
+  const versionResult = parseEventVersion(payload.eventVersion, 'patient.sichtung-aktualisiert');
+  if (versionResult.isFailure) return Result.fail<DomainEvent>(versionResult.error!);
+  if (!isSkCode(payload.vorher)) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.sichtung-aktualisiert: vorher invalid');
+  }
+  if (!isSkCode(payload.neu)) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.sichtung-aktualisiert: neu invalid');
+  }
+  if (!isSichtungArt(payload.sichtungArt)) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.sichtung-aktualisiert: sichtungArt invalid');
+  }
+  const sichter = parseErfasserRefData(payload.sichter);
+  if (!sichter) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.sichtung-aktualisiert: sichter invalid');
+  }
+  let grund: string | undefined;
+  if (payload.grund !== null && payload.grund !== undefined) {
+    if (typeof payload.grund !== 'string' || payload.grund.trim().length === 0 || payload.grund.length > 500) {
+      return Result.fail<DomainEvent>('Invalid payload for patient.sichtung-aktualisiert: grund invalid');
+    }
+    grund = payload.grund;
+  }
+  const driftResult = parseClockDrift(payload.clockDriftSeconds, 'patient.sichtung-aktualisiert');
+  if (driftResult.isFailure) return Result.fail<DomainEvent>(driftResult.error!);
+  const event = new PatientSichtungAktualisiert(einsatzId, patientId, versionResult.value!, payload.vorher, payload.neu, payload.sichtungArt, sichter, grund, driftResult.value, occurredOn);
+  return Result.ok<DomainEvent>(event);
+}
+
+function deserializePatientErfasst(payload: Record<string, unknown>, aggregateId?: string, occurredOn?: Date): Result<DomainEvent> {
+  const einsatzId = payload.einsatzId;
+  const patientId = aggregateId ?? payload.patientId;
+  const patientennummer = payload.patientennummer;
+  const initialeSk = payload.initialeSk;
+  if (typeof einsatzId !== 'string' || einsatzId.length === 0) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.erfasst: einsatzId missing');
+  }
+  if (typeof patientId !== 'string' || patientId.length === 0) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.erfasst: patientId missing');
+  }
+  if (typeof patientennummer !== 'string' || !/^P-\d{3,}$/.test(patientennummer)) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.erfasst: patientennummer invalid');
+  }
+  if (!isSkCode(initialeSk)) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.erfasst: initialeSk invalid');
+  }
+  const erfasserRef = parseErfasserRefData(payload.erfasserRef);
+  if (!erfasserRef) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.erfasst: erfasserRef invalid');
+  }
+  const clockDriftSecondsRaw = payload.clockDriftSeconds;
+  const clockDriftSeconds =
+    clockDriftSecondsRaw === null || clockDriftSecondsRaw === undefined ? undefined : typeof clockDriftSecondsRaw === 'number' && Number.isInteger(clockDriftSecondsRaw) ? clockDriftSecondsRaw : null;
+  if (clockDriftSeconds === null) {
+    return Result.fail<DomainEvent>('Invalid payload for patient.erfasst: clockDriftSeconds invalid');
+  }
+  const event = new PatientErfasst(einsatzId, patientId, patientennummer, initialeSk, erfasserRef, clockDriftSeconds, occurredOn);
   return Result.ok<DomainEvent>(event);
 }
 

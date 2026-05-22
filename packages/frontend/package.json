@@ -35,6 +35,7 @@
     "@headlessui/react": "^2.2.10",
     "@hookform/resolvers": "^5.2.2",
     "@mapbox/mapbox-gl-draw": "^1.5.1",
+    "@phosphor-icons/react": "^2.1.10",
     "@tailwindcss/vite": "^4.3.0",
     "@tanstack/pacer": "^0.21.1",
     "@tanstack/react-devtools": "^0.10.5",

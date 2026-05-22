@@ -104,6 +104,10 @@ import type { FunkkanalReihenfolgeGeaendertEvent } from '@domain/events/funkkana
 import type { FunkkanalZuordnungErstelltEvent } from '@domain/events/funkkanal-zuordnung-erstellt.event';
 import type { FunkkanalZuordnungEntferntEvent } from '@domain/events/funkkanal-zuordnung-entfernt.event';
 import type { NotfallAlertRequestedEvent } from '@domain/events/notfall-alert-requested.event';
+// Patient Events (Story 1.2/1.3, Architecture §D-6)
+import type { PatientErfasst } from '@domain/patienten/events/patient-erfasst.event';
+import type { PatientGesichtet } from '@domain/patienten/events/patient-gesichtet.event';
+import type { PatientSichtungAktualisiert } from '@domain/patienten/events/patient-sichtung-aktualisiert.event';
 // Eigenschutz Events (Story 2.1+)
 import type { GefaehrdungsbeurteilungErstelltEvent } from '@domain/eigenschutz/events/gefaehrdungsbeurteilung-erstellt.event';
 import type { GefaehrdungsbeurteilungAktualisiertEvent } from '@domain/eigenschutz/events/gefaehrdungsbeurteilung-aktualisiert.event';
@@ -523,6 +527,14 @@ export class EventSerializer {
         return this.serializeAlarmierungAbgeschlossen(event as unknown as AlarmierungAbgeschlossenEvent);
       case 'alarmierung.nachalarmierung_erstellt':
         return this.serializeNachalarmierungErstellt(event as unknown as NachalarmierungErstelltEvent);
+
+      // ===== PATIENT EVENTS (Story 1.2/1.3, Architecture §D-6) =====
+      case 'patient.erfasst':
+        return this.serializePatientErfasst(event as unknown as PatientErfasst);
+      case 'patient.gesichtet':
+        return this.serializePatientGesichtet(event as unknown as PatientGesichtet);
+      case 'patient.sichtung-aktualisiert':
+        return this.serializePatientSichtungAktualisiert(event as unknown as PatientSichtungAktualisiert);
 
       // ===== EIGENSCHUTZ EVENTS (Story 2.1+) =====
       case 'eigenschutz.gefaehrdungsbeurteilung_erstellt':
@@ -1787,6 +1799,75 @@ export class EventSerializer {
         bezeichnung: event.data.bezeichnung,
         ursprungAlarmierungId: event.data.ursprungAlarmierungId.value,
       },
+    };
+  }
+
+  // ===== PATIENT SERIALIZERS (Story 1.2, Architecture §D-6) =====
+
+  /**
+   * Serialisiert `PatientErfasst` für die Outbox-Persistenz (Architecture §D-6).
+   *
+   * Felder folgen exakt dem Konstruktor von `PatientErfasst` plus den geerbten
+   * Audit-Feldern aus `PatientDomainEvent`. `eventVersion` ist beim Erfassen
+   * immer `1` (initialer Snapshot, Append-only-Vertrag aus §D-1).
+   */
+  private serializePatientErfasst(event: PatientErfasst): Record<string, unknown> {
+    return {
+      einsatzId: event.einsatzId,
+      patientId: event.patientId,
+      patientennummer: event.patientennummer,
+      initialeSk: event.initialeSk,
+      erfasserRef: event.erfasserRef,
+      eventVersion: event.eventVersion,
+      actorUserId: event.actorUserId ?? null,
+      actorDeviceId: event.actorDeviceId ?? null,
+      originSessionId: event.originSessionId ?? null,
+      clockDriftSeconds: event.clockDriftSeconds ?? null,
+      erfasstAm: event.occurredAt.toISOString(),
+    };
+  }
+
+  /**
+   * Serialisiert `PatientGesichtet` für die Outbox-Persistenz (Story 1.3,
+   * Architecture §D-6). Story 1.2 hatte den Adapter-Platzhalter angelegt;
+   * Story 1.3 schließt die 4-Punkt-Registry für das Event.
+   */
+  private serializePatientGesichtet(event: PatientGesichtet): Record<string, unknown> {
+    return {
+      einsatzId: event.einsatzId,
+      patientId: event.patientId,
+      eventVersion: event.eventVersion,
+      sk: event.sk,
+      sichtungArt: event.sichtungArt,
+      sichter: event.sichter,
+      actorUserId: event.actorUserId ?? null,
+      actorDeviceId: event.actorDeviceId ?? null,
+      originSessionId: event.originSessionId ?? null,
+      clockDriftSeconds: event.clockDriftSeconds ?? null,
+      gesichtetAm: event.occurredAt.toISOString(),
+    };
+  }
+
+  /**
+   * Serialisiert `PatientSichtungAktualisiert` für die Outbox-Persistenz
+   * (Story 1.3, Architecture §D-6, FR17). `vorher`/`neu` und der optionale
+   * `grund` ermöglichen Audit-Spur und KPI-Delta ohne DB-Roundtrip.
+   */
+  private serializePatientSichtungAktualisiert(event: PatientSichtungAktualisiert): Record<string, unknown> {
+    return {
+      einsatzId: event.einsatzId,
+      patientId: event.patientId,
+      eventVersion: event.eventVersion,
+      vorher: event.vorher,
+      neu: event.neu,
+      sichtungArt: event.sichtungArt,
+      sichter: event.sichter,
+      grund: event.grund ?? null,
+      actorUserId: event.actorUserId ?? null,
+      actorDeviceId: event.actorDeviceId ?? null,
+      originSessionId: event.originSessionId ?? null,
+      clockDriftSeconds: event.clockDriftSeconds ?? null,
+      gesichtetAm: event.occurredAt.toISOString(),
     };
   }
 

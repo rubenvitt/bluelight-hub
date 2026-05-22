@@ -28,6 +28,8 @@ export * from './headless';
 
 // Feature-neutrale Organisms für Shell- und Workspace-Primitives
 export * from './organisms/workspace';
+export { EntityFlowStrip, type EntityFlowPhase } from './organisms/EntityFlowStrip.organism';
+export { DataTable } from './organisms/data-table.organism';
 
 // Weitere Organisms werden NICHT re-exportiert, da sie aktuell feature-spezifisch sind
 // (admin, auth, command-palette, dashboard, einsaetze, einsatz, etb, lagekarte)

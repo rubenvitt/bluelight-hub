@@ -44,6 +44,7 @@ apis/LagekarteCQRSApi.ts
 apis/NavigationApi.ts
 apis/NotizenApi.ts
 apis/POIDEPRECATEDApi.ts
+apis/PatientenApi.ts
 apis/PermissionsApi.ts
 apis/PushNotificationsApi.ts
 apis/RollenBesetzungApi.ts
@@ -118,6 +119,9 @@ models/AdminTokenVerificationDto.ts
 models/AdminUserDto.ts
 models/AendereEmpfaengerStatusDto.ts
 models/AktiveTeilnehmerResponseDto.ts
+models/AktualisiereBehandlungDto.ts
+models/AktualisiereSichtungDto.ts
+models/AktualisiereTransportDto.ts
 models/AlarmierungControllerCreateVAlpha201Response.ts
 models/AlarmierungControllerListVAlpha200Response.ts
 models/AlarmierungControllerTimelineVAlpha200Response.ts
@@ -183,6 +187,7 @@ models/BefehlKommentarDto.ts
 models/BefehlPermissionsDto.ts
 models/BefehlsgeberSucheResultDto.ts
 models/BefehlsgeberVorschlagDto.ts
+models/BehandlungCountsDto.ts
 models/BeitrittsanfrageResponseDto.ts
 models/BesatzungMemberDto.ts
 models/BesetzeRolleDto.ts
@@ -306,6 +311,7 @@ models/EintragDto.ts
 models/EintragDtoKontext.ts
 models/EmpfaengerSucheResultDto.ts
 models/ErfasseFahrzeugAusStammdatenDto.ts
+models/ErfassePatientDto.ts
 models/ErfasseTemporalesFahrzeugDto.ts
 models/ErinnerungControllerCreateVAlpha201Response.ts
 models/ErinnerungControllerGetByEinsatzVAlpha200Response.ts
@@ -412,6 +418,8 @@ models/KategorieControllerCreateVAlpha201Response.ts
 models/KategorieControllerGetByEinsatzVAlpha200Response.ts
 models/KategorieResponseDto.ts
 models/KorrigiereBefehlDto.ts
+models/KorrigierePatientDto.ts
+models/KpiAggregatDto.ts
 models/KraefteDashboardControllerGetTaktischeStaerkeVAlpha200Response.ts
 models/KraeftePoisFeatureCollectionDto.ts
 models/KraeftePoisFeatureDto.ts
@@ -454,6 +462,18 @@ models/OffenePsaBekanntgabeEntryDto.ts
 models/OffenePsaBekanntgabeProfilToggleDto.ts
 models/OffeneRueckmeldungDto.ts
 models/OperativeRoleResponseDto.ts
+models/PatientDetailDto.ts
+models/PatientDetailDtoErfasserRef.ts
+models/PatientDto.ts
+models/PatientEventDto.ts
+models/PatientKontextDto.ts
+models/PatientListItemDto.ts
+models/PatientenControllerDetailVAlpha200Response.ts
+models/PatientenControllerErfassePatientVAlpha201Response.ts
+models/PatientenControllerKpisVAlpha200Response.ts
+models/PatientenControllerListVAlpha200Response.ts
+models/PatientenControllerListVAlpha200ResponseMeta.ts
+models/PatientenControllerListVAlpha200ResponsePagination.ts
 models/PersonRegisteredResponseDto.ts
 models/PersonStatistikDto.ts
 models/PersonStatistikItemDto.ts
@@ -537,6 +557,7 @@ models/SicherungspostenControllerListSicherungspostenVAlpha200Response.ts
 models/SicherungspostenDto.ts
 models/SicherungspostenDtoPersonalInner.ts
 models/SicherungspostenDtoStandort.ts
+models/SkCountsDto.ts
 models/SnoozeErinnerungDto.ts
 models/StammFahrzeugDto.ts
 models/StammPersonDto.ts
@@ -570,6 +591,7 @@ models/TmoDetailsDto.ts
 models/TokenListItemDto.ts
 models/TopReceiverDto.ts
 models/TopSourceDto.ts
+models/TransportCountsDto.ts
 models/UpdateAufbewahrungsKonfigurationDto.ts
 models/UpdateBefehlsgeberVorschlagDto.ts
 models/UpdateEinsatzDto.ts

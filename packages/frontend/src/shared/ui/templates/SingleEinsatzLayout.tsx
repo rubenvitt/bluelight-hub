@@ -410,6 +410,7 @@ export function SingleEinsatzLayout({ className }: SingleEinsatzLayoutProps) {
               badge: page.badge?.toString(),
               disabled: isDisabledVisibility(module.visibility) || isDisabledVisibility(page.visibility),
               disabledReason: page.visibility.reason ?? module.visibility.reason,
+              shortcut: module.id === 'patienten' && page.id === 'übersicht' ? ['P'] : undefined,
             })),
         }))
         .filter((module) => module.subPages.length > 0),

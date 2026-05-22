@@ -1,5 +1,5 @@
 import { resetHighlightStore } from '@/features/reminders/stores';
-import { resetKategorieFilter, hideAllKategorien, excludeKategorie } from '@/features/etb/stores/kategorie-filter.store';
+import { resetKategorieFilter, hideAllKategorien, excludeKategorie, setIncludedKontextType } from '@/features/etb/stores/kategorie-filter.store';
 import type { EintragDtoKategorieEnum } from '@/shared';
 import { renderWithProviders, screen, fireEvent, waitFor, userEvent } from '@/test/utils';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -422,6 +422,116 @@ describe('EtbEntryList', () => {
         const detailCells = document.querySelectorAll('[aria-label^="Details zu Eintrag"]');
         expect(detailCells.length).toBeGreaterThan(0);
       });
+    });
+  });
+
+  // === 6.7: Inklusions-Filter nach Kontext-Typ (AC11 / Story 3.4 Task 2.5) ===
+
+  describe('Inklusions-Filter nach kontext.type', () => {
+    /**
+     * Hilfsfunktion: baut Mock-Eintraege mit gemischten kontext.type-Werten.
+     * Reihenfolge: alternierend 'standard' | 'funkspruch' | 'patient'.
+     */
+    function buildMixedKontextEntries(): EintragDto[] {
+      const kontextTypes = ['standard', 'funkspruch', 'patient'] as const;
+      return Array.from({ length: 6 }, (_, i) => {
+        const createdAt = new Date(Date.UTC(2026, 2, 16, 11, 0, i));
+        const type = kontextTypes[i % kontextTypes.length];
+        return {
+          id: `kontext-entry-${i + 1}`,
+          sequenceNumber: i + 1,
+          version: 1,
+          timestamp: createdAt.toISOString(),
+          createdAt,
+          updatedAt: createdAt,
+          absender: `EL ${i}`,
+          empfaenger: `Abschnitt ${i}`,
+          // Verschiedene Kategorien um Default-Exclusion zu vermeiden, KEINE SYSTEM
+          kategorie: i % 2 === 0 ? 'LAGE' : 'MASSNAHME',
+          text: `Eintrag ${i + 1} (kontext=${type})`,
+          deletedAt: null,
+          deleterUsername: null,
+          metadata: {},
+          linkedErinnerung: null,
+          kontext: { type } as unknown,
+        } as unknown as EintragDto;
+      });
+    }
+
+    it("zeigt nur Eintraege mit kontext.type === 'patient' wenn Inklusions-Filter aktiv ist", async () => {
+      // Given - 6 Eintraege mit gemischten kontext.type (2 'patient' bei index 2,5)
+      const entries = buildMixedKontextEntries();
+
+      // When - Inklusions-Filter auf 'patient' setzen
+      setIncludedKontextType('patient');
+
+      renderWithProviders(<EtbEntryList entries={entries} {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('table')).toBeInTheDocument();
+      });
+
+      // Then - nur die 2 'patient'-Eintraege sichtbar (index 2,5)
+      await waitFor(() => {
+        expect(screen.getByText(/Eintrag 3 \(kontext=patient\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Eintrag 6 \(kontext=patient\)/)).toBeInTheDocument();
+      });
+
+      // 'standard'- und 'funkspruch'-Eintraege duerfen NICHT mehr sichtbar sein
+      expect(screen.queryByText(/Eintrag 1 \(kontext=standard\)/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Eintrag 2 \(kontext=funkspruch\)/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Eintrag 4 \(kontext=standard\)/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Eintrag 5 \(kontext=funkspruch\)/)).not.toBeInTheDocument();
+    });
+
+    it('zeigt alle Eintraege wenn includedKontextType null ist (Default)', async () => {
+      // Given - default state (includedKontextType = null)
+      const entries = buildMixedKontextEntries();
+
+      renderWithProviders(<EtbEntryList entries={entries} {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('table')).toBeInTheDocument();
+      });
+
+      // Then - alle 6 Eintraege sichtbar
+      await waitFor(() => {
+        expect(screen.getByText(/Eintrag 1 \(kontext=standard\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Eintrag 2 \(kontext=funkspruch\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Eintrag 3 \(kontext=patient\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Eintrag 4 \(kontext=standard\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Eintrag 5 \(kontext=funkspruch\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Eintrag 6 \(kontext=patient\)/)).toBeInTheDocument();
+      });
+    });
+
+    it('verknuepft Inklusions- und Exklusions-Filter per UND (kombinierte Filterung)', async () => {
+      // Given - 6 Eintraege mit gemischten kontext.type-Werten und Kategorien
+      // Index 2 (patient, LAGE), Index 5 (patient, MASSNAHME)
+      const entries = buildMixedKontextEntries();
+
+      // When - Inklusions-Filter auf 'patient' + Exklusion der MASSNAHME-Kategorie
+      setIncludedKontextType('patient');
+      excludeKategorie('MASSNAHME' as EintragDtoKategorieEnum);
+
+      renderWithProviders(<EtbEntryList entries={entries} {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('table')).toBeInTheDocument();
+      });
+
+      // Then - nur Eintrag 3 (kontext=patient + LAGE) bleibt sichtbar
+      await waitFor(() => {
+        expect(screen.getByText(/Eintrag 3 \(kontext=patient\)/)).toBeInTheDocument();
+      });
+
+      // Eintrag 6 (patient + MASSNAHME) wird durch Exklusion ausgeblendet
+      expect(screen.queryByText(/Eintrag 6 \(kontext=patient\)/)).not.toBeInTheDocument();
+
+      // aria-rowcount reflektiert UND-Verknuepfung
+      const table = screen.getByRole('table');
+      const rowCount = Number(table.getAttribute('aria-rowcount'));
+      expect(rowCount).toBe(1);
     });
   });
 });

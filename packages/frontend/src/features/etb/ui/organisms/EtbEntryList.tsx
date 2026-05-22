@@ -14,7 +14,7 @@ import { EtbTableBody } from '../molecules/EtbTableBody';
 import { EtbTableHeader } from '../molecules/EtbTableHeader';
 import { EtbHistoryModal } from './components/EtbHistoryModal';
 import { useEtbColumns } from '../../hooks/useEtbColumns';
-import { useExcludedKategorien, useHasActiveFilter, useErinnerungFilterActive, resetKategorieFilter } from '../../stores';
+import { useExcludedKategorien, useHasActiveFilter, useErinnerungFilterActive, resetKategorieFilter, useIncludedKontextType } from '../../stores';
 
 interface EtbEntryListProps {
   entries: EintragDto[];
@@ -65,6 +65,7 @@ export function EtbEntryList({
   const excludedKategorien = useExcludedKategorien();
   const hasKategorieFilter = useHasActiveFilter();
   const erinnerungFilterActive = useErinnerungFilterActive();
+  const includedKontextType = useIncludedKontextType();
 
   // Sortierung fuer Anzeige - lokaler State fuer die Table
   const [sorting, setSorting] = useState<SortingState>(() => [{ id: sortBy, desc: sortOrder === 'desc' }]);
@@ -96,13 +97,18 @@ export function EtbEntryList({
       result = result.filter((entry) => !!entry.linkedErinnerung);
     }
 
+    // Inklusions-Filter für den Kontexttyp (z. B. 'patient')
+    if (includedKontextType === 'patient') {
+      result = result.filter((entry) => entry.kontext?.type === 'patient');
+    }
+
     // Kategorie-Exclusion-Filter
     if (excludedKategorien.size > 0) {
       result = result.filter((entry) => !excludedKategorien.has(entry.kategorie));
     }
 
     return result;
-  }, [entries, excludedKategorien, erinnerungFilterActive, showDeleted]);
+  }, [entries, excludedKategorien, erinnerungFilterActive, showDeleted, includedKontextType]);
 
   // Synchronisiere lokalen Sortier-State mit Props
   useEffect(() => {

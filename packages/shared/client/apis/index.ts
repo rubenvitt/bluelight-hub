@@ -45,6 +45,7 @@ export * from './LagekarteCQRSApi';
 export * from './NavigationApi';
 export * from './NotizenApi';
 export * from './POIDEPRECATEDApi';
+export * from './PatientenApi';
 export * from './PermissionsApi';
 export * from './PushNotificationsApi';
 export * from './RollenBesetzungApi';

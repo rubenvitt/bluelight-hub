@@ -194,11 +194,16 @@ export const EINSATZ_WORKSPACE_MODULES: WorkspaceModuleDefinition[] = [
     icon: PiFirstAid,
     color: 'emerald',
     description: 'Patientenverwaltung und Triage',
-    visibility: disabled(LATER_RING_REASON),
     subPages: [
       createSubPage(0, { id: 'übersicht', label: 'Übersicht', href: '/app/einsatz/$einsatzId/patienten', icon: PiFirstAid, description: 'Patientenübersicht' }),
-      createSubPage(1, { id: 'triage', label: 'Triage', href: '/app/einsatz/$einsatzId/patienten/triage', icon: PiFirstAid, description: 'Sichtung' }),
-      createSubPage(2, { id: 'transport', label: 'Transport', href: '/app/einsatz/$einsatzId/patienten/transport', icon: PiTruck, description: 'Krankentransporte' }),
+      createSubPage(1, { id: 'liste', label: 'Liste', href: '/app/einsatz/$einsatzId/patienten/liste', icon: PiClipboard, description: 'Patientenliste' }),
+      createSubPage(2, {
+        id: 'standalone-sessions',
+        label: 'Standalone-Sessions',
+        href: '/app/einsatz/$einsatzId/patienten/standalone-sessions',
+        icon: PiMetronome,
+        description: 'Standalone-Sessions',
+      }),
     ],
   }),
   createModule(6, {

@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
 import {
   kategorieFilterStore,
   toggleKategorie,
@@ -22,6 +23,10 @@ import {
   setErinnerungFilterActive,
   hideAllKategorien,
   ALLE_KATEGORIEN,
+  setIncludedKontextType,
+  toggleIncludedKontextType,
+  useIncludedKontextType,
+  useHasActiveFilter,
 } from '../kategorie-filter.store';
 
 // String-Konstanten fuer Kategorien (vermeidet zirkulaere Import-Probleme)
@@ -218,6 +223,189 @@ describe('kategorieFilterStore', () => {
 
       // Then: Deaktiviert
       expect(kategorieFilterStore.state.erinnerungFilterActive).toBe(false);
+    });
+
+    it('should reset includedKontextType to null', () => {
+      // Given: Inklusions-Filter aktiv
+      setIncludedKontextType('patient');
+      expect(kategorieFilterStore.state.includedKontextType).toBe('patient');
+
+      // When: Reset
+      resetKategorieFilter();
+
+      // Then: includedKontextType ist null
+      expect(kategorieFilterStore.state.includedKontextType).toBeNull();
+    });
+  });
+
+  describe('Inklusions-Filter (includedKontextType)', () => {
+    describe('setIncludedKontextType()', () => {
+      it("should set includedKontextType to 'patient'", () => {
+        // Given: includedKontextType ist null (default)
+        expect(kategorieFilterStore.state.includedKontextType).toBeNull();
+
+        // When
+        setIncludedKontextType('patient');
+
+        // Then
+        expect(kategorieFilterStore.state.includedKontextType).toBe('patient');
+      });
+
+      it('should reset includedKontextType to null', () => {
+        // Given: 'patient' gesetzt
+        setIncludedKontextType('patient');
+        expect(kategorieFilterStore.state.includedKontextType).toBe('patient');
+
+        // When
+        setIncludedKontextType(null);
+
+        // Then
+        expect(kategorieFilterStore.state.includedKontextType).toBeNull();
+      });
+
+      it('should not affect excludedKategorien', () => {
+        // Given: Standard exclusion (SYSTEM)
+        const beforeSize = kategorieFilterStore.state.excludedKategorien.size;
+
+        // When
+        setIncludedKontextType('patient');
+
+        // Then: excludedKategorien unveraendert
+        expect(kategorieFilterStore.state.excludedKategorien.size).toBe(beforeSize);
+      });
+    });
+
+    describe('toggleIncludedKontextType()', () => {
+      it("should toggle from null to 'patient'", () => {
+        // Given: Default null
+        expect(kategorieFilterStore.state.includedKontextType).toBeNull();
+
+        // When
+        toggleIncludedKontextType('patient');
+
+        // Then
+        expect(kategorieFilterStore.state.includedKontextType).toBe('patient');
+      });
+
+      it("should toggle from 'patient' back to null", () => {
+        // Given: 'patient' gesetzt
+        setIncludedKontextType('patient');
+
+        // When: Toggle mit gleichem Wert
+        toggleIncludedKontextType('patient');
+
+        // Then: Zurueck auf null
+        expect(kategorieFilterStore.state.includedKontextType).toBeNull();
+      });
+
+      it('should toggle back and forth correctly', () => {
+        // When: Mehrmals togglen
+        toggleIncludedKontextType('patient');
+        expect(kategorieFilterStore.state.includedKontextType).toBe('patient');
+
+        toggleIncludedKontextType('patient');
+        expect(kategorieFilterStore.state.includedKontextType).toBeNull();
+
+        toggleIncludedKontextType('patient');
+        expect(kategorieFilterStore.state.includedKontextType).toBe('patient');
+      });
+    });
+
+    describe('useIncludedKontextType()', () => {
+      it('should return null by default', () => {
+        // When
+        const { result } = renderHook(() => useIncludedKontextType());
+
+        // Then
+        expect(result.current).toBeNull();
+      });
+
+      it("should return 'patient' when set", () => {
+        // Given
+        setIncludedKontextType('patient');
+
+        // When
+        const { result } = renderHook(() => useIncludedKontextType());
+
+        // Then
+        expect(result.current).toBe('patient');
+      });
+
+      it('should update reactively when store changes', () => {
+        // Given
+        const { result } = renderHook(() => useIncludedKontextType());
+        expect(result.current).toBeNull();
+
+        // When
+        act(() => {
+          setIncludedKontextType('patient');
+        });
+
+        // Then
+        expect(result.current).toBe('patient');
+
+        // When toggled back
+        act(() => {
+          setIncludedKontextType(null);
+        });
+
+        // Then
+        expect(result.current).toBeNull();
+      });
+    });
+
+    describe('useHasActiveFilter() (Inklusions-Filter)', () => {
+      it('should return true when includedKontextType is set, even without other filters', () => {
+        // Given: Alle Kategorien sichtbar, kein Erinnerungs-Filter
+        showAllKategorien();
+        setErinnerungFilterActive(false);
+        expect(kategorieFilterStore.state.excludedKategorien.size).toBe(0);
+
+        // When: Inklusions-Filter aktivieren
+        setIncludedKontextType('patient');
+
+        // Then: useHasActiveFilter sollte true liefern
+        const { result } = renderHook(() => useHasActiveFilter());
+        expect(result.current).toBe(true);
+      });
+
+      it('should return false when no filters active (no exclusions, no Erinnerung, no includedKontextType)', () => {
+        // Given
+        showAllKategorien();
+        setErinnerungFilterActive(false);
+        setIncludedKontextType(null);
+
+        // When
+        const { result } = renderHook(() => useHasActiveFilter());
+
+        // Then
+        expect(result.current).toBe(false);
+      });
+
+      it('should reflect inclusion filter changes reactively', () => {
+        // Given: Alle Filter aus
+        showAllKategorien();
+        setErinnerungFilterActive(false);
+
+        const { result } = renderHook(() => useHasActiveFilter());
+        expect(result.current).toBe(false);
+
+        // When: Inklusions-Filter aktivieren
+        act(() => {
+          setIncludedKontextType('patient');
+        });
+
+        // Then
+        expect(result.current).toBe(true);
+
+        // When: Inklusions-Filter zuruecksetzen
+        act(() => {
+          setIncludedKontextType(null);
+        });
+
+        // Then
+        expect(result.current).toBe(false);
+      });
     });
   });
 

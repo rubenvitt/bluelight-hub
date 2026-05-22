@@ -1,0 +1,14 @@
+-- Story 1.6 — Aktiviert die Postgres-`unaccent`-Extension für die zukünftige
+-- Suche nach nicht-deutschen Diakritika (z. B. `é→e`, `ñ→n`) im Patienten-
+-- und Pseudonym-Kontext.
+--
+-- Hinweis: Für die in Story 1.6/AC4 geforderte Mueller↔Müller-Symmetrie nutzt
+-- der `PatientRepositoryAdapter` derzeit eine REPLACE-Kette (ä→ae, ö→oe,
+-- ü→ue, ß→ss), weil `unaccent` die deutsche `ue`-Konvention nicht abbildet
+-- (Müller → Muller statt Mueller). Die Extension bleibt aktiviert, damit
+-- spätere Stories (z. B. Pseudonym-Erfassung mit internationalen Namen)
+-- ohne Migration darauf zugreifen können.
+--
+-- `CREATE EXTENSION IF NOT EXISTS` ist idempotent — die Migration ist auch
+-- in bereits initialisierten Datenbanken sicher anwendbar.
+CREATE EXTENSION IF NOT EXISTS unaccent;

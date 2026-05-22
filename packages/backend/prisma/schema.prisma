@@ -366,6 +366,10 @@ model Einsatz {
   sicherheitsregeln         Sicherheitsregel[]
   sicherungsposten          Sicherungsposten[]
 
+  // Patientenmanagement Relations (Story 1.1, Issue #417)
+  patienten      Patient[]
+  patientEvents  PatientEvent[]
+
   // Indexes
   @@unique([nummer])
   @@index([status, createdAt])
@@ -2894,4 +2898,101 @@ model SyncConflict {
 
   @@index([einsatzId, resolvedAt])
   @@map("sync_conflicts")
+}
+
+// ========================================
+// Patientenmanagement Models (Story 1.1, Issue #417)
+// ========================================
+//
+// Patient-Aggregat mit Append-only Event-Stream. Status-Felder
+// (aktuelleSk, behandlungsstatus, transportstatus) sind denormalisierte
+// Snapshots fuer schnelle KPI-Aggregate; die Wahrheit liegt im
+// PatientEvent-Stream (Architecture §D-1, §D-2).
+//
+// SK-Wertesystem (Architecture §D-2, Memory `manv_sichtungskategorien_farben`):
+//   SK_I .. SK_IV = lebende Patienten (SK_IV = Blau, lebt ohne Ueberlebenschance)
+//   TOT           = separate Kategorie (Schwarz)
+// Farben sind reines Frontend-Concern und werden NICHT in der DB gespeichert.
+
+/// Sichtungskategorie nach DIN/SiKoKo 2025. NIEMALS Farb-Strings in DB/API.
+enum SkEnum {
+  SK_I
+  SK_II
+  SK_III
+  SK_IV
+  TOT
+}
+
+/// Behandlungsstatus eines Patienten (Snapshot, fortgeschrieben durch Events).
+enum BehandlungsstatusEnum {
+  UNVERSORGT
+  IN_BEHANDLUNG
+  VERSORGT
+  TRANSPORTBEREIT
+}
+
+/// Transportstatus eines Patienten (Snapshot, fortgeschrieben durch Events).
+enum TransportstatusEnum {
+  WARTEND
+  IM_TRANSPORT
+  IM_KRANKENHAUS
+}
+
+/// Patient-Aggregat (Snapshot). `patientennummer` (`P-NNN`) ist pro Einsatz
+/// unique. ErfasserRef-Bimodalitaet (Architecture §D-5): genau eines aus
+/// `erfasserUserId` (Online) oder `erfasserDeviceId` (Standalone-Capture)
+/// gesetzt; `erfasserSessionId` nur bei Device-Erfassung.
+model Patient {
+  id                  String                @id @default(cuid())
+  einsatzId           String                @map("einsatz_id")
+  patientennummer     String                @db.VarChar(16)
+  diviVakNummer       String?               @map("divi_vak_nummer") @db.VarChar(64)
+  aktuelleSk          SkEnum                @map("aktuelle_sk")
+  behandlungsstatus   BehandlungsstatusEnum
+  transportstatus     TransportstatusEnum
+  erfasstAm           DateTime              @map("erfasst_am")
+  erfasserUserId      String?               @map("erfasser_user_id")
+  erfasserDeviceId    String?               @map("erfasser_device_id")
+  erfasserSessionId   String?               @map("erfasser_session_id")
+  clockDriftSeconds   Int?                  @map("clock_drift_seconds")
+  /// Story 1.7 (AC9): freie Pflege-/Übergabe-Notiz (max. 500 Zeichen).
+  /// Snapshot-Feld; Edits laufen über `PatientKorrigiert`-Event mit `feld='notiz'`.
+  notiz               String?               @db.VarChar(500)
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+
+  einsatz Einsatz        @relation(fields: [einsatzId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  events  PatientEvent[]
+
+  @@unique([einsatzId, patientennummer])
+  @@index([einsatzId, aktuelleSk])
+  @@index([einsatzId, behandlungsstatus])
+  @@index([einsatzId, transportstatus])
+  @@map("patienten")
+}
+
+/// Append-only Event-Stream pro Patient. `eventVersion` ist monoton pro
+/// `patientId` (Architecture §D-1). `payload` ist Discriminated-Union via
+/// Domain-Zod-Schema (vollstaendige Verzahnung folgt mit Story 1.2).
+model PatientEvent {
+  id                String   @id @default(cuid())
+  patientId         String   @map("patient_id")
+  einsatzId         String   @map("einsatz_id")
+  eventType         String   @map("event_type") @db.VarChar(64)
+  eventVersion      Int      @map("event_version")
+  payload           Json
+  occurredAt        DateTime @map("occurred_at")
+  recordedAt        DateTime @default(now()) @map("recorded_at")
+  actorUserId       String?  @map("actor_user_id")
+  actorDeviceId     String?  @map("actor_device_id")
+  originSessionId   String?  @map("origin_session_id")
+  clockDriftSeconds Int?     @map("clock_drift_seconds")
+  outboxRef         String?  @map("outbox_ref")
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  einsatz Einsatz @relation(fields: [einsatzId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([patientId, eventVersion])
+  @@index([einsatzId, occurredAt])
+  @@map("patient_events")
 }

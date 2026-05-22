@@ -1330,6 +1330,7 @@ exports[`API Contract Tests v1 OpenAPI spec should match snapshot 1`] = `
             "discriminator": {
               "mapping": {
                 "funkspruch": "#/components/schemas/FunkKontextDto",
+                "patient": "#/components/schemas/PatientKontextDto",
                 "standard": "#/components/schemas/StandardKontextDto",
               },
               "propertyName": "type",
@@ -1340,6 +1341,9 @@ exports[`API Contract Tests v1 OpenAPI spec should match snapshot 1`] = `
               },
               {
                 "$ref": "#/components/schemas/FunkKontextDto",
+              },
+              {
+                "$ref": "#/components/schemas/PatientKontextDto",
               },
             ],
           },
@@ -1845,6 +1849,56 @@ exports[`API Contract Tests v1 OpenAPI spec should match snapshot 1`] = `
         },
         "required": [
           "id",
+        ],
+        "type": "object",
+      },
+      "PatientKontextDto": {
+        "properties": {
+          "kind": {
+            "description": "Ereignis-Typ des Patienten",
+            "enum": [
+              "patient.erfasst",
+              "patient.gesichtet",
+              "patient.sichtung-aktualisiert",
+              "patient.behandlung-begonnen",
+              "patient.behandlung-abgeschlossen",
+              "patient.transport-gestartet",
+              "patient.transport-abgeschlossen",
+              "patient.korrigiert",
+            ],
+            "example": "patient.erfasst",
+            "type": "string",
+          },
+          "patientId": {
+            "description": "Referenzierte Patient-ID",
+            "example": "clpatient...",
+            "type": "string",
+          },
+          "patientennummer": {
+            "description": "Patientennummer",
+            "example": "P-003",
+            "type": "string",
+          },
+          "payload": {
+            "additionalProperties": true,
+            "description": "Zusatzdaten des Ereignisses (z. B. Sichtung, Priorität, etc.)",
+            "example": {},
+            "type": "object",
+          },
+          "type": {
+            "enum": [
+              "patient",
+            ],
+            "example": "patient",
+            "type": "string",
+          },
+        },
+        "required": [
+          "type",
+          "kind",
+          "patientId",
+          "patientennummer",
+          "payload",
         ],
         "type": "object",
       },

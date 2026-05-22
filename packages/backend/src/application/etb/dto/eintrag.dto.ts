@@ -1,7 +1,7 @@
 import { ApiExtraModels, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ETB_KATEGORIE_VALUES, type EtbKategorieValue } from '@domain/value-objects/etb-kategorie';
 import type { EintragKontextPersisted } from '@domain/value-objects/eintrag-kontext';
-import { EINTRAG_KONTEXT_SCHEMA, FunkKontextDto, StandardKontextDto } from './eintrag-kontext.dto';
+import { EINTRAG_KONTEXT_SCHEMA, FunkKontextDto, StandardKontextDto, PatientKontextDto } from './eintrag-kontext.dto';
 
 /**
  * Eintrag Response DTO für ETB-Queries.
@@ -21,7 +21,7 @@ import { EINTRAG_KONTEXT_SCHEMA, FunkKontextDto, StandardKontextDto } from './ei
  * - Domain: Kann Events emittieren (EintragCreated, EintragUpdated)
  * - DTO: Stateless Snapshot des Entity-Zustands
  */
-@ApiExtraModels(StandardKontextDto, FunkKontextDto)
+@ApiExtraModels(StandardKontextDto, FunkKontextDto, PatientKontextDto)
 export class EintragDto {
   @ApiProperty({
     description: 'Eindeutige Eintrags-ID (CUID)',

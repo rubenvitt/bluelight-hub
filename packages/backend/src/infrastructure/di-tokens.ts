@@ -521,6 +521,15 @@ export const MONITORING = {
 export const TAKTISCHE_ZEICHEN_REPOSITORY = Symbol('ITaktischesZeichenRepository');
 
 /**
+ * Repository-Token für `PatientRepository` (Story 1.1, Issue #417).
+ *
+ * Wird vom Infrastructure-Module `PatientenInfrastructureModule` als
+ * `useClass: PatientRepositoryAdapter` provided und von Application-Handlern
+ * (Stories 1.2 ff.) via `@Inject(PATIENT_REPOSITORY)` konsumiert.
+ */
+export const PATIENT_REPOSITORY = Symbol('PatientRepository');
+
+/**
  * Eigenschutz-Gefährdungsbeurteilung Repository Tokens (Story 2.1).
  *
  * Trennung in drei Repositories (Haupt-Aggregate, Version-Chain, Vorlagen),

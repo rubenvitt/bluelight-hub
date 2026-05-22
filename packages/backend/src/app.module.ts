@@ -15,6 +15,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { InfrastructureCommonModule } from '@infrastructure/common.module';
 import { EinsatzModule } from './modules/einsatz/einsatz.module';
 import { EtbModule } from './modules/etb/etb.module';
+import { PatientenModule } from './modules/patienten/patienten.module';
 import { FunkkanalModule } from './modules/funkkanal/funkkanal.module';
 import { AlarmierungModule } from './modules/alarmierung/alarmierung.module';
 import { HealthModule } from '@infrastructure/health/health.module';
@@ -121,6 +122,7 @@ import { EigenschutzModule } from './modules/eigenschutz/eigenschutz.module';
     UserManagementModule,
     EinsatzModule,
     EtbModule,
+    PatientenModule, // Story 1.2: Patient-Erfassung im Einsatz (Issue #417)
     LagekarteModule,
     LagekarteInfrastructureModule,
     EinsatzInfrastructureModule, // Einsatz Repository Infrastructure (Story 4-5)

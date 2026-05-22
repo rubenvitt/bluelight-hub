@@ -407,6 +407,24 @@ export const EVENT_NAMES = {
   },
 
   /**
+   * Patienten Bounded Context Events (Story 1.2, Architecture §D-6).
+   *
+   * Story 1.2 produziert ausschließlich `patient.erfasst`. Die übrigen Namen
+   * (`gesichtet`, `behandlung-begonnen`, etc.) sind reserviert und werden von
+   * Folge-Stories (1.3 ff.) freigeschaltet — pro Event muss die
+   * 4-Stellen-Registry (Serializer, Deserializer, AdaptersModule, Event-Logger)
+   * vollständig sein, sonst stille Pipeline-Lücken (Architecture §D-6).
+   */
+  PATIENT: {
+    /** Event: Patient erstmalig erfasst (Story 1.2) */
+    ERFASST: 'patient.erfasst',
+    /** Event: Patient initial gesichtet — Erst-Sichtung (Story 1.1/1.3 Registry-Vervollständigung) */
+    GESICHTET: 'patient.gesichtet',
+    /** Event: Sichtungs-Reevaluierung (Story 1.3, FR17) */
+    SICHTUNG_AKTUALISIERT: 'patient.sichtung-aktualisiert',
+  },
+
+  /**
    * Taktische Zeichen Bounded Context Events (Issue #636)
    */
   TAKTISCHES_ZEICHEN: {
@@ -439,6 +457,7 @@ export const EVENT_NAMES = {
 export type EventName =
   | (typeof EVENT_NAMES.EINSATZ)[keyof typeof EVENT_NAMES.EINSATZ]
   | (typeof EVENT_NAMES.EIGENSCHUTZ)[keyof typeof EVENT_NAMES.EIGENSCHUTZ]
+  | (typeof EVENT_NAMES.PATIENT)[keyof typeof EVENT_NAMES.PATIENT]
   | (typeof EVENT_NAMES.ETB)[keyof typeof EVENT_NAMES.ETB]
   | (typeof EVENT_NAMES.LAGEKARTE)[keyof typeof EVENT_NAMES.LAGEKARTE]
   | (typeof EVENT_NAMES.USER)[keyof typeof EVENT_NAMES.USER]

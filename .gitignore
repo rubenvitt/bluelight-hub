@@ -237,6 +237,7 @@ gha-creds-*.json
 
 .claude/worktrees
 .claude/skills/
+.claude/scheduled_tasks.lock
 .superpowers
 
 # BMAD-Method CLI-Tooling (lokal installiert, nicht ins Repo)

@@ -54,6 +54,9 @@ import { Route as AppEinsatzEinsatzIdSicherheitGefahrenRouteImport } from './rou
 import { Route as AppEinsatzEinsatzIdSicherheitEigenschutzRouteImport } from './routes/app/einsatz/$einsatzId/sicherheit/eigenschutz'
 import { Route as AppEinsatzEinsatzIdPatientenTriageRouteImport } from './routes/app/einsatz/$einsatzId/patienten/triage'
 import { Route as AppEinsatzEinsatzIdPatientenTransportRouteImport } from './routes/app/einsatz/$einsatzId/patienten/transport'
+import { Route as AppEinsatzEinsatzIdPatientenStandaloneSessionsRouteImport } from './routes/app/einsatz/$einsatzId/patienten/standalone-sessions'
+import { Route as AppEinsatzEinsatzIdPatientenListeRouteImport } from './routes/app/einsatz/$einsatzId/patienten/liste'
+import { Route as AppEinsatzEinsatzIdPatientenPatientIdRouteImport } from './routes/app/einsatz/$einsatzId/patienten/$patientId'
 import { Route as AppEinsatzEinsatzIdLogistikVerbrauchRouteImport } from './routes/app/einsatz/$einsatzId/logistik/verbrauch'
 import { Route as AppEinsatzEinsatzIdLogistikNachschubRouteImport } from './routes/app/einsatz/$einsatzId/logistik/nachschub'
 import { Route as AppEinsatzEinsatzIdLogistikMaterialRouteImport } from './routes/app/einsatz/$einsatzId/logistik/material'
@@ -338,6 +341,24 @@ const AppEinsatzEinsatzIdPatientenTransportRoute =
   AppEinsatzEinsatzIdPatientenTransportRouteImport.update({
     id: '/patienten/transport',
     path: '/patienten/transport',
+    getParentRoute: () => AppEinsatzEinsatzIdRoute,
+  } as any)
+const AppEinsatzEinsatzIdPatientenStandaloneSessionsRoute =
+  AppEinsatzEinsatzIdPatientenStandaloneSessionsRouteImport.update({
+    id: '/patienten/standalone-sessions',
+    path: '/patienten/standalone-sessions',
+    getParentRoute: () => AppEinsatzEinsatzIdRoute,
+  } as any)
+const AppEinsatzEinsatzIdPatientenListeRoute =
+  AppEinsatzEinsatzIdPatientenListeRouteImport.update({
+    id: '/patienten/liste',
+    path: '/patienten/liste',
+    getParentRoute: () => AppEinsatzEinsatzIdRoute,
+  } as any)
+const AppEinsatzEinsatzIdPatientenPatientIdRoute =
+  AppEinsatzEinsatzIdPatientenPatientIdRouteImport.update({
+    id: '/patienten/$patientId',
+    path: '/patienten/$patientId',
     getParentRoute: () => AppEinsatzEinsatzIdRoute,
   } as any)
 const AppEinsatzEinsatzIdLogistikVerbrauchRoute =
@@ -662,6 +683,9 @@ export interface FileRoutesByFullPath {
   '/app/einsatz/$einsatzId/logistik/material': typeof AppEinsatzEinsatzIdLogistikMaterialRoute
   '/app/einsatz/$einsatzId/logistik/nachschub': typeof AppEinsatzEinsatzIdLogistikNachschubRoute
   '/app/einsatz/$einsatzId/logistik/verbrauch': typeof AppEinsatzEinsatzIdLogistikVerbrauchRoute
+  '/app/einsatz/$einsatzId/patienten/$patientId': typeof AppEinsatzEinsatzIdPatientenPatientIdRoute
+  '/app/einsatz/$einsatzId/patienten/liste': typeof AppEinsatzEinsatzIdPatientenListeRoute
+  '/app/einsatz/$einsatzId/patienten/standalone-sessions': typeof AppEinsatzEinsatzIdPatientenStandaloneSessionsRoute
   '/app/einsatz/$einsatzId/patienten/transport': typeof AppEinsatzEinsatzIdPatientenTransportRoute
   '/app/einsatz/$einsatzId/patienten/triage': typeof AppEinsatzEinsatzIdPatientenTriageRoute
   '/app/einsatz/$einsatzId/sicherheit/eigenschutz': typeof AppEinsatzEinsatzIdSicherheitEigenschutzRouteWithChildren
@@ -746,6 +770,9 @@ export interface FileRoutesByTo {
   '/app/einsatz/$einsatzId/logistik/material': typeof AppEinsatzEinsatzIdLogistikMaterialRoute
   '/app/einsatz/$einsatzId/logistik/nachschub': typeof AppEinsatzEinsatzIdLogistikNachschubRoute
   '/app/einsatz/$einsatzId/logistik/verbrauch': typeof AppEinsatzEinsatzIdLogistikVerbrauchRoute
+  '/app/einsatz/$einsatzId/patienten/$patientId': typeof AppEinsatzEinsatzIdPatientenPatientIdRoute
+  '/app/einsatz/$einsatzId/patienten/liste': typeof AppEinsatzEinsatzIdPatientenListeRoute
+  '/app/einsatz/$einsatzId/patienten/standalone-sessions': typeof AppEinsatzEinsatzIdPatientenStandaloneSessionsRoute
   '/app/einsatz/$einsatzId/patienten/transport': typeof AppEinsatzEinsatzIdPatientenTransportRoute
   '/app/einsatz/$einsatzId/patienten/triage': typeof AppEinsatzEinsatzIdPatientenTriageRoute
   '/app/einsatz/$einsatzId/sicherheit/gefahren': typeof AppEinsatzEinsatzIdSicherheitGefahrenRoute
@@ -830,6 +857,9 @@ export interface FileRoutesById {
   '/app/einsatz/$einsatzId/logistik/material': typeof AppEinsatzEinsatzIdLogistikMaterialRoute
   '/app/einsatz/$einsatzId/logistik/nachschub': typeof AppEinsatzEinsatzIdLogistikNachschubRoute
   '/app/einsatz/$einsatzId/logistik/verbrauch': typeof AppEinsatzEinsatzIdLogistikVerbrauchRoute
+  '/app/einsatz/$einsatzId/patienten/$patientId': typeof AppEinsatzEinsatzIdPatientenPatientIdRoute
+  '/app/einsatz/$einsatzId/patienten/liste': typeof AppEinsatzEinsatzIdPatientenListeRoute
+  '/app/einsatz/$einsatzId/patienten/standalone-sessions': typeof AppEinsatzEinsatzIdPatientenStandaloneSessionsRoute
   '/app/einsatz/$einsatzId/patienten/transport': typeof AppEinsatzEinsatzIdPatientenTransportRoute
   '/app/einsatz/$einsatzId/patienten/triage': typeof AppEinsatzEinsatzIdPatientenTriageRoute
   '/app/einsatz/$einsatzId/sicherheit/eigenschutz': typeof AppEinsatzEinsatzIdSicherheitEigenschutzRouteWithChildren
@@ -920,6 +950,9 @@ export interface FileRouteTypes {
     | '/app/einsatz/$einsatzId/logistik/material'
     | '/app/einsatz/$einsatzId/logistik/nachschub'
     | '/app/einsatz/$einsatzId/logistik/verbrauch'
+    | '/app/einsatz/$einsatzId/patienten/$patientId'
+    | '/app/einsatz/$einsatzId/patienten/liste'
+    | '/app/einsatz/$einsatzId/patienten/standalone-sessions'
     | '/app/einsatz/$einsatzId/patienten/transport'
     | '/app/einsatz/$einsatzId/patienten/triage'
     | '/app/einsatz/$einsatzId/sicherheit/eigenschutz'
@@ -1004,6 +1037,9 @@ export interface FileRouteTypes {
     | '/app/einsatz/$einsatzId/logistik/material'
     | '/app/einsatz/$einsatzId/logistik/nachschub'
     | '/app/einsatz/$einsatzId/logistik/verbrauch'
+    | '/app/einsatz/$einsatzId/patienten/$patientId'
+    | '/app/einsatz/$einsatzId/patienten/liste'
+    | '/app/einsatz/$einsatzId/patienten/standalone-sessions'
     | '/app/einsatz/$einsatzId/patienten/transport'
     | '/app/einsatz/$einsatzId/patienten/triage'
     | '/app/einsatz/$einsatzId/sicherheit/gefahren'
@@ -1087,6 +1123,9 @@ export interface FileRouteTypes {
     | '/app/einsatz/$einsatzId/logistik/material'
     | '/app/einsatz/$einsatzId/logistik/nachschub'
     | '/app/einsatz/$einsatzId/logistik/verbrauch'
+    | '/app/einsatz/$einsatzId/patienten/$patientId'
+    | '/app/einsatz/$einsatzId/patienten/liste'
+    | '/app/einsatz/$einsatzId/patienten/standalone-sessions'
     | '/app/einsatz/$einsatzId/patienten/transport'
     | '/app/einsatz/$einsatzId/patienten/triage'
     | '/app/einsatz/$einsatzId/sicherheit/eigenschutz'
@@ -1442,6 +1481,27 @@ declare module '@tanstack/react-router' {
       path: '/patienten/transport'
       fullPath: '/app/einsatz/$einsatzId/patienten/transport'
       preLoaderRoute: typeof AppEinsatzEinsatzIdPatientenTransportRouteImport
+      parentRoute: typeof AppEinsatzEinsatzIdRoute
+    }
+    '/app/einsatz/$einsatzId/patienten/standalone-sessions': {
+      id: '/app/einsatz/$einsatzId/patienten/standalone-sessions'
+      path: '/patienten/standalone-sessions'
+      fullPath: '/app/einsatz/$einsatzId/patienten/standalone-sessions'
+      preLoaderRoute: typeof AppEinsatzEinsatzIdPatientenStandaloneSessionsRouteImport
+      parentRoute: typeof AppEinsatzEinsatzIdRoute
+    }
+    '/app/einsatz/$einsatzId/patienten/liste': {
+      id: '/app/einsatz/$einsatzId/patienten/liste'
+      path: '/patienten/liste'
+      fullPath: '/app/einsatz/$einsatzId/patienten/liste'
+      preLoaderRoute: typeof AppEinsatzEinsatzIdPatientenListeRouteImport
+      parentRoute: typeof AppEinsatzEinsatzIdRoute
+    }
+    '/app/einsatz/$einsatzId/patienten/$patientId': {
+      id: '/app/einsatz/$einsatzId/patienten/$patientId'
+      path: '/patienten/$patientId'
+      fullPath: '/app/einsatz/$einsatzId/patienten/$patientId'
+      preLoaderRoute: typeof AppEinsatzEinsatzIdPatientenPatientIdRouteImport
       parentRoute: typeof AppEinsatzEinsatzIdRoute
     }
     '/app/einsatz/$einsatzId/logistik/verbrauch': {
@@ -1955,6 +2015,9 @@ interface AppEinsatzEinsatzIdRouteChildren {
   AppEinsatzEinsatzIdLogistikMaterialRoute: typeof AppEinsatzEinsatzIdLogistikMaterialRoute
   AppEinsatzEinsatzIdLogistikNachschubRoute: typeof AppEinsatzEinsatzIdLogistikNachschubRoute
   AppEinsatzEinsatzIdLogistikVerbrauchRoute: typeof AppEinsatzEinsatzIdLogistikVerbrauchRoute
+  AppEinsatzEinsatzIdPatientenPatientIdRoute: typeof AppEinsatzEinsatzIdPatientenPatientIdRoute
+  AppEinsatzEinsatzIdPatientenListeRoute: typeof AppEinsatzEinsatzIdPatientenListeRoute
+  AppEinsatzEinsatzIdPatientenStandaloneSessionsRoute: typeof AppEinsatzEinsatzIdPatientenStandaloneSessionsRoute
   AppEinsatzEinsatzIdPatientenTransportRoute: typeof AppEinsatzEinsatzIdPatientenTransportRoute
   AppEinsatzEinsatzIdPatientenTriageRoute: typeof AppEinsatzEinsatzIdPatientenTriageRoute
   AppEinsatzEinsatzIdSicherheitEigenschutzRoute: typeof AppEinsatzEinsatzIdSicherheitEigenschutzRouteWithChildren
@@ -2017,6 +2080,12 @@ const AppEinsatzEinsatzIdRouteChildren: AppEinsatzEinsatzIdRouteChildren = {
     AppEinsatzEinsatzIdLogistikNachschubRoute,
   AppEinsatzEinsatzIdLogistikVerbrauchRoute:
     AppEinsatzEinsatzIdLogistikVerbrauchRoute,
+  AppEinsatzEinsatzIdPatientenPatientIdRoute:
+    AppEinsatzEinsatzIdPatientenPatientIdRoute,
+  AppEinsatzEinsatzIdPatientenListeRoute:
+    AppEinsatzEinsatzIdPatientenListeRoute,
+  AppEinsatzEinsatzIdPatientenStandaloneSessionsRoute:
+    AppEinsatzEinsatzIdPatientenStandaloneSessionsRoute,
   AppEinsatzEinsatzIdPatientenTransportRoute:
     AppEinsatzEinsatzIdPatientenTransportRoute,
   AppEinsatzEinsatzIdPatientenTriageRoute:

@@ -33,6 +33,7 @@ import {
   ETBApi,
   NotizenApi,
   KategorienApi,
+  PatientenApi,
   GeoApi,
   GeocodingApi,
   HealthApi,
@@ -164,6 +165,7 @@ class BackendApi {
   private readonly einsatzFuehrungsrhythmusTemplatesApi: EinsatzFuehrungsrhythmusTemplatesApi;
   private readonly notizenApi: NotizenApi;
   private readonly kategorienApi: KategorienApi;
+  private readonly patientenApi: PatientenApi;
   private readonly navigationApi: NavigationApi;
   private readonly permissionsApi: PermissionsApi;
   private readonly warnungenApi: WarnungenApi;
@@ -229,6 +231,7 @@ class BackendApi {
     this.einsatzFuehrungsrhythmusTemplatesApi = new EinsatzFuehrungsrhythmusTemplatesApi(this.configuration);
     this.notizenApi = new NotizenApi(this.configuration);
     this.kategorienApi = new KategorienApi(this.configuration);
+    this.patientenApi = new PatientenApi(this.configuration);
     this.navigationApi = new NavigationApi(this.configuration);
     this.permissionsApi = new PermissionsApi(this.configuration);
     this.warnungenApi = new WarnungenApi(this.configuration);
@@ -601,6 +604,15 @@ class BackendApi {
    */
   kategorien(): KategorienApi {
     return this.kategorienApi;
+  }
+
+  /**
+   * Gibt die gecachte Patienten-API-Instanz zurueck (Story 1.2)
+   *
+   * @returns Die Patienten-API-Instanz fuer Patient-Erfassung im Einsatz
+   */
+  patienten(): PatientenApi {
+    return this.patientenApi;
   }
 
   /**

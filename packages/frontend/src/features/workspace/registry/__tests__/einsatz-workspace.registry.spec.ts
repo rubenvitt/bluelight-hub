@@ -42,14 +42,14 @@ describe('einsatz workspace registry', () => {
     });
   });
 
-  it('begrenzt Story 1.6 auf sichtbare Kernziele und markiert spätere Bereiche bewusst als deaktiviert', () => {
+  it('begrenzt Story 1.8 auf sichtbare Kernziele und markiert spätere Bereiche bewusst als deaktiviert', () => {
     const visibleModules = EINSATZ_WORKSPACE_MODULES.filter((module) => module.visibility.default === 'visible');
     const disabledModules = EINSATZ_WORKSPACE_MODULES.filter((module) => module.visibility.default === 'disabled');
     const fuehrungModule = EINSATZ_WORKSPACE_MODULES.find((module) => module.id === 'führung');
     const kraefteModule = EINSATZ_WORKSPACE_MODULES.find((module) => module.id === 'kräfte');
 
-    expect(visibleModules.map((module) => module.id)).toEqual(['übersicht', 'führung', 'kommunikation', 'kräfte', 'sicherheit']);
-    expect(disabledModules.map((module) => module.id)).toEqual(['patienten', 'betreuung', 'logistik', 'drohne']);
+    expect(visibleModules.map((module) => module.id)).toEqual(['übersicht', 'führung', 'kommunikation', 'kräfte', 'sicherheit', 'patienten']);
+    expect(disabledModules.map((module) => module.id)).toEqual(['betreuung', 'logistik', 'drohne']);
     expect(disabledModules.every((module) => module.visibility.reason)).toBe(true);
     expect(fuehrungModule?.subPages.find((page) => page.id === 'etb')?.visibility.default).toBe('visible');
     expect(fuehrungModule?.subPages.find((page) => page.id === 'pinnwand')?.visibility.default).toBe('visible');

@@ -91,3 +91,55 @@ export const ApiWrappedCreatedResponse = <TModel extends Type<unknown>>(
 
   return applyDecorators(ApiExtraModels(model), ApiCreatedResponse({ description, schema: createWrappedSchema(model, isArray) }));
 };
+
+/**
+ * Custom Decorator für gewrappte API-Responses mit echter Pagination-Meta
+ * (HTTP 200 OK). Pflicht für Listen-Endpoints, deren Schema `pageSize` (statt
+ * des generischen `limit` aus `ApiWrappedResponse({ isArray: true })`) als
+ * Top-Level-Feld führt und die `total` + `totalPages` synchron mitliefern
+ * (`PaginationMetaDto`-Vertrag, Story 1.6 AC1).
+ *
+ * Variante zu `ApiWrappedResponse(..., { isArray: true })`, weil der dortige
+ * Pagination-Stub mit `limit` arbeitet — der Vertrag im Frontend (TanStack-
+ * Query-Hook `usePatientenList`) sowie der generierte Shared-Client erwartet
+ * jedoch `pageSize`.
+ */
+export const ApiWrappedPaginatedResponse = <TModel extends Type<unknown>>(
+  model: TModel,
+  options?: {
+    description?: string;
+  },
+) => {
+  const description = options?.description ?? 'Successful paginated response';
+  const schema = {
+    type: 'object' as const,
+    properties: {
+      data: {
+        type: 'array' as const,
+        items: { $ref: getSchemaPath(model) },
+      },
+      meta: {
+        type: 'object' as const,
+        properties: {
+          timestamp: { type: 'string' as const, format: 'date-time', example: '2026-05-20T14:23:01.234Z' },
+          version: { type: 'string' as const, example: 'alpha' },
+          requestId: { type: 'string' as const, example: 'abc123xyz' },
+        },
+        required: ['timestamp', 'version', 'requestId'],
+      },
+      pagination: {
+        type: 'object' as const,
+        properties: {
+          page: { type: 'number' as const, example: 1, minimum: 1 },
+          pageSize: { type: 'number' as const, example: 50, minimum: 1, maximum: 100 },
+          total: { type: 'number' as const, example: 250, minimum: 0 },
+          totalPages: { type: 'number' as const, example: 5, minimum: 0 },
+        },
+        required: ['page', 'pageSize', 'total', 'totalPages'],
+      },
+    },
+    required: ['data', 'meta', 'pagination'],
+  };
+
+  return applyDecorators(ApiExtraModels(model), ApiOkResponse({ description, schema }));
+};

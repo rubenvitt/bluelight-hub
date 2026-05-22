@@ -2290,7 +2290,11 @@ describe('EventDeserializer', () => {
       //                KonfliktErkannt (Story 3.9), KonfliktAufgeloest (Story 3.10),
       //                SicherungspostenEingerichtet (Story 4.1), SicherungspostenAktualisiert (Story 4.1),
       //                VorfallGemeldet (Story 5.1), VorfallGeschlossen (Issue #415), VorfallExportiert (Story 5.6)
-      expect(supportedTypes).toHaveLength(127);
+      // + Patient: Erfasst (Story 1.2), Gesichtet + SichtungAktualisiert (Story 1.3)
+      expect(supportedTypes).toHaveLength(130);
+      expect(supportedTypes).toContain('patient.erfasst');
+      expect(supportedTypes).toContain('patient.gesichtet');
+      expect(supportedTypes).toContain('patient.sichtung-aktualisiert');
       expect(supportedTypes).toContain('eigenschutz.gefaehrdungsbeurteilung_erstellt');
       expect(supportedTypes).toContain('eigenschutz.gefaehrdungsbeurteilung_aktualisiert');
       expect(supportedTypes).toContain('eigenschutz.sicherheitsregel_ausgerufen');

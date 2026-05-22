@@ -175,6 +175,52 @@
     radial-gradient(circle at top left, rgb(94 148 245 / 0.18), transparent 30%),
     radial-gradient(circle at bottom right, rgb(37 90 169 / 0.14), transparent 36%);
   --ring-1-gradient-auth-top-glow: linear-gradient(180deg, rgb(17 34 61 / 0.08), transparent);
+
+  /* Sichtungs-Kategorien-Tokens (Story 1.5, AC3) — SiKoKo/DIN 13050.
+   * SK IV = Blau (separate von action-primary), TOT = Schwarz (eigene
+   * Kategorie, würdevoll als gray-900 statt #000). AAA-Kontrast für sk-rot. */
+  --ring-1-color-sk-rot-surface: #fee2e2;
+  --ring-1-color-sk-rot-border: #b91c1c;
+  --ring-1-color-sk-rot-text: #7f1d1d;
+  --ring-1-color-sk-rot-fill: #b91c1c;
+  --ring-1-color-sk-gelb-surface: #fef3c7;
+  --ring-1-color-sk-gelb-border: #b45309;
+  --ring-1-color-sk-gelb-text: #78350f;
+  --ring-1-color-sk-gelb-fill: #b45309;
+  --ring-1-color-sk-gruen-surface: #dcfce7;
+  --ring-1-color-sk-gruen-border: #15803d;
+  --ring-1-color-sk-gruen-text: #14532d;
+  --ring-1-color-sk-gruen-fill: #15803d;
+  --ring-1-color-sk-blau-surface: #dbeafe;
+  --ring-1-color-sk-blau-border: #1d4ed8;
+  --ring-1-color-sk-blau-text: #1e3a8a;
+  --ring-1-color-sk-blau-fill: #1d4ed8;
+  --ring-1-color-sk-schwarz-surface: #e5e7eb;
+  --ring-1-color-sk-schwarz-border: #111827;
+  --ring-1-color-sk-schwarz-text: #030712;
+  --ring-1-color-sk-schwarz-fill: #111827;
+
+  /* Patient-Status-Tokens (Story 1.5, AC4) — Phasen-Chips, kein -fill (keine
+   * Voll-Flächen-Tiles). Six Phasen: eintreffend / sichtung / behandlung /
+   * transport-wartend / im-transport / abtransportiert. */
+  --ring-1-color-patient-status-eintreffend-surface: #f1f5f9;
+  --ring-1-color-patient-status-eintreffend-border: #475569;
+  --ring-1-color-patient-status-eintreffend-text: #1e293b;
+  --ring-1-color-patient-status-sichtung-surface: #ede9fe;
+  --ring-1-color-patient-status-sichtung-border: #6d28d9;
+  --ring-1-color-patient-status-sichtung-text: #4c1d95;
+  --ring-1-color-patient-status-behandlung-surface: #fef3c7;
+  --ring-1-color-patient-status-behandlung-border: #b45309;
+  --ring-1-color-patient-status-behandlung-text: #78350f;
+  --ring-1-color-patient-status-transport-wartend-surface: #f3f4f6;
+  --ring-1-color-patient-status-transport-wartend-border: #4b5563;
+  --ring-1-color-patient-status-transport-wartend-text: #1f2937;
+  --ring-1-color-patient-status-im-transport-surface: #e0e7ff;
+  --ring-1-color-patient-status-im-transport-border: #4338ca;
+  --ring-1-color-patient-status-im-transport-text: #312e81;
+  --ring-1-color-patient-status-abtransportiert-surface: #d1fae5;
+  --ring-1-color-patient-status-abtransportiert-border: #047857;
+  --ring-1-color-patient-status-abtransportiert-text: #064e3b;
 }
 
 .dark {
@@ -316,6 +362,49 @@
     radial-gradient(circle at top left, rgb(94 148 245 / 0.2), transparent 32%),
     radial-gradient(circle at bottom right, rgb(37 90 169 / 0.16), transparent 40%);
   --ring-1-gradient-auth-top-glow: linear-gradient(180deg, rgb(239 244 250 / 0.06), transparent);
+
+  /* Sichtungs-Kategorien-Tokens Dark (Story 1.5, AC3) — inverted lightness:
+   * dunkle Surfaces, helle Borders, helle Texts. AAA-Kontrast für sk-rot. */
+  --ring-1-color-sk-rot-surface: #3f1212;
+  --ring-1-color-sk-rot-border: #f87171;
+  --ring-1-color-sk-rot-text: #fecaca;
+  --ring-1-color-sk-rot-fill: #b91c1c;
+  --ring-1-color-sk-gelb-surface: #3a280a;
+  --ring-1-color-sk-gelb-border: #fbbf24;
+  --ring-1-color-sk-gelb-text: #fde68a;
+  --ring-1-color-sk-gelb-fill: #92400e;
+  --ring-1-color-sk-gruen-surface: #052e1c;
+  --ring-1-color-sk-gruen-border: #34d399;
+  --ring-1-color-sk-gruen-text: #a7f3d0;
+  --ring-1-color-sk-gruen-fill: #166534;
+  --ring-1-color-sk-blau-surface: #0e1f4d;
+  --ring-1-color-sk-blau-border: #60a5fa;
+  --ring-1-color-sk-blau-text: #bfdbfe;
+  --ring-1-color-sk-blau-fill: #1e40af;
+  --ring-1-color-sk-schwarz-surface: #1f2937;
+  --ring-1-color-sk-schwarz-border: #d1d5db;
+  --ring-1-color-sk-schwarz-text: #f9fafb;
+  --ring-1-color-sk-schwarz-fill: #4b5563;
+
+  /* Patient-Status-Tokens Dark (Story 1.5, AC4). */
+  --ring-1-color-patient-status-eintreffend-surface: #1e293b;
+  --ring-1-color-patient-status-eintreffend-border: #94a3b8;
+  --ring-1-color-patient-status-eintreffend-text: #e2e8f0;
+  --ring-1-color-patient-status-sichtung-surface: #2e1065;
+  --ring-1-color-patient-status-sichtung-border: #a78bfa;
+  --ring-1-color-patient-status-sichtung-text: #ddd6fe;
+  --ring-1-color-patient-status-behandlung-surface: #3a280a;
+  --ring-1-color-patient-status-behandlung-border: #fbbf24;
+  --ring-1-color-patient-status-behandlung-text: #fde68a;
+  --ring-1-color-patient-status-transport-wartend-surface: #1f2937;
+  --ring-1-color-patient-status-transport-wartend-border: #9ca3af;
+  --ring-1-color-patient-status-transport-wartend-text: #f3f4f6;
+  --ring-1-color-patient-status-im-transport-surface: #1e1b4b;
+  --ring-1-color-patient-status-im-transport-border: #818cf8;
+  --ring-1-color-patient-status-im-transport-text: #c7d2fe;
+  --ring-1-color-patient-status-abtransportiert-surface: #052e1c;
+  --ring-1-color-patient-status-abtransportiert-border: #34d399;
+  --ring-1-color-patient-status-abtransportiert-text: #a7f3d0;
 }
 
 @theme inline {
@@ -336,6 +425,11 @@
   --text-title-md--line-height: 1.75rem;
   --text-title-lg: 1.75rem;
   --text-title-lg--line-height: 2.15rem;
+  /* Story 1.5 AC5: Großzahl für KPI-Tiles (40–72 px responsiv), gedeckelt durch clamp() */
+  --text-title-xxl: clamp(2.5rem, 5vw, 4.5rem);
+  --text-title-xxl--line-height: 1.05;
+  --text-title-xxl--font-weight: 700;
+  --text-title-xxl--letter-spacing: -0.01em;
 
   --spacing-cluster: var(--ring-1-spacing-cluster);
   --spacing-panel: var(--ring-1-spacing-panel);
@@ -503,6 +597,48 @@
   --spacing-density-2: var(--ring-1-spacing-density-2);
   --spacing-density-3: var(--ring-1-spacing-density-3);
   --spacing-density-4: var(--ring-1-spacing-density-4);
+
+  /* SK-Token-Bridges (Story 1.5, AC3) — 5 Familien × 4 Slots = 20 Aliase. */
+  --color-sk-rot-surface: var(--ring-1-color-sk-rot-surface);
+  --color-sk-rot-border: var(--ring-1-color-sk-rot-border);
+  --color-sk-rot-text: var(--ring-1-color-sk-rot-text);
+  --color-sk-rot-fill: var(--ring-1-color-sk-rot-fill);
+  --color-sk-gelb-surface: var(--ring-1-color-sk-gelb-surface);
+  --color-sk-gelb-border: var(--ring-1-color-sk-gelb-border);
+  --color-sk-gelb-text: var(--ring-1-color-sk-gelb-text);
+  --color-sk-gelb-fill: var(--ring-1-color-sk-gelb-fill);
+  --color-sk-gruen-surface: var(--ring-1-color-sk-gruen-surface);
+  --color-sk-gruen-border: var(--ring-1-color-sk-gruen-border);
+  --color-sk-gruen-text: var(--ring-1-color-sk-gruen-text);
+  --color-sk-gruen-fill: var(--ring-1-color-sk-gruen-fill);
+  --color-sk-blau-surface: var(--ring-1-color-sk-blau-surface);
+  --color-sk-blau-border: var(--ring-1-color-sk-blau-border);
+  --color-sk-blau-text: var(--ring-1-color-sk-blau-text);
+  --color-sk-blau-fill: var(--ring-1-color-sk-blau-fill);
+  --color-sk-schwarz-surface: var(--ring-1-color-sk-schwarz-surface);
+  --color-sk-schwarz-border: var(--ring-1-color-sk-schwarz-border);
+  --color-sk-schwarz-text: var(--ring-1-color-sk-schwarz-text);
+  --color-sk-schwarz-fill: var(--ring-1-color-sk-schwarz-fill);
+
+  /* Patient-Status-Token-Bridges (Story 1.5, AC4) — 6 Familien × 3 Slots = 18 Aliase. */
+  --color-patient-status-eintreffend-surface: var(--ring-1-color-patient-status-eintreffend-surface);
+  --color-patient-status-eintreffend-border: var(--ring-1-color-patient-status-eintreffend-border);
+  --color-patient-status-eintreffend-text: var(--ring-1-color-patient-status-eintreffend-text);
+  --color-patient-status-sichtung-surface: var(--ring-1-color-patient-status-sichtung-surface);
+  --color-patient-status-sichtung-border: var(--ring-1-color-patient-status-sichtung-border);
+  --color-patient-status-sichtung-text: var(--ring-1-color-patient-status-sichtung-text);
+  --color-patient-status-behandlung-surface: var(--ring-1-color-patient-status-behandlung-surface);
+  --color-patient-status-behandlung-border: var(--ring-1-color-patient-status-behandlung-border);
+  --color-patient-status-behandlung-text: var(--ring-1-color-patient-status-behandlung-text);
+  --color-patient-status-transport-wartend-surface: var(--ring-1-color-patient-status-transport-wartend-surface);
+  --color-patient-status-transport-wartend-border: var(--ring-1-color-patient-status-transport-wartend-border);
+  --color-patient-status-transport-wartend-text: var(--ring-1-color-patient-status-transport-wartend-text);
+  --color-patient-status-im-transport-surface: var(--ring-1-color-patient-status-im-transport-surface);
+  --color-patient-status-im-transport-border: var(--ring-1-color-patient-status-im-transport-border);
+  --color-patient-status-im-transport-text: var(--ring-1-color-patient-status-im-transport-text);
+  --color-patient-status-abtransportiert-surface: var(--ring-1-color-patient-status-abtransportiert-surface);
+  --color-patient-status-abtransportiert-border: var(--ring-1-color-patient-status-abtransportiert-border);
+  --color-patient-status-abtransportiert-text: var(--ring-1-color-patient-status-abtransportiert-text);
 }
 
 html,
@@ -801,28 +937,28 @@ body {
 }
 
 /* Story 2.3: Grüner Pulse für neue Einträge */
-@keyframes highlight-new {
+@keyframes highlight-new-pulse {
   0% {
-    background-color: transparent;
-  }
-  30% {
     background-color: var(--ring-1-color-status-success-surface);
   }
+  50% {
+    background-color: color-mix(in srgb, var(--ring-1-color-status-success-surface) 60%, transparent);
+  }
   100% {
-    background-color: transparent;
+    background-color: var(--ring-1-color-status-success-surface);
   }
 }
 
 /* Story 2.3: Amber Pulse für aktualisierte Einträge */
-@keyframes highlight-updated {
+@keyframes highlight-updated-pulse {
   0% {
-    background-color: transparent;
-  }
-  30% {
     background-color: var(--ring-1-color-status-warning-surface);
   }
+  50% {
+    background-color: color-mix(in srgb, var(--ring-1-color-status-warning-surface) 60%, transparent);
+  }
   100% {
-    background-color: transparent;
+    background-color: var(--ring-1-color-status-warning-surface);
   }
 }
 
@@ -842,11 +978,11 @@ body {
 }
 
 .animate-highlight-new {
-  animation: highlight-new 2s ease-out forwards;
+  animation: highlight-new-pulse 2s ease-in-out;
 }
 
 .animate-highlight-updated {
-  animation: highlight-updated 2s ease-out forwards;
+  animation: highlight-updated-pulse 2s ease-in-out;
 }
 
 .animate-slide-in-right {
@@ -906,6 +1042,16 @@ body {
   .animate-gefahrenmatrix-cell-pulse {
     animation: none;
     transition: none;
+  }
+
+  .animate-highlight-new {
+    background-color: var(--ring-1-color-status-success-surface);
+    border-left: 4px solid var(--ring-1-color-status-success-border);
+  }
+
+  .animate-highlight-updated {
+    background-color: var(--ring-1-color-status-warning-surface);
+    border-left: 4px solid var(--ring-1-color-status-warning-border);
   }
 
   /* Issue #627 — statischer Doppel-Ring als Ersatz für AKUT-Pulse (Ring-1: Motion-frei). */

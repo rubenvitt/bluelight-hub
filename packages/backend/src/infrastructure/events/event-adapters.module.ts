@@ -92,6 +92,7 @@ import { AlarmierungApplicationModule } from '@application/alarmierung/alarmieru
 import { LagekarteApplicationModule } from '@application/lagekarte/lagekarte-application.module';
 import { LagekarteEventLoggerHandler } from './handlers/lagekarte-event-logger.handler';
 import { EinsatzEventLoggerHandler } from './handlers/einsatz-event-logger.handler';
+import { PatientEventLoggerHandler } from './handlers/patient-event-logger.handler';
 import { EventConsumerValidatorService } from './event-consumer-validator.service';
 import { LOGGER } from '@infrastructure/di-tokens';
 import { NestLoggerAdapter } from '@infrastructure/common/adapters/nest-logger.adapter';
@@ -264,6 +265,7 @@ import { WebsocketModule } from '@infrastructure/websocket/websocket.module';
     // Event Logging Handler (Infrastructure-specific)
     LagekarteEventLoggerHandler,
     EinsatzEventLoggerHandler,
+    PatientEventLoggerHandler, // Story 1.2: PatientErfasst Audit-Logger (WS-Broadcast folgt in Story 3.1)
     // Event Consumer Validation - prüft beim Start ob alle Events Handler haben
     EventConsumerValidatorService,
   ],

@@ -286,6 +286,12 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get ampelProjection() {
     return this._client.ampelProjection;
   }
+  get patient() {
+    return this._client.patient;
+  }
+  get patientEvent() {
+    return this._client.patientEvent;
+  }
 
   // Delegate Prisma Client methods
   $connect() {
@@ -297,16 +303,16 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   $transaction(...args: Parameters<BasePrismaClient['$transaction']>): ReturnType<BasePrismaClient['$transaction']> {
     return this._client.$transaction(...args);
   }
-  $queryRaw(...args: Parameters<BasePrismaClient['$queryRaw']>): ReturnType<BasePrismaClient['$queryRaw']> {
-    return this._client.$queryRaw(...args);
+  get $queryRaw() {
+    return this._client.$queryRaw.bind(this._client);
   }
-  $executeRaw(...args: Parameters<BasePrismaClient['$executeRaw']>): ReturnType<BasePrismaClient['$executeRaw']> {
-    return this._client.$executeRaw(...args);
+  get $executeRaw() {
+    return this._client.$executeRaw.bind(this._client);
   }
-  $queryRawUnsafe(...args: Parameters<BasePrismaClient['$queryRawUnsafe']>): ReturnType<BasePrismaClient['$queryRawUnsafe']> {
-    return this._client.$queryRawUnsafe(...args);
+  get $queryRawUnsafe() {
+    return this._client.$queryRawUnsafe.bind(this._client);
   }
-  $executeRawUnsafe(...args: Parameters<BasePrismaClient['$executeRawUnsafe']>): ReturnType<BasePrismaClient['$executeRawUnsafe']> {
-    return this._client.$executeRawUnsafe(...args);
+  get $executeRawUnsafe() {
+    return this._client.$executeRawUnsafe.bind(this._client);
   }
 }

@@ -20,6 +20,8 @@ export interface KategorieFilterState {
   excludedKategorien: Set<EtbKategorie>;
   /** Erinnerungs-Filter: Zeigt nur Eintraege MIT verknuepfter Erinnerung */
   erinnerungFilterActive: boolean;
+  /** Inklusions-Filter für den Kontexttyp (z. B. 'patient') */
+  includedKontextType: 'patient' | null;
 }
 
 /**
@@ -54,6 +56,7 @@ export const ALLE_KATEGORIEN: EtbKategorie[] = [
 export const kategorieFilterStore = createStore<KategorieFilterState>({
   excludedKategorien: new Set(DEFAULT_EXCLUDED),
   erinnerungFilterActive: false,
+  includedKontextType: null,
 });
 
 // ============================================================================
@@ -74,7 +77,7 @@ export function toggleKategorie(kategorie: EtbKategorie): void {
     } else {
       newExcluded.add(kategorie);
     }
-    return { excludedKategorien: newExcluded };
+    return { ...state, excludedKategorien: newExcluded };
   });
 }
 
@@ -87,7 +90,7 @@ export function excludeKategorie(kategorie: EtbKategorie): void {
   kategorieFilterStore.setState((state) => {
     const newExcluded = new Set(state.excludedKategorien);
     newExcluded.add(kategorie);
-    return { excludedKategorien: newExcluded };
+    return { ...state, excludedKategorien: newExcluded };
   });
 }
 
@@ -100,7 +103,7 @@ export function includeKategorie(kategorie: EtbKategorie): void {
   kategorieFilterStore.setState((state) => {
     const newExcluded = new Set(state.excludedKategorien);
     newExcluded.delete(kategorie);
-    return { excludedKategorien: newExcluded };
+    return { ...state, excludedKategorien: newExcluded };
   });
 }
 
@@ -121,6 +124,31 @@ export function resetKategorieFilter(): void {
   kategorieFilterStore.setState(() => ({
     excludedKategorien: new Set(DEFAULT_EXCLUDED),
     erinnerungFilterActive: false,
+    includedKontextType: null,
+  }));
+}
+
+/**
+ * Setzt den Inklusions-Filter für einen Kontexttyp.
+ *
+ * @param value - Der Kontexttyp oder null zum Zurücksetzen
+ */
+export function setIncludedKontextType(value: 'patient' | null): void {
+  kategorieFilterStore.setState((state) => ({
+    ...state,
+    includedKontextType: value,
+  }));
+}
+
+/**
+ * Toggled den Inklusions-Filter für einen bestimmten Kontexttyp.
+ *
+ * @param value - Der zu togglende Kontexttyp
+ */
+export function toggleIncludedKontextType(value: 'patient'): void {
+  kategorieFilterStore.setState((state) => ({
+    ...state,
+    includedKontextType: state.includedKontextType === value ? null : value,
   }));
 }
 
@@ -191,7 +219,16 @@ export function useIsKategorieVisible(kategorie: EtbKategorie): boolean {
  * @returns true wenn mindestens ein Filter aktiv ist
  */
 export function useHasActiveFilter(): boolean {
-  return useStore(kategorieFilterStore, (state) => state.excludedKategorien.size > 0 || state.erinnerungFilterActive);
+  return useStore(kategorieFilterStore, (state) => state.excludedKategorien.size > 0 || state.erinnerungFilterActive || state.includedKontextType !== null);
+}
+
+/**
+ * Hook für den aktiven Inklusions-Kontexttyp (reactive).
+ *
+ * @returns Der aktive Kontexttyp oder null
+ */
+export function useIncludedKontextType(): 'patient' | null {
+  return useStore(kategorieFilterStore, (state) => state.includedKontextType);
 }
 
 /**

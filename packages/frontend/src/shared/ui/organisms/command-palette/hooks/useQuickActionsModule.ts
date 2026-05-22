@@ -1,7 +1,7 @@
 import { useLogout } from '@/features/auth';
-import { useMatchRoute, useNavigate } from '@tanstack/react-router';
+import { useMatchRoute, useNavigate, useParams } from '@tanstack/react-router';
 import { useCallback, useMemo } from 'react';
-import { PiArrowsOut, PiCaretRight, PiClipboard, PiGear, PiPalette, PiSignOut } from 'react-icons/pi';
+import { PiArrowsOut, PiCaretRight, PiClipboard, PiFirstAid, PiGear, PiPalette, PiSignOut } from 'react-icons/pi';
 import { toast } from 'sonner';
 import type { LagekarteSearchParams } from '@/features/lagekarte/ui';
 import type { EtbSearchParams } from '@routes/app/einsatz/$einsatzId/führung/etb/';
@@ -12,6 +12,7 @@ export const useQuickActionsModule = (): ModuleConfig => {
   const navigate = useNavigate();
   const matchRoute = useMatchRoute();
   const logout = useLogout();
+  const { einsatzId } = useParams({ from: '/app/einsatz/$einsatzId', shouldThrow: false }) ?? {};
   const { themeOptions, handleThemeChange } = useThemeCommands();
   type FullscreenSearchParams = LagekarteSearchParams | EtbSearchParams;
 
@@ -54,6 +55,24 @@ export const useQuickActionsModule = (): ModuleConfig => {
               .catch(() => toast.error('Kopieren fehlgeschlagen'));
           },
         },
+        // UX-DR19/UX-DR20: Patienten-Modul als Quick-Action (nur wenn ein Einsatz aktiv ist)
+        ...(einsatzId
+          ? [
+              {
+                id: 'open-patienten-modul',
+                name: 'Patienten-Modul öffnen',
+                description: 'Wechselt zur Patienten-Übersicht des aktiven Einsatzes',
+                icon: PiFirstAid,
+                keywords: ['patient', 'patienten', 'p'],
+                action: () => {
+                  navigate({
+                    to: '/app/einsatz/$einsatzId/patienten',
+                    params: { einsatzId },
+                  });
+                },
+              },
+            ]
+          : []),
         // Lagekarte Vollbild-Action (nur auf Karten-Route)
         ...(isOnKarteRoute
           ? [
@@ -107,6 +126,6 @@ export const useQuickActionsModule = (): ModuleConfig => {
         },
       ],
     }),
-    [logout, navigate, handleThemeChange, themeOptions, isOnKarteRoute, isOnEtbRoute, setFullscreenSearch],
+    [logout, navigate, handleThemeChange, themeOptions, isOnKarteRoute, isOnEtbRoute, setFullscreenSearch, einsatzId],
   );
 };

@@ -50,7 +50,7 @@ flowchart TB
 
   M -->|delegiert| A
   A -->|nutzt Port| PORT
-  PORT -.implementiert.-> REPO
+  REPO -.implementiert.-> PORT
   A -->|emittiert Events| EVT
   EVT -.serialisiert.-> OUTBOX
   EVT -.dispatched an.-> EVTADAPT
@@ -64,7 +64,7 @@ flowchart TB
 - `domain/patienten` importiert **kein** NestJS, **kein** Prisma, **kein** HTTP. Reine TypeScript-Domain.
 - `application/patienten` nutzt `@Injectable` (CQRS-Handler), kennt das `PatientRepository`-Port-Interface aus `domain/`, kennt aber keine konkrete Prisma-Klasse.
 - `infrastructure/patienten` implementiert das Port mit Prisma + `TransactionalCommandHandler`.
-- `modules/patienten` ist nur HTTP-Adapter: DTOs → Application-Command/Query, Result → HTTP-Status (via `error-to-http`).
+- `modules/patienten` ist nur HTTP-Adapter: DTOs → Application-Command/Query, Result → HTTP-Status (via `error-to-http` ([Source: `packages/backend/src/modules/patienten/errors/error-to-http.ts`])).
 
 ### 5.2 Komponenten-Diagramm (Detail)
 
@@ -148,7 +148,7 @@ flowchart LR
   GetPatientDetailHandler --> PatientRepository
   KpiAggregatHandler --> PatientRepository
 
-  PatientRepository -. implementiert .-> PatientRepositoryAdapter
+  PatientRepositoryAdapter -. implementiert .-> PatientRepository
 
   PatientErfasst -. serialisiert .-> OutboxSerializer
   OutboxSerializer -. deserialisiert .-> OutboxDeserializer
@@ -193,7 +193,7 @@ Alle Patient-Endpoints sind unter dem **Einsatz-Route-Nesting** verfügbar:
 /api/einsaetze/:einsatzId/patienten/...
 ```
 
-Guard-Chain pro Endpoint: `JwtAuthGuard → EinsatzScopeGuard → PermissionsGuard`.
+Guard-Chain pro Endpoint: `JwtAuthGuard → EinsatzScopeGuard → PermissionsGuard` ([Source: `packages/backend/src/modules/auth/guards/permissions.guard.ts`]).
 
 | Methode | Route | Story | Application-Handler |
 |---|---|---|---|

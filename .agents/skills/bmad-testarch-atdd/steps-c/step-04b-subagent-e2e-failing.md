@@ -171,7 +171,12 @@ Write JSON to temp file: `/tmp/tea-atdd-e2e-tests-{{timestamp}}.json`
       "content": "[full TypeScript test file content with test.skip()]",
       "description": "ATDD E2E test scaffolds for user registration journey (RED PHASE)",
       "expected_to_fail": true,
-      "acceptance_criteria_covered": ["User can navigate to /register", "User can fill registration form", "System shows success message on registration", "System shows error if email exists"],
+      "acceptance_criteria_covered": [
+        "User can navigate to /register",
+        "User can fill registration form",
+        "System shows success message on registration",
+        "System shows error if email exists"
+      ],
       "priority_coverage": {
         "P0": 1,
         "P1": 1,

@@ -48,7 +48,6 @@ Treat every entry in `{workflow.persistent_facts}` as foundational context you c
 ### Step 4: Load Config
 
 Load config from `{project-root}/_bmad/bmm/config.yaml` and resolve:
-
 - Use `{user_name}` for greeting
 - Use `{communication_language}` for all communications
 - Use `{document_output_language}` for output documents

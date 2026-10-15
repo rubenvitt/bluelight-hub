@@ -97,15 +97,20 @@ Die `Patient`-Tabelle (Prisma) ist ein **denormalisierter Read-Snapshot** — ke
 | `einsatzId` | TEXT (CUID, FK) | ✔ | Aggregat-Konstruktor |
 | `patientennummer` | TEXT | ✔ | `Patientennummer` VO |
 | `diviVakNummer` | TEXT | optional | `DiviVakNummer` VO |
-| `aktuelleSk` | TEXT (`SkCode`) | ✔ | `Sichtungskategorie` (Default `null`/keine Sichtung) |
+| `aktuelleSk` | TEXT (`SkCode`) | ✔ | NOT NULL; initialer Wert wird vom Aggregat-Konstruktor gesetzt (entweder via Initial-Sichtung im `patient.gesichtet`-Event oder via expliziter Voraussichtungs-Default `SK_III` im `Patient.create()`-Pfad) |
 | `behandlungsstatus` | TEXT | ✔ | `Behandlungsstatus` (Default `UNVERSORGT`) |
 | `transportstatus` | TEXT | ✔ | `Transportstatus` (Default `WARTEND`) |
 | **`notiz`** (Story 1.7) | VARCHAR(500) | optional | Freitext-Notiz via `patient.korrigiert.feld='notiz'` |
 | `erfasstAm` | TIMESTAMP | ✔ | Aggregat-Erfassung |
-| `erfasserRef` | JSONB | ✔ | `ErfasserRef` VO |
-| `eventVersion` | INTEGER | ✔ | `MAX(eventVersion)` über `PatientEvent` |
+| `erfasserUserId` | TEXT | optional | `ErfasserRef` VO (User-Variante) |
+| `erfasserDeviceId` | TEXT | optional | `ErfasserRef` VO (Device-Variante) |
+| `erfasserSessionId` | TEXT | optional | `ErfasserRef` VO (Device-Variante, nur Standalone-Capture) |
 | `clockDriftSeconds` | INTEGER | optional | Tablet-Drift-Marker |
 | `createdAt` / `updatedAt` | TIMESTAMP | ✔ | Standard |
+
+Exactly-One-Of-Invariante (`user` XOR `device`-mit-optional-`session`) wird im Aggregat-Konstruktor + `ErfasserRef.create()` durchgesetzt.
+
+Die Snapshot-Tabelle führt KEINE `eventVersion` mit; die aktuelle Version wird per `MAX(eventVersion)` über `PatientEvent` rekonstruiert (Read-Pfad).
 
 ### Append-only-Event-Stream (`PatientEvent`)
 
@@ -123,7 +128,7 @@ Eigene Tabelle, append-only. Pflicht-Invariante über `@@unique([patientId, even
 | `actorDeviceId` | TEXT | optional, Geräte-ID (Standalone-Mode, ADR-017) |
 | `originSessionId` | TEXT | optional, Capture-Session-ID (ADR-017) |
 | `clockDriftSeconds` | INTEGER | optional, bekannter Drift zum Server bei Erfassung |
-| `occurredOn` | TIMESTAMP | Ereignis-Zeitpunkt (Tablet-Uhr) |
+| `occurredAt` | TIMESTAMP | Ereignis-Zeitpunkt (Tablet-Uhr) |
 | `recordedAt` | TIMESTAMP | DB-Insert-Zeitpunkt (Server-Uhr) |
 
 ### Notiz-Snapshot (Story 1.7-Erweiterung)
@@ -148,9 +153,11 @@ Bewusste Spec-Entscheidung: Notiz hat keinen eigenen Event-Typ (`patient.notiz-a
 | 5 | `patient.behandlung-abgeschlossen` | 1.4 | — | `vorher` (`IN_BEHANDLUNG`), `neu` (`VERSORGT` \| `TRANSPORTBEREIT`), `actor` |
 | 6 | `patient.transport-gestartet` | 1.4 | — | `vorher` (`WARTEND`), `neu` (`IM_TRANSPORT`), `actor`, `transportZiel?` |
 | 7 | `patient.transport-abgeschlossen` | 1.4 | — | `vorher` (`IM_TRANSPORT`), `neu` (`IM_KRANKENHAUS`), `actor` |
-| 8 | `patient.korrigiert` | 1.4 + 1.7 | `feld: 'sichtung' \| 'behandlungsstatus' \| 'transportstatus' \| 'notiz'` | discriminated Union mit `vorher`, `neu`, `grund` (Pflicht) |
+| 8 | `patient.korrigiert` | 1.4 + 1.7 | `feld: 'sichtung' \| 'behandlungsstatus' \| 'transportstatus' \| 'notiz'` (Quelle: Domain-Event `PatientKorrigiert`) | discriminated Union mit `vorher`, `neu`, `grund` (Pflicht) |
 
-Vollständige Payload-Schemata: `packages/backend/src/domain/patienten/schemas/etb-context.schema.ts` (`PatientEtbContextSchema`, Zeilen 36–164). Diese Datei ist die Single Source of Truth für FE und BE; sie wird im OpenAPI-Schema referenziert und im Frontend über den generierten Client typisiert konsumiert.
+Vollständige Payload-Schemata: [Source: `packages/backend/src/domain/patienten/schemas/etb-context.schema.ts` — Konstante `PatientEtbContextSchema` als `z.discriminatedUnion('kind', [...])`]. Diese Datei ist die Single Source of Truth für FE und BE; sie wird im OpenAPI-Schema referenziert und im Frontend über den generierten Client typisiert konsumiert.
+
+Der ETB-Kontext-Wrapper (`patientKorrigiertContextSchema` in `etb-context.schema.ts`) speichert für `patient.korrigiert` nur den ETB-Minimum-Kern (`kind` + `patientId` + `patientennummer`); die `feld`/`vorher`/`neu`/`grund`-Discriminator-Felder leben im Domain-Event `PatientKorrigiert` und werden vor dem ETB-Append in den ETB-Eintrag-Text gerendert (`appendEtbEintrag.vorher`/`neu`-Pfad). Quelle für die Discriminator-Varianten: [Source: `packages/backend/src/domain/patienten/events/patient-korrigiert.event.ts` — Klasse `PatientKorrigiert`].
 
 **Anti-Pattern (verboten):** Eigene `patient.notiz-aktualisiert`-, `patient.gestorben`- oder `patient.entlassen`-Events. Notiz läuft über `korrigiert.feld='notiz'`, TOT-Markierung über `korrigiert.feld='sichtung', neu='TOT'` (mit `bestaetigeTotKorrektur=true`-Schutz), Entlassung über `transport-abgeschlossen`.
 
@@ -236,6 +243,23 @@ export { EventAdaptersModule } from './event-adapters.module';
 
 **Diese ADR fordert:** Jeder neue Patient-Event-Typ (z. B. später `patient.angeheftet` für Standalone-Capture, ADR-017) wird mit einer Code-Review-Checkliste eingereicht, die jeden der vier Punkte abhakt.
 
+#### Wiring-Status (Ist-Stand)
+
+Der AR20-Vertrag oben ist Architektur-Vertrag (Soll-Zustand). Der reale Wiring-Status der acht Patient-Events durch die Outbox-Pipeline ist heterogen: drei Events sind vollständig verdrahtet, fünf existieren bislang nur als Domain-Event-Klassen und Aggregat-Emit-Pfade.
+
+| Event | Serializer | Deserializer | Adapters-Module | Public Export | Status |
+|---|---|---|---|---|---|
+| `patient.erfasst` | ✔ | ✔ | ✔ | ✔ | wired |
+| `patient.gesichtet` | ✔ | ✔ | ✔ | ✔ | wired |
+| `patient.sichtung-aktualisiert` | ✔ | ✔ | ✔ | ✔ | wired |
+| `patient.behandlung-begonnen` | ☐ | ☐ | ☐ | ☐ | declared-only (Story 1.4 nutzt Aggregat-Pfad ohne Outbox-Emit) |
+| `patient.behandlung-abgeschlossen` | ☐ | ☐ | ☐ | ☐ | declared-only |
+| `patient.transport-gestartet` | ☐ | ☐ | ☐ | ☐ | declared-only |
+| `patient.transport-abgeschlossen` | ☐ | ☐ | ☐ | ☐ | declared-only |
+| `patient.korrigiert` | ☐ | ☐ | ☐ | ☐ | declared-only (Story 1.4 + 1.7) |
+
+Die fünf `declared-only`-Events werden vom Patient-Aggregat emittiert (siehe `application/patienten/`-Handler), durchlaufen jedoch noch nicht den Outbox-Persistierungs-Pfad. Folge-Story (Tracking in `_bmad-output/implementation-artifacts/deferred-work.md`): Wiring der fünf Events in `event-serializer.ts` + `event-deserializer.ts` + `event-adapters.module.ts` + `infrastructure/events/index.ts` inkl. Round-Trip-Tests, bevor Epic 3 (WebSocket-Sync) live geht. Bis dahin ist Multi-Device-Konsistenz für diese Lifecycle-Übergänge nur Aggregat-lokal garantiert.
+
 ### Konsequenzen
 
 #### Positiv
@@ -256,7 +280,7 @@ export { EventAdaptersModule } from './event-adapters.module';
 - **Korrektur-Discriminator als String-Literal-Union.** Erweiterung um neue Felder (z. B. `feld='diviVakNummer'`) erfordert Edit an mehreren Stellen. Mitigation: Discriminator-Werte zentral in `PATIENT_KORREKTUR_FELDER`-Konstante, Zod-Schema als Single Source of Truth.
 - **Notiz max. 500 Zeichen.** Reicht für Kurzhinweise, nicht für volle Anamnese. Bewusste Spec-Entscheidung (Story 1.7): Lange Texte gehören in den ETB-Eintrag, nicht in den Patient-Snapshot. Bei späterer Pilot-Anforderung „mehr Notiz-Raum" erfolgt eine Folge-Story.
 
-### Affects
+### Auswirkungen
 
 - **Folge-Epic 2 (Capture / Attach):** Übernimmt das Aggregat-Schema unverändert. Standalone-Capture (ADR-017) erzeugt lokale Patient-Events mit `erfasserRef.type='device'` und `originSessionId`. Beim Anhängen mappt das Backend lokale CUIDs auf Backend-CUIDs und schreibt die Events 1:1 in den Stream.
 - **Folge-Epic 3 (WebSocket-Sync):** Pusht jedes Patient-Event in den Einsatz-scoped Channel (`einsatz:{einsatzId}`). Clients reconcile per `eventVersion`.

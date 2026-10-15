@@ -13,17 +13,17 @@
 
 The press release is the heart of Working Backwards. It has a specific structure, and each part earns its place by forcing a different type of clarity:
 
-| Section                | What It Forces                                                                     |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| **Headline**           | Can you say what this is in one sentence a customer would understand?              |
-| **Subheadline**        | Who benefits and what changes for them?                                            |
-| **Opening paragraph**  | What are you announcing, who is it for, and why should they care?                  |
-| **Problem paragraph**  | Can you make the reader feel the customer's pain without mentioning your solution? |
-| **Solution paragraph** | What changes for the customer? (Not: what did you build.)                          |
-| **Leader quote**       | What's the vision beyond the feature list?                                         |
-| **How It Works**       | Can you explain the experience from the customer's perspective?                    |
-| **Customer quote**     | Would a real person say this? Does it sound human?                                 |
-| **Getting Started**    | Is the path to value clear and concrete?                                           |
+| Section | What It Forces |
+|---------|---------------|
+| **Headline** | Can you say what this is in one sentence a customer would understand? |
+| **Subheadline** | Who benefits and what changes for them? |
+| **Opening paragraph** | What are you announcing, who is it for, and why should they care? |
+| **Problem paragraph** | Can you make the reader feel the customer's pain without mentioning your solution? |
+| **Solution paragraph** | What changes for the customer? (Not: what did you build.) |
+| **Leader quote** | What's the vision beyond the feature list? |
+| **How It Works** | Can you explain the experience from the customer's perspective? |
+| **Customer quote** | Would a real person say this? Does it sound human? |
+| **Getting Started** | Is the path to value clear and concrete? |
 
 ## Coaching Approach
 

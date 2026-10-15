@@ -9,7 +9,7 @@ Generate a review trail from the diff and codebase context. A generated trail is
 1. Get the full diff against the appropriate baseline (same rules as Surface Area Stats in step-01).
 2. Read changed files in full — not just diff hunks. Surrounding code reveals intent that hunks alone miss. If total file content exceeds ~50k tokens, read only the files with the largest diff hunks in full and use hunks for the rest.
 3. If a spec exists, use its Intent section to anchor concern identification.
-4. Identify 2–5 concerns: cohesive design intents that each explain _why_ behind a cluster of changes. Prefer functional groupings and architectural boundaries over file-level splits. A single-concern change is fine — don't invent groupings.
+4. Identify 2–5 concerns: cohesive design intents that each explain *why* behind a cluster of changes. Prefer functional groupings and architectural boundaries over file-level splits. A single-concern change is fine — don't invent groupings.
 5. For each concern, select 1–4 `path:line` stops — locations where the concern is most visible. Prefer entry points, decision points, and boundary crossings over mechanical changes.
 6. Lead with the entry point — the highest-leverage stop a reviewer should see first. Inside each concern, order stops so each builds on the previous. End with peripherals (tests, config, types).
 7. Format each stop using `path:line` per the global step rules:

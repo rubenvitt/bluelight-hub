@@ -8,22 +8,28 @@ import type { PatientListItemDto } from '@bluelight-hub/shared/client';
 
 const listApiSpy = vi.fn();
 
-vi.mock('@/shared', () => ({
-  api: {
-    patienten: () => ({
-      patientenControllerListVAlpha: listApiSpy,
-    }),
-  },
-  ResponseError: class ResponseError extends Error {
-    override name = 'ResponseError' as const;
-    constructor(
-      public response: Response,
-      msg?: string,
-    ) {
-      super(msg);
-    }
-  },
-}));
+vi.mock('@/shared', async () => {
+  const actual = await vi.importActual<typeof import('@/shared')>('@/shared');
+  return {
+    ...actual,
+    api: {
+      patienten: () => ({
+        patientenControllerListVAlpha: listApiSpy,
+      }),
+    },
+    ResponseError:
+      actual.ResponseError ??
+      class ResponseError extends Error {
+        override name = 'ResponseError' as const;
+        constructor(
+          public response: Response,
+          msg?: string,
+        ) {
+          super(msg);
+        }
+      },
+  };
+});
 
 // KpiStrip mocken, um API-Abfragen dort zu vermeiden
 vi.mock('../ui/kpi-strip', () => ({
@@ -107,6 +113,21 @@ describe('PatientenDashboard responsive (Story 1.8, AC6 / UX-DR33)', () => {
 
       expect(screen.getByTestId('mock-kpi-strip')).toBeInTheDocument();
       expect(screen.getByTestId('mock-patientenliste')).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Patient-Flow' })).toBeNull();
+    });
+  });
+
+  // === D3-Boundary — 639 px (unmittelbar unter D1-Breakpoint) ===
+
+  describe('639 px (D3 Mobile, Boundary direkt unter 640 px-Breakpoint)', () => {
+    it('rendert KpiStrip und PatientenListe, aber KEINEN EntityFlowStrip (D3, da `useSmViewport` erst ab 640 px matched)', async () => {
+      setTestViewport({ width: 639, height: 800 });
+
+      render(<PatientenDashboard einsatzId="einsatz_1" filters={{}} onFiltersChange={vi.fn()} />, { wrapper: buildWrapper() });
+
+      expect(screen.getByTestId('mock-kpi-strip')).toBeInTheDocument();
+      expect(screen.getByTestId('mock-patientenliste')).toBeInTheDocument();
+      expect(screen.queryByTestId('patient-flow')).toBeNull();
       expect(screen.queryByRole('region', { name: 'Patient-Flow' })).toBeNull();
     });
   });

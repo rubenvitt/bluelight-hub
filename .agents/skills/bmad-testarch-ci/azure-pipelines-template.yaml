@@ -23,49 +23,49 @@ pr:
       - develop
 
 variables:
-  DEFAULT_NODE_VERSION: '24'
+  DEFAULT_NODE_VERSION: "24"
   npm_config_cache: $(Pipeline.Workspace)/.npm
   # Set TEST_STACK_TYPE to 'backend' to skip Playwright browser installs
-  TEST_STACK_TYPE: '' # Values: frontend, backend, fullstack (leave empty for auto)
+  TEST_STACK_TYPE: "" # Values: frontend, backend, fullstack (leave empty for auto)
 
 stages:
   # Lint stage - Code quality checks
   - stage: Lint
-    displayName: 'Lint'
+    displayName: "Lint"
     jobs:
       - job: LintJob
-        displayName: 'Code Quality'
+        displayName: "Code Quality"
         pool:
-          vmImage: 'ubuntu-latest'
+          vmImage: "ubuntu-latest"
         timeoutInMinutes: 5
         steps:
           - task: NodeTool@0
             inputs:
               versionSpec: $(DEFAULT_NODE_VERSION)
-            displayName: 'Setup Node.js'
+            displayName: "Setup Node.js"
 
           - task: Cache@2
             inputs:
               key: 'npm | "$(Agent.OS)" | package-lock.json'
               restoreKeys: 'npm | "$(Agent.OS)"'
               path: $(npm_config_cache)
-            displayName: 'Cache npm'
+            displayName: "Cache npm"
 
           - script: npm ci
-            displayName: 'Install dependencies' # Replace with INSTALL_CMD
+            displayName: "Install dependencies" # Replace with INSTALL_CMD
 
           - script: npm run lint
-            displayName: 'Run linter' # Replace with LINT_CMD
+            displayName: "Run linter" # Replace with LINT_CMD
 
   # Test stage - Parallel execution with sharding
   - stage: Test
-    displayName: 'Test'
+    displayName: "Test"
     dependsOn: Lint
     jobs:
       - job: TestShard
-        displayName: 'Test Shard'
+        displayName: "Test Shard"
         pool:
-          vmImage: 'ubuntu-latest'
+          vmImage: "ubuntu-latest"
         timeoutInMinutes: 30
         strategy:
           matrix:
@@ -81,64 +81,64 @@ stages:
           - task: NodeTool@0
             inputs:
               versionSpec: $(DEFAULT_NODE_VERSION)
-            displayName: 'Setup Node.js'
+            displayName: "Setup Node.js"
 
           - task: Cache@2
             inputs:
               key: 'npm | "$(Agent.OS)" | package-lock.json'
               restoreKeys: 'npm | "$(Agent.OS)"'
               path: $(npm_config_cache)
-            displayName: 'Cache npm'
+            displayName: "Cache npm"
 
           - script: npm ci
-            displayName: 'Install dependencies' # Replace with INSTALL_CMD
+            displayName: "Install dependencies" # Replace with INSTALL_CMD
 
           # Frontend/Fullstack only — skipped for backend-only stacks
           - script: npx playwright install --with-deps chromium
             condition: ne(variables['TEST_STACK_TYPE'], 'backend')
-            displayName: 'Install Playwright browsers' # Replace with BROWSER_INSTALL
+            displayName: "Install Playwright browsers" # Replace with BROWSER_INSTALL
 
           - script: npm run test:e2e -- --shard=$(SHARD_INDEX)/4
-            displayName: 'Run tests (shard $(SHARD_INDEX)/4)' # Replace with TEST_CMD + shard args
+            displayName: "Run tests (shard $(SHARD_INDEX)/4)" # Replace with TEST_CMD + shard args
 
           - task: PublishTestResults@2
             condition: always()
             inputs:
-              testResultsFormat: 'JUnit'
-              testResultsFiles: 'test-results/**/*.xml'
+              testResultsFormat: "JUnit"
+              testResultsFiles: "test-results/**/*.xml"
               mergeTestResults: true
-            displayName: 'Publish test results'
+            displayName: "Publish test results"
 
           - publish: test-results/
             artifact: test-results-$(SHARD_INDEX)
             condition: failed()
-            displayName: 'Upload failure artifacts'
+            displayName: "Upload failure artifacts"
 
   # Burn-in stage - Flaky test detection
   # Note: Burn-in targets UI flakiness. For backend-only stacks, remove this stage entirely.
   - stage: BurnIn
-    displayName: 'Burn-In (Flaky Detection)'
+    displayName: "Burn-In (Flaky Detection)"
     dependsOn: Test
     condition: and(succeeded(), or(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.CronSchedule.DisplayName'], 'Weekly burn-in')))
     jobs:
       - job: BurnInJob
-        displayName: 'Burn-In Loop'
+        displayName: "Burn-In Loop"
         pool:
-          vmImage: 'ubuntu-latest'
+          vmImage: "ubuntu-latest"
         timeoutInMinutes: 60
         steps:
           - task: NodeTool@0
             inputs:
               versionSpec: $(DEFAULT_NODE_VERSION)
-            displayName: 'Setup Node.js'
+            displayName: "Setup Node.js"
 
           - script: npm ci
-            displayName: 'Install dependencies' # Replace with INSTALL_CMD
+            displayName: "Install dependencies" # Replace with INSTALL_CMD
 
           # Frontend/Fullstack only — skipped for backend-only stacks
           - script: npx playwright install --with-deps chromium
             condition: ne(variables['TEST_STACK_TYPE'], 'backend')
-            displayName: 'Install Playwright browsers' # Replace with BROWSER_INSTALL
+            displayName: "Install Playwright browsers" # Replace with BROWSER_INSTALL
 
           - script: |
               echo "Starting burn-in loop - detecting flaky tests"
@@ -147,9 +147,9 @@ stages:
                 npm run test:e2e || exit 1
               done
               echo "Burn-in complete - no flaky tests detected"
-            displayName: 'Run burn-in loop (10 iterations)' # Replace npm run test:e2e with TEST_CMD
+            displayName: "Run burn-in loop (10 iterations)" # Replace npm run test:e2e with TEST_CMD
 
           - publish: test-results/
             artifact: burn-in-failures
             condition: failed()
-            displayName: 'Upload burn-in failure artifacts'
+            displayName: "Upload burn-in failure artifacts"

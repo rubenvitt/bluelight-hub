@@ -191,7 +191,8 @@ Update the project context file with completion information:
 project_name: '{{project_name}}'
 user_name: '{{user_name}}'
 date: '{{date}}'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'quality_rules', 'workflow_rules', 'anti_patterns']
+sections_completed:
+  ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'quality_rules', 'workflow_rules', 'anti_patterns']
 status: 'complete'
 rule_count: { { total_rules } }
 optimized_for_llm: true

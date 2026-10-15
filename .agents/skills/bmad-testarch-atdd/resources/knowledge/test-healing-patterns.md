@@ -40,7 +40,13 @@ export type SelectorFailure = {
  * Detect stale selector failures
  */
 export function isSelectorFailure(error: Error): boolean {
-  const patterns = [/locator.*resolved to 0 elements/i, /element not found/i, /waiting for locator.*to be visible/i, /selector.*did not match any elements/i, /unable to find element/i];
+  const patterns = [
+    /locator.*resolved to 0 elements/i,
+    /element not found/i,
+    /waiting for locator.*to be visible/i,
+    /selector.*did not match any elements/i,
+    /unable to find element/i,
+  ];
 
   return patterns.some((pattern) => pattern.test(error.message));
 }
@@ -405,7 +411,14 @@ export type NetworkFailure = {
  * Detect network failure
  */
 export function isNetworkFailure(error: Error): boolean {
-  const patterns = [/api.*call.*failed/i, /request.*failed/i, /network.*error/i, /500.*internal server error/i, /503.*service unavailable/i, /fetch.*failed/i];
+  const patterns = [
+    /api.*call.*failed/i,
+    /request.*failed/i,
+    /network.*error/i,
+    /500.*internal server error/i,
+    /503.*service unavailable/i,
+    /fetch.*failed/i,
+  ];
 
   return patterns.some((pattern) => pattern.test(error.message));
 }

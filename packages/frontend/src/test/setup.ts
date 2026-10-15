@@ -1,8 +1,17 @@
 import '@testing-library/jest-dom/vitest';
+import 'fake-indexeddb/auto';
 import { cleanup } from '@testing-library/react';
 import { afterEach, expect } from 'vitest';
 import { expectNoAxeViolations, type ExpectNoAxeViolationsOptions } from './a11y';
 import { createMatchMediaList, resetTestViewport } from './viewport';
+
+if (!globalThis.crypto || !globalThis.crypto.subtle) {
+  const { webcrypto } = await import('node:crypto');
+  Object.defineProperty(globalThis, 'crypto', {
+    configurable: true,
+    value: webcrypto,
+  });
+}
 
 function createStorageMock(): Storage {
   const data = new Map<string, string>();

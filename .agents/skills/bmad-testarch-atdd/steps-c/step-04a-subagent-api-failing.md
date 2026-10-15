@@ -215,7 +215,11 @@ Write JSON to temp file: `/tmp/tea-atdd-api-tests-{{timestamp}}.json`
       "content": "[full TypeScript test file content with test.skip()]",
       "description": "ATDD API test scaffolds for user registration (RED PHASE)",
       "expected_to_fail": true,
-      "acceptance_criteria_covered": ["User can register with email/password", "System returns 201 on success", "System returns 400 if email exists"],
+      "acceptance_criteria_covered": [
+        "User can register with email/password",
+        "System returns 201 on success",
+        "System returns 400 if email exists"
+      ],
       "priority_coverage": {
         "P0": 1,
         "P1": 2,
@@ -225,7 +229,13 @@ Write JSON to temp file: `/tmp/tea-atdd-api-tests-{{timestamp}}.json`
     }
   ],
   "fixture_needs": ["userDataFactory"],
-  "knowledge_fragments_used": ["api-request", "data-factories", "api-testing-patterns", "pactjs-utils-consumer-helpers", "pact-consumer-di"],
+  "knowledge_fragments_used": [
+    "api-request",
+    "data-factories",
+    "api-testing-patterns",
+    "pactjs-utils-consumer-helpers",
+    "pact-consumer-di"
+  ],
   "test_count": 3,
   "tdd_phase": "RED",
   "provider_scrutiny": "completed",

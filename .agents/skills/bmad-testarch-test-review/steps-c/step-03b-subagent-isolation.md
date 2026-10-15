@@ -89,7 +89,11 @@ const score = Math.max(0, 100 - totalPenalty);
     "MEDIUM": 0,
     "LOW": 0
   },
-  "recommendations": ["Add beforeEach hooks to create test data", "Add afterEach hooks to cleanup created records", "Use test.describe.configure({ mode: 'parallel' }) to enforce isolation"],
+  "recommendations": [
+    "Add beforeEach hooks to create test data",
+    "Add afterEach hooks to cleanup created records",
+    "Use test.describe.configure({ mode: 'parallel' }) to enforce isolation"
+  ],
   "summary": "Tests are well isolated with 1 HIGH severity violation"
 }
 ```

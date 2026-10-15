@@ -201,7 +201,13 @@ describe('PatientenDashboard a11y (Story 1.9, AC5 / UX-DR32 / NFR-A1)', () => {
       // gehört in die Page-Shell). Folge-Sub-Headings starten bei h2 oder
       // tiefer.
       const headings = screen.queryAllByRole('heading');
-      const levels = headings.map((h) => Number(h.getAttribute('aria-level') ?? h.tagName.replace(/^H/, '')));
+      // NaN-Schutz: `role="heading"`-Elemente ohne `aria-level` und ohne HN-Tag
+      // liefern `Number(undefined) === NaN`. NaN-Vergleiche sind immer false und
+      // würden den Skip-Check stillschweigend überspringen — daher filtern.
+      const levels = headings.map((h) => Number(h.getAttribute('aria-level') ?? h.tagName.replace(/^H/, ''))).filter((level) => Number.isFinite(level));
+      // Vacuous-Pass-Schutz: Ein Dashboard ohne Headings darf nicht still grün
+      // durchlaufen (Loop-Bedingung `i < levels.length` würde sonst nie greifen).
+      expect(levels.length).toBeGreaterThan(0);
       // Skip > 1 Stufe in DOM-Order erkennen (z.B. h2 → h4 darf nicht passieren).
       for (let i = 1; i < levels.length; i += 1) {
         const delta = levels[i] - levels[i - 1];
@@ -252,42 +258,56 @@ describe('PatientenDashboard a11y (Story 1.9, AC5 / UX-DR32 / NFR-A1)', () => {
       // wird vom Style-System nicht aktiv abgefragt. Der Mock dient hier als
       // Convention-Signal, damit nachgelagerte Hooks (z.B. Framer-Motion oder
       // useReducedMotion) konsistent reagieren.
-      const matchMediaSpy = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
-        matches: query.includes('prefers-reduced-motion: reduce'),
-        media: query,
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      }));
+      //
+      // Wichtig: Der globale `setTestViewport`-Mock (siehe `@/test/viewport`)
+      // installiert `window.matchMedia` als Delegate, das u.a. `min-width: ...`-
+      // Queries auflöst. Ein vollständiger Mock-Override würde dieses System
+      // killen — daher delegieren wir alle Nicht-Motion-Queries an die
+      // original-installierte `matchMedia`-Implementation.
+      const originalMatchMedia = window.matchMedia;
+      const matchMediaSpy = vi.spyOn(window, 'matchMedia').mockImplementation((query) => {
+        if (/prefers-reduced-motion:\s*reduce/i.test(query)) {
+          return {
+            matches: true,
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+          } as MediaQueryList;
+        }
+        return originalMatchMedia.call(window, query);
+      });
 
-      setTestViewport({ width: 1280, height: 800 });
+      try {
+        setTestViewport({ width: 1280, height: 800 });
 
-      const { container } = render(
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)] gap-6">
-          <PatientenDashboard einsatzId="ein_01" filters={{}} onFiltersChange={vi.fn()} />
-          <PatientDetailPanel einsatzId="ein_01" patientId="pat_0" variant="split-view" />
-        </div>,
-        { wrapper: buildWrapper(queryClient) },
-      );
+        const { container } = render(
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)] gap-6">
+            <PatientenDashboard einsatzId="ein_01" filters={{}} onFiltersChange={vi.fn()} />
+            <PatientDetailPanel einsatzId="ein_01" patientId="pat_0" variant="split-view" />
+          </div>,
+          { wrapper: buildWrapper(queryClient) },
+        );
 
-      await screen.findByTestId('patient-detail-panel');
+        await screen.findByTestId('patient-detail-panel');
 
-      // Pflicht: jede `animate-*`-Klasse hat eine `motion-reduce:animate-none`-
-      // oder `motion-reduce:transition-none`-Begleitung. `motion-reduce:hidden`
-      // wird NICHT als Fallback akzeptiert — Element verstecken ist semantisch
-      // verschieden von „Animation pausieren" und kann eigene a11y-Verletzungen
-      // verursachen (UX-DR32, Story 1.8 AC7 Highlight-Fallback).
-      const animated = container.querySelectorAll('[class*="animate-"]');
-      for (const el of animated) {
-        const className = el.className;
-        const hasReducedFallback = /motion-reduce:(animate-none|transition-none)/.test(className);
-        expect(hasReducedFallback, `Element ohne reduced-motion-Fallback (animate-none/transition-none): ${className}`).toBe(true);
+        // Pflicht: jede `animate-*`-Klasse hat eine `motion-reduce:animate-none`-
+        // oder `motion-reduce:transition-none`-Begleitung. `motion-reduce:hidden`
+        // wird NICHT als Fallback akzeptiert — Element verstecken ist semantisch
+        // verschieden von „Animation pausieren" und kann eigene a11y-Verletzungen
+        // verursachen (UX-DR32, Story 1.8 AC7 Highlight-Fallback).
+        const animated = container.querySelectorAll('[class*="animate-"]');
+        for (const el of animated) {
+          const className = el.className;
+          const hasReducedFallback = /motion-reduce:(animate-none|transition-none)/.test(className);
+          expect(hasReducedFallback, `Element ohne reduced-motion-Fallback (animate-none/transition-none): ${className}`).toBe(true);
+        }
+      } finally {
+        matchMediaSpy.mockRestore();
       }
-
-      matchMediaSpy.mockRestore();
     });
   });
 });

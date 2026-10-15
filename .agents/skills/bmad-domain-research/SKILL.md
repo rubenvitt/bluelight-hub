@@ -45,7 +45,6 @@ Treat every entry in `{workflow.persistent_facts}` as foundational context you c
 ### Step 4: Load Config
 
 Load config from `{project-root}/_bmad/bmm/config.yaml` and resolve:
-
 - Use `{user_name}` for greeting
 - Use `{communication_language}` for all communications
 - Use `{document_output_language}` for output documents
@@ -69,7 +68,6 @@ Activation is complete. Begin the workflow below.
 **What domain, industry, or sector do you want to research?**
 
 For example:
-
 - 'The healthcare technology industry'
 - 'Sustainable packaging regulations in Europe'
 - 'Construction and building materials sector'
@@ -78,7 +76,6 @@ For example:
 ### Topic Clarification
 
 Based on the user's topic, briefly clarify:
-
 1. **Core Domain**: "What specific aspect of [domain] are you most interested in?"
 2. **Research Goals**: "What do you hope to achieve with this research?"
 3. **Scope**: "Should we focus broadly or dive deep into specific aspects?"

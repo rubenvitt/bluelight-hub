@@ -475,7 +475,10 @@ test('user registration flow', async ({ page, apiRequest }) => {
 When working with feature flags, layer them into factories:
 
 ```typescript
-export const createUserWithFlags = (overrides: Partial<User> = {}, flags: Record<string, boolean> = {}): User & { flags: Record<string, boolean> } => ({
+export const createUserWithFlags = (
+  overrides: Partial<User> = {},
+  flags: Record<string, boolean> = {},
+): User & { flags: Record<string, boolean> } => ({
   ...createUser(overrides),
   flags: {
     'new-dashboard': false,

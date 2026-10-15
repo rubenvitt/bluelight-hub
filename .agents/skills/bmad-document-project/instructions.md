@@ -31,7 +31,6 @@
     3. **Cancel** - Exit without changes
 
     Your choice [1/2/3]:
-
 </ask>
 
   <check if="user selects 1">

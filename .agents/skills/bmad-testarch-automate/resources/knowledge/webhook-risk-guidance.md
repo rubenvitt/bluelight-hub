@@ -49,10 +49,20 @@ A complete webhook test covers:
 ```typescript
 // Template factories scoped by ID — parallel safety
 const movieCreated = (movieId: number) =>
-  webhookTemplate<{ event: string; data: { id: number } }>('movie.created').matchField('event', 'movie.created').matchField('data.id', movieId).withTimeout(15_000).withInterval(500).build();
+  webhookTemplate<{ event: string; data: { id: number } }>('movie.created')
+    .matchField('event', 'movie.created')
+    .matchField('data.id', movieId)
+    .withTimeout(15_000)
+    .withInterval(500)
+    .build();
 
 const movieDeleted = (movieId: number) =>
-  webhookTemplate<{ event: string; data: { id: number } }>('movie.deleted').matchField('event', 'movie.deleted').matchField('data.id', movieId).withTimeout(15_000).withInterval(500).build();
+  webhookTemplate<{ event: string; data: { id: number } }>('movie.deleted')
+    .matchField('event', 'movie.deleted')
+    .matchField('data.id', movieId)
+    .withTimeout(15_000)
+    .withInterval(500)
+    .build();
 
 test('movie deletion triggers a webhook with correct payload', async ({ authToken, addMovie, deleteMovie, webhookRegistry }) => {
   const movie = generateMovieWithoutId();

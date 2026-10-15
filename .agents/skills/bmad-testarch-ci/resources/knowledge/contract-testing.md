@@ -643,7 +643,10 @@ export class ApiError extends Error {
 /**
  * User API client with retry and error handling
  */
-export async function getUserById(id: number, config?: AxiosRequestConfig & { retries?: number; retryDelay?: number; respectRateLimit?: boolean }): Promise<User> {
+export async function getUserById(
+  id: number,
+  config?: AxiosRequestConfig & { retries?: number; retryDelay?: number; respectRateLimit?: boolean },
+): Promise<User> {
   const { retries = 3, retryDelay = 1000, respectRateLimit = true, ...axiosConfig } = config || {};
 
   let lastError: Error;
@@ -724,7 +727,19 @@ function tagRelease(version: string, environment: 'staging' | 'production') {
 
   execFileSync(
     'pact-broker',
-    ['create-version-tag', '--pacticipant', PACTICIPANT, '--version', version, '--tag', environment, '--broker-base-url', PACT_BROKER_BASE_URL, '--broker-token', PACT_BROKER_TOKEN],
+    [
+      'create-version-tag',
+      '--pacticipant',
+      PACTICIPANT,
+      '--version',
+      version,
+      '--tag',
+      environment,
+      '--broker-base-url',
+      PACT_BROKER_BASE_URL,
+      '--broker-token',
+      PACT_BROKER_TOKEN,
+    ],
     { stdio: 'inherit' },
   );
 }
@@ -737,7 +752,19 @@ function recordDeployment(version: string, environment: 'staging' | 'production'
 
   execFileSync(
     'pact-broker',
-    ['record-deployment', '--pacticipant', PACTICIPANT, '--version', version, '--environment', environment, '--broker-base-url', PACT_BROKER_BASE_URL, '--broker-token', PACT_BROKER_TOKEN],
+    [
+      'record-deployment',
+      '--pacticipant',
+      PACTICIPANT,
+      '--version',
+      version,
+      '--environment',
+      environment,
+      '--broker-base-url',
+      PACT_BROKER_BASE_URL,
+      '--broker-token',
+      PACT_BROKER_TOKEN,
+    ],
     { stdio: 'inherit' },
   );
 }
@@ -751,7 +778,19 @@ function cleanupOldPacts() {
 
   execFileSync(
     'pact-broker',
-    ['clean', '--pacticipant', PACTICIPANT, '--broker-base-url', PACT_BROKER_BASE_URL, '--broker-token', PACT_BROKER_TOKEN, '--keep-latest-for-branch', '1', '--keep-min-age', '30'],
+    [
+      'clean',
+      '--pacticipant',
+      PACTICIPANT,
+      '--broker-base-url',
+      PACT_BROKER_BASE_URL,
+      '--broker-token',
+      PACT_BROKER_TOKEN,
+      '--keep-latest-for-branch',
+      '1',
+      '--keep-min-age',
+      '30',
+    ],
     { stdio: 'inherit' },
   );
 }

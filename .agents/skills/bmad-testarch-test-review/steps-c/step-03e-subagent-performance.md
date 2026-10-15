@@ -98,7 +98,12 @@ const score = Math.max(0, 100 - totalPenalty);
     "avg_test_duration_estimate": "~2 seconds",
     "slow_tests": ["bulk-operations.spec.ts (>30s)"]
   },
-  "recommendations": ["Enable parallel mode where possible", "Reduce setup data to minimum needed", "Use fixtures to share expensive setup across tests", "Remove unnecessary .serial constraints"],
+  "recommendations": [
+    "Enable parallel mode where possible",
+    "Reduce setup data to minimum needed",
+    "Use fixtures to share expensive setup across tests",
+    "Remove unnecessary .serial constraints"
+  ],
   "summary": "Good performance with 2 violations - 80% tests can run in parallel"
 }
 ```

@@ -1,15 +1,15 @@
 ---
 name: 'step-04a-subagent-security'
-description: 'Subagent: Security NFR assessment'
+description: 'Subagent: Security NFR evidence audit'
 subagent: true
 outputFile: '/tmp/tea-nfr-security-{{timestamp}}.json'
 ---
 
-# Subagent 4A: Security NFR Assessment
+# Subagent 4A: Security NFR Evidence Audit
 
 ## SUBAGENT CONTEXT
 
-This is an **isolated subagent** running in parallel with other NFR domain assessments.
+This is an **isolated subagent** running in parallel with other NFR domain evidence audits.
 
 **Your task:** Assess SECURITY NFR domain only.
 
@@ -25,7 +25,7 @@ This is an **isolated subagent** running in parallel with other NFR domain asses
 
 ## SUBAGENT TASK
 
-### 1. Security Assessment Categories
+### 1. Security Evidence Audit Categories
 
 **Assess the following security dimensions:**
 
@@ -120,7 +120,11 @@ For each category, determine status:
     "HIPAA": "N/A",
     "PCI-DSS": "FAIL"
   },
-  "priority_actions": ["Fix SQL injection vulnerability (URGENT)", "Enable database encryption within 30 days", "Implement rate limiting for all APIs"],
+  "priority_actions": [
+    "Fix SQL injection vulnerability (URGENT)",
+    "Enable database encryption within 30 days",
+    "Implement rate limiting for all APIs"
+  ],
   "summary": "Security posture is MEDIUM risk with 1 critical vulnerability requiring immediate attention"
 }
 ```

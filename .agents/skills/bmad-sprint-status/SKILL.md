@@ -64,9 +64,9 @@ Activation is complete. Begin the workflow below.
 
 ## Input Files
 
-| Input         | Path                   | Load Strategy |
-| ------------- | ---------------------- | ------------- |
-| Sprint status | `{sprint_status_file}` | FULL_LOAD     |
+| Input | Path | Load Strategy |
+|-------|------|---------------|
+| Sprint status | `{sprint_status_file}` | FULL_LOAD |
 
 ## Execution
 

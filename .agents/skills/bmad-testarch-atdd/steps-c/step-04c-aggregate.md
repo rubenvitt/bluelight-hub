@@ -244,9 +244,19 @@ fs.writeFileSync(`{test_artifacts}/atdd-checklist-{story_key}.md`, checklistCont
 ```javascript
 const resolvedMode = subagentContext?.execution?.resolvedMode; // Provided by Step 4's orchestration context
 const subagentExecutionLabel =
-  resolvedMode === 'sequential' ? 'SEQUENTIAL (API → E2E)' : resolvedMode === 'agent-team' ? 'AGENT-TEAM (API + E2E)' : resolvedMode === 'subagent' ? 'SUBAGENT (API + E2E)' : 'PARALLEL (API + E2E)';
+  resolvedMode === 'sequential'
+    ? 'SEQUENTIAL (API → E2E)'
+    : resolvedMode === 'agent-team'
+      ? 'AGENT-TEAM (API + E2E)'
+      : resolvedMode === 'subagent'
+        ? 'SUBAGENT (API + E2E)'
+        : 'PARALLEL (API + E2E)';
 const performanceGainLabel =
-  resolvedMode === 'sequential' ? 'baseline (no parallel speedup)' : resolvedMode === 'agent-team' || resolvedMode === 'subagent' ? '~50% faster than sequential' : 'mode-dependent';
+  resolvedMode === 'sequential'
+    ? 'baseline (no parallel speedup)'
+    : resolvedMode === 'agent-team' || resolvedMode === 'subagent'
+      ? '~50% faster than sequential'
+      : 'mode-dependent';
 
 const summary = {
   tdd_phase: 'RED',
@@ -256,7 +266,10 @@ const summary = {
   all_tests_skipped: true,
   expected_to_fail: true,
   fixtures_created: uniqueFixtures.length,
-  acceptance_criteria_covered: [...apiTestsOutput.tests.flatMap((t) => t.acceptance_criteria_covered), ...e2eTestsOutput.tests.flatMap((t) => t.acceptance_criteria_covered)],
+  acceptance_criteria_covered: [
+    ...apiTestsOutput.tests.flatMap((t) => t.acceptance_criteria_covered),
+    ...e2eTestsOutput.tests.flatMap((t) => t.acceptance_criteria_covered),
+  ],
   knowledge_fragments_used: [...apiTestsOutput.knowledge_fragments_used, ...e2eTestsOutput.knowledge_fragments_used],
   subagent_execution: subagentExecutionLabel,
   performance_gain: performanceGainLabel,

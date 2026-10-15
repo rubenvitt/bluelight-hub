@@ -58,7 +58,10 @@ Collect exactly N matching webhooks. Use `matchPredicate` with all IDs to preven
 
 ```typescript
 await log.step('Create two movies concurrently');
-const [{ body: res1 }, { body: res2 }] = await Promise.all([addMovie(authToken, generateMovieWithoutId()), addMovie(authToken, generateMovieWithoutId())]);
+const [{ body: res1 }, { body: res2 }] = await Promise.all([
+  addMovie(authToken, generateMovieWithoutId()),
+  addMovie(authToken, generateMovieWithoutId()),
+]);
 
 const [id1, id2] = [res1.data.id, res2.data.id];
 

@@ -185,7 +185,8 @@ const firstResolvedToken = (...values) => {
   return null;
 };
 
-const oracleResolutionMode = firstResolvedToken(runtime.getOracleResolutionMode?.(), progressFrontmatter.oracleResolutionMode) || 'formal_requirements';
+const oracleResolutionMode =
+  firstResolvedToken(runtime.getOracleResolutionMode?.(), progressFrontmatter.oracleResolutionMode) || 'formal_requirements';
 const resolvedCoverageBasis =
   firstResolvedToken(runtime.getResolvedCoverageBasis?.(), progressFrontmatter.coverageBasis) ||
   {
@@ -205,7 +206,8 @@ const resolvedOracleConfidence =
   }[oracleResolutionMode] ||
   'medium';
 const oracleSources = runtime.getOracleSources?.() || progressFrontmatter.oracleSources || [];
-const externalPointerStatus = firstResolvedToken(runtime.getExternalPointerStatus?.(), progressFrontmatter.externalPointerStatus) || 'not_used';
+const externalPointerStatus =
+  firstResolvedToken(runtime.getExternalPointerStatus?.(), progressFrontmatter.externalPointerStatus) || 'not_used';
 const recommendations = [];
 
 // Critical gaps (P0)
@@ -352,7 +354,10 @@ const uniqueTests = new Map();
     // Do NOT use the per-requirement `index` as a fallback — the same test can appear
     // at different indices across requirements, producing spurious duplicate entries.
     // Use only stable, test-intrinsic fields; omit line when unavailable.
-    const stableId = test.id || [test.file, test.title || test.name, test.line].filter((value) => value !== undefined && value !== null && value !== '').join(':') || null; // unresolvable — skip rather than manufacture a key
+    const stableId =
+      test.id ||
+      [test.file, test.title || test.name, test.line].filter((value) => value !== undefined && value !== null && value !== '').join(':') ||
+      null; // unresolvable — skip rather than manufacture a key
 
     if (stableId === null || uniqueTests.has(stableId)) return;
     const status = normalizeTestStatus(test);

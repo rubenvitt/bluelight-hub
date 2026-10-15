@@ -47,13 +47,11 @@ Read the target's `customize.toml`. Top-level `[agent]` or `[workflow]` block de
 If a team or user override already exists, read it first and summarize what's already overridden before composing.
 
 **Cross-cutting intent — walk both surfaces with the user:**
-
 - Every workflow a given agent runs → agent surface (e.g. `bmad-agent-pm.toml` with `persistent_facts`, `principles`).
-- One workflow only → workflow surface (e.g. `bmad-create-prd.toml` with `activation_steps_prepend`).
+- One workflow only → workflow surface (e.g. `bmad-prd.toml` with `activation_steps_prepend`).
 - Several specific workflows → multiple workflow overrides in sequence, not an agent override.
 
 **Single-surface heuristic:**
-
 - Workflow-level: template swap, output path, step-specific behavior, or a named scalar already exposed (`*_template`, `on_complete`). Surgical, reliable.
 - Agent-level: persona, communication style, org-wide facts, menu changes, behavior that should apply to every workflow the agent dispatches.
 
@@ -66,7 +64,6 @@ Intent outside the exposed surface (step logic, ordering, anything not in `custo
 Translate plain-English into TOML against the target's `customize.toml` fields. If an existing override was read, frame the change as additive.
 
 Merge semantics:
-
 - **Scalars** (`icon`, `role`, `*_template`, `on_complete`) — override wins.
 - **Append arrays** (`persistent_facts`, `activation_steps_prepend`/`append`, `principles`) — team/user entries append in order.
 - **Keyed arrays of tables** (menu items with `code` or `id`) — matching keys replace, new keys append.
@@ -78,7 +75,6 @@ Overrides are sparse: only the fields being changed. Never copy the whole `custo
 ## Step 5: Team or user placement
 
 Under `{project-root}/_bmad/custom/`:
-
 - `{skill-name}.toml` — team, committed. Policies, org conventions, compliance.
 - `{skill-name}.user.toml` — user, gitignored. Personal tone, private facts, shortcuts.
 
@@ -90,17 +86,14 @@ Default by character (policy → team, personal → user), confirm before writin
 2. Wait for explicit yes.
 3. Write. Create `{project-root}/_bmad/custom/` if needed.
 4. Verify:
-
    ```
    python3 {project-root}/_bmad/scripts/resolve_customization.py --skill <install-path> --key <agent-or-workflow>
    ```
-
    Show the merged output, point out the changed fields.
 
    **Resolver missing or fails:** read whichever layers exist — `<install-path>/customize.toml` (base), `{project-root}/_bmad/custom/{skill-name}.toml` (team), `{project-root}/_bmad/custom/{skill-name}.user.toml` (user) — apply base → team → user with the same merge rules (scalars override, tables deep-merge, `code`/`id`-keyed arrays merge by key, all other arrays append), describe how the changed fields resolve.
 
    **Verify shows override didn't land** (field unchanged, merge conflict, file not picked up): re-enter Step 4 with the verify output as context. Usually wrong field name, wrong merge mode (scalar vs array), or wrong scope.
-
 5. Summarize what changed, where the file lives, how to iterate. Remind the user to commit team overrides.
 
 ## Complete when

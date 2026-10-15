@@ -45,6 +45,7 @@ Architecture complete. Invoke the `bmad-help` skill.
 
 Upon Completion of task output: offer to answer any questions about the Architecture Document.
 
+
 ## SUCCESS METRICS:
 
 ✅ Complete architecture document delivered with all sections

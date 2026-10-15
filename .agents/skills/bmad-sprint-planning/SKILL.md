@@ -72,9 +72,9 @@ Activation is complete. Begin the workflow below.
 
 ## Input Files
 
-| Input | Path                                                                                     | Load Strategy |
-| ----- | ---------------------------------------------------------------------------------------- | ------------- |
-| Epics | `{planning_artifacts}/*epic*.md` (whole) or `{planning_artifacts}/*epic*/*.md` (sharded) | FULL_LOAD     |
+| Input | Path | Load Strategy |
+|-------|------|---------------|
+| Epics | `{planning_artifacts}/*epic*.md` (whole) or `{planning_artifacts}/*epic*/*.md` (sharded) | FULL_LOAD |
 
 ## Execution
 

@@ -1,15 +1,15 @@
 ---
 name: 'step-04e-aggregate-nfr'
-description: 'Aggregate NFR domain assessments into executive summary'
+description: 'Aggregate NFR domain evidence audits into executive summary'
 nextStepFile: '{skill-root}/steps-c/step-05-generate-report.md'
 outputFile: '{test_artifacts}/nfr-assessment.md'
 ---
 
-# Step 4E: Aggregate NFR Assessment Results
+# Step 4E: Aggregate NFR Evidence Audit Results
 
 ## STEP GOAL
 
-Read outputs from 4 parallel NFR subagents, calculate overall risk level, aggregate compliance status, and identify cross-domain risks.
+Read outputs from 4 parallel NFR evidence audit subagents, calculate overall risk level, aggregate compliance status, and identify cross-domain risks.
 
 ---
 
@@ -148,7 +148,11 @@ const subagentExecutionLabel =
         : 'MODE-DEPENDENT (4 NFR domains)';
 
 const performanceGainLabel =
-  resolvedMode === 'sequential' ? 'baseline (no parallel speedup)' : resolvedMode === 'agent-team' || resolvedMode === 'subagent' ? '~67% faster than sequential' : 'mode-dependent';
+  resolvedMode === 'sequential'
+    ? 'baseline (no parallel speedup)'
+    : resolvedMode === 'agent-team' || resolvedMode === 'subagent'
+      ? '~67% faster than sequential'
+      : 'mode-dependent';
 
 const executiveSummary = {
   overall_risk: overallRisk,
@@ -182,7 +186,7 @@ fs.writeFileSync('/tmp/tea-nfr-summary-{{timestamp}}.json', JSON.stringify(execu
 ### 7. Display Summary to User
 
 ```
-✅ NFR Assessment Complete ({subagentExecutionLabel})
+✅ NFR Evidence Audit Complete ({subagentExecutionLabel})
 
 🎯 Overall Risk Level: {overallRisk}
 

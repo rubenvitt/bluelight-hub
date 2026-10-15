@@ -67,7 +67,6 @@ Present user with options for the original document:
 > What would you like to do with the original document `[source-document-name]`?
 >
 > Options:
->
 > - `[d]` Delete - Remove the original (recommended - shards can always be recombined)
 > - `[m]` Move to archive - Move original to a backup/archive location
 > - `[k]` Keep - Leave original in place (NOT recommended - defeats sharding purpose)
